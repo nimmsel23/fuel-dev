@@ -1,21 +1,33 @@
 # Fuel Centre
 
-Offlinefähiges Nutrition Journal als PWA plus Node-Server plus CLI-Backend.
+Offlinefähiges Nutrition Journal als mobile PWA plus Node-Server plus CLI-Backend.
 
-Ziel: Ernährungs-Tracking ohne Abhängigkeit von Fremd-Apps — lokal, dateibasiert,
-später als Klienten-Feature in `~/vital` integrierbar.
-
----
+Ziel:
+- Ernährungstagebuch für die Ausbildung zum Ernährungstrainer
+- privates Tracking ohne Abhängigkeit von TickTick, Zero, HabitShare, AwesomeHabits, FitBit oder ähnlichen Fremd-Apps
+- lokal nutzbar, offlinefähig, später leicht in weitere Systeme integrierbar
+- Klienten-Feature in `~/vital` geplant
 
 ## Schichten
 
-| Schicht | Pfad | Port |
-|---------|------|------|
-| V1 / Fuel Classic | `public/index.html` | 9000 |
-| V2 / Fuel Studio | `index.html` + `src/` (Vite/React/Tailwind) | 9000/v2 |
-| CLI-Backend | `~/Nutrition/bin/wger-food` | — |
+- `v1 / Fuel Classic` - das Vanilla-HTML in `public/index.html`, stabiler Fallback und sofort nutzbar
+- `v2 / Fuel Studio` - das neue Vite/Tailwind-Frontend in `index.html` + `src/`
+- `/v2` - sichtbarer Einstieg zur neuen UI-Schicht
+- CLI-Backend - `~/Nutrition/bin/wger-food` + `wger-generate` (unabhängig vom Server)
 
----
+## Was hier drin ist
+
+- `public/index.html` - mobile PWA für Mahlzeiten, Journal und Supplements
+- `public/index.html` bleibt als `v1 / Fuel Classic` erhalten
+- `index.html` + `src/` - `v2 / Fuel Studio` mit Vite/Tailwind
+- `public/sw.js` - Service Worker für Offline-Caching
+- `public/manifest.json` - Installationsmanifest für die PWA
+- `server.mjs` - lokaler Node-Server mit JSON-Speicher
+- `fuel-log.zsh` - einfache CLI zum schnellen Erfassen von Mahlzeiten
+- `fuelctx.zsh` - kleines TUI/Shell-Wrapper-Skript für den Dev-Server
+- `data/` - lokaler, dateibasierter Speicher für Logs und Kataloge
+- `NUTRITION.md` - Doku für CLI-Backend und Ausbildungskontext
+- `ARCHITECTURE.md` - technische Architektur, implementiert vs. geplant
 
 ## CLI-Backend: wger-food
 
@@ -24,94 +36,134 @@ Schnelles Erfassen ohne UI — Open Food Facts → fzf → Makros skalieren → 
 ```bash
 wger-food haferflocken     # Suche → fzf-Auswahl → S/M/L/XL Portion → Log-Zeile
 wger-generate              # 14-Tage-Protokoll für Ausbildung (~2800 kcal/Tag)
-wger-generate --days 7     # 7 Tage
-wger-generate --preview    # nur anzeigen
+wger-generate --days 7     # 7 Tage (Ernährungstrainer-Pflichtaufgabe)
+wger-generate --preview    # nur anzeigen, nichts schreiben
 ```
 
 Vollständige Doku: [NUTRITION.md](NUTRITION.md)
 
----
+## Laufzeit
 
-## API-Endpunkte
+- Node.js als Server- und Tooling-Basis
+- `web-push` bleibt für Push-/VAPID-Workflows drin
+- das neue Frontend nutzt React, Tailwind, FullCalendar, React Query, Recharts, Zustand, Zod und React Hook Form
+- das alte Vanilla-Frontend bleibt als fallbackfähige Einzeldatei bestehen
 
-| Methode | Pfad | Beschreibung |
-|---------|------|--------------|
-| GET | `/health` | Server-Status |
-| GET | `/nutrition/search?q=<query>&limit=<n>` | **OFF-Proxy** — Lebensmittel suchen |
-| GET | `/nutrition/log?date=YYYY-MM-DD` | Tages-Log laden |
-| POST | `/nutrition/log` | Mahlzeit + Wasser loggen |
-| GET | `/nutrition/journal?date=YYYY-MM-DD` | Journal-Text |
-| POST | `/nutrition/journal` | Journal speichern |
-| GET | `/nutrition/journal/list` | Alle Journal-Einträge |
-| GET | `/supplements/catalog` | Supplement-Katalog |
-| POST | `/supplements/catalog` | Supplement anlegen |
-| GET | `/supplements/log?date=YYYY-MM-DD` | Tages-Einnahmen |
-| POST | `/supplements/log` | Supplement loggen / löschen |
-| GET | `/supplements/stats?days=30&anchor=YYYY-MM-DD` | Streak + 30-Tage-Stats |
-| GET/POST | `/fuel/log` | Legacy Fuel-Logging |
-| GET | `/fuel/progress` | Alle Legacy-Logs |
+## Datenmodell
+
+Der Server legt Daten lokal unter `data/` ab:
+
+- `data/nutrition/` - Tagesprotokolle mit Mahlzeiten und Wasser
+- `data/nutrition_journal/` - freie Journal-Einträge als Markdown
+- `data/supplements/` - Katalog und Einnahmelogs
+- `data/fuel/` - älteres Fuel-Logging, falls noch genutzte Alt-Daten vorhanden sind
+
+CLI-Logs landen separat unter `~/Nutrition/logs/YYYY-MM-DD.md` (Markdown, Ausbildungsformat).
+
+## Endpunkte
+
+- `GET /health`
+- `GET /nutrition/search?q=<query>&limit=<n>` — **Open Food Facts Proxy** (neu)
+- `GET /nutrition/log?date=YYYY-MM-DD`
+- `POST /nutrition/log`
+- `GET /nutrition/journal?date=YYYY-MM-DD`
+- `POST /nutrition/journal`
+- `GET /nutrition/journal/list`
+- `GET /supplements/catalog`
+- `POST /supplements/catalog`
+- `GET /supplements/log?date=YYYY-MM-DD`
+- `POST /supplements/log`
+- `GET /supplements/stats?days=30&anchor=YYYY-MM-DD`
+- `GET /fuel/progress` (legacy)
+- `POST /fuel/log` (legacy)
 
 ### `/nutrition/search` — Open Food Facts Proxy
 
 ```bash
-# Lokal testen:
 http :9000/nutrition/search q==haferflocken limit==10
 ```
 
-Antwort:
-```json
-{
-  "ok": true,
-  "count": 8,
-  "results": [
-    { "name": "Haferflocken", "brand": "Kölln", "kcal": 363, "kh": 56, "fett": 6.7, "ew": 13 }
-  ]
-}
-```
-
----
+Gibt `name, brand, kcal, kh, fett, ew` pro 100 g zurück. Kein API-Key, kein Account.
 
 ## V2 Food Search (Journal-Tab)
 
-Im Journal-Tab ist über dem Meal Logger ein **Food Search**-Block:
+Über dem Meal Logger im Journal-Tab:
 
-1. Suchbegriff tippen → debounced (350 ms) → `/nutrition/search`
-2. Dropdown mit Nährwerten pro 100 g (Name, Brand, Kcal, P/C/F)
+1. Suchbegriff tippen → debounced 350 ms → `/nutrition/search`
+2. Dropdown mit Nährwerten pro 100 g
 3. Auswahl → Portionsgröße: **S** 100 g / **M** 200 g / **L** 300 g / **XL** 450 g
-4. Alle Makro-Felder des Formulars werden automatisch befüllt
+4. Makro-Felder (kcal, protein, carbs, fat) werden automatisch befüllt
 5. Save meal → schreibt nach `data/nutrition/YYYY-MM-DD.json`
 
----
-
-## Datenpfade
-
-| Was | Wo |
-|-----|----|
-| API-Logs (JSON) | `data/nutrition/YYYY-MM-DD.json` |
-| Journal | `data/nutrition_journal/YYYY-MM-DD.md` |
-| Supplements | `data/supplements/` |
-| CLI-Logs (Markdown) | `~/Nutrition/logs/YYYY-MM-DD.md` |
-
----
-
-## Start
+## Nutzung
 
 ```bash
 npm install
-npm start              # Port 9000
-npm run dev            # nodemon + Vite parallel
-npm run build          # Vite baut nach /opt/fuel
-npm run prod           # Port 8000, /opt/fuel als Static Root
+npm start
 ```
 
+Danach läuft die App standardmäßig auf `http://127.0.0.1:9000`.
+
 Einstiege:
-- `http://127.0.0.1:9000/` → V1 / Fuel Classic
-- `http://127.0.0.1:9000/v2` → V2 / Fuel Studio
+- `http://127.0.0.1:9000/` -> `v1 / Fuel Classic`
+- `http://127.0.0.1:9000/v2` -> `v2 / Fuel Studio`
 
----
+Dev und Prod:
+- `npm run dev` -> ein `nodemon`-Supervisor startet Backend und Vite-Frontend zusammen
+- `npm run build` -> Vite baut nach `/opt/fuel`
+- `npm run prod` -> Static Server auf Port `8000` mit `/opt/fuel` als Build-Root
 
-## Stack
+Für schnelle Erfassung:
 
-**Backend:** Node.js, kein Framework, kein ORM — plain `http` + `fs`.  
-**Frontend V2:** React 18, Tailwind 3, FullCalendar, TanStack Query, Recharts, Zustand, Zod, React Hook Form.  
-**Datenquelle:** Open Food Facts (kein Account, kein API-Key).
+```bash
+./fuel-log.zsh
+```
+
+## PWA-Status
+
+- installierbar über das Manifest
+- Offline-Basis über Service Worker
+- mobile Darstellung ohne externe UI-Bibliothek
+- neue Tailwind-/React-Schicht als `v2 / Fuel Studio` zusätzlich verfügbar
+- kein Offline-Write-Through für POSTs (geplant, siehe ARCHITECTURE.md)
+
+## Integration
+
+Für später sind zwei Docker-nahe Ergänzungen vorgesehen:
+
+- `wger` als Referenz für strukturierte Ernährungs- und Gesundheitsdaten (läuft lokal auf :8000)
+- `habitsync` als möglicher Sync-/Habit-Layer
+
+Die Idee ist nicht, diese Tools blind zu übernehmen, sondern deren Stärken als Vergleichs- und Integrationspunkte zu behalten.
+
+## Build-Plan
+
+Der naheliegende nächste Schritt ist ein Vite-Frontend mit statischem Build-Output nach `/opt/fuel`.
+
+Zielbild:
+- Source bleibt in diesem Repo
+- Vite baut die PWA als statische Assets
+- Deploy-/Sync-Ziel ist `/opt/fuel`
+- der Node-Server bleibt als lokaler API- und CLI-Host bestehen
+
+Das ist sinnvoll, wenn das Frontend später stärker modularisiert wird oder wenn ein sauberer Produktions-Deploy vom jetzigen Einzel-HTML weg soll.
+
+## Modul-Stack
+
+Der aktuelle Vite-Stack ist absichtlich breit angelegt:
+
+- `@fullcalendar/react`, `@fullcalendar/daygrid`, `@fullcalendar/timegrid`, `@fullcalendar/interaction` für die große Kalenderansicht
+- `@tanstack/react-query` für Daten-Fetching und Cache-Schicht
+- `recharts` für Trend- und Verlaufsgrafen
+- `react-hook-form` und `zod` für robuste Formvalidierung
+- `zustand` für lokale UI-State-Verwaltung
+- `lucide-react` für konsistente Icons
+- `clsx` und `tailwind-merge` für Klassenlogik
+
+## Nächste sinnvolle Ausbauten
+
+- echten Offline-Write-Through mit Queue/Retry ergänzen (Vorbild: `~/core4-dev/public/offline-queue.js`)
+- CLI und PWA auf ein gemeinsames Datenschema ziehen (`wger-food --api` schreibt direkt nach `/nutrition/log`)
+- Import-/Exportpfade für Backup, Vault und mögliche Docker-Services definieren
+- Changelog/Architektur-Doku für Ernährungscoach-Ausbildung und Privatnutzung ergänzen
+- Klienten-Auth für `~/vital`-Integration (Pfad-Normalisierung ist bereits vorbereitet)
