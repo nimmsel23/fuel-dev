@@ -111,7 +111,7 @@ Einstiege:
 Dev und Prod:
 - `npm run dev` -> ein `nodemon`-Supervisor startet Backend und Vite-Frontend zusammen
 - `npm run build` -> Vite baut nach `/opt/fuel`
-- `npm run prod` -> Static Server auf Port `8000` mit `/opt/fuel` als Build-Root
+- `npm run prod` -> Static Server auf Port `7000` mit `/opt/fuel` als Build-Root
 
 Für schnelle Erfassung:
 
