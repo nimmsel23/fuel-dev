@@ -27,6 +27,10 @@ import typer
 from loguru import logger
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 import pandas as pd
+from rich.console import Console
+from rich.table import Table
+
+console = Console()
 
 # ── Validation (Pydantic) ──────────────────────────────────────────────────────
 
@@ -155,13 +159,23 @@ def do_today(day: str | None) -> None:
     data  = read_log(today)
     intakes = data.get("intakes", [])
 
-    gum_header(f"Fuel Supplements — {today}")
     if not intakes:
-        gum_log("warn", "Noch nichts geloggt heute")
+        console.print(f"[yellow]Noch nichts geloggt am {today}[/yellow]")
         return
 
-    rows = [[i["name"], str(i["dose"]) + i["unit"], i["time_of_day"]] for i in intakes]
-    gum_table(["SUPPLEMENT", "DOSIS", "ZEIT"], rows, [20, 10, 10])
+    table = Table(title=f"Fuel Supplements — {today}", show_header=True, header_style="bold magenta")
+    table.add_column("SUPPLEMENT", style="green")
+    table.add_column("DOSIS", style="cyan")
+    table.add_column("ZEIT", style="blue")
+
+    for i in intakes:
+        table.add_row(
+            i["name"],
+            f"{i['dose']}{i['unit']}",
+            i["time_of_day"]
+        )
+
+    console.print(table)
 
 # ── Typer App ──────────────────────────────────────────────────────────────────
 
@@ -191,10 +205,21 @@ def today(
 @app.command(name="list", help="Alle Supplements aus dem Catalog")
 def list_supplements() -> None:
     catalog = load_catalog()
-    gum_header("Fuel — Supplement Catalog")
-    rows = [[sid, s["name"], f"{s['default_dose']}{s['unit']}", s.get("default_time_of_day", "any")]
-            for sid, s in catalog.items()]
-    gum_table(["ID", "NAME", "DEFAULT", "ZEIT"], rows, [14, 16, 10, 10])
+    table = Table(title="Fuel — Supplement Catalog", show_header=True, header_style="bold magenta")
+    table.add_column("ID", style="cyan")
+    table.add_column("NAME", style="green")
+    table.add_column("DEFAULT DOSE", style="yellow")
+    table.add_column("TIME", style="blue")
+
+    for sid, s in catalog.items():
+        table.add_row(
+            sid,
+            s["name"],
+            f"{s['default_dose']}{s['unit']}",
+            s.get("default_time_of_day", "any")
+        )
+
+    console.print(table)
 
 @app.command(name="week", help="Wochenübersicht mit CSV-Export")
 def weekly(
@@ -258,10 +283,27 @@ def do_weekly_report(day: str | None = None) -> None:
     df.to_csv(csv_file, index=False, encoding="utf-8")
     gum_log("info", f"CSV exportiert: {csv_file}")
 
-    # Display summary
-    gum_header(f"Fuel Weekly Report — {week_key} ({week_monday.isoformat()} bis {(week_monday + timedelta(days=6)).isoformat()})")
-    print(summary.to_string())
-    print(f"\nDatei: {csv_file}")
+    # Display summary with rich Table
+    week_start = week_monday.isoformat()
+    week_end = (week_monday + timedelta(days=6)).isoformat()
+    console.print(f"[bold magenta]Fuel Weekly Report — {week_key}[/bold magenta] [dim]Mo {week_start} — So {week_end}[/dim]")
+
+    table = Table(show_header=True, header_style="bold magenta")
+    table.add_column("SUPPLEMENT", style="green")
+    table.add_column("TOTAL DOSE", style="cyan")
+    table.add_column("UNIT", style="yellow")
+    table.add_column("COUNT", style="blue")
+
+    for supplement, row in summary.iterrows():
+        table.add_row(
+            supplement,
+            str(row["dose"]),
+            row["unit"],
+            str(int(row["count"]))
+        )
+
+    console.print(table)
+    console.print(f"[dim]CSV: {csv_file}[/dim]")
 
 # ── Shortcut: `fuel melatonin` oder `fuel -melatonin -glycin -kollagen` ────────
 
