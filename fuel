@@ -26,6 +26,7 @@ from pathlib import Path
 import typer
 from loguru import logger
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
+import pandas as pd
 
 # ── Validation (Pydantic) ──────────────────────────────────────────────────────
 
@@ -194,6 +195,73 @@ def list_supplements() -> None:
     rows = [[sid, s["name"], f"{s['default_dose']}{s['unit']}", s.get("default_time_of_day", "any")]
             for sid, s in catalog.items()]
     gum_table(["ID", "NAME", "DEFAULT", "ZEIT"], rows, [14, 16, 10, 10])
+
+@app.command(name="week", help="Wochenübersicht mit CSV-Export")
+def weekly(
+    date: str | None = typer.Option(None, "--date", "-d", help="Datum in der Woche (Standard: heute)"),
+) -> None:
+    do_weekly_report(date)
+
+# ── Weekly Report (Pandas) ─────────────────────────────────────────────────────
+
+def do_weekly_report(day: str | None = None) -> None:
+    """Generate weekly report with pandas and export to CSV."""
+    from datetime import timedelta
+
+    today = day or date.today().isoformat()
+    target_date = date.fromisoformat(today)
+
+    # Get ISO week info
+    iso = target_date.isocalendar()
+    week_key = f"{iso.year}-W{iso.week:02d}"
+
+    # Calculate week start (Monday)
+    jan4 = date(iso.year, 1, 4)
+    week_monday = jan4 - timedelta(days=jan4.weekday())
+    week_monday += timedelta(weeks=iso.week - 1)
+
+    # Collect all intakes for the week
+    rows = []
+    for i in range(7):
+        day_date = week_monday + timedelta(days=i)
+        day_str = day_date.isoformat()
+        data = read_log(day_str)
+
+        for intake in data.get("intakes", []):
+            rows.append({
+                "date": day_str,
+                "day": day_date.strftime("%a"),  # Mon, Tue, etc.
+                "supplement": intake.get("name", ""),
+                "dose": intake.get("dose", 0),
+                "unit": intake.get("unit", ""),
+                "time_of_day": intake.get("time_of_day", "any"),
+                "notes": intake.get("notes", ""),
+            })
+
+    if not rows:
+        gum_log("warn", f"Keine Supplements für Woche {week_key} geloggt")
+        return
+
+    # Create DataFrame and aggregate
+    df = pd.DataFrame(rows)
+    df["dose"] = pd.to_numeric(df["dose"], errors="coerce").fillna(0)
+
+    # Summary by supplement (total dose per week)
+    summary = df.groupby("supplement").agg({
+        "dose": "sum",
+        "unit": "first",
+        "date": "count",  # number of times taken
+    }).rename(columns={"date": "count"}).round(2)
+
+    # Export to CSV
+    csv_file = FUEL_DIR / f"fuel_weekly_{week_key}.csv"
+    df.to_csv(csv_file, index=False, encoding="utf-8")
+    gum_log("info", f"CSV exportiert: {csv_file}")
+
+    # Display summary
+    gum_header(f"Fuel Weekly Report — {week_key} ({week_monday.isoformat()} bis {(week_monday + timedelta(days=6)).isoformat()})")
+    print(summary.to_string())
+    print(f"\nDatei: {csv_file}")
 
 # ── Shortcut: `fuel melatonin` oder `fuel -melatonin -glycin -kollagen` ────────
 
