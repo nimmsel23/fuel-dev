@@ -25,6 +25,18 @@ from pathlib import Path
 
 import typer
 from loguru import logger
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
+
+# ── Validation (Pydantic) ──────────────────────────────────────────────────────
+
+class SupplementInput(BaseModel):
+    model_config = ConfigDict(validate_assignment=True)
+
+    name: str = Field(..., min_length=1, description="Supplement name")
+    dose: float | None = Field(None, ge=0, description="Dose amount")
+    unit: str | None = Field(None, description="Unit (mg, g, etc.)")
+    time_of_day: str | None = Field(None, description="morning, evening, night, any")
+    notes: str = Field("", description="Optional notes")
 
 # ── Pfade ──────────────────────────────────────────────────────────────────────
 
@@ -105,6 +117,20 @@ def do_log(supplement_id: str, dose: float | None, time_of_day: str | None, day:
     dose   = dose if dose is not None else supp["default_dose"]
     tod    = time_of_day or supp.get("default_time_of_day", "any")
     unit   = supp["unit"]
+
+    # Validate input
+    try:
+        SupplementInput(
+            name=supp["name"],
+            dose=dose,
+            unit=unit,
+            time_of_day=tod,
+        )
+    except ValidationError as e:
+        gum_log("error", f"Validation error: {e.error_count()} Fehler")
+        for err in e.errors():
+            gum_log("error", f"  {err['loc'][0]}: {err['msg']}")
+        raise SystemExit(1)
 
     data   = read_log(today)
     entry  = {
