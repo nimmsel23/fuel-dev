@@ -28,9 +28,9 @@ from loguru import logger
 
 # ── Pfade ──────────────────────────────────────────────────────────────────────
 
-FUEL_DIR    = Path(os.environ.get("FUEL_DIR", Path.home() / "fuel-dev"))
-CATALOG     = FUEL_DIR / "data" / "supplements" / "catalog.json"
-LOGS_DIR    = FUEL_DIR / "data" / "supplements" / "logs"
+FUEL_DIR    = Path(os.environ.get("AOS_FUEL_DIR", Path.home() / ".aos" / "fuel"))
+CATALOG     = FUEL_DIR / "supplements" / "catalog.json"
+LOGS_DIR    = FUEL_DIR / "supplements" / "logs"
 
 # ── gum ───────────────────────────────────────────────────────────────────────
 
@@ -169,15 +169,40 @@ def list_supplements() -> None:
             for sid, s in catalog.items()]
     gum_table(["ID", "NAME", "DEFAULT", "ZEIT"], rows, [14, 16, 10, 10])
 
-# ── Shortcut: `fuel melatonin` oder `fuel melatonin 2` ────────────────────────
+# ── Shortcut: `fuel melatonin` oder `fuel -melatonin -glycin -kollagen` ────────
+
+def _parse_day_arg() -> str | None:
+    """Parse --yesterday, --1d, --2d, etc. from sys.argv"""
+    from datetime import timedelta
+
+    for arg in sys.argv[1:]:
+        if arg == "--yesterday":
+            return (date.today() - timedelta(days=1)).isoformat()
+        if arg.startswith("--") and arg[2:].endswith("d"):
+            try:
+                days = int(arg[2:-1])
+                return (date.today() - timedelta(days=days)).isoformat()
+            except ValueError:
+                pass
+    return None
 
 def _main() -> None:
     catalog = load_catalog()
+    day_arg = _parse_day_arg()
 
+    # Multi-supplement: `fuel -melatonin -glycin -kollagen` oder `fuel -melatonin -glycin --yesterday`
+    flag_supplements = [arg.lstrip("-") for arg in sys.argv[1:]
+                        if arg.startswith("-") and arg.lstrip("-") in catalog]
+    if flag_supplements:
+        for supp in flag_supplements:
+            do_log(supp, None, None, day_arg)
+        return
+
+    # Single supplement shortcut: `fuel melatonin` oder `fuel melatonin 2`
     if len(sys.argv) >= 2 and sys.argv[1] in catalog:
         supplement = sys.argv[1]
         dose       = float(sys.argv[2]) if len(sys.argv) >= 3 and _is_number(sys.argv[2]) else None
-        do_log(supplement, dose, None, None)
+        do_log(supplement, dose, None, day_arg)
         return
 
     app()

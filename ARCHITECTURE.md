@@ -9,13 +9,16 @@ Stand: 2026-05-06
 ### Server (`server.mjs`, Port 9000)
 
 Plain Node.js `http` — kein Framework. Routing per `if`-Kette auf normalisierten Pfaden.
-Daten: dateibasiertes JSON unter `data/`, kein DB-Layer.
+Daten: dateibasiertes JSON unter `~/.aos/fuel/` (via `AOS_FUEL_DATA_DIR` ENV-Var, default: `~/.aos/fuel`).
+Bridge proxied `/api/fuel/*` zu diesem Server mit Fallback auf lokale water-logging.
 
 ```
 GET  /health
 GET  /nutrition/search?q=&limit=    ← OFF-Proxy (https, kein externer Dep)
 GET  /nutrition/log?date=
 POST /nutrition/log                 ← meal{type,description,kcal,protein,carbs,fat} + water_ml
+GET  /nutrition/catalog
+POST /nutrition/catalog             ← wiederverwendbare Gerichte/Mahlzeiten
 GET  /nutrition/journal?date=
 POST /nutrition/journal
 GET  /nutrition/journal/list
@@ -51,6 +54,10 @@ Tabs: Dashboard · Big Calendar · Journal · Supplements · Settings.
 - Dropdown: Name, Brand, Kcal/KH/Fett/EW pro 100 g
 - Portionsgröße: S 100 g / M 200 g / L 300 g / XL 450 g
 - Auto-fill: description, kcal, protein, carbs, fat im Meal-Logger-Formular
+- Optional: "Als Gericht speichern" schreibt einen wiederverwendbaren Eintrag nach
+  `data/nutrition/catalog.json`; Katalogeinträge können direkt wieder geloggt werden.
+- Composite meals/menus can carry a `components[]` array; the server stores the
+  summed macros and keeps the component list on the catalog item and the day log.
 
 ### CLI-Backend (`~/Nutrition/`)
 

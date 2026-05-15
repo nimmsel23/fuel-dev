@@ -27,10 +27,13 @@ const __dirname = path.dirname(__filename);
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, "public");
 const STATIC_DIR = process.env.FUEL_STATIC_DIR ? path.resolve(process.env.FUEL_STATIC_DIR) : PUBLIC_DIR;
-const DATA_DIR = path.join(ROOT, "data");
+const DATA_DIR = process.env.AOS_FUEL_DATA_DIR
+  ? path.resolve(process.env.AOS_FUEL_DATA_DIR)
+  : path.join(process.env.HOME || process.env.USERPROFILE, ".aos", "fuel");
 const FUEL_DIR = path.join(DATA_DIR, "fuel");
 const NUTRITION_DIR = path.join(DATA_DIR, "nutrition");
 const NUTRITION_JOURNAL_DIR = path.join(DATA_DIR, "nutrition_journal");
+const NUTRITION_CATALOG_PATH = path.join(NUTRITION_DIR, "catalog.json");
 const SUPPLEMENTS_DIR = path.join(DATA_DIR, "supplements");
 const SUPPLEMENTS_LOG_DIR = path.join(SUPPLEMENTS_DIR, "logs");
 const SUPPLEMENTS_CATALOG_PATH = path.join(SUPPLEMENTS_DIR, "catalog.json");
@@ -42,9 +45,16 @@ const DEV_VITE_PREFIXES = ["/@vite", "/src/", "/node_modules/", "/vite.svg"];
 
 const TEXT_TYPES = new Map([
   [".html", "text/html; charset=utf-8"],
+  [".css", "text/css; charset=utf-8"],
   [".js", "application/javascript; charset=utf-8"],
+  [".mjs", "application/javascript; charset=utf-8"],
   [".json", "application/json; charset=utf-8"],
   [".svg", "image/svg+xml"],
+  [".png", "image/png"],
+  [".jpg", "image/jpeg"],
+  [".ico", "image/x-icon"],
+  [".woff2", "font/woff2"],
+  [".woff", "font/woff"],
 ]);
 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -213,6 +223,268 @@ function getNutritionDayPath(date) {
   return path.join(NUTRITION_DIR, `${date}.json`);
 }
 
+const NUTRITION_CATALOG_DEFAULTS = [
+  {
+    id: "mcdonalds_at_double_cheeseburger_nice_price_menu",
+    kind: "recipe",
+    category: "restaurant",
+    name: "McDonald's AT Double Cheeseburger Nice Price Menu",
+    meal_type: "lunch",
+    description: "Double Cheeseburger Nice Price Menu",
+    notes: "McDonald's Austria; Burger + Pommes (mittel) + Coca-Cola 0,4l.",
+    source: "mcdonalds.at",
+    yield_g: null,
+    components: [
+      {
+        id: "double_cheeseburger",
+        label: "Double Cheeseburger",
+        description: "Double Cheeseburger",
+        brand: "McDonald's AT",
+        grams: null,
+        kcal: 457,
+        protein: 27,
+        carbs: 31,
+        fat: 24,
+        source: "mcdonalds.at",
+        source_kind: "menu-item",
+      },
+      {
+        id: "pommes_mittel",
+        label: "Pommes (mittel)",
+        description: "Pommes (mittel)",
+        brand: "McDonald's AT",
+        grams: null,
+        kcal: 327,
+        protein: 4.1,
+        carbs: 41,
+        fat: 15,
+        source: "mcdonalds.at",
+        source_kind: "menu-item",
+      },
+      {
+        id: "coca_cola_0_4l",
+        label: "Coca-Cola 0,4l",
+        description: "Coca-Cola",
+        brand: "McDonald's AT",
+        grams: null,
+        kcal: 106,
+        protein: 0,
+        carbs: 26,
+        fat: 0,
+        source: "mcdonalds.at",
+        source_kind: "menu-item",
+      },
+    ],
+  },
+  {
+    id: "spiegelei_5x",
+    kind: "recipe",
+    category: "jause",
+    name: "Spiegelei 5x",
+    meal_type: "breakfast",
+    description: "Spiegelei 5x mit Jausenspeck und VK Brot",
+    notes: "Basisvorlage mit Add-ons: Jausenspeck, mehr Jausenspeck, Dachsteinbrot.",
+    source: "manual",
+    yield_g: null,
+    components: [
+      {
+        id: "bio_egg_5x",
+        label: "Bio Eier 5x",
+        description: "Bio Eier",
+        brand: "BILLA AT",
+        grams: null,
+        kcal: 445,
+        protein: 37.5,
+        carbs: 3.5,
+        fat: 32,
+        source: "billa.at",
+        source_kind: "base",
+      },
+    ],
+    default_addon_ids: ["jausenspeck_25g", "dachsteinbrot_60g"],
+    addons: [
+      {
+        id: "jausenspeck_25g",
+        label: "Jausenspeck ca. 25g",
+        description: "BILLA Schinkenspeck Geschnitten",
+        brand: "BILLA AT",
+        grams: 25,
+        kcal: 70,
+        protein: 6.8,
+        carbs: 0,
+        fat: 4.8,
+        source: "billa.at",
+        source_kind: "addon",
+      },
+      {
+        id: "jausenspeck_40g",
+        label: "Jausenspeck ca. 40g",
+        description: "BILLA Schinkenspeck Geschnitten",
+        brand: "BILLA AT",
+        grams: 40,
+        kcal: 112,
+        protein: 10.8,
+        carbs: 0,
+        fat: 7.6,
+        source: "billa.at",
+        source_kind: "addon",
+      },
+      {
+        id: "dachsteinbrot_60g",
+        label: "Dachsteinbrot 2 dünne Scheiben",
+        description: "Dachsteinbrot",
+        brand: "Ströck / BILLA AT",
+        grams: 60,
+        kcal: 154,
+        protein: 5.5,
+        carbs: 18,
+        fat: 5.6,
+        source: "shop.billa.at",
+        source_kind: "addon",
+      },
+    ],
+  },
+  {
+    id: "billa_nacho_cheese_nuggets_mit_parboiled_reis_und_gemuese",
+    kind: "recipe",
+    category: "billa",
+    name: "BILLA Nacho Cheese Nuggets mit Parboiled Reis und Gemüse",
+    meal_type: "dinner",
+    description: "Nacho Cheese Nuggets mit Parboiled Reis und Gemüse",
+    notes: "Template-Wert; bei Bedarf mit Packungsangaben/Produktseite feinjustieren.",
+    source: "manual",
+    yield_g: null,
+    components: [
+      {
+        id: "nacho_cheese_nuggets",
+        label: "Nacho Cheese Nuggets",
+        description: "Nacho Cheese Nuggets",
+        brand: "BILLA AT",
+        grams: null,
+        kcal: 420,
+        protein: 18,
+        carbs: 30,
+        fat: 24,
+        source: "billa.at",
+        source_kind: "base",
+      },
+      {
+        id: "parboiled_reis_200g",
+        label: "Parboiled Reis 200g",
+        description: "Parboiled Reis gekocht",
+        brand: "BILLA AT",
+        grams: 200,
+        kcal: 260,
+        protein: 5.4,
+        carbs: 57,
+        fat: 0.5,
+        source: "manual",
+        source_kind: "addon",
+      },
+      {
+        id: "gemuese_mix_150g",
+        label: "Gemüse 150g",
+        description: "Gemüse Mix",
+        brand: "BILLA AT",
+        grams: 150,
+        kcal: 60,
+        protein: 3,
+        carbs: 10,
+        fat: 0.5,
+        source: "manual",
+        source_kind: "addon",
+      },
+    ],
+  },
+  {
+    id: "hauber_pizza_style_chicken_nuggets",
+    kind: "recipe",
+    category: "billa",
+    name: "Hauber Pizza Style Chicken Nuggets",
+    meal_type: "snack",
+    description: "Pizza Style Chicken Nuggets",
+    notes: "Template-Wert; bei Bedarf mit Packungsangaben/Produktseite feinjustieren.",
+    source: "manual",
+    yield_g: null,
+    components: [
+      {
+        id: "pizza_style_chicken_nuggets",
+        label: "Pizza Style Chicken Nuggets",
+        description: "Pizza Style Chicken Nuggets",
+        brand: "Hauber",
+        grams: null,
+        kcal: 360,
+        protein: 20,
+        carbs: 24,
+        fat: 20,
+        source: "hauber.at",
+        source_kind: "base",
+      },
+    ],
+  },
+];
+
+function loadNutritionCatalog() {
+  const seed = {
+    version: 1,
+    updated_at: new Date().toISOString(),
+    items: NUTRITION_CATALOG_DEFAULTS.map((item) => ({
+      ...item,
+      components: item.components.map((component) => ({ ...component })),
+      addons: Array.isArray(item.addons) ? item.addons.map((addon) => ({ ...addon })) : [],
+      default_addon_ids: Array.isArray(item.default_addon_ids) ? [...item.default_addon_ids] : [],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      kcal: sumComponentMacros([
+        ...item.components,
+        ...((Array.isArray(item.addons) && Array.isArray(item.default_addon_ids))
+          ? item.addons.filter((addon) => item.default_addon_ids.includes(addon.id))
+          : []),
+      ]).kcal,
+      protein: sumComponentMacros([
+        ...item.components,
+        ...((Array.isArray(item.addons) && Array.isArray(item.default_addon_ids))
+          ? item.addons.filter((addon) => item.default_addon_ids.includes(addon.id))
+          : []),
+      ]).protein,
+      carbs: sumComponentMacros([
+        ...item.components,
+        ...((Array.isArray(item.addons) && Array.isArray(item.default_addon_ids))
+          ? item.addons.filter((addon) => item.default_addon_ids.includes(addon.id))
+          : []),
+      ]).carbs,
+      fat: sumComponentMacros([
+        ...item.components,
+        ...((Array.isArray(item.addons) && Array.isArray(item.default_addon_ids))
+          ? item.addons.filter((addon) => item.default_addon_ids.includes(addon.id))
+          : []),
+      ]).fat,
+    })),
+  };
+
+  const catalog = readJsonFile(NUTRITION_CATALOG_PATH, null);
+  if (catalog && Array.isArray(catalog.items)) {
+    const existingIds = new Set(catalog.items.map((item) => item.id));
+    const mergedItems = [
+      ...catalog.items,
+      ...seed.items.filter((item) => !existingIds.has(item.id)),
+    ];
+    if (mergedItems.length !== catalog.items.length) {
+      const mergedCatalog = { ...catalog, items: mergedItems };
+      saveNutritionCatalog(mergedCatalog);
+      return mergedCatalog;
+    }
+    return catalog;
+  }
+  writeJsonFile(NUTRITION_CATALOG_PATH, seed);
+  return seed;
+}
+
+function saveNutritionCatalog(catalog) {
+  catalog.updated_at = new Date().toISOString();
+  writeJsonFile(NUTRITION_CATALOG_PATH, catalog);
+}
+
 function getSupplementsDayPath(date) {
   return path.join(SUPPLEMENTS_LOG_DIR, `${date}.json`);
 }
@@ -282,6 +554,140 @@ function parseJSONBody(req) {
     });
     req.on('error', reject);
   });
+}
+
+function slugifyId(value, prefix = "meal") {
+  const base = String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return `${prefix}_${base || randomId(prefix)}`.slice(0, 80);
+}
+
+function normalizeMealComponent(input, existingIndex = 0) {
+  const source = input || {};
+  const description = String(source.description || source.name || "").trim();
+  if (!description) return null;
+
+  const label = String(source.label || source.name || description).trim() || description;
+  return {
+    id: String(source.id || slugifyId(`${description}_${existingIndex + 1}`, "cmp")).slice(0, 80),
+    label,
+    description,
+    brand: source.brand != null ? String(source.brand) : "",
+    grams: source.grams == null ? null : sanitizeMetric(source.grams),
+    kcal: sanitizeMetric(source.kcal),
+    protein: sanitizeMetric(source.protein),
+    carbs: sanitizeMetric(source.carbs),
+    fat: sanitizeMetric(source.fat),
+    source: String(source.source || "manual").trim() || "manual",
+    source_kind: String(source.source_kind || source.kind || "food").trim() || "food",
+  };
+}
+
+function sumComponentMacros(components) {
+  return (Array.isArray(components) ? components : []).reduce(
+    (acc, component) => ({
+      kcal: acc.kcal + sanitizeMetric(component.kcal),
+      protein: acc.protein + sanitizeMetric(component.protein),
+      carbs: acc.carbs + sanitizeMetric(component.carbs),
+      fat: acc.fat + sanitizeMetric(component.fat),
+    }),
+    { kcal: 0, protein: 0, carbs: 0, fat: 0 },
+  );
+}
+
+function resolveNutritionCatalogMeal(catalogItem, addonIds = []) {
+  const components = Array.isArray(catalogItem.components) ? catalogItem.components : [];
+  const addons = Array.isArray(catalogItem.addons) ? catalogItem.addons : [];
+  const defaultAddonIds = Array.isArray(catalogItem.default_addon_ids) ? catalogItem.default_addon_ids : [];
+  const selectedAddonIds = addonIds.length ? addonIds : defaultAddonIds;
+  const selectedAddons = selectedAddonIds.length ? addons.filter((addon) => selectedAddonIds.includes(addon.id)) : [];
+  const totals = sumComponentMacros([...components, ...selectedAddons]);
+
+  return {
+    meal: {
+      id: randomId("meal"),
+      type: String(catalogItem.meal_type || catalogItem.kind || "meal"),
+      description: String(catalogItem.description || catalogItem.name),
+      notes: catalogItem.notes ? String(catalogItem.notes) : "",
+      kcal: totals.kcal,
+      protein: totals.protein,
+      carbs: totals.carbs,
+      fat: totals.fat,
+      catalog_item_id: catalogItem.id,
+      catalog_name: catalogItem.name,
+      catalog_components: [...components, ...selectedAddons].map((component) => ({ ...component })),
+      catalog_addon_ids: selectedAddonIds,
+      time: new Date().toISOString(),
+    },
+    addons: selectedAddons,
+  };
+}
+
+function normalizeNutritionCatalogItem(input, existingItems = []) {
+  const source = input || {};
+  const name = String(source.name || source.description || source.title || "").trim();
+  if (!name) return null;
+
+  const kind = String(source.kind || "meal").trim() || "meal";
+  const category = String(source.category || (kind === "recipe" ? "recipe" : kind) || "meal").trim() || "meal";
+  const description = String(source.description || name).trim();
+  const notes = source.notes != null ? String(source.notes) : "";
+  const mealType = String(source.meal_type || source.type || "meal").trim() || "meal";
+  const idBase = source.id ? String(source.id).trim() : slugifyId(name, kind);
+  const existingIds = new Set(existingItems.map((item) => item.id));
+  let id = idBase;
+  let suffix = 2;
+  while (existingIds.has(id) && !existingItems.some((item) => item.id === source.id)) {
+    id = `${idBase}_${suffix++}`;
+  }
+
+  const components = Array.isArray(source.components)
+    ? source.components
+        .map((component, idx) => normalizeMealComponent(component, idx))
+        .filter(Boolean)
+    : [];
+  const addons = Array.isArray(source.addons)
+    ? source.addons
+        .map((addon, idx) => normalizeMealComponent({ ...addon, source_kind: addon.source_kind || "addon" }, idx))
+        .filter(Boolean)
+    : [];
+  const defaultAddonIds = Array.isArray(source.default_addon_ids)
+    ? source.default_addon_ids.map((id) => String(id).trim()).filter(Boolean)
+    : [];
+  const selectedAddons = defaultAddonIds.length
+    ? addons.filter((addon) => defaultAddonIds.includes(addon.id))
+    : addons;
+  const componentTotals = sumComponentMacros([...components, ...selectedAddons]);
+  const kcal = source.kcal != null && source.kcal !== "" ? sanitizeMetric(source.kcal) : (componentTotals?.kcal ?? 0);
+  const protein = source.protein != null && source.protein !== "" ? sanitizeMetric(source.protein) : (componentTotals?.protein ?? 0);
+  const carbs = source.carbs != null && source.carbs !== "" ? sanitizeMetric(source.carbs) : (componentTotals?.carbs ?? 0);
+  const fat = source.fat != null && source.fat !== "" ? sanitizeMetric(source.fat) : (componentTotals?.fat ?? 0);
+
+  return {
+    id,
+    kind,
+    category,
+    name,
+    meal_type: mealType,
+    description,
+    notes,
+    kcal,
+    protein,
+    carbs,
+    fat,
+    yield_g: source.yield_g == null || source.yield_g === "" ? null : sanitizeMetric(source.yield_g),
+    components,
+    addons,
+    default_addon_ids: defaultAddonIds,
+    source: String(source.source || "manual").trim() || "manual",
+    created_at: source.created_at || new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
 }
 
 const server = http.createServer(async (req, res) => {
@@ -460,6 +866,41 @@ const server = http.createServer(async (req, res) => {
       if (!day.meals || !Array.isArray(day.meals)) day.meals = [];
       if (typeof day.water_ml !== "number") day.water_ml = 0;
 
+      if (body.delete_meal_id) {
+        day.meals = day.meals.filter((m) => m.id !== body.delete_meal_id);
+      }
+
+      if (body.catalog_item_id) {
+        const catalog = loadNutritionCatalog();
+        const items = Array.isArray(catalog.items) ? catalog.items : [];
+        const catalogItem = items.find((item) => item.id === body.catalog_item_id);
+        if (!catalogItem) {
+          sendJson(res, 404, { error: "catalog item not found" });
+          return;
+        }
+        const addonIds = Array.isArray(body.catalog_addon_ids)
+          ? body.catalog_addon_ids.map((id) => String(id).trim()).filter(Boolean)
+          : [];
+        const { meal } = resolveNutritionCatalogMeal(catalogItem, addonIds);
+        day.meals.push(meal);
+      }
+
+      if (body.update_meal) {
+        const { id, type, description, notes, kcal, protein, carbs, fat } = body.update_meal;
+        const idx = day.meals.findIndex((m) => m.id === id);
+        if (idx === -1) { sendJson(res, 404, { error: "meal not found" }); return; }
+        day.meals[idx] = {
+          ...day.meals[idx],
+          type: String(type || day.meals[idx].type),
+          description: String(description || day.meals[idx].description),
+          notes: notes != null ? String(notes) : day.meals[idx].notes,
+          kcal: sanitizeMetric(kcal ?? day.meals[idx].kcal),
+          protein: sanitizeMetric(protein ?? day.meals[idx].protein),
+          carbs: sanitizeMetric(carbs ?? day.meals[idx].carbs),
+          fat: sanitizeMetric(fat ?? day.meals[idx].fat),
+        };
+      }
+
       if (body.meal) {
         const { type, description, notes } = body.meal || {};
         if (!type || !description) {
@@ -475,6 +916,8 @@ const server = http.createServer(async (req, res) => {
           protein: sanitizeMetric(body.meal.protein),
           carbs: sanitizeMetric(body.meal.carbs),
           fat: sanitizeMetric(body.meal.fat),
+          catalog_item_id: body.meal.catalog_item_id || null,
+          catalog_components: Array.isArray(body.meal.catalog_components) ? body.meal.catalog_components : [],
           time: new Date().toISOString(),
         };
         day.meals.push(meal);
@@ -493,6 +936,50 @@ const server = http.createServer(async (req, res) => {
       sendJson(res, 200, { ok: true, data: day });
     } catch (error) {
       console.error("Error processing nutrition log:", error);
+      sendJson(res, 500, { error: "Internal server error" });
+    }
+    return;
+  }
+
+  /**
+   * GET /nutrition/catalog
+   */
+  if (req.method === "GET" && routedPath === "/nutrition/catalog") {
+    const catalog = loadNutritionCatalog();
+    sendJson(res, 200, { ok: true, items: catalog.items || [] });
+    return;
+  }
+
+  /**
+   * POST /nutrition/catalog
+   * Body: {item:{name, description?, type?, notes?, kcal, protein, carbs, fat}}
+   */
+  if (req.method === "POST" && routedPath === "/nutrition/catalog") {
+    try {
+      const body = await parseJSONBody(req);
+      const catalog = loadNutritionCatalog();
+      const items = Array.isArray(catalog.items) ? catalog.items : [];
+      const rawItem = body.item || body.meal || body.template || body;
+      const item = normalizeNutritionCatalogItem(rawItem, items);
+
+      if (!item) {
+        sendJson(res, 400, { error: "item.name or item.description required" });
+        return;
+      }
+
+      const idx = items.findIndex((existing) => existing.id === item.id);
+      if (idx >= 0) {
+        item.created_at = items[idx].created_at || item.created_at;
+        items[idx] = { ...items[idx], ...item };
+      } else {
+        items.push(item);
+      }
+
+      catalog.items = items;
+      saveNutritionCatalog(catalog);
+      sendJson(res, 200, { ok: true, item });
+    } catch (error) {
+      console.error("Error saving nutrition catalog item:", error);
       sendJson(res, 500, { error: "Internal server error" });
     }
     return;
@@ -747,7 +1234,8 @@ const server = http.createServer(async (req, res) => {
 
   /**
    * GET /nutrition/search?q=<query>&limit=<n>
-   * Proxy zu Open Food Facts — gibt name, brand, kcal, kh, fett, ew pro 100g zurück
+   * Hybrid: wger (lokal, :8000) zuerst → OFF als Fallback
+   * Rückgabe: {name, brand, kcal, kh, fett, ew} pro 100g
    */
   if (req.method === "GET" && routedPath === "/nutrition/search") {
     const q = url.searchParams.get("q") || "";
@@ -756,31 +1244,79 @@ const server = http.createServer(async (req, res) => {
       sendJson(res, 400, { error: "q required" });
       return;
     }
-    const offUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=${limit}`;
-    const offReq = https.get(offUrl, { headers: { "User-Agent": "fuel-dev/2.0 (nutrition search)" } }, (offRes) => {
-      let raw = "";
-      offRes.on("data", (chunk) => (raw += chunk));
-      offRes.on("end", () => {
-        try {
-          const data = JSON.parse(raw);
-          const results = (data.products || [])
-            .filter((p) => p.product_name && p.nutriments?.["energy-kcal_100g"] != null)
-            .map((p) => ({
-              name:    p.product_name,
-              brand:   p.brands || "",
-              kcal:    Math.round((p.nutriments["energy-kcal_100g"] ?? 0) * 10) / 10,
-              kh:      Math.round((p.nutriments.carbohydrates_100g ?? 0) * 10) / 10,
-              fett:    Math.round((p.nutriments.fat_100g ?? 0) * 10) / 10,
-              ew:      Math.round((p.nutriments.proteins_100g ?? 0) * 10) / 10,
-            }));
-          sendJson(res, 200, { ok: true, count: results.length, results });
-        } catch {
-          sendJson(res, 502, { error: "invalid response from Open Food Facts" });
-        }
+
+    const WGER_TOKEN = process.env.WGER_API_TOKEN || "92d9ea44fc0ac065e336e9ec443a196c40c68afe";
+    const WGER_MIN = 3; // Mindest-Ergebnisse aus wger, sonst OFF-Fallback
+
+    function fetchWger(query, n) {
+      return new Promise((resolve) => {
+        const wgerUrl = `http://127.0.0.1:8000/api/v2/ingredient/?format=json&limit=${n}&name__search=${encodeURIComponent(query)}`;
+        const wgerReq = http.get(wgerUrl, { headers: { "Authorization": `Token ${WGER_TOKEN}` } }, (r) => {
+          let raw = "";
+          r.on("data", (c) => (raw += c));
+          r.on("end", () => {
+            try {
+              const data = JSON.parse(raw);
+              const results = (data.results || [])
+                .filter((i) => i.name && i.energy != null)
+                .map((i) => ({
+                  name:  i.name.trim(),
+                  brand: i.brand || "",
+                  kcal:  Math.round((i.energy ?? 0) * 10) / 10,
+                  kh:    Math.round((parseFloat(i.carbohydrates) ?? 0) * 10) / 10,
+                  fett:  Math.round((parseFloat(i.fat) ?? 0) * 10) / 10,
+                  ew:    Math.round((parseFloat(i.protein) ?? 0) * 10) / 10,
+                  _src:  "wger",
+                }));
+              resolve(results);
+            } catch { resolve([]); }
+          });
+        });
+        wgerReq.on("error", () => resolve([]));
+        wgerReq.setTimeout(3000, () => { wgerReq.destroy(); resolve([]); });
       });
-    });
-    offReq.on("error", () => sendJson(res, 502, { error: "Open Food Facts nicht erreichbar" }));
-    offReq.setTimeout(8000, () => { offReq.destroy(); sendJson(res, 504, { error: "timeout" }); });
+    }
+
+    function fetchOFF(query, n) {
+      return new Promise((resolve) => {
+        const offUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=${n}`;
+        const offReq = https.get(offUrl, { headers: { "User-Agent": "fuel-dev/2.0 (nutrition search)" } }, (r) => {
+          let raw = "";
+          r.on("data", (c) => (raw += c));
+          r.on("end", () => {
+            try {
+              const data = JSON.parse(raw);
+              const results = (data.products || [])
+                .filter((p) => p.product_name && p.nutriments?.["energy-kcal_100g"] != null)
+                .map((p) => ({
+                  name:  p.product_name,
+                  brand: p.brands || "",
+                  kcal:  Math.round((p.nutriments["energy-kcal_100g"] ?? 0) * 10) / 10,
+                  kh:    Math.round((p.nutriments.carbohydrates_100g ?? 0) * 10) / 10,
+                  fett:  Math.round((p.nutriments.fat_100g ?? 0) * 10) / 10,
+                  ew:    Math.round((p.nutriments.proteins_100g ?? 0) * 10) / 10,
+                  _src:  "off",
+                }));
+              resolve(results);
+            } catch { resolve([]); }
+          });
+        });
+        offReq.on("error", () => resolve([]));
+        offReq.setTimeout(8000, () => { offReq.destroy(); resolve([]); });
+      });
+    }
+
+    const wgerResults = await fetchWger(q, limit);
+    let results = wgerResults;
+
+    if (wgerResults.length < WGER_MIN) {
+      const offResults = await fetchOFF(q, limit);
+      const seen = new Set(wgerResults.map((r) => r.name.toLowerCase()));
+      const merged = [...wgerResults, ...offResults.filter((r) => !seen.has(r.name.toLowerCase()))];
+      results = merged.slice(0, limit);
+    }
+
+    sendJson(res, 200, { ok: true, count: results.length, results });
     return;
   }
 
