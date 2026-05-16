@@ -54,6 +54,7 @@ Vollständige Doku: [NUTRITION.md](NUTRITION.md)
 Der Server legt Daten lokal unter `data/` ab:
 
 - `data/nutrition/` - Tagesprotokolle mit Mahlzeiten und Wasser
+- `data/nutrition/catalog.json` - wiederverwendbare Mahlzeiten und Gerichte
 - `data/nutrition_journal/` - freie Journal-Einträge als Markdown
 - `data/supplements/` - Katalog und Einnahmelogs
 - `data/fuel/` - älteres Fuel-Logging, falls noch genutzte Alt-Daten vorhanden sind
@@ -66,6 +67,8 @@ CLI-Logs landen separat unter `~/Nutrition/logs/YYYY-MM-DD.md` (Markdown, Ausbil
 - `GET /nutrition/search?q=<query>&limit=<n>` — **Open Food Facts Proxy** (neu)
 - `GET /nutrition/log?date=YYYY-MM-DD`
 - `POST /nutrition/log`
+- `GET /nutrition/catalog`
+- `POST /nutrition/catalog`
 - `GET /nutrition/journal?date=YYYY-MM-DD`
 - `POST /nutrition/journal`
 - `GET /nutrition/journal/list`
@@ -94,6 +97,9 @@ Gibt `name, brand, kcal, kh, fett, ew` pro 100 g zurück. Kein API-Key, kein Acc
 3. Auswahl → Portionsgröße: **S** 100 g / **M** 200 g / **L** 300 g / **XL** 450 g
 4. Makro-Felder (kcal, protein, carbs, fat) werden automatisch befüllt
 5. Save meal → schreibt nach `data/nutrition/YYYY-MM-DD.json`
+6. "Als Gericht speichern" → schreibt nach `data/nutrition/catalog.json`
+7. Der neue "Gericht bauen"-Block speichert zusammengesetzte Menüs mit Komponentenliste
+8. Katalog-Gerichte können Add-ons wie Jausenspeck direkt beim Loggen mitnehmen
 
 ## Nutzung
 
@@ -160,10 +166,76 @@ Der aktuelle Vite-Stack ist absichtlich breit angelegt:
 - `lucide-react` für konsistente Icons
 - `clsx` und `tailwind-merge` für Klassenlogik
 
+## CLI-Tools & Logging
+
+### Supplements Logging
+
+**Direktes Logging via `fuel` CLI:**
+```bash
+fuel melatonin --yesterday          # default dose aus catalog
+fuel melatonin 2 --time morning     # custom dose
+fuel melatonin kollagen zink        # mehrere auf einmal
+fuel today --day 2026-05-14         # tagesübersicht
+fuel list                           # alle supplements
+fuel week                           # wochenreport + CSV
+```
+
+**Universal Dispatcher `hab`** (in `~/.dotfiles/logger/hab`):
+```bash
+hab melatonin --yesterday           # auto-detects → fuel log melatonin
+hab apple 100g                      # auto-detects → fuel nutrition apple 100g
+hab barbell_bench 5x5 100kg         # auto-detects → fitness log barbell_bench ...
+```
+
+`hab` kategorisiert automatisch und routet zu:
+- `fuel log` für Supplements
+- `fuel nutrition` für Nutrition-Items (wenn implementiert)
+- `fitness log` für Workouts (wenn implementiert)
+
+### Katalog-Struktur
+
+Supplements + Nutrition Items + Workouts werden in JSON-Katalogen definiert:
+
+```
+~/.aos/fuel/
+├── supplements/
+│   ├── catalog.json     (melatonin, kollagen, zink, tongkat_ali, mulungu, ...)
+│   └── logs/            (YYYY-MM-DD.json mit intakes)
+└── nutrition/
+    ├── catalog.json     (nicht implementiert, future)
+    └── logs/            (future)
+```
+
+Jedes Item hat:
+```json
+{
+  "id": "melatonin",
+  "name": "Melatonin",
+  "unit": "mg",
+  "default_dose": 1,
+  "default_time_of_day": "night"
+}
+```
+
+### CLI Tooling-Stack
+
+- **fuel** (`~/fuel-dev/fuel`) — Python/Typer CLI für Supplement-Logging
+  - Typer + loguru für saubere Fehlerbehandlung
+  - Dynamic help mit Catalog-Auflistung
+  - Automatische zsh-Completions
+
+- **hab** (`~/.dotfiles/logger/hab`) — Universal Dispatcher
+  - Auto-detects Kontext (Supplements, Nutrition, Fitness)
+  - Routes zu korrekter CLI
+  - Supports mehrere Items auf einmal
+  - loguru + gum für schöne Output
+
 ## Nächste sinnvolle Ausbauten
 
 - echten Offline-Write-Through mit Queue/Retry ergänzen (Vorbild: `~/core4-dev/public/offline-queue.js`)
 - CLI und PWA auf ein gemeinsames Datenschema ziehen (`wger-food --api` schreibt direkt nach `/nutrition/log`)
+- Nutrition Catalog mit wger/OFF Integration (siehe `NUTRITION_FITNESS_ARCHITECTURE.md`)
+- Fitness Catalog mit wger Exercise DB Integration
 - Import-/Exportpfade für Backup, Vault und mögliche Docker-Services definieren
 - Changelog/Architektur-Doku für Ernährungscoach-Ausbildung und Privatnutzung ergänzen
 - Klienten-Auth für `~/vital`-Integration (Pfad-Normalisierung ist bereits vorbereitet)

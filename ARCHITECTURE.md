@@ -122,3 +122,65 @@ Kein Export-Endpoint. Für die Ausbildungsabgabe: `wger-generate --days 14`
 erzeugt die Markdown-Tabelle direkt. Für längerfristigen Einsatz fehlt:
 - `GET /nutrition/export?from=&to=` → CSV oder Markdown
 - automatisches Backup nach `~/.aos/` (Bridge-Sync-Schicht)
+
+---
+
+## CLI-Tools & Universal Logging
+
+### `fuel` CLI (Python/Typer)
+
+**File**: `~/fuel-dev/fuel`
+
+Python/Typer-basierte Supplement-Logging CLI mit automatischen zsh-Completions.
+
+```bash
+fuel log melatonin --yesterday           # Supplement mit default dose
+fuel log melatonin 2 --time morning      # Custom dose
+fuel log melatonin kollagen zink         # Multiple supplements
+fuel today [--day YYYY-MM-DD]            # Tagesübersicht
+fuel list                                # Catalog anzeigen
+fuel week [--date YYYY-MM-DD]            # Wochenreport + CSV-Export
+fuel --help                              # Shows full catalog inline
+```
+
+**Features**:
+- Typer + loguru + gum für saubere Fehlerbehandlung
+- Dynamischer help-text mit Catalog-Auflistung (kein "z.B. melatonin")
+- Automatische zsh-Completions (via Typer `add_completion=True`)
+- Supplements aus `~/.aos/fuel/supplements/catalog.json`
+- Logs zu `~/.aos/fuel/supplements/logs/YYYY-MM-DD.json`
+
+**Shortcuts für Kompatibilität**:
+- `fuel melatonin` → shortcut für `fuel log melatonin` (detect via callback)
+- `--yesterday`, `--1d`, `--2d` → converted zu `--day <date>` via pre-parser
+
+### `hab` Universal Dispatcher
+
+**File**: `~/.dotfiles/logger/hab` (symlink: `~/.dotfiles/bin/hab`)
+
+Auto-detecting dispatcher für alle Habit/Intake-Domains (Fuel, Nutrition, Fitness).
+
+```bash
+hab melatonin --yesterday                # Auto → fuel log melatonin
+hab melatonin kollagen zink --yesterday  # Multiple → fuel log ... (grouped)
+hab apple 100g                           # Auto → fuel nutrition apple 100g (future)
+hab barbell_bench 5x5 100kg              # Auto → fitness log barbell_bench ... (future)
+```
+
+**Architecture**:
+1. Loads all catalogs (supplements, nutrition, workouts)
+2. Parses items vs. options from args
+3. Categorizes each item (supplement / nutrition / workout)
+4. Routes grouped by category with shared options
+
+**Features**:
+- loguru + gum for clean output (ANSI fallback)
+- Supports multiple items in one command
+- Automatically routes to correct CLI
+- Works with future domains (fitness, nutrition, stress, sleep, etc.)
+
+**Why `hab`?** `log` is a reserved zsh built-in. `hab` (habit/have) is shorter, thematic, and collision-free.
+
+---
+
+See also: `~/.dotfiles/logger/README.md` for detailed dispatcher documentation.
