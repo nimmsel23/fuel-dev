@@ -61,6 +61,8 @@ Server: `node server.mjs` (Port 9000)
 | GET | `/nutrition/search?q=<query>&limit=<n>` | OFF-Proxy, gibt name/brand/kcal/kh/fett/ew zurück |
 | GET | `/nutrition/log?date=YYYY-MM-DD` | Tages-Log laden |
 | POST | `/nutrition/log` | Mahlzeit + Wasser loggen |
+| GET | `/nutrition/catalog` | Mahlzeiten-/Gerichte-Katalog |
+| POST | `/nutrition/catalog` | Gericht im Katalog speichern |
 | GET | `/nutrition/journal?date=YYYY-MM-DD` | Journal-Text |
 | POST | `/nutrition/journal` | Journal speichern |
 | GET | `/supplements/catalog` | Supplement-Liste |
@@ -76,6 +78,9 @@ Der Journal-Tab enthält einen **Food Search**-Block über dem Meal Logger:
 3. Auswahl → Portionsgröße wählen (S/M/L/XL)
 4. Alle Makro-Felder werden automatisch befüllt
 5. Auf "Save meal" klicken → schreibt nach `data/nutrition/YYYY-MM-DD.json`
+6. Auf "Als Gericht speichern" klicken → schreibt nach `data/nutrition/catalog.json`
+7. Im Block "Gericht bauen" mehrere Komponenten suchen und als zusammengesetztes Menü speichern
+8. Katalog-Gerichte mit Add-ons können ihre Zusatzbausteine beim Loggen per Chip-Auswahl mitgeben
 
 ---
 

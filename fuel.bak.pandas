@@ -2,16 +2,15 @@
 """
 fuel — Supplement-Tracker CLI
 
-Direktes Logging:
+Direktes Logging ohne Server:
   fuel melatonin            mit Default-Dosis aus catalog.json
   fuel melatonin 2          custom Dosis (gleiche Einheit wie catalog)
-  fuel melatonin kollagen   mehrere Supplements auf einmal
-  fuel melatonin --time night  Zeit-of-Day überschreiben
+  fuel kreatin --time night  Zeit-of-Day überschreiben
 
 Überblick:
   fuel today                was heute geloggt wurde
   fuel list                 alle Supplements mit Default-Dosis
-  fuel week                 Wochenübersicht mit CSV-Export
+  fuel log [--date DATUM]   Log eines bestimmten Tages (Standard: heute)
 """
 
 from __future__ import annotations
@@ -21,17 +20,13 @@ import os
 import shutil
 import subprocess
 import sys
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 import typer
 from loguru import logger
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 import pandas as pd
-from rich.console import Console
-from rich.table import Table
-
-console = Console()
 
 # ── Validation (Pydantic) ──────────────────────────────────────────────────────
 
@@ -153,120 +148,39 @@ def do_log(supplement_id: str, dose: float | None, time_of_day: str | None, day:
     write_log(today, data)
 
     total_today = len(data["intakes"])
-    day_label = "heute"
-    if today != date.today().isoformat():
-        yesterday = (date.today() - timedelta(days=1)).isoformat()
-        if today == yesterday:
-            day_label = "gestern"
-        else:
-            day_label = f"am {today}"
-
-    gum_log("info", f"{supp['name']} {dose}{unit} ({tod}) geloggt — {day_label} gesamt: {total_today} Intake(s)")
+    gum_log("info", f"{supp['name']} {dose}{unit} ({tod}) geloggt — heute gesamt: {total_today} Intake(s)")
 
 def do_today(day: str | None) -> None:
     today = day or date.today().isoformat()
     data  = read_log(today)
     intakes = data.get("intakes", [])
 
+    gum_header(f"Fuel Supplements — {today}")
     if not intakes:
-        console.print(f"[yellow]Noch nichts geloggt am {today}[/yellow]")
+        gum_log("warn", "Noch nichts geloggt heute")
         return
 
-    table = Table(title=f"Fuel Supplements — {today}", show_header=True, header_style="bold magenta")
-    table.add_column("SUPPLEMENT", style="green")
-    table.add_column("DOSIS", style="cyan")
-    table.add_column("ZEIT", style="blue")
-
-    for i in intakes:
-        table.add_row(
-            i["name"],
-            f"{i['dose']}{i['unit']}",
-            i["time_of_day"]
-        )
-
-    console.print(table)
+    rows = [[i["name"], str(i["dose"]) + i["unit"], i["time_of_day"]] for i in intakes]
+    gum_table(["SUPPLEMENT", "DOSIS", "ZEIT"], rows, [20, 10, 10])
 
 # ── Typer App ──────────────────────────────────────────────────────────────────
 
 app = typer.Typer(
     name="fuel",
     help=__doc__,
-    add_completion=True,
     invoke_without_command=True,
+    no_args_is_help=True,
+    add_completion=False,
 )
 
-def _preprocess_args() -> None:
-    """Convert --1d, --2d, --yesterday to --day YYYY-MM-DD before Typer sees it."""
-    i = 0
-    while i < len(sys.argv):
-        arg = sys.argv[i]
-
-        # --yesterday → --day <yesterday>
-        if arg == "--yesterday":
-            yesterday = (date.today() - timedelta(days=1)).isoformat()
-            sys.argv[i] = "--day"
-            sys.argv.insert(i + 1, yesterday)
-            i += 2
-
-        # --1d, --2d, etc. → --day <date>
-        elif arg.startswith("--") and arg[2:].endswith("d"):
-            try:
-                days = int(arg[2:-1])
-                target_date = (date.today() - timedelta(days=days)).isoformat()
-                sys.argv[i] = "--day"
-                sys.argv.insert(i + 1, target_date)
-                i += 2
-            except ValueError:
-                i += 1
-        else:
-            i += 1
-
-def _print_help_with_catalog() -> None:
-    """Print extended help mit Supplement-Catalog."""
-    catalog = load_catalog()
-    console.print(__doc__)
-    console.print("\n[bold magenta]Available Supplements:[/bold magenta]")
-
-    table = Table(show_header=True, header_style="bold cyan")
-    table.add_column("ID", style="green")
-    table.add_column("NAME", style="cyan")
-    table.add_column("DEFAULT", style="yellow")
-    table.add_column("TIME", style="blue")
-
-    for sid, s in catalog.items():
-        table.add_row(
-            sid,
-            s["name"],
-            f"{s['default_dose']}{s['unit']}",
-            s.get("default_time_of_day", "any")
-        )
-
-    console.print(table)
-    console.print("\n[dim]Commands: log, today, list, week[/dim]")
-
-@app.callback(invoke_without_command=True)
-def main(ctx: typer.Context) -> None:
-    if "--help" in sys.argv or "-h" in sys.argv:
-        _print_help_with_catalog()
-        raise SystemExit(0)
-
-    if ctx.invoked_subcommand is None and len(sys.argv) > 1:
-        first_arg = sys.argv[1]
-        catalog = load_catalog()
-        # Wenn erstes Argument ist Supplement → log command
-        if first_arg in catalog:
-            ctx.invoke(log_command)
-
-@app.command(name="log", help="Supplement(e) loggen")
-def log_command(
-    supplements: list[str]   = typer.Argument(..., help="Supplement-IDs (z.B. melatonin kollagen)"),
-    dose:       float | None = typer.Argument(None, help="Dosis für erstes Supplement (Standard: catalog)"),
+@app.command(help="Supplement loggen")
+def log(
+    supplement: str          = typer.Argument(..., help="Supplement-ID, z.B. melatonin"),
+    dose:       float | None = typer.Argument(None, help="Dosis (Standard: catalog default)"),
     time:       str | None   = typer.Option(None, "--time", "-t", help="morning/evening/night/any"),
     day:        str | None   = typer.Option(None, "--day", "-d", help="Datum YYYY-MM-DD (Standard: heute)"),
 ) -> None:
-    for i, supp in enumerate(supplements):
-        d = dose if i == 0 else None
-        do_log(supp, d, time, day)
+    do_log(supplement, dose, time, day)
 
 @app.command(help="Was heute geloggt wurde")
 def today(
@@ -277,32 +191,23 @@ def today(
 @app.command(name="list", help="Alle Supplements aus dem Catalog")
 def list_supplements() -> None:
     catalog = load_catalog()
-    table = Table(title="Fuel — Supplement Catalog", show_header=True, header_style="bold magenta")
-    table.add_column("ID", style="cyan")
-    table.add_column("NAME", style="green")
-    table.add_column("DEFAULT DOSE", style="yellow")
-    table.add_column("TIME", style="blue")
-
-    for sid, s in catalog.items():
-        table.add_row(
-            sid,
-            s["name"],
-            f"{s['default_dose']}{s['unit']}",
-            s.get("default_time_of_day", "any")
-        )
-
-    console.print(table)
+    gum_header("Fuel — Supplement Catalog")
+    rows = [[sid, s["name"], f"{s['default_dose']}{s['unit']}", s.get("default_time_of_day", "any")]
+            for sid, s in catalog.items()]
+    gum_table(["ID", "NAME", "DEFAULT", "ZEIT"], rows, [14, 16, 10, 10])
 
 @app.command(name="week", help="Wochenübersicht mit CSV-Export")
 def weekly(
-    date_arg: str | None = typer.Option(None, "--date", "-d", help="Datum in der Woche (Standard: heute)"),
+    date: str | None = typer.Option(None, "--date", "-d", help="Datum in der Woche (Standard: heute)"),
 ) -> None:
-    do_weekly_report(date_arg)
+    do_weekly_report(date)
 
 # ── Weekly Report (Pandas) ─────────────────────────────────────────────────────
 
 def do_weekly_report(day: str | None = None) -> None:
     """Generate weekly report with pandas and export to CSV."""
+    from datetime import timedelta
+
     today = day or date.today().isoformat()
     target_date = date.fromisoformat(today)
 
@@ -325,7 +230,7 @@ def do_weekly_report(day: str | None = None) -> None:
         for intake in data.get("intakes", []):
             rows.append({
                 "date": day_str,
-                "day": day_date.strftime("%a"),
+                "day": day_date.strftime("%a"),  # Mon, Tue, etc.
                 "supplement": intake.get("name", ""),
                 "dose": intake.get("dose", 0),
                 "unit": intake.get("unit", ""),
@@ -345,7 +250,7 @@ def do_weekly_report(day: str | None = None) -> None:
     summary = df.groupby("supplement").agg({
         "dose": "sum",
         "unit": "first",
-        "date": "count",
+        "date": "count",  # number of times taken
     }).rename(columns={"date": "count"}).round(2)
 
     # Export to CSV
@@ -353,70 +258,47 @@ def do_weekly_report(day: str | None = None) -> None:
     df.to_csv(csv_file, index=False, encoding="utf-8")
     gum_log("info", f"CSV exportiert: {csv_file}")
 
-    # Display summary with rich Table
-    week_start = week_monday.isoformat()
-    week_end = (week_monday + timedelta(days=6)).isoformat()
-    console.print(f"[bold magenta]Fuel Weekly Report — {week_key}[/bold magenta] [dim]Mo {week_start} — So {week_end}[/dim]")
+    # Display summary
+    gum_header(f"Fuel Weekly Report — {week_key} ({week_monday.isoformat()} bis {(week_monday + timedelta(days=6)).isoformat()})")
+    print(summary.to_string())
+    print(f"\nDatei: {csv_file}")
 
-    table = Table(show_header=True, header_style="bold magenta")
-    table.add_column("SUPPLEMENT", style="green")
-    table.add_column("TOTAL DOSE", style="cyan")
-    table.add_column("UNIT", style="yellow")
-    table.add_column("COUNT", style="blue")
+# ── Shortcut: `fuel melatonin` oder `fuel -melatonin -glycin -kollagen` ────────
 
-    for supplement, row in summary.iterrows():
-        table.add_row(
-            supplement,
-            str(row["dose"]),
-            row["unit"],
-            str(int(row["count"]))
-        )
+def _parse_day_arg() -> str | None:
+    """Parse --yesterday, --1d, --2d, etc. from sys.argv"""
+    from datetime import timedelta
 
-    console.print(table)
-    console.print(f"[dim]CSV: {csv_file}[/dim]")
+    for arg in sys.argv[1:]:
+        if arg == "--yesterday":
+            return (date.today() - timedelta(days=1)).isoformat()
+        if arg.startswith("--") and arg[2:].endswith("d"):
+            try:
+                days = int(arg[2:-1])
+                return (date.today() - timedelta(days=days)).isoformat()
+            except ValueError:
+                pass
+    return None
 
 def _main() -> None:
     catalog = load_catalog()
+    day_arg = _parse_day_arg()
 
-    # Shortcut: fuel zink [dose] [--time ...] [--day ...] [--yesterday] [--1d] etc.
+    # Multi-supplement: `fuel -melatonin -glycin -kollagen` oder `fuel -melatonin -glycin --yesterday`
+    flag_supplements = [arg.lstrip("-") for arg in sys.argv[1:]
+                        if arg.startswith("-") and arg.lstrip("-") in catalog]
+    if flag_supplements:
+        for supp in flag_supplements:
+            do_log(supp, None, None, day_arg)
+        return
+
+    # Single supplement shortcut: `fuel melatonin` oder `fuel melatonin 2`
     if len(sys.argv) >= 2 and sys.argv[1] in catalog:
         supplement = sys.argv[1]
-        dose = None
-        day = None
-        time_of_day = None
-
-        args = sys.argv[2:]
-        i = 0
-        while i < len(args):
-            if args[i] in ("--day", "-d"):
-                day = args[i + 1] if i + 1 < len(args) else None
-                i += 2
-            elif args[i] in ("--time", "-t"):
-                time_of_day = args[i + 1] if i + 1 < len(args) else None
-                i += 2
-            elif args[i] == "--yesterday":
-                day = (date.today() - timedelta(days=1)).isoformat()
-                i += 1
-            elif args[i].startswith("--") and args[i][2:].endswith("d") and args[i][2:-1].isdigit():
-                # --1d, --2d, etc.
-                days = int(args[i][2:-1])
-                day = (date.today() - timedelta(days=days)).isoformat()
-                i += 1
-            elif _is_number(args[i]):
-                dose = float(args[i])
-                i += 1
-            else:
-                i += 1
-
-        do_log(supplement, dose, time_of_day, day)
+        dose       = float(sys.argv[2]) if len(sys.argv) >= 3 and _is_number(sys.argv[2]) else None
+        do_log(supplement, dose, None, day_arg)
         return
 
-    # Help with catalog
-    if "--help" in sys.argv or "-h" in sys.argv:
-        _print_help_with_catalog()
-        return
-
-    # Other commands: Typer
     app()
 
 def _is_number(s: str) -> bool:

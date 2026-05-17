@@ -153,15 +153,7 @@ def do_log(supplement_id: str, dose: float | None, time_of_day: str | None, day:
     write_log(today, data)
 
     total_today = len(data["intakes"])
-    day_label = "heute"
-    if today != date.today().isoformat():
-        yesterday = (date.today() - timedelta(days=1)).isoformat()
-        if today == yesterday:
-            day_label = "gestern"
-        else:
-            day_label = f"am {today}"
-
-    gum_log("info", f"{supp['name']} {dose}{unit} ({tod}) geloggt — {day_label} gesamt: {total_today} Intake(s)")
+    gum_log("info", f"{supp['name']} {dose}{unit} ({tod}) geloggt — heute gesamt: {total_today} Intake(s)")
 
 def do_today(day: str | None) -> None:
     today = day or date.today().isoformat()

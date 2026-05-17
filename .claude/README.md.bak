@@ -1,0 +1,62 @@
+# Fuel-Dev Claude Configuration
+
+This directory contains Claude Code project-specific configuration and skill definitions.
+
+## Contents
+
+### `settings.json`
+Project-level settings for Claude Code when working in fuel-dev.
+
+**Registered Skills:**
+- `nutrition-agent` — Vitaltrainer nutrition management (Pflichtaufgaben, daily logging, analysis)
+  - Agent definition: `~/.claude/agents/nutrition-agent.md`
+  - Trigger: `/nutrition-agent`
+  - Purpose: Manage 7/14-day protocols, nutrition logging via wger-food/fuel-log, reporting
+
+**Language:** German (de)
+**Thinking:** Enabled
+
+## How to Use
+
+When working in fuel-dev, you can invoke the registered skills:
+
+```bash
+# In Claude Code, within fuel-dev project
+/nutrition-agent
+```
+
+This will activate the nutrition-agent with full context from its system prompt (`~/.claude/agents/nutrition-agent.md`).
+
+## Skill Capabilities
+
+### nutrition-agent
+
+**What it does:**
+- Generates assignment protocols (7-day Ernährungstrainer, 14-day Fitnesstrainer)
+- Manages daily nutrition logging (wger-food or fuel-log CLI)
+- Provides weekly analysis & reporting
+- Exports protocols to PDF for submission
+- Checks wger-Docker status
+
+**Tools it uses:**
+- `nutrition-protocol-generator` — Generate protocols
+- `wger-food` — Log meals with Open Food Facts + wger-API
+- `fuel-log` — Quick CLI logging to fuel-dev API
+- `fuel` — Supplement logging
+
+**Data locations:**
+- Protocols: `~/my-protocol-*.md`
+- Daily logs: `~/Nutrition/logs/`
+- wger API: `http://localhost:8000/api/v2/`
+- Official docs: `~/_Ernährungstrainer/`
+
+## For Future Development
+
+If you want to add more skills:
+1. Create agent definition in `~/.claude/agents/`
+2. Register in `settings.json` under `skills[]`
+3. Include trigger words, purpose, capabilities, and tool references
+
+---
+
+**Last Updated:** 2026-05-17

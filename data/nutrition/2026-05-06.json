@@ -1,0 +1,17 @@
+{
+  "date": "2026-05-06",
+  "meals": [
+    {
+      "id": "meal_moukji4h_5wm2lj8",
+      "type": "dinner",
+      "description": "Spiegelei 6x",
+      "notes": "",
+      "kcal": 331,
+      "protein": 0,
+      "carbs": 0,
+      "fat": 0,
+      "time": "2026-05-06T21:27:53.730Z"
+    }
+  ],
+  "water_ml": 0
+}

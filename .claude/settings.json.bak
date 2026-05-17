@@ -1,0 +1,65 @@
+{
+  "skills": [
+    {
+      "name": "nutrition-agent",
+      "description": "Ernährungs-Koordinator für Vitaltrainer-Ausbildung: Pflichtaufgaben (7/14-Tage Protokolle), Daily Logging via wger-food/fuel-log, Reporting & Analysis. Verwaltet Ernährungstrainer B-Lizenz + Fitnesstrainer Nutrition-Tracking.",
+      "type": "agent",
+      "agentPath": "~/.claude/agents/nutrition-agent.md",
+      "triggerWords": [
+        "nutrition",
+        "Ernährung",
+        "Protokoll",
+        "tracking",
+        "Makros",
+        "7-Tage",
+        "14-Tage",
+        "Pflichtaufgabe",
+        "wger-food",
+        "fuel-log",
+        "Mahlzeit",
+        "logging"
+      ],
+      "purpose": "Manage all nutrition projects for Vitaltrainer-Ausbildung: Ernährungstrainer B-Lizenz + Fitnesstrainer Pflichtaufgaben, daily logging, reporting, wger-API integration.",
+      "capabilities": [
+        "Generate 7-day assignment protocols",
+        "Generate 14-day Fitnesstrainer protocols",
+        "Daily nutrition logging via wger-food (Open Food Facts + wger-API)",
+        "Quick logging via fuel-log CLI",
+        "Weekly analysis & macro calculations",
+        "Export protocols to PDF",
+        "wger-Docker status checks"
+      ],
+      "dataLocations": {
+        "protocols": "~/my-protocol-*.md",
+        "dailyLogs": "~/Nutrition/logs/",
+        "wgerAPI": "http://localhost:8000/api/v2/",
+        "officialDocs": "~/_Ernährungstrainer/",
+        "userWorkspace": "~/Dipl.Ernährungstrainer/"
+      },
+      "tools": [
+        {
+          "name": "nutrition-protocol-generator",
+          "path": "~/Nutrition/bin/nutrition-protocol-generator",
+          "purpose": "Generate 7 or 14-day nutrition protocols for assignments"
+        },
+        {
+          "name": "wger-food",
+          "path": "~/Nutrition/bin/wger-food",
+          "purpose": "Log meals with Open Food Facts + wger-API hybrid search"
+        },
+        {
+          "name": "fuel-log",
+          "path": "~/fuel-dev/fuel-log.zsh",
+          "purpose": "Quick CLI logging to fuel-dev API"
+        },
+        {
+          "name": "fuel",
+          "path": "~/fuel-dev/fuel",
+          "purpose": "Python CLI for supplement logging"
+        }
+      ]
+    }
+  ],
+  "language": "german",
+  "alwaysThinkingEnabled": true
+}
