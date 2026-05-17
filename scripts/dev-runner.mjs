@@ -5,6 +5,7 @@ const env = {
   PORT: process.env.PORT || "9000",
   HOST: process.env.HOST || "0.0.0.0",
   FUEL_BUILD_DIR: process.env.FUEL_BUILD_DIR || "./dist",
+  FUEL_VITE_ORIGIN: process.env.FUEL_VITE_ORIGIN || "http://localhost:5173",
 };
 
 const procs = [];
@@ -46,4 +47,4 @@ process.on("SIGINT", () => {
 });
 
 start("api", "node", ["server.mjs"]);
-start("ui", "node_modules/.bin/vite", ["build", "--watch"]);
+start("ui", "node_modules/.bin/vite", ["--host", "0.0.0.0", "--port", "5173"]);

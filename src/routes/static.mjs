@@ -1,7 +1,8 @@
 import path from "path";
 import fs from "fs";
-import { PUBLIC_DIR } from "../config/paths.mjs";
-import { serveFile } from "../lib/file-io.mjs";
+import { PUBLIC_DIR, VITE_BUILD_DIR } from "../config/paths.mjs";
+import { serveFile, isPathInStatic } from "../lib/file-io.mjs";
+import { VITE_ORIGIN } from "../config/constants.mjs";
 
 export default async function staticRoute(app) {
   // Root — serve vanilla HTML (V1 classic)
@@ -10,25 +11,29 @@ export default async function staticRoute(app) {
     await serveFile(publicIndexPath, reply);
   });
 
-  // V2 — proxy to Vite dev server if available
-  app.get("/v2*", async (req, reply) => {
-    const viteOrigin = process.env.FUEL_VITE_ORIGIN;
-    if (viteOrigin) {
-      // Dev: proxy to Vite
-      const targetUrl = new URL(req.url, viteOrigin);
-      try {
-        const proxyRes = await fetch(targetUrl.toString(), { method: req.method });
-        reply.status(proxyRes.status);
-        for (const [key, value] of proxyRes.headers) {
-          reply.header(key, value);
-        }
-        reply.send(await proxyRes.text());
-      } catch (error) {
-        console.error("Vite proxy error:", error.message);
-        reply.status(502).send("Vite dev server unavailable");
-      }
+  // V2 redirect (no slash)
+  app.get("/v2", async (req, reply) => {
+    if (VITE_ORIGIN) {
+      return reply.redirect(`${VITE_ORIGIN}/v2/`);
+    }
+    reply.redirect("/v2/");
+  });
+
+  // V2 — proxy to Vite dev server or serve from dist/
+  app.get("/v2/*", async (req, reply) => {
+    // Dev mode: always proxy to Vite
+    if (VITE_ORIGIN) {
+      return reply.redirect(`${VITE_ORIGIN}${req.url}`);
+    }
+
+    // Prod mode: serve from dist/ (no fallback — let assets 404 if missing)
+    let pathname = req.url.split("?")[0];
+    let filePath = path.join(VITE_BUILD_DIR, pathname);
+
+    if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+      await serveFile(filePath, reply);
     } else {
-      reply.status(404).send("V2 app not available");
+      reply.status(404).send("Not found");
     }
   });
 

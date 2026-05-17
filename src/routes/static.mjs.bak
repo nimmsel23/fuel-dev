@@ -1,7 +1,8 @@
 import path from "path";
 import fs from "fs";
-import { PUBLIC_DIR } from "../config/paths.mjs";
-import { serveFile } from "../lib/file-io.mjs";
+import { PUBLIC_DIR, VITE_BUILD_DIR } from "../config/paths.mjs";
+import { serveFile, isPathInStatic } from "../lib/file-io.mjs";
+import { VITE_ORIGIN } from "../config/constants.mjs";
 
 export default async function staticRoute(app) {
   // Root — serve vanilla HTML (V1 classic)
@@ -10,9 +11,39 @@ export default async function staticRoute(app) {
     await serveFile(publicIndexPath, reply);
   });
 
-  // V2 — served by dev-runner.mjs (proxy to Vite in dev)
-  // In production, this would serve dist/index.html
-  // For now, dev-runner handles it
+  // V2 redirect (no slash)
+  app.get("/v2", async (req, reply) => {
+    if (VITE_ORIGIN) {
+      return reply.redirect(`${VITE_ORIGIN}/v2/`);
+    }
+    reply.redirect("/v2/");
+  });
+
+  // V2 — proxy to Vite dev server or serve built app from dist/
+  app.get("/v2/*", async (req, reply) => {
+    if (VITE_ORIGIN) {
+      // Dev mode: proxy to Vite
+      return reply.redirect(`${VITE_ORIGIN}${req.url}`);
+    }
+
+    // Prod mode: serve from dist/
+    let pathname = req.url.split("?")[0];
+    let filePath = path.join(VITE_BUILD_DIR, pathname);
+
+    // Try exact file match
+    if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+      await serveFile(filePath, reply);
+      return;
+    }
+
+    // Fallback to index.html for SPA routing
+    const indexPath = path.join(VITE_BUILD_DIR, "index.html");
+    if (fs.existsSync(indexPath)) {
+      await serveFile(indexPath, reply);
+    } else {
+      reply.status(404).send("V2 not available");
+    }
+  });
 
   // Static files (V1, assets, etc)
   app.get("/*", async (req, reply) => {
