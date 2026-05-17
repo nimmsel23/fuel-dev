@@ -25,11 +25,11 @@ async function fetchLog(date) {
 export function useWeekLogs(anchor) {
   const dates = weekDates(anchor);
   return useQuery({
-    queryKey: ["week-logs", dates[0]],
+    queryKey: ["week-logs", anchor],
     queryFn: async () => {
       const results = await Promise.all(dates.map(fetchLog));
       return Object.fromEntries(results.map((r) => [r.date, r.meals]));
     },
-    staleTime: 30_000,
+    staleTime: 0,
   });
 }
