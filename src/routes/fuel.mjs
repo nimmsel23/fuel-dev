@@ -1,54 +1,35 @@
-import { z } from "zod";
-import { loadLog, saveLog, addEntry } from "../services/fuel-log.mjs";
-import { isISODate, todayISO } from "../lib/validation.mjs";
-
-const logPostSchema = z.object({
-  datum: z.string().optional(),
-  mahlzeit: z.string().min(1),
-  speise: z.string().min(1),
-  kalorien: z.coerce.number().min(0).default(0),
-  protein: z.coerce.number().min(0).default(0),
-  kohlenhydrate: z.coerce.number().min(0).default(0),
-  fett: z.coerce.number().min(0).default(0),
-  notizen: z.string().default(""),
-});
-
+// Legacy Fuel endpoints — redirect to Nutrition for unified logging
 export default async function fuelRoute(app) {
-  // GET /fuel/log?date=YYYY-MM-DD
+  // GET /fuel/log?date=YYYY-MM-DD → GET /nutrition/log
   app.get("/fuel/log", async (req, reply) => {
-    const date = (req.query.date || todayISO()).toString();
-    if (!isISODate(date)) {
-      return reply.status(400).send({ ok: false, error: "Invalid date" });
-    }
-    const log = loadLog(date);
-    return reply.send({ ok: true, datum: date, entries: log.entries || [] });
+    const date = req.query.date || "";
+    reply.redirect(`/nutrition/log${date ? `?date=${date}` : ""}`);
   });
 
-  // POST /fuel/log
+  // POST /fuel/log → POST /nutrition/log
   app.post("/fuel/log", async (req, reply) => {
-    try {
-      const parsed = logPostSchema.safeParse(req.body || {});
-      if (!parsed.success) {
-        return reply.status(400).send({ ok: false, error: "Invalid data" });
-      }
+    const body = req.body || {};
+    const nutritionPayload = {
+      meal: {
+        meal_type: body.mahlzeit || "snack",
+        description: body.speise,
+        kcal: body.kalorien || 0,
+        protein: body.protein || 0,
+        carbs: body.kohlenhydrate || 0,
+        fat: body.fett || 0,
+        notes: body.notizen || "",
+      },
+      date: body.datum,
+    };
 
-      const date = (parsed.data.datum || todayISO()).toString();
-      if (!isISODate(date)) {
-        return reply.status(400).send({ ok: false, error: "Invalid date" });
-      }
+    // Forward to nutrition endpoint
+    const r = await fetch("http://127.0.0.1:9000/nutrition/log", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(nutritionPayload),
+    });
 
-      const log = loadLog(date);
-      const entry = addEntry(log, parsed.data);
-
-      if (!entry) {
-        return reply.status(400).send({ ok: false, error: "Invalid entry" });
-      }
-
-      saveLog(log);
-      return reply.send({ ok: true, entry });
-    } catch (error) {
-      console.error(error);
-      return reply.status(500).send({ ok: false, error: "Internal server error" });
-    }
+    const data = await r.json();
+    reply.status(r.status).send(data);
   });
 }
