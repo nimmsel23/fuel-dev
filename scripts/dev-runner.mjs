@@ -5,7 +5,7 @@ const env = {
   PORT: process.env.PORT || "9000",
   HOST: process.env.HOST || "0.0.0.0",
   FUEL_BUILD_DIR: process.env.FUEL_BUILD_DIR || "./dist",
-  FUEL_VITE_ORIGIN: process.env.FUEL_VITE_ORIGIN || "http://localhost:5173",
+  FUEL_VITE_ORIGIN: process.env.FUEL_VITE_ORIGIN || "http://localhost:5174",
 };
 
 const procs = [];

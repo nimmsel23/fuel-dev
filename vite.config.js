@@ -5,12 +5,12 @@ import { VitePWA } from "vite-plugin-pwa";
 const outDir = "./dist"; // Vite builds to dist/
 
 export default defineConfig({
-  base: "/v2/",
+  base: "/",
   plugins: [
     react(),
     VitePWA({
-      base: "/v2/",
-      scope: "/v2/",
+      base: "/",
+      scope: "/",
       registerType: "autoUpdate",
       injectRegister: "auto",
       manifest: {
@@ -20,16 +20,16 @@ export default defineConfig({
         theme_color: "#080b12",
         background_color: "#080b12",
         display: "standalone",
-        start_url: "/v2/",
-        scope: "/v2/",
+        start_url: "/",
+        scope: "/",
         icons: [
-          { src: "/v2/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-          { src: "/v2/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+          { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+          { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
         ],
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
-        navigateFallback: "/v2/index.html",
+        navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/api/, /^\/nutrition/, /^\/supplements/, /^\/fuel/, /^\/health/],
         runtimeCaching: [
           {
