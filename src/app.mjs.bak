@@ -7,6 +7,7 @@ import { normalizeRoutedPath } from "./lib/validation.mjs";
 // Routes
 import healthRoute from "./routes/health.mjs";
 import nutritionRoute from "./routes/nutrition.mjs";
+import supplementsRoute from "./routes/supplements.mjs";
 import staticRoute from "./routes/static.mjs";
 
 export function createApp() {
@@ -34,7 +35,7 @@ export function createApp() {
   app.register(staticRoute); // Catch-all
 
   // Error handler
-  app.setErrorHandler((error, request, reply) => {
+  app.setErrorHandler((error, _request, reply) => {
     console.error(error);
     reply.status(500).send({ ok: false, error: "Internal server error" });
   });

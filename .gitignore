@@ -3,3 +3,5 @@ dist/
 /opt/
 .DS_Store
 *.log
+*.bak
+.claude/TICKETS/

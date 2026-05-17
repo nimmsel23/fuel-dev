@@ -7,6 +7,7 @@ import { normalizeRoutedPath } from "./lib/validation.mjs";
 // Routes
 import healthRoute from "./routes/health.mjs";
 import nutritionRoute from "./routes/nutrition.mjs";
+import supplementsRoute from "./routes/supplements.mjs";
 import staticRoute from "./routes/static.mjs";
 
 export function createApp() {
@@ -31,6 +32,7 @@ export function createApp() {
   // Register routes (specific first, catch-all last)
   app.register(healthRoute);
   app.register(nutritionRoute);
+  app.register(supplementsRoute);
   app.register(staticRoute); // Catch-all
 
   // Error handler
