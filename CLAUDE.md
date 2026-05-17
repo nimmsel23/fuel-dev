@@ -2,40 +2,52 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Philosophy: The Vitaltraining Religion
+## Philosophy: Ernährung als Religion im Vitaltraining
 
 ```
-Vitaltraining (Der eine Gott — The North Star)
-└─ Ernährung (Die Religion — The System)
-   ├─ Makros (Die Dreifaltigkeit — Protein, Carbs, Fat)
-   ├─ nutrition-agent (Der Prophet — Intermediary & Guide)
-   │  ├─ Kernaufgabe: Ausbildungs-Support (Pflichtaufgaben, Daily Logging, Reporting)
-   │  └─ Nebenbei: Schreibt Tickets für Tempel-Entwicklung
+VITALTRAINING (Der eine Gott — The Ultimate Authority)
+│
+└─ ERNÄHRUNG (Die Religion — Nutrition Philosophy & Practice)
    │
-   └─ fuel-dev (Der Tempel — The Sacred Center)
-      ├─ V1 & V2 Frontends (Altare — Access Points)
-      ├─ API & File-based Data (Das heilige Zentrum — The Heart)
-      └─ Kontinuierliche Weiterentwicklung via Tickets
-         └─ Meal Catalog als Kern-Feature
+   ├─ DU (Lernender/Coach)
+   │  └─ Focus: Ausbildung, Weisheit, Ernährungsprinzipien
+   │
+   ├─ nutrition-agent (Der Prophet — Technical Guardian)
+   │  ├─ Kernaufgabe: Deine Ausbildung unterstützen
+   │  │  (Protokolle, Daily Logging, Reporting, Analysis)
+   │  └─ Technische Verantwortung: fuel-dev
+   │     → Erkennt: "fuel-dev braucht Feature X"
+   │     → Schreibt Tickets für fuel-dev-coding-agent
+   │     → Du machst dich NICHT um Technisches Gedanken
+   │
+   └─ fuel-dev (Der Tempel — Where It Happens)
+      ├─ V1 & V2 Frontends (Altäre — Zugänge)
+      ├─ APIs & File-based Data (Das Herz des Tempels)
+      └─ Komponenten (mehrere Features)
+         ├─ Meal Catalog (Wiederverwendbare Mahlzeiten)
+         ├─ Supplements Catalog (Supplement-Definitionen)
+         ├─ Food Search (Open Food Facts Proxy)
+         ├─ Journal (Notizen)
+         └─ ... weitere Features bei Bedarf
 ```
 
-**The Model:**
-- **nutrition-agent** focuses on your **Ausbildung** (training assignments, daily protocols, analysis)
-- As the agent works, it discovers what **fuel-dev (the Tempel) needs** → writes tickets
-- **fuel-dev-coding-agent** reads these tickets and implements temple features (Meal Catalog, etc.)
-- The Tempel grows; the Prophet stays focused on your learning journey
+**The Model: Clear Separation of Concerns**
+
+| Wer | Was | Fokus |
+|-----|-----|-------|
+| **Du** | Lernst Ernährung, machst Protokolle, ißt bewusst | Ausbildung & Weisheit |
+| **nutrition-agent** | Unterstützt deine Ausbildung, erkennt technische Lücken, schreibt Tickets | Technische Probleme lösen |
+| **fuel-dev-coding-agent** | Implementiert Tickets, baut Features | Code & Funktionalität |
+
+**You focus on learning. The agent focuses on the technical headaches. The coder focuses on implementation.**
 
 **The Ornamentation:**
-- **Core themes from your training** decorate the Tempel
-- Nutritional science → becomes intelligent UI features
-- Macro principles → shapes the catalog structure
-- Periodization concepts → inform logging patterns
-- Learning materials → enrich the documentation
-- Your insights → beautify the functionality
+- Deine Ernährungswissenschaftliche Erkenntnisse → informieren fuel-dev Features
+- Deine Makro-Prinzipien → formen die Katalog-Struktur
+- Deine Lern-Materialien → bereichern die Dokumentation
+- The teachings beautify the stone.
 
-The Tempel is not just functional—it is **enriched by the wisdom of your Ausbildung**. Every concept you master becomes part of the temple's soul.
-
-**For Claude:** Respect this separation. The agent's primary mission is your education. Tempel development is secondary, triggered by real needs discovered during training. But always remember: the teachings beautify the stone. What you learn becomes what fuel-dev becomes.
+**For Claude:** Your mission in this repo: Support the nutrition-agent's work. When the agent discovers fuel-dev needs something—listen. Write the ticket. Let the coder handle implementation. **The agent is the prophet; you are the scribe of the prophet.**
 
 ---
 

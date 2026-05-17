@@ -2,7 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 
-const outDir = process.env.FUEL_BUILD_DIR || "/opt/fuel";
+const outDir = "./dist"; // Vite builds to dist/
 
 export default defineConfig({
   base: "/v2/",

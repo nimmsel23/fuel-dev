@@ -1,0 +1,32 @@
+import path from "path";
+import fs from "fs";
+import { PUBLIC_DIR } from "../config/paths.mjs";
+import { serveFile } from "../lib/file-io.mjs";
+
+export default async function staticRoute(app) {
+  // Root — serve vanilla HTML (V1 classic)
+  app.get("/", async (_, reply) => {
+    const publicIndexPath = path.join(PUBLIC_DIR, "index.html");
+    await serveFile(publicIndexPath, reply);
+  });
+
+  // V2 — served by dev-runner.mjs (proxy to Vite in dev)
+  // In production, this would serve dist/index.html
+  // For now, dev-runner handles it
+
+  // Static files (V1, assets, etc)
+  app.get("/*", async (req, reply) => {
+    let pathname = req.url.split("?")[0];
+    let filePath = path.join(PUBLIC_DIR, pathname);
+
+    if (!isPathInStatic(filePath)) {
+      return reply.status(403).send("Forbidden");
+    }
+
+    if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+      await serveFile(filePath, reply);
+    } else {
+      reply.status(404).send("Not found");
+    }
+  });
+}
