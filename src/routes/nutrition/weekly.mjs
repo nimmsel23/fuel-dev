@@ -1,10 +1,9 @@
 import path from "path";
 import fs from "fs";
-import { NUTRITION_DIR, NUTRITION_CATALOG_PATH } from "../../config/paths.mjs";
-import { loadMicrosCatalog, getMicrosForComponents, zeroMicros } from "../../services/nutrition-micros.mjs";
+import { NUTRITION_DIR } from "../../config/paths.mjs";
+import { getMicrosForMeal, zeroMicros, MICRO_KEYS } from "../../services/nutrition-micros.mjs";
+import { loadCatalog } from "../../services/nutrition-catalog.mjs";
 import { DACH, getStatus } from "../../config/dach.mjs";
-
-const MICRO_KEYS = Object.keys(DACH);
 
 function getWeekDates(year, week) {
   const simple = new Date(year, 0, 1 + (week - 1) * 7);
@@ -30,23 +29,6 @@ function loadLog(date) {
   return { date, meals: [], water_ml: 0 };
 }
 
-function loadMealCatalog() {
-  if (fs.existsSync(NUTRITION_CATALOG_PATH)) {
-    try { return JSON.parse(fs.readFileSync(NUTRITION_CATALOG_PATH, "utf-8")); } catch { /* fall through */ }
-  }
-  return { items: [] };
-}
-
-// Collect all components + addons from a catalog entry (addons = default ones only)
-function getEffectiveComponents(catalogItem) {
-  const components = [...(catalogItem.components || [])];
-  const defaultAddonIds = new Set(catalogItem.default_addon_ids || []);
-  for (const addon of catalogItem.addons || []) {
-    if (defaultAddonIds.has(addon.id)) components.push(addon);
-  }
-  return components;
-}
-
 export default async function weeklyRoute(app) {
   app.get("/nutrition/weekly/:year/:week", async (req, reply) => {
     try {
@@ -58,9 +40,7 @@ export default async function weeklyRoute(app) {
       }
 
       const dates = getWeekDates(y, w);
-      const microsCatalog = loadMicrosCatalog();
-      const mealCatalog = loadMealCatalog();
-
+      const catalog = loadCatalog();
       const weekTotals = zeroMicros();
       const dayBreakdown = {};
 
@@ -69,20 +49,17 @@ export default async function weeklyRoute(app) {
         const dayTotals = zeroMicros();
 
         for (const meal of log.meals || []) {
-          // Find catalog entry via catalog_id or description fallback
-          const catalogEntry = mealCatalog.items.find(
-            (i) => (meal.catalog_id && i.id === meal.catalog_id) ||
-                    i.name === meal.description ||
-                    i.description === meal.description
+          // Resolve meal name: catalog entry name takes precedence over logged description
+          const catalogEntry = catalog.items.find(
+            (i) => (meal.catalog_id && i.id === meal.catalog_id) || i.name === meal.description
           );
+          const lookupName = catalogEntry?.name || meal.description;
 
-          if (!catalogEntry) continue;
-
-          const components = getEffectiveComponents(catalogEntry);
-          const { micros } = getMicrosForComponents(components, microsCatalog);
+          const micros = getMicrosForMeal(lookupName);
+          if (!micros) continue;
 
           for (const k of MICRO_KEYS) {
-            dayTotals[k] = Math.round((dayTotals[k] + micros[k]) * 10) / 10;
+            dayTotals[k] = Math.round((dayTotals[k] + (micros[k] || 0)) * 10) / 10;
           }
         }
 
@@ -105,15 +82,7 @@ export default async function weeklyRoute(app) {
         };
       }
 
-      return reply.send({
-        ok: true,
-        year: y,
-        week: w,
-        dates,
-        week_totals: weekTotals,
-        rda_comparison: status,
-        day_breakdown: dayBreakdown,
-      });
+      return reply.send({ ok: true, year: y, week: w, dates, week_totals: weekTotals, rda_comparison: status, day_breakdown: dayBreakdown });
     } catch (error) {
       console.error(error);
       return reply.status(500).send({ ok: false, error: "Internal server error" });
