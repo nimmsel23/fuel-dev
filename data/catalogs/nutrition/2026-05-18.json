@@ -55,6 +55,17 @@
       "carbs": 40,
       "fat": 12,
       "time": "2026-05-18T10:25:31.581Z"
+    },
+    {
+      "id": "meal_1779109111976",
+      "type": "meal",
+      "description": "Kaiserschmarrn mit Zwetschgenmus",
+      "notes": "",
+      "kcal": 1100,
+      "protein": 32,
+      "carbs": 165,
+      "fat": 37,
+      "time": "2026-05-18T12:58:31.976Z"
     }
   ],
   "water_ml": 0

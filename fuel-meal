@@ -93,48 +93,27 @@ def _api_call(method: str, endpoint: str, body: dict | None = None) -> dict:
         raise SystemExit(1)
 
 def _parse_macros_with_gemini(description: str) -> dict:
-    """Auto-estimate macros via Gemini API (local, standalone)."""
-    gemini_key = os.environ.get("GEMINI_API_KEY", "")
-    gemini_model = os.environ.get("GEMINI_MODEL", "gemini-flash-latest")
-    gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{gemini_model}:generateContent"
-
-    if not gemini_key:
-        gum_log("warn", "GEMINI_API_KEY nicht gesetzt — 0 kcal angenommen")
-        return {"kcal": 0, "protein": 0, "carbs": 0, "fat": 0}
-
-    prompt = f"""Schätze die Nährwerte (pro Portion) für: "{description}"
-
-Antworte NUR mit JSON:
-{{"kcal": <Zahl>, "protein": <Zahl>, "carbs": <Zahl>, "fat": <Zahl>}}
-"""
-
+    """Auto-estimate macros via standalone gemini-estimate script."""
     try:
-        payload = {"contents": [{"parts": [{"text": prompt}]}]}
-        data = json.dumps(payload, ensure_ascii=False).encode('utf-8')
-        req = urllib.request.Request(
-            gemini_url,
-            data=data,
-            headers={"Content-Type": "application/json", "X-goog-api-key": gemini_key},
-            method="POST"
+        result = subprocess.run(
+            ["./gemini-estimate", description],
+            capture_output=True,
+            text=True,
+            timeout=15,
+            cwd=Path(__file__).parent,
         )
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            result = json.loads(resp.read())
-
-        if "candidates" in result and result["candidates"]:
-            text = result["candidates"][0]["content"]["parts"][0]["text"].strip()
-            try:
-                macros = json.loads(text)
-            except json.JSONDecodeError:
-                json_match = re.search(r'\{[^{}]*\}', text, re.DOTALL)
-                if json_match:
-                    macros = json.loads(json_match.group())
-                else:
-                    return {"kcal": 0, "protein": 0, "carbs": 0, "fat": 0}
+        if result.returncode == 0:
+            macros = json.loads(result.stdout.strip())
             kcal = macros.get("kcal", 0)
-            gum_log("info", f"Gemini: {kcal} kcal geschätzt")
+            if kcal > 0:
+                gum_log("info", f"Gemini: {kcal} kcal geschätzt")
             return macros
+    except json.JSONDecodeError:
+        gum_log("warn", "Gemini: JSON parse error")
+    except subprocess.TimeoutExpired:
+        gum_log("warn", "Gemini: Timeout")
     except Exception as e:
-        gum_log("warn", f"Gemini Fehler: {e}")
+        gum_log("warn", f"Gemini: {e}")
     return {"kcal": 0, "protein": 0, "carbs": 0, "fat": 0}
 
 # ── Interactive Mode ───────────────────────────────────────────────────────────
