@@ -83,6 +83,12 @@ export default async function staticRoute(app) {
   // Catch-all: serve other static assets from public/ (fonts, etc)
   app.get("/*", async (req, reply) => {
     let pathname = req.url.split("?")[0];
+
+    // In dev mode (VITE_ORIGIN set): proxy everything else to Vite
+    if (VITE_ORIGIN && !pathname.startsWith("/api/") && !pathname.startsWith("/health")) {
+      return reply.redirect(`${VITE_ORIGIN}${pathname}`);
+    }
+
     let filePath = path.join(PUBLIC_DIR, pathname);
 
     if (!isPathInStatic(filePath)) {

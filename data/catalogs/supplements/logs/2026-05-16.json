@@ -1,0 +1,25 @@
+{
+  "date": "2026-05-16",
+  "intakes": [
+    {
+      "id": "supp_06306cacee92",
+      "supplement_id": "melatonin",
+      "name": "Melatonin",
+      "dose": 1,
+      "unit": "mg",
+      "time_of_day": "night",
+      "notes": "",
+      "time": "2026-05-16T15:32:09.759001+00:00"
+    },
+    {
+      "id": "supp_096069c719db",
+      "supplement_id": "kollagen",
+      "name": "Kollagen",
+      "dose": 10,
+      "unit": "g",
+      "time_of_day": "morning",
+      "notes": "",
+      "time": "2026-05-16T15:32:22.448830+00:00"
+    }
+  ]
+}

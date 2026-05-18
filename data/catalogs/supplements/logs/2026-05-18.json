@@ -1,0 +1,45 @@
+{
+  "date": "2026-05-18",
+  "intakes": [
+    {
+      "id": "supp_217a033bc01b",
+      "supplement_id": "melatonin",
+      "name": "Melatonin",
+      "dose": 1,
+      "unit": "mg",
+      "time_of_day": "night",
+      "notes": "",
+      "time": "2026-05-18T10:00:10.671914+00:00"
+    },
+    {
+      "id": "supp_73aac723884d",
+      "supplement_id": "kollagen",
+      "name": "Kollagen",
+      "dose": 1.0,
+      "unit": "g",
+      "time_of_day": "morning",
+      "notes": "",
+      "time": "2026-05-18T10:16:30.021608+00:00"
+    },
+    {
+      "id": "supp_85fc40116634",
+      "supplement_id": "melatonin",
+      "name": "Melatonin",
+      "dose": 2.0,
+      "unit": "mg",
+      "time_of_day": "morning",
+      "notes": "",
+      "time": "2026-05-18T10:23:56.999663+00:00"
+    },
+    {
+      "id": "supp_c29d073c5378",
+      "supplement_id": "melatonin",
+      "name": "Melatonin",
+      "dose": 1.0,
+      "unit": "mg",
+      "time_of_day": "night",
+      "notes": "",
+      "time": "2026-05-18T10:25:31.090367+00:00"
+    }
+  ]
+}

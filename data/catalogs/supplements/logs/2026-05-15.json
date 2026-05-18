@@ -1,0 +1,55 @@
+{
+  "date": "2026-05-15",
+  "intakes": [
+    {
+      "id": "supp_test001",
+      "supplement_id": "kreatin",
+      "name": "Kreatin",
+      "dose": 5,
+      "unit": "g",
+      "time_of_day": "any",
+      "notes": "",
+      "time": "2026-05-15T08:00:00+00:00"
+    },
+    {
+      "id": "supp_test002",
+      "supplement_id": "kollagen",
+      "name": "Kollagen",
+      "dose": 10,
+      "unit": "g",
+      "time_of_day": "morning",
+      "notes": "",
+      "time": "2026-05-15T09:00:00+00:00"
+    },
+    {
+      "id": "supp_test003",
+      "supplement_id": "melatonin",
+      "name": "Melatonin",
+      "dose": 1,
+      "unit": "mg",
+      "time_of_day": "night",
+      "notes": "",
+      "time": "2026-05-15T22:00:00+00:00"
+    },
+    {
+      "id": "supp_test004",
+      "supplement_id": "glycin",
+      "name": "Glycin",
+      "dose": 3,
+      "unit": "g",
+      "time_of_day": "night",
+      "notes": "",
+      "time": "2026-05-15T22:30:00+00:00"
+    },
+    {
+      "id": "supp_bf9cd4cf832e",
+      "supplement_id": "zink",
+      "name": "Zink",
+      "dose": 25,
+      "unit": "mg",
+      "time_of_day": "any",
+      "notes": "",
+      "time": "2026-05-16T16:02:26.147558+00:00"
+    }
+  ]
+}
