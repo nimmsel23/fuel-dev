@@ -28,7 +28,7 @@ from rich.console import Console
 
 console = Console()
 
-# ── Load .env files ────────────────────────────────────────────────────────────
+# ── Load .env files (for Gemini API key) ──────────────────────────────────────
 
 def _load_env_file(path: Path) -> None:
     if path.exists():
@@ -45,9 +45,6 @@ _load_env_file(Path.home() / ".env" / "gemini.env")
 # ── API URLs ───────────────────────────────────────────────────────────────────
 
 API_BASE = os.environ.get("FUEL_API_URL", "http://127.0.0.1:9000")
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-flash-latest")
-GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
 
 # ── gum logging ────────────────────────────────────────────────────────────────
 
@@ -96,9 +93,13 @@ def _api_call(method: str, endpoint: str, body: dict | None = None) -> dict:
         raise SystemExit(1)
 
 def _parse_macros_with_gemini(description: str) -> dict:
-    """Auto-estimate macros via Gemini."""
-    if not GEMINI_API_KEY:
-        gum_log("warn", "GEMINI_API_KEY nicht gesetzt")
+    """Auto-estimate macros via Gemini API (local, standalone)."""
+    gemini_key = os.environ.get("GEMINI_API_KEY", "")
+    gemini_model = os.environ.get("GEMINI_MODEL", "gemini-flash-latest")
+    gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{gemini_model}:generateContent"
+
+    if not gemini_key:
+        gum_log("warn", "GEMINI_API_KEY nicht gesetzt — 0 kcal angenommen")
         return {"kcal": 0, "protein": 0, "carbs": 0, "fat": 0}
 
     prompt = f"""Schätze die Nährwerte (pro Portion) für: "{description}"
@@ -111,9 +112,9 @@ Antworte NUR mit JSON:
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
         data = json.dumps(payload, ensure_ascii=False).encode('utf-8')
         req = urllib.request.Request(
-            GEMINI_API_URL,
+            gemini_url,
             data=data,
-            headers={"Content-Type": "application/json", "X-goog-api-key": GEMINI_API_KEY},
+            headers={"Content-Type": "application/json", "X-goog-api-key": gemini_key},
             method="POST"
         )
         with urllib.request.urlopen(req, timeout=10) as resp:
@@ -129,7 +130,8 @@ Antworte NUR mit JSON:
                     macros = json.loads(json_match.group())
                 else:
                     return {"kcal": 0, "protein": 0, "carbs": 0, "fat": 0}
-            gum_log("info", f"Gemini: {macros.get('kcal', 0)} kcal")
+            kcal = macros.get("kcal", 0)
+            gum_log("info", f"Gemini: {kcal} kcal geschätzt")
             return macros
     except Exception as e:
         gum_log("warn", f"Gemini Fehler: {e}")

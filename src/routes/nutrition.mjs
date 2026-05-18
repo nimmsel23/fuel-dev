@@ -183,4 +183,21 @@ export default async function nutritionRoute(app) {
     const entries = listEntries();
     return reply.send({ ok: true, entries });
   });
+
+  // POST /nutrition/estimate — Gemini-powered macro estimation
+  app.post("/nutrition/estimate", async (req, reply) => {
+    try {
+      const { description } = req.body || {};
+      if (!description || typeof description !== "string" || description.trim().length === 0) {
+        return reply.status(400).send({ ok: false, error: "description required" });
+      }
+
+      const { estimateMacros } = await import("../services/nutrition-estimate.mjs");
+      const macros = await estimateMacros(description);
+      return reply.send({ ok: true, description, macros });
+    } catch (error) {
+      console.error(error);
+      return reply.status(500).send({ ok: false, error: "Internal server error" });
+    }
+  });
 }

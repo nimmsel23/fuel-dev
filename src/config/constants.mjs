@@ -22,3 +22,6 @@ export const WGER_API_TOKEN = process.env.WGER_API_TOKEN || "92d9ea44fc0ac065e33
 export const WGER_MIN_RESULTS = 3;
 
 export const OFF_API_URL = "https://world.openfoodfacts.org/cgi/search.pl";
+
+export const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
+export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-flash-latest";
