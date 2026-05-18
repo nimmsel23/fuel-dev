@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "updated_at": "2026-04-18T23:14:32.892Z",
+  "items": [
+    {
+      "id": "melatonin",
+      "name": "Melatonin",
+      "unit": "mg",
+      "default_dose": 1,
+      "default_time_of_day": "night"
+    },
+    {
+      "id": "glycin",
+      "name": "Glycin",
+      "unit": "g",
+      "default_dose": 3,
+      "default_time_of_day": "night"
+    },
+    {
+      "id": "kollagen",
+      "name": "Kollagen",
+      "unit": "g",
+      "default_dose": 10,
+      "default_time_of_day": "morning"
+    },
+    {
+      "id": "magnesium",
+      "name": "Magnesium",
+      "unit": "mg",
+      "default_dose": 200,
+      "default_time_of_day": "evening"
+    },
+    {
+      "id": "vitamin_d3",
+      "name": "Vitamin D3",
+      "unit": "IU",
+      "default_dose": 2000,
+      "default_time_of_day": "morning"
+    },
+    {
+      "id": "omega3",
+      "name": "Omega-3",
+      "unit": "mg",
+      "default_dose": 1000,
+      "default_time_of_day": "morning"
+    },
+    {
+      "id": "zink",
+      "name": "Zink",
+      "unit": "mg",
+      "default_dose": 25,
+      "default_time_of_day": "any"
+    },
+    {
+      "id": "kreatin",
+      "name": "Kreatin",
+      "unit": "g",
+      "default_dose": 5,
+      "default_time_of_day": "any"
+    },
+    {
+      "id": "tongkat_ali",
+      "name": "Tongkat Ali Elixier",
+      "unit": "ml",
+      "default_dose": 250,
+      "default_time_of_day": "morning"
+    },
+    {
+      "id": "mulungu",
+      "name": "Mulungu Tee",
+      "unit": "ml",
+      "default_dose": 250,
+      "default_time_of_day": "evening"
+    }
+  ]
+}

@@ -78,13 +78,13 @@ define(['./workbox-290dd570'], (function (workbox) { 'use strict';
    */
   workbox.precacheAndRoute([{
     "url": "registerSW.js",
-    "revision": "20f590040d695c04baf2efb7fe28f746"
+    "revision": "3ca0b8505b4bec776b69afdba2768812"
   }, {
-    "url": "/v2/index.html",
-    "revision": "0.dppg031dtu4"
+    "url": "/index.html",
+    "revision": "0.9ola0gvfqrs"
   }], {});
   workbox.cleanupOutdatedCaches();
-  workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("/v2/index.html"), {
+  workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("/index.html"), {
     allowlist: [/^\/$/],
     denylist: [/^\/api/, /^\/nutrition/, /^\/supplements/, /^\/fuel/, /^\/health/]
   }));
