@@ -66,6 +66,10 @@ export default defineConfig({
   server: {
     host: "0.0.0.0",
     port: 5173,
+    hmr: {
+      host: "localhost",
+      port: 5173,
+    },
     proxy: {
       "/nutrition": "http://127.0.0.1:9000",
       "/supplements": "http://127.0.0.1:9000",
