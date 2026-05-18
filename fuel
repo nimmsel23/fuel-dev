@@ -231,6 +231,77 @@ def do_today(day: str | None) -> None:
 
 # ── Meal Logging (Nutrition) ───────────────────────────────────────────────────
 
+def do_meal_interactive() -> None:
+    """Interaktives Menu zum Loggen aus Catalog oder neue Mahlzeit anlegen."""
+    try:
+        result = _api_call("GET", "/nutrition/catalog", None)
+        items = result.get("items", [])
+    except SystemExit:
+        gum_log("error", "Catalog konnte nicht geladen werden")
+        raise SystemExit(1)
+
+    if not items:
+        gum_log("warn", "Catalog ist leer")
+        raise SystemExit(1)
+
+    # Prepare fzf input: name + macros
+    fzf_items = []
+    for item in items:
+        kcal = item.get("kcal", 0)
+        label = f"{item['name']:<40} {kcal:>4} kcal"
+        fzf_items.append((label, item))
+
+    fzf_input = "\n".join([label for label, _ in fzf_items])
+
+    # Run fzf
+    try:
+        import subprocess
+        result = subprocess.run(
+            ["fzf", "--preview", "echo {}", "--height=15"],
+            input=fzf_input,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if result.returncode != 0:
+            gum_log("info", "Abgebrochen")
+            raise SystemExit(0)
+
+        selected_label = result.stdout.strip()
+        if not selected_label:
+            gum_log("info", "Nichts ausgewählt")
+            raise SystemExit(0)
+
+        # Find matching item
+        selected_item = None
+        for label, item in fzf_items:
+            if label == selected_label:
+                selected_item = item
+                break
+
+        if not selected_item:
+            gum_log("error", "Item nicht gefunden")
+            raise SystemExit(1)
+
+        # Log the selected item
+        do_meal_log(
+            selected_item["name"],
+            selected_item.get("kcal", 0),
+            selected_item.get("protein", 0),
+            selected_item.get("carbs", 0),
+            selected_item.get("fat", 0),
+            "",
+            None,
+            False,
+        )
+
+    except subprocess.TimeoutExpired:
+        gum_log("error", "fzf Timeout")
+        raise SystemExit(1)
+    except FileNotFoundError:
+        gum_log("error", "fzf nicht gefunden (apt install fzf / brew install fzf)")
+        raise SystemExit(1)
+
 def do_meal_log(description: str, kcal: float, protein: float, carbs: float, fat: float, notes: str, day: str | None, save_catalog: bool) -> None:
     """Loggt eine Mahlzeit über API und speichert optional im Catalog."""
     today = day or date.today().isoformat()
@@ -493,8 +564,13 @@ def do_weekly_report(day: str | None = None) -> None:
 def _main() -> None:
     catalog = load_catalog()
 
-    # Shortcut: fuel meal "Nussschnecke Billa" --kcal 250 ...
+    # Shortcut: fuel meal [optional args]
     if len(sys.argv) >= 2 and sys.argv[1] == "meal":
+        # Interactive mode if no description given
+        if len(sys.argv) == 2:
+            do_meal_interactive()
+            return
+
         # Parse meal arguments
         description = None
         kcal = 0
