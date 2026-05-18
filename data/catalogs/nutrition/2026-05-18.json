@@ -55,6 +55,17 @@
       "carbs": 40,
       "fat": 12,
       "time": "2026-05-18T10:25:31.581Z"
+    },
+    {
+      "id": "meal_1779112503450",
+      "type": "meal",
+      "description": "6 Freiland-Eier Eierspeise mit Salz, Pfeffer und Olivenöl",
+      "notes": "Mittagessen",
+      "kcal": 627,
+      "protein": 44,
+      "carbs": 2.2,
+      "fat": 49.4,
+      "time": "2026-05-18T13:55:03.450Z"
     }
   ],
   "water_ml": 0

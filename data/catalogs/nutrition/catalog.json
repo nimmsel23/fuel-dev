@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-18T00:44:36.457Z",
+  "updated_at": "2026-05-18T13:56:07.846Z",
   "items": [
     {
       "id": "mcdonalds_at_double_cheeseburger_nice_price_menu",
@@ -273,6 +273,422 @@
       "source": "manual",
       "created_at": "2026-05-18T00:44:36.457Z",
       "updated_at": "2026-05-18T00:44:36.457Z"
+    },
+    {
+      "id": "meal_kaiserschmarrn_mit_zwetschgenmus",
+      "kind": "meal",
+      "category": "meal",
+      "name": "Kaiserschmarrn mit Zwetschgenmus",
+      "meal_type": "meal",
+      "description": "Kaiserschmarrn mit Zwetschgenmus",
+      "notes": "",
+      "kcal": 1311,
+      "protein": 29.2,
+      "carbs": 117.1,
+      "fat": 80.9,
+      "yield_g": null,
+      "components": [
+        {
+          "wger_id": 1844,
+          "name": "10 Bio-Eier",
+          "quantity_g": 100,
+          "kcal": 140,
+          "protein": 12.7,
+          "carbs": 0.3,
+          "fat": 9.8,
+          "brand": "BioBio, Netto MD"
+        },
+        {
+          "wger_id": 627,
+          "name": ". mullermilch",
+          "quantity_g": 110,
+          "kcal": 91.3,
+          "protein": 3.6,
+          "carbs": 10.9,
+          "fat": 3.6,
+          "brand": ""
+        },
+        {
+          "wger_id": 1765,
+          "name": "1/3 weniger Zucker Marille",
+          "quantity_g": 30,
+          "kcal": 38.1,
+          "protein": 0.3,
+          "carbs": 8.4,
+          "fat": 0,
+          "brand": "Staud's Wien"
+        },
+        {
+          "wger_id": 29,
+          "name": "!No!Butter",
+          "quantity_g": 15,
+          "kcal": 106.6,
+          "protein": 0,
+          "carbs": 0,
+          "fat": 11.8,
+          "brand": "Vemondo"
+        },
+        {
+          "wger_id": 331,
+          "name": "&quot;Rosinchen&quot; Fruchtmix",
+          "quantity_g": 25,
+          "kcal": 73.2,
+          "protein": 0.8,
+          "carbs": 19.5,
+          "fat": 0.1,
+          "brand": "Freche Freunde,erdbär"
+        },
+        {
+          "wger_id": 4436,
+          "name": "100% Pure Cider",
+          "quantity_g": 7,
+          "kcal": 4.1,
+          "protein": 0,
+          "carbs": 1,
+          "fat": 0,
+          "brand": "Martinelli's"
+        },
+        {
+          "wger_id": 280,
+          "name": "#Zeitschenken",
+          "quantity_g": 150,
+          "kcal": 852,
+          "protein": 11.1,
+          "carbs": 76.5,
+          "fat": 55.5,
+          "brand": "Edeka"
+        },
+        {
+          "wger_id": 5476,
+          "name": "100% Whey Protein Zimt Churro",
+          "quantity_g": 1,
+          "kcal": 3.8,
+          "protein": 0.7,
+          "carbs": 0.1,
+          "fat": 0.1,
+          "brand": "Ironmaxx"
+        },
+        {
+          "wger_id": 4011,
+          "name": "100% Orangensaft",
+          "quantity_g": 5,
+          "kcal": 2.2,
+          "protein": 0,
+          "carbs": 0.4,
+          "fat": 0,
+          "brand": "GutBio"
+        }
+      ],
+      "addons": [],
+      "default_addon_ids": [],
+      "source": "manual",
+      "created_at": "2026-05-18T13:49:57.376Z",
+      "updated_at": "2026-05-18T13:49:57.376Z"
+    },
+    {
+      "id": "meal_eierspeise_mit_2_freiland-eier_salz_pfeffer_und_ol",
+      "kind": "meal",
+      "category": "meal",
+      "name": "Eierspeise mit 2 Freiland-Eier, Salz, Pfeffer und Olivenöl",
+      "meal_type": "meal",
+      "description": "Eierspeise mit 2 Freiland-Eier, Salz, Pfeffer und Olivenöl",
+      "notes": "",
+      "kcal": 238,
+      "protein": 15.3,
+      "carbs": 0.7,
+      "fat": 19.4,
+      "yield_g": null,
+      "components": [
+        {
+          "wger_id": 1844,
+          "name": "10 Bio-Eier",
+          "quantity_g": 120,
+          "kcal": 168,
+          "protein": 15.2,
+          "carbs": 0.4,
+          "fat": 11.8,
+          "brand": "BioBio, Netto MD"
+        },
+        {
+          "wger_id": 289,
+          "name": "$5 Salsa",
+          "quantity_g": 2,
+          "kcal": 0.5,
+          "protein": 0,
+          "carbs": 0.1,
+          "fat": 0,
+          "brand": ""
+        },
+        {
+          "wger_id": 284,
+          "name": "#surfer",
+          "quantity_g": 1,
+          "kcal": 0,
+          "protein": 0,
+          "carbs": 0,
+          "fat": 0,
+          "brand": ""
+        },
+        {
+          "wger_id": 977,
+          "name": "1 cal olive oil",
+          "quantity_g": 15,
+          "kcal": 69.3,
+          "protein": 0.1,
+          "carbs": 0.2,
+          "fat": 7.6,
+          "brand": "Asda"
+        }
+      ],
+      "addons": [],
+      "default_addon_ids": [],
+      "source": "manual",
+      "created_at": "2026-05-18T13:55:51.456Z",
+      "updated_at": "2026-05-18T13:55:51.456Z"
+    },
+    {
+      "id": "meal_eierspeise_mit_3_freiland-eier_salz_pfeffer_und_ol",
+      "kind": "meal",
+      "category": "meal",
+      "name": "Eierspeise mit 3 Freiland-Eier, Salz, Pfeffer und Olivenöl",
+      "meal_type": "meal",
+      "description": "Eierspeise mit 3 Freiland-Eier, Salz, Pfeffer und Olivenöl",
+      "notes": "",
+      "kcal": 268,
+      "protein": 20.8,
+      "carbs": 1,
+      "fat": 20.3,
+      "yield_g": null,
+      "components": [
+        {
+          "wger_id": 1972,
+          "name": "10 Schweizer Freilandeier",
+          "quantity_g": 165,
+          "kcal": 231,
+          "protein": 20.8,
+          "carbs": 0.8,
+          "fat": 16.2,
+          "brand": "Terra Natura"
+        },
+        {
+          "wger_id": 289,
+          "name": "$5 Salsa",
+          "quantity_g": 2,
+          "kcal": 0.5,
+          "protein": 0,
+          "carbs": 0.1,
+          "fat": 0,
+          "brand": ""
+        },
+        {
+          "wger_id": 284,
+          "name": "#surfer",
+          "quantity_g": 1,
+          "kcal": 0,
+          "protein": 0,
+          "carbs": 0,
+          "fat": 0,
+          "brand": ""
+        },
+        {
+          "wger_id": 977,
+          "name": "1 cal olive oil",
+          "quantity_g": 8,
+          "kcal": 37,
+          "protein": 0,
+          "carbs": 0.1,
+          "fat": 4.1,
+          "brand": "Asda"
+        }
+      ],
+      "addons": [],
+      "default_addon_ids": [],
+      "source": "manual",
+      "created_at": "2026-05-18T13:55:55.135Z",
+      "updated_at": "2026-05-18T13:55:55.135Z"
+    },
+    {
+      "id": "meal_eierspeise_mit_5_mittlere_freiland-eier_salz_pfeff",
+      "kind": "meal",
+      "category": "meal",
+      "name": "Eierspeise mit 5 mittlere Freiland-Eier, Salz, Pfeffer und Olivenöl",
+      "meal_type": "meal",
+      "description": "Eierspeise mit 5 mittlere Freiland-Eier, Salz, Pfeffer und Olivenöl",
+      "notes": "",
+      "kcal": 499,
+      "protein": 36.9,
+      "carbs": 1.2,
+      "fat": 38.6,
+      "yield_g": null,
+      "components": [
+        {
+          "wger_id": 1844,
+          "name": "10 Bio-Eier",
+          "quantity_g": 290,
+          "kcal": 406,
+          "protein": 36.8,
+          "carbs": 0.9,
+          "fat": 28.4,
+          "brand": "BioBio, Netto MD"
+        },
+        {
+          "wger_id": 289,
+          "name": "$5 Salsa",
+          "quantity_g": 3,
+          "kcal": 0.7,
+          "protein": 0,
+          "carbs": 0.1,
+          "fat": 0,
+          "brand": ""
+        },
+        {
+          "wger_id": 284,
+          "name": "#surfer",
+          "quantity_g": 1,
+          "kcal": 0,
+          "protein": 0,
+          "carbs": 0,
+          "fat": 0,
+          "brand": ""
+        },
+        {
+          "wger_id": 977,
+          "name": "1 cal olive oil",
+          "quantity_g": 20,
+          "kcal": 92.4,
+          "protein": 0.1,
+          "carbs": 0.2,
+          "fat": 10.2,
+          "brand": "Asda"
+        }
+      ],
+      "addons": [],
+      "default_addon_ids": [],
+      "source": "manual",
+      "created_at": "2026-05-18T13:55:58.710Z",
+      "updated_at": "2026-05-18T13:55:58.710Z"
+    },
+    {
+      "id": "meal_eierspeise_mit_6_groe_freiland-eier_salz_pfeffer_u",
+      "kind": "meal",
+      "category": "meal",
+      "name": "Eierspeise mit 6 große Freiland-Eier, Salz, Pfeffer und Olivenöl",
+      "meal_type": "meal",
+      "description": "Eierspeise mit 6 große Freiland-Eier, Salz, Pfeffer und Olivenöl",
+      "notes": "",
+      "kcal": 546,
+      "protein": 42,
+      "carbs": 1.3,
+      "fat": 41.5,
+      "yield_g": null,
+      "components": [
+        {
+          "wger_id": 1844,
+          "name": "10 Bio-Eier",
+          "quantity_g": 330,
+          "kcal": 462,
+          "protein": 41.9,
+          "carbs": 1,
+          "fat": 32.3,
+          "brand": "BioBio, Netto MD"
+        },
+        {
+          "wger_id": 289,
+          "name": "$5 Salsa",
+          "quantity_g": 1.5,
+          "kcal": 0.4,
+          "protein": 0,
+          "carbs": 0.1,
+          "fat": 0,
+          "brand": ""
+        },
+        {
+          "wger_id": 284,
+          "name": "#surfer",
+          "quantity_g": 0.8,
+          "kcal": 0,
+          "protein": 0,
+          "carbs": 0,
+          "fat": 0,
+          "brand": ""
+        },
+        {
+          "wger_id": 977,
+          "name": "1 cal olive oil",
+          "quantity_g": 18,
+          "kcal": 83.2,
+          "protein": 0.1,
+          "carbs": 0.2,
+          "fat": 9.2,
+          "brand": "Asda"
+        }
+      ],
+      "addons": [],
+      "default_addon_ids": [],
+      "source": "manual",
+      "created_at": "2026-05-18T13:56:04.280Z",
+      "updated_at": "2026-05-18T13:56:04.280Z"
+    },
+    {
+      "id": "meal_eierspeise_mit_10_mittelkleine_freiland-eier_salz_",
+      "kind": "meal",
+      "category": "meal",
+      "name": "Eierspeise mit 10 mittelkleine Freiland-Eier, Salz, Pfeffer und Olivenöl",
+      "meal_type": "meal",
+      "description": "Eierspeise mit 10 mittelkleine Freiland-Eier, Salz, Pfeffer und Olivenöl",
+      "notes": "",
+      "kcal": 817,
+      "protein": 63.6,
+      "carbs": 2.1,
+      "fat": 61.8,
+      "yield_g": null,
+      "components": [
+        {
+          "wger_id": 1844,
+          "name": "10 Bio-Eier",
+          "quantity_g": 500,
+          "kcal": 700,
+          "protein": 63.5,
+          "carbs": 1.5,
+          "fat": 49,
+          "brand": "BioBio, Netto MD"
+        },
+        {
+          "wger_id": 289,
+          "name": "$5 Salsa",
+          "quantity_g": 7,
+          "kcal": 1.7,
+          "protein": 0,
+          "carbs": 0.3,
+          "fat": 0,
+          "brand": ""
+        },
+        {
+          "wger_id": 284,
+          "name": "#surfer",
+          "quantity_g": 1,
+          "kcal": 0,
+          "protein": 0,
+          "carbs": 0,
+          "fat": 0,
+          "brand": ""
+        },
+        {
+          "wger_id": 977,
+          "name": "1 cal olive oil",
+          "quantity_g": 25,
+          "kcal": 115.5,
+          "protein": 0.1,
+          "carbs": 0.3,
+          "fat": 12.8,
+          "brand": "Asda"
+        }
+      ],
+      "addons": [],
+      "default_addon_ids": [],
+      "source": "manual",
+      "created_at": "2026-05-18T13:56:07.846Z",
+      "updated_at": "2026-05-18T13:56:07.846Z"
     }
   ]
 }

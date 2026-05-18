@@ -84,6 +84,47 @@ export async function getWgerIngredient(id) {
 }
 
 /**
+ * Get full ingredient data including micronutrients
+ */
+export async function getWgerIngredientFull(id) {
+  return new Promise((resolve) => {
+    const url = `${WGER_API_URL}/ingredient/${id}/?format=json`;
+    const req = http.get(
+      url,
+      { headers: { Authorization: `Token ${WGER_API_TOKEN}` } },
+      (res) => {
+        let data = "";
+        res.on("data", (chunk) => (data += chunk));
+        res.on("end", () => {
+          try {
+            const i = JSON.parse(data);
+            resolve({
+              id: i.id,
+              name: i.name.trim(),
+              brand: i.brand || "",
+              energy_kcal: Math.round((i.energy ?? 0) * 10) / 10,
+              protein: Math.round((parseFloat(i.protein) ?? 0) * 10) / 10,
+              carbs: Math.round((parseFloat(i.carbohydrates) ?? 0) * 10) / 10,
+              fat: Math.round((parseFloat(i.fat) ?? 0) * 10) / 10,
+              fiber: Math.round((parseFloat(i.fiber) ?? 0) * 10) / 10,
+              sodium_mg: Math.round((parseFloat(i.sodium) ?? 0) * 10) / 10,
+              serving_size_g: 100,
+            });
+          } catch {
+            resolve(null);
+          }
+        });
+      }
+    );
+    req.on("error", () => resolve(null));
+    req.setTimeout(3000, () => {
+      req.destroy();
+      resolve(null);
+    });
+  });
+}
+
+/**
  * Calculate macros for ingredients with given quantities
  * ingredients: [{name: "Schnitzel", quantity_g: 150}, ...]
  * Returns: {kcal, protein, carbs, fat, components: [...]}
@@ -100,6 +141,9 @@ export async function composeFromWger(ingredients) {
     if (results.length === 0) continue;
 
     const ingredient = results[0];
+    const fullData = await getWgerIngredientFull(ingredient.id);
+    if (!fullData) continue;
+
     const quantity = ing.quantity_g || 100;
     const multiplier = quantity / 100; // wger data per 100g
 
@@ -107,6 +151,7 @@ export async function composeFromWger(ingredients) {
     const protein = Math.round(ingredient.protein * multiplier * 10) / 10;
     const carbs = Math.round(ingredient.carbs * multiplier * 10) / 10;
     const fat = Math.round(ingredient.fat * multiplier * 10) / 10;
+    const sodium = Math.round((fullData.sodium_mg || 0) * multiplier * 10) / 10;
 
     totalKcal += kcal;
     totalProtein += protein;
@@ -121,6 +166,7 @@ export async function composeFromWger(ingredients) {
       protein,
       carbs,
       fat,
+      sodium_mg: sodium,
       brand: ingredient.brand,
     });
   }
