@@ -20,6 +20,16 @@
       "time_of_day": "morning",
       "notes": "",
       "time": "2026-05-16T15:32:22.448830+00:00"
+    },
+    {
+      "id": "supp_b55r26ptncp2",
+      "supplement_id": "glycin",
+      "name": "glycin",
+      "dose": 3,
+      "unit": "g",
+      "time_of_day": "night",
+      "notes": "",
+      "time": "2026-05-18T11:49:22.878Z"
     }
   ]
 }
