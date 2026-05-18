@@ -1,6 +1,6 @@
 # Fuel Centre — Architektur
 
-Stand: 2026-05-06
+Stand: 2026-05-18
 
 ---
 
@@ -131,7 +131,9 @@ erzeugt die Markdown-Tabelle direkt. Für längerfristigen Einsatz fehlt:
 
 **File**: `~/fuel-dev/fuel`
 
-Python/Typer-basierte Supplement-Logging CLI mit automatischen zsh-Completions.
+Python/Typer-basierte CLI für Meal- & Supplement-Logging mit automatischen zsh-Completions.
+
+#### Supplement-Logging
 
 ```bash
 fuel log melatonin --yesterday           # Supplement mit default dose
@@ -140,18 +142,46 @@ fuel log melatonin kollagen zink         # Multiple supplements
 fuel today [--day YYYY-MM-DD]            # Tagesübersicht
 fuel list                                # Catalog anzeigen
 fuel week [--date YYYY-MM-DD]            # Wochenreport + CSV-Export
-fuel --help                              # Shows full catalog inline
 ```
 
-**Features**:
+#### Meal-Logging
+
+```bash
+# 1. Interaktiv (fzf Catalog-Durchsuche)
+fuel meal                                # Opens fzf catalog browser
+
+# 2. Mit expliziten Makros
+fuel meal "Nussschnecke Billa" --kcal 250 --protein 5 --carbs 40 --fat 12
+
+# 3. Mit Catalog-Save (für Wiederverwendung)
+fuel meal "Nussschnecke Billa" --kcal 250 --protein 5 --carbs 40 --fat 12 --save-catalog
+
+# 4. Auto-Gemini Schätzung (ohne Makros)
+fuel meal "Wiener Schnitzel mit Kartoffeln"  # → Gemini schätzt Makros
+```
+
+**Meal-Features**:
+- **fzf-Integration**: `fuel meal` öffnet interaktives Catalog-Menu
+- **Gemini API Auto-Estimation**: Fehlende Makros automatisch schätzen via Google Gemini
+  - Lädt API-Key aus `~/.env/gemini.env`
+  - Regex-Fallback bei JSON-Extraktion
+  - Graceful Fallback auf 0 kcal bei API-Fehler
+- **Catalog-Integration**: `--save-catalog` speichert Meal für schnelle Wiederverwendung
+- **Flexible Eingabe**: Manuelle Macros oder AI-generiert
+
+**Meal-Daten**:
+- Logs zu `~/.aos/fuel/nutrition/YYYY-MM-DD.json` (Fastify API)
+- Catalog items zu `~/.aos/fuel/nutrition/catalog.json`
+- Nutzt fuel-dev REST-API `/nutrition/log` & `/nutrition/catalog`
+
+**Features (beide Modi)**:
 - Typer + loguru + gum für saubere Fehlerbehandlung
-- Dynamischer help-text mit Catalog-Auflistung (kein "z.B. melatonin")
+- Dynamischer help-text mit Catalog-Auflistung
 - Automatische zsh-Completions (via Typer `add_completion=True`)
-- Supplements aus `~/.aos/fuel/supplements/catalog.json`
-- Logs zu `~/.aos/fuel/supplements/logs/YYYY-MM-DD.json`
 
 **Shortcuts für Kompatibilität**:
 - `fuel melatonin` → shortcut für `fuel log melatonin` (detect via callback)
+- `fuel meal "Name"` → shortcut für `fuel meal-log` (no explicit subcommand)
 - `--yesterday`, `--1d`, `--2d` → converted zu `--day <date>` via pre-parser
 
 ### `hab` Universal Dispatcher
