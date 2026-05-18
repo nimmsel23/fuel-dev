@@ -1,86 +1,35 @@
 # Nutrition Stack — fuel-dev
 
-Ernährungs-Tracking in zwei Ebenen: CLI-Backend für schnelle Eingabe am Desktop,
-V2-Web-UI für vollständiges Journal + Makro-Übersicht.
+Ernährungs-Tracking auf zwei Ebenen: CLI für schnelle Eingabe, Web-UI für Journal + Makro-Übersicht + Mikro-Heatmap.
 
 ---
 
-## Datenquelle: Open Food Facts
+## Datenquellen
 
-Alle Lebensmitteldaten kommen von **Open Food Facts** (world.openfoodfacts.org) —
-öffentliche Datenbank, kein Account nötig, echter Freitext-Suche.
-
-Felder die zurückgegeben werden (pro 100 g):
-`name, brand, kcal, kh (Kohlenhydrate), fett, ew (Eiweiß)`
-
----
-
-## CLI-Backend: wger-food
-
-Repo: `~/Nutrition/bin/wger-food` · Symlink: `~/.local/bin/wger-food`
-
-```bash
-wger-food haferflocken      # Suche → fzf-Auswahl → S/M/L/XL Portion → Markdown-Zeile
-wger-food banane
-wger-food "magerquark"
-```
-
-Flow:
-1. OFF-API suchen → fzf-Liste mit Nährwerten pro 100 g
-2. Portionsgröße wählen: S=100g / M=200g / L=300g / XL=450g (oder Gramm eingeben)
-3. Mahlzeit benennen (Vormittag/Nachmittag/Abend)
-4. Ausgabe: Obsidian-Markdown-Tabellenzeile → automatisch in `~/Nutrition/logs/YYYY-MM-DD.md`
-
-Log-Format (kompatibel mit Ausbildungs-Vorlage):
-```
-| Mahlzeit | Uhrzeit | Lebensmittel / Getränk | Menge | Einheit | Kcal | KH (g) | Fett (g) | Eiweiß (g) | Quelle |
-```
-
-### Auto-Generator
-
-```bash
-wger-generate               # 14-Tage-Protokoll ab heute (~2800 kcal/Tag)
-wger-generate --days 7      # 7 Tage (Ernährungstrainer-Modul)
-wger-generate --start 2026-05-01
-wger-generate --preview     # Nur anzeigen, nicht schreiben
-```
-
-Generiert realistische Meal-Kombos für 188 cm / 82,5 kg / sportlich aktiv.
-Logs landen in `~/Nutrition/logs/YYYY-MM-DD.md`.
+| Quelle | Für |
+|--------|-----|
+| **Open Food Facts** | Lebensmittelsuche im UI (`/nutrition/search`) |
+| **wger API** | Ingredient-Lookup beim Compose, Cache in SQLite |
+| **Gemini** | Makro-Schätzung bei fehlenden Daten, Mikronährstoff-Schätzung pro Mahlzeit |
+| **Meal Catalog** | Repo-versionierte Gerichte (`catalogs/nutrition/meals/`) |
 
 ---
 
-## Web-UI: fuel-dev V2
-
-Server: `node server.mjs` (Port 9000)
-
-### API-Endpunkte
+## API-Endpunkte
 
 | Methode | Pfad | Funktion |
 |---------|------|----------|
-| GET | `/nutrition/search?q=<query>&limit=<n>` | OFF-Proxy, gibt name/brand/kcal/kh/fett/ew zurück |
+| GET | `/nutrition/search?q=&limit=` | Open Food Facts proxy |
 | GET | `/nutrition/log?date=YYYY-MM-DD` | Tages-Log laden |
-| POST | `/nutrition/log` | Mahlzeit + Wasser loggen |
-| GET | `/nutrition/catalog` | Mahlzeiten-/Gerichte-Katalog |
-| POST | `/nutrition/catalog` | Gericht im Katalog speichern |
-| GET | `/nutrition/journal?date=YYYY-MM-DD` | Journal-Text |
-| POST | `/nutrition/journal` | Journal speichern |
-| GET | `/supplements/catalog` | Supplement-Liste |
-| POST | `/supplements/log` | Supplement loggen |
-| GET | `/supplements/stats` | 30-Tage-Stats + Streak |
-
-### Food Search im UI (Journal-Tab)
-
-Der Journal-Tab enthält einen **Food Search**-Block über dem Meal Logger:
-
-1. Suchbegriff eingeben → debounced → `/nutrition/search?q=`
-2. Treffer-Dropdown: Name, Brand, Makros pro 100 g
-3. Auswahl → Portionsgröße wählen (S/M/L/XL)
-4. Alle Makro-Felder werden automatisch befüllt
-5. Auf "Save meal" klicken → schreibt nach `data/nutrition/YYYY-MM-DD.json`
-6. Auf "Als Gericht speichern" klicken → schreibt nach `data/nutrition/catalog.json`
-7. Im Block "Gericht bauen" mehrere Komponenten suchen und als zusammengesetztes Menü speichern
-8. Katalog-Gerichte mit Add-ons können ihre Zusatzbausteine beim Loggen per Chip-Auswahl mitgeben
+| POST | `/nutrition/log` | Mahlzeit loggen |
+| GET | `/nutrition/catalog` | Alle Gerichte (aus `catalogs/nutrition/meals/`) |
+| POST | `/nutrition/catalog` | Gericht speichern |
+| GET | `/nutrition/daily/:date` | Tages-Makros + Mikros aggregiert |
+| GET | `/nutrition/weekly/:year/:week` | Wochen-Mikros vs. DACH |
+| POST | `/nutrition/compose` | Gericht via wger + Gemini komponieren |
+| POST | `/nutrition/estimate` | Gemini Makro-Schätzung (kein Save) |
+| GET | `/nutrition/journal?date=` | Journal-Eintrag |
+| POST | `/nutrition/journal` | Journal schreiben |
 
 ---
 
@@ -88,20 +37,73 @@ Der Journal-Tab enthält einen **Food Search**-Block über dem Meal Logger:
 
 | Was | Wo |
 |-----|----|
+| Tages-Logs | `~/.aos/fuel/nutrition/YYYY-MM-DD.json` |
+| SQLite (wger + Mikros) | `~/.aos/fuel/nutrition/nutrition.db` |
+| Journal | `~/.aos/fuel/nutrition_journal/YYYY-MM-DD.md` |
+| Meal-Katalog | `fuel-dev/catalogs/nutrition/meals/{id}.json` |
+| Supplement-Logs | `~/.aos/fuel/supplements/logs/YYYY-MM-DD.json` |
+| Supplement-Katalog | `fuel-dev/catalogs/supplements/catalog.json` |
 | CLI-Logs (Markdown) | `~/Nutrition/logs/YYYY-MM-DD.md` |
-| API-Logs (JSON) | `~/fuel-dev/data/nutrition/YYYY-MM-DD.json` |
-| Journal | `~/fuel-dev/data/nutrition_journal/YYYY-MM-DD.md` |
-| Supplements | `~/fuel-dev/data/supplements/` |
+
+---
+
+## Mikronährstoffe (DACH)
+
+Referenz: **DGE/ÖGE DACH-Werte** (`src/config/dach.mjs`) — nicht US-RDA.
+
+Mikros werden **nicht täglich eingetragen**. Stattdessen:
+- Gemini schätzt beim Compose das Mikronährstoffprofil der Mahlzeit als gegessen
+- Absolute Werte (keine per-100g) → `meal_micros`-Tabelle in SQLite
+- Wochenheatmap im V2 „Mikros"-Tab: letzte 8 Kalenderwochen vs. DACH
+
+Getrackte Mikronährstoffe: B12 · Calcium · Eisen · Vit. D · Vit. E · Folat · Mg · Zink · Natrium · Kalium
+
+---
+
+## CLI-Backend
+
+### `wger-food`
+
+```bash
+wger-food haferflocken     # Suche → fzf → Portion → Markdown-Zeile
+```
+
+Flow: OFF-API → fzf-Auswahl → S/M/L/XL (100/200/300/450g) → `~/Nutrition/logs/YYYY-MM-DD.md`
+
+Log-Format (Ausbildungs-Vorlage):
+```
+| Mahlzeit | Uhrzeit | Lebensmittel | Menge | Einheit | Kcal | KH | Fett | Eiweiß | Quelle |
+```
+
+### `wger-generate`
+
+```bash
+wger-generate               # 14-Tage-Protokoll ~2800 kcal/Tag
+wger-generate --days 7      # Ernährungstrainer-Modul
+wger-generate --start 2026-05-01
+wger-generate --preview
+```
+
+Deterministisch per Datum-Seed. Zielwerte: 188 cm / 82,5 kg / sportlich aktiv.
+
+### `fuel` CLI (Python/Typer)
+
+```bash
+fuel log melatonin --yesterday
+fuel log melatonin 2 --time morning
+fuel today
+fuel list
+fuel week
+```
+
+Supplement-Catalog: `catalogs/supplements/catalog.json`
 
 ---
 
 ## Ausbildungs-Kontext
 
-Das `~/Nutrition`-Repo entstand für die **Vitaltrainer-Ausbildung (FlexyFitAcademy)**:
+Entstanden für **Vitaltrainer-Ausbildung FlexyFit Academy Wien**:
 - **Fitnesstrainer-Modul**: 14-tägiges Ernährungsprotokoll (Zusatzaufgabe)
 - **Ernährungstrainer-Modul**: 7-tägiges Ernährungsprotokoll (Pflichtaufgabe)
 
-Format entspricht exakt der Ausbildungsvorlage (Datum, Mahlzeit, Uhrzeit,
-Lebensmittel, Menge, Einheit, Kcal, KH, Fett, Eiweiß, Quelle).
-
-Später geplant: Nutrition-Addon für `~/vital` (Klienten-App, selbes Tracking-Prinzip).
+Format entspricht exakt der Ausbildungsvorlage.
