@@ -3,6 +3,7 @@ import { isISODate, todayISO } from "../../lib/validation.mjs";
 import path from "path";
 import fs from "fs";
 import { NUTRITION_DIR } from "../../config/paths.mjs";
+import { loadCatalog } from "../../services/nutrition-catalog.mjs";
 
 const logPostSchema = z.object({
   date: z.string().optional(),
@@ -16,8 +17,9 @@ const logPostSchema = z.object({
     carbs: z.coerce.number().min(0).optional(),
     fat: z.coerce.number().min(0).optional(),
   }).optional(),
-  meal_id: z.coerce.number().optional(),
-  update_meal: z.any().optional(),
+  // Quicklog from catalog: resolve macros server-side
+  catalog_item_id: z.string().optional(),
+  catalog_addon_ids: z.array(z.string()).optional(),
   delete_meal_id: z.string().optional(),
   water_ml: z.coerce.number().optional(),
 });
@@ -25,63 +27,90 @@ const logPostSchema = z.object({
 function loadLog(date) {
   const filePath = path.join(NUTRITION_DIR, `${date}.json`);
   if (fs.existsSync(filePath)) {
-    try {
-      return JSON.parse(fs.readFileSync(filePath, "utf-8"));
-    } catch {
-      return { date, meals: [], water_ml: 0 };
-    }
+    try { return JSON.parse(fs.readFileSync(filePath, "utf-8")); } catch { /* fall through */ }
   }
   return { date, meals: [], water_ml: 0 };
 }
 
 function saveLog(log) {
-  const filePath = path.join(NUTRITION_DIR, `${log.date}.json`);
-  fs.writeFileSync(filePath, JSON.stringify(log, null, 2), "utf-8");
+  fs.writeFileSync(path.join(NUTRITION_DIR, `${log.date}.json`), JSON.stringify(log, null, 2), "utf-8");
+}
+
+function resolveCatalogItem(catalog, catalogItemId, addonIds = []) {
+  const item = catalog.items.find((i) => i.id === catalogItemId);
+  if (!item) return null;
+
+  const addonSet = new Set(addonIds.length > 0 ? addonIds : (item.default_addon_ids || []));
+  const selectedAddons = (item.addons || []).filter((a) => addonSet.has(a.id));
+
+  const base = { kcal: item.kcal || 0, protein: item.protein || 0, carbs: item.carbs || 0, fat: item.fat || 0 };
+  const totals = selectedAddons.reduce(
+    (acc, a) => ({
+      kcal:    acc.kcal    + (a.kcal    || 0),
+      protein: acc.protein + (a.protein || 0),
+      carbs:   acc.carbs   + (a.carbs   || 0),
+      fat:     acc.fat     + (a.fat     || 0),
+    }),
+    base
+  );
+
+  const addonLabel = selectedAddons.map((a) => a.label).join(", ");
+  const description = addonLabel ? `${item.name} (${addonLabel})` : item.name;
+
+  return {
+    catalog_id: item.id,
+    type: item.meal_type || "meal",
+    description,
+    notes: item.notes || "",
+    kcal:    Math.round(totals.kcal    * 10) / 10,
+    protein: Math.round(totals.protein * 10) / 10,
+    carbs:   Math.round(totals.carbs   * 10) / 10,
+    fat:     Math.round(totals.fat     * 10) / 10,
+  };
 }
 
 export default async function logRoute(app) {
-  // GET /nutrition/log
   app.get("/nutrition/log", async (req, reply) => {
     const date = (req.query.date || todayISO()).toString();
-    if (!isISODate(date)) {
-      return reply.status(400).send({ ok: false, error: "Invalid date" });
-    }
-    const log = loadLog(date);
-    return reply.send({ ok: true, data: log });
+    if (!isISODate(date)) return reply.status(400).send({ ok: false, error: "Invalid date" });
+    return reply.send({ ok: true, data: loadLog(date) });
   });
 
-  // POST /nutrition/log
   app.post("/nutrition/log", async (req, reply) => {
     try {
       const parsed = logPostSchema.safeParse(req.body || {});
-      if (!parsed.success) {
-        return reply.status(400).send({ ok: false, error: "Invalid data" });
-      }
+      if (!parsed.success) return reply.status(400).send({ ok: false, error: "Invalid data" });
+
       const date = (parsed.data.date || todayISO()).toString();
-      if (!isISODate(date)) {
-        return reply.status(400).send({ ok: false, error: "Invalid date" });
-      }
+      if (!isISODate(date)) return reply.status(400).send({ ok: false, error: "Invalid date" });
+
       const log = loadLog(date);
-      if (parsed.data.meal) {
+
+      if (parsed.data.catalog_item_id) {
+        const catalog = loadCatalog();
+        const resolved = resolveCatalogItem(catalog, parsed.data.catalog_item_id, parsed.data.catalog_addon_ids);
+        if (!resolved) return reply.status(404).send({ ok: false, error: "Catalog item not found" });
+        log.meals.push({ id: `meal_${Date.now()}`, ...resolved, time: new Date().toISOString() });
+      } else if (parsed.data.meal) {
+        const m = parsed.data.meal;
         log.meals.push({
           id: `meal_${Date.now()}`,
-          catalog_id: parsed.data.meal.catalog_id || null,
-          type: parsed.data.meal.type || "meal",
-          description: parsed.data.meal.description,
-          notes: parsed.data.meal.notes || "",
-          kcal: parsed.data.meal.kcal || 0,
-          protein: parsed.data.meal.protein || 0,
-          carbs: parsed.data.meal.carbs || 0,
-          fat: parsed.data.meal.fat || 0,
+          catalog_id: m.catalog_id || null,
+          type: m.type || "meal",
+          description: m.description,
+          notes: m.notes || "",
+          kcal: m.kcal || 0, protein: m.protein || 0, carbs: m.carbs || 0, fat: m.fat || 0,
           time: new Date().toISOString(),
         });
       }
+
       if (parsed.data.delete_meal_id) {
         log.meals = log.meals.filter((m) => m.id !== parsed.data.delete_meal_id);
       }
       if (parsed.data.water_ml !== undefined) {
         log.water_ml = parsed.data.water_ml;
       }
+
       saveLog(log);
       return reply.send({ ok: true, data: log });
     } catch (error) {
