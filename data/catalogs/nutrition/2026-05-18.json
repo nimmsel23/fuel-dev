@@ -66,6 +66,30 @@
       "carbs": 2.2,
       "fat": 49.4,
       "time": "2026-05-18T13:55:03.450Z"
+    },
+    {
+      "id": "meal_1779115583911",
+      "meal_id": 3,
+      "type": "meal",
+      "description": "2 große Freiland-Eier mit Salz und Pfeffer",
+      "notes": "",
+      "kcal": 0,
+      "protein": 0,
+      "carbs": 0,
+      "fat": 0,
+      "time": "2026-05-18T14:46:23.911Z"
+    },
+    {
+      "id": "meal_1779115593548",
+      "meal_id": 3,
+      "type": "meal",
+      "description": "2 große Freiland-Eier mit Salz und Pfeffer",
+      "notes": "",
+      "kcal": 168,
+      "protein": 15.1,
+      "carbs": 0.7,
+      "fat": 11.8,
+      "time": "2026-05-18T14:46:33.548Z"
     }
   ],
   "water_ml": 0

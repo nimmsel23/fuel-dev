@@ -25,6 +25,7 @@ const logPostSchema = z.object({
     carbs: z.coerce.number().min(0).optional(),
     fat: z.coerce.number().min(0).optional(),
   }).optional(),
+  meal_id: z.coerce.number().optional(), // Link to SQLite meal for micronutrient tracking
   update_meal: z.any().optional(),
   delete_meal_id: z.string().optional(),
   water_ml: z.coerce.number().optional(),
@@ -101,6 +102,7 @@ export default async function nutritionRoute(app) {
       if (parsed.data.meal) {
         log.meals.push({
           id: `meal_${Date.now()}`,
+          meal_id: parsed.data.meal_id || null, // Link to SQLite meal if from Gemini-compose
           type: parsed.data.meal.type || "meal",
           description: parsed.data.meal.description,
           notes: parsed.data.meal.notes || "",
@@ -267,6 +269,69 @@ export default async function nutritionRoute(app) {
       }
 
       return reply.send({ ok: true, meal });
+    } catch (error) {
+      console.error(error);
+      return reply.status(500).send({ ok: false, error: "Internal server error" });
+    }
+  });
+
+  // GET /nutrition/daily/:date — Get daily totals (macros + micros) from logged meals
+  app.get("/nutrition/daily/:date", async (req, reply) => {
+    try {
+      const { date } = req.params;
+      if (!isISODate(date)) {
+        return reply.status(400).send({ ok: false, error: "Invalid date format" });
+      }
+
+      const log = loadLog(date);
+
+      // Aggregate macros + micros from logged meals
+      const totals = {
+        date,
+        macros: {
+          kcal: 0,
+          protein: 0,
+          carbs: 0,
+          fat: 0,
+          fiber: 0,
+        },
+        micros: {
+          sodium_mg: 0,
+          potassium_mg: 0,
+          calcium_mg: 0,
+          iron_mg: 0,
+          magnesium_mg: 0,
+          zinc_mg: 0,
+          vitamin_a_ug: 0,
+          vitamin_b12_ug: 0,
+          vitamin_d_ug: 0,
+          vitamin_e_mg: 0,
+          folate_ug: 0,
+        },
+        water_ml: log.water_ml || 0,
+      };
+
+      // For each meal logged, get its micronutrient data from SQLite if available
+      for (const meal of log.meals || []) {
+        totals.macros.kcal += meal.kcal || 0;
+        totals.macros.protein += meal.protein || 0;
+        totals.macros.carbs += meal.carbs || 0;
+        totals.macros.fat += meal.fat || 0;
+
+        // If meal has meal_id (from Gemini-compose), fetch micronutrient data
+        if (meal.meal_id) {
+          const dbMeal = getMeal(meal.meal_id);
+          if (dbMeal && dbMeal.components) {
+            // Aggregate micronutrients from components
+            for (const comp of dbMeal.components) {
+              totals.micros.sodium_mg += comp.sodium_mg || 0;
+              // Other micros would go here as wger data improves
+            }
+          }
+        }
+      }
+
+      return reply.send({ ok: true, ...totals });
     } catch (error) {
       console.error(error);
       return reply.status(500).send({ ok: false, error: "Internal server error" });
