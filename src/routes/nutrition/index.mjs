@@ -3,6 +3,7 @@ import logRoute from "./log.mjs";
 import journalRoute from "./journal.mjs";
 import composeRoute from "./compose.mjs";
 import dailyRoute from "./daily.mjs";
+import weeklyRoute from "./weekly.mjs";
 
 export default async function nutritionRoute(app) {
   app.register(catalogRoute);
@@ -10,4 +11,5 @@ export default async function nutritionRoute(app) {
   app.register(journalRoute);
   app.register(composeRoute);
   app.register(dailyRoute);
+  app.register(weeklyRoute);
 }

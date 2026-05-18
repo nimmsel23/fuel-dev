@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-18T16:03:01.694Z",
+  "updated_at": "2026-05-18T16:08:03.539Z",
   "items": [
     {
       "id": "mcdonalds_at_double_cheeseburger_nice_price_menu",
@@ -580,6 +580,103 @@
       "source": "manual",
       "created_at": "2026-05-18T16:03:01.694Z",
       "updated_at": "2026-05-18T16:03:01.694Z"
+    },
+    {
+      "id": "meal_5_mittlere_freiland-eier_mit_salz",
+      "kind": "meal",
+      "category": "meal",
+      "name": "5 mittlere Freiland-Eier mit Salz",
+      "meal_type": "meal",
+      "description": "5 mittlere Freiland-Eier mit Salz",
+      "notes": "",
+      "kcal": 350,
+      "protein": 31.5,
+      "carbs": 1.3,
+      "fat": 24.5,
+      "yield_g": null,
+      "components": [
+        {
+          "wger_id": 1972,
+          "name": "10 Schweizer Freilandeier",
+          "quantity_g": 250,
+          "kcal": 350,
+          "protein": 31.5,
+          "carbs": 1.2,
+          "fat": 24.5,
+          "sodium_mg": 392.5,
+          "brand": "Terra Natura"
+        },
+        {
+          "wger_id": 289,
+          "name": "$5 Salsa",
+          "quantity_g": 2,
+          "kcal": 0.5,
+          "protein": 0,
+          "carbs": 0.1,
+          "fat": 0,
+          "sodium_mg": 11.7,
+          "brand": ""
+        }
+      ],
+      "addons": [],
+      "default_addon_ids": [],
+      "source": "manual",
+      "created_at": "2026-05-18T16:04:56.450Z",
+      "updated_at": "2026-05-18T16:04:56.450Z"
+    },
+    {
+      "id": "meal_hhnchenbrust_gegrillt_mit_brokkoli_und_kartoffeln",
+      "kind": "meal",
+      "category": "meal",
+      "name": "Hähnchenbrust gegrillt mit Brokkoli und Kartoffeln",
+      "meal_type": "meal",
+      "description": "Hähnchenbrust gegrillt mit Brokkoli und Kartoffeln",
+      "notes": "",
+      "kcal": 466,
+      "protein": 30.5,
+      "carbs": 36.8,
+      "fat": 18.8,
+      "yield_g": null,
+      "components": [
+        {
+          "wger_id": 22,
+          "name": "! Hähnchen-Jackfruit Frikadellen mit Petersilie",
+          "quantity_g": 150,
+          "kcal": 240,
+          "protein": 19.5,
+          "carbs": 3.8,
+          "fat": 15,
+          "sodium_mg": 1080,
+          "brand": ""
+        },
+        {
+          "wger_id": 1004,
+          "name": "1 × Blumenkohl & Brokkoli",
+          "quantity_g": 200,
+          "kcal": 42,
+          "protein": 5.4,
+          "carbs": 1.2,
+          "fat": 0.6,
+          "sodium_mg": 144,
+          "brand": "Gut & Günstig, Gut & Günstig/EDEKA"
+        },
+        {
+          "wger_id": 1900,
+          "name": "10 Kartoffelpuffer",
+          "quantity_g": 200,
+          "kcal": 184,
+          "protein": 5.6,
+          "carbs": 31.8,
+          "fat": 3.2,
+          "sodium_mg": 624,
+          "brand": "REWE Bio"
+        }
+      ],
+      "addons": [],
+      "default_addon_ids": [],
+      "source": "manual",
+      "created_at": "2026-05-18T16:08:03.539Z",
+      "updated_at": "2026-05-18T16:08:03.539Z"
     }
   ]
 }

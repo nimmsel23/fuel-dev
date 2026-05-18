@@ -50,6 +50,40 @@
       "potassium_mg": 180,
       "created_at": "2026-05-18T16:03:03.519Z",
       "updated_at": "2026-05-18T16:03:03.519Z"
+    },
+    {
+      "id": "micro_1779120299919",
+      "name": "5 mittlere Freiland-Eier mit Salz",
+      "description": "5 mittlere Freiland-Eier mit Salz",
+      "vitamin_b12_ug": 3,
+      "calcium_mg": 275,
+      "iron_mg": 5.3,
+      "vitamin_d_ug": 7.5,
+      "vitamin_e_mg": 3.8,
+      "folate_ug": 140,
+      "magnesium_mg": 35,
+      "zinc_mg": 4,
+      "sodium_mg": 750,
+      "potassium_mg": 450,
+      "created_at": "2026-05-18T16:04:59.919Z",
+      "updated_at": "2026-05-18T16:04:59.919Z"
+    },
+    {
+      "id": "micro_1779120484675",
+      "name": "Hähnchenbrust gegrillt mit Brokkoli und Kartoffeln",
+      "description": "Hähnchenbrust gegrillt mit Brokkoli und Kartoffeln",
+      "vitamin_b12_ug": 0.4,
+      "calcium_mg": 65,
+      "iron_mg": 2.2,
+      "vitamin_d_ug": 0.1,
+      "vitamin_e_mg": 0.8,
+      "folate_ug": 95,
+      "magnesium_mg": 75,
+      "zinc_mg": 1.4,
+      "sodium_mg": 150,
+      "potassium_mg": 950,
+      "created_at": "2026-05-18T16:08:04.675Z",
+      "updated_at": "2026-05-18T16:08:04.675Z"
     }
   ]
 }
