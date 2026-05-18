@@ -30,7 +30,7 @@ def _load_env_file(path: Path) -> None:
                     if sep:
                         os.environ[key.strip()] = value.strip()
 
-_load_env_file(Path.home() / ".env" / "gemini.env")
+_load_env_file(Path.home() / ".env" / "fuel.env")
 
 # ── Config ─────────────────────────────────────────────────────────────────────
 
