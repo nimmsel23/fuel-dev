@@ -2,61 +2,6 @@
   "date": "2026-05-18",
   "meals": [
     {
-      "id": "meal_1779065049961",
-      "type": "meal",
-      "description": "Nussschnecke Billa",
-      "notes": "",
-      "kcal": 250,
-      "protein": 5,
-      "carbs": 40,
-      "fat": 12,
-      "time": "2026-05-18T00:44:09.961Z"
-    },
-    {
-      "id": "meal_1779065076406",
-      "type": "meal",
-      "description": "Nussschnecke Billa 2",
-      "notes": "",
-      "kcal": 250,
-      "protein": 5,
-      "carbs": 40,
-      "fat": 12,
-      "time": "2026-05-18T00:44:36.406Z"
-    },
-    {
-      "id": "meal_1779099364682",
-      "type": "meal",
-      "description": "Test Gericht",
-      "notes": "",
-      "kcal": 400,
-      "protein": 20,
-      "carbs": 50,
-      "fat": 15,
-      "time": "2026-05-18T10:16:04.682Z"
-    },
-    {
-      "id": "meal_1779099394473",
-      "type": "meal",
-      "description": "Käseleberkäse mit Semmel",
-      "notes": "",
-      "kcal": 0,
-      "protein": 0,
-      "carbs": 0,
-      "fat": 0,
-      "time": "2026-05-18T10:16:34.473Z"
-    },
-    {
-      "id": "meal_1779099931581",
-      "type": "meal",
-      "description": "Test Meal",
-      "notes": "",
-      "kcal": 300,
-      "protein": 20,
-      "carbs": 40,
-      "fat": 12,
-      "time": "2026-05-18T10:25:31.581Z"
-    },
-    {
       "id": "meal_1779112503450",
       "type": "meal",
       "description": "6 Freiland-Eier Eierspeise mit Salz, Pfeffer und Olivenöl",
@@ -66,30 +11,6 @@
       "carbs": 2.2,
       "fat": 49.4,
       "time": "2026-05-18T13:55:03.450Z"
-    },
-    {
-      "id": "meal_1779115583911",
-      "meal_id": 3,
-      "type": "meal",
-      "description": "2 große Freiland-Eier mit Salz und Pfeffer",
-      "notes": "",
-      "kcal": 0,
-      "protein": 0,
-      "carbs": 0,
-      "fat": 0,
-      "time": "2026-05-18T14:46:23.911Z"
-    },
-    {
-      "id": "meal_1779115593548",
-      "meal_id": 3,
-      "type": "meal",
-      "description": "2 große Freiland-Eier mit Salz und Pfeffer",
-      "notes": "",
-      "kcal": 168,
-      "protein": 15.1,
-      "carbs": 0.7,
-      "fat": 11.8,
-      "time": "2026-05-18T14:46:33.548Z"
     }
   ],
   "water_ml": 0

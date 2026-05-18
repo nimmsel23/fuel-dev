@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-18T15:24:54.391Z",
+  "updated_at": "2026-05-18T15:33:38.040Z",
   "items": [
     {
       "id": "mcdonalds_at_double_cheeseburger_nice_price_menu",
@@ -858,6 +858,69 @@
       "source": "manual",
       "created_at": "2026-05-18T15:24:54.391Z",
       "updated_at": "2026-05-18T15:24:54.391Z"
+    },
+    {
+      "id": "meal_125g_ksleberkse__65g_semmel",
+      "kind": "meal",
+      "category": "meal",
+      "name": "125g Käsleberkäse + 65g Semmel",
+      "meal_type": "meal",
+      "description": "125g Käsleberkäse + 65g Semmel",
+      "notes": "",
+      "kcal": 512,
+      "protein": 20,
+      "carbs": 29,
+      "fat": 31,
+      "yield_g": null,
+      "components": [],
+      "addons": [],
+      "default_addon_ids": [],
+      "source": "manual",
+      "created_at": "2026-05-18T15:31:30.610Z",
+      "updated_at": "2026-05-18T15:31:30.610Z"
+    },
+    {
+      "id": "meal_2_eier_mit_salz",
+      "kind": "meal",
+      "category": "meal",
+      "name": "2 Eier mit Salz",
+      "meal_type": "meal",
+      "description": "2 Eier mit Salz",
+      "notes": "",
+      "kcal": 154,
+      "protein": 14,
+      "carbs": 0.4,
+      "fat": 10.8,
+      "yield_g": null,
+      "components": [
+        {
+          "wger_id": 1844,
+          "name": "10 Bio-Eier",
+          "quantity_g": 110,
+          "kcal": 154,
+          "protein": 14,
+          "carbs": 0.3,
+          "fat": 10.8,
+          "sodium_mg": 341,
+          "brand": "BioBio, Netto MD"
+        },
+        {
+          "wger_id": 289,
+          "name": "$5 Salsa",
+          "quantity_g": 2,
+          "kcal": 0.5,
+          "protein": 0,
+          "carbs": 0.1,
+          "fat": 0,
+          "sodium_mg": 11.7,
+          "brand": ""
+        }
+      ],
+      "addons": [],
+      "default_addon_ids": [],
+      "source": "manual",
+      "created_at": "2026-05-18T15:33:38.040Z",
+      "updated_at": "2026-05-18T15:33:38.040Z"
     }
   ]
 }

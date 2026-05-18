@@ -6,7 +6,7 @@ import { normalizeRoutedPath } from "./lib/validation.mjs";
 
 // Routes
 import healthRoute from "./routes/health.mjs";
-import nutritionRoute from "./routes/nutrition.mjs";
+import nutritionRoute from "./routes/nutrition/index.mjs";
 import supplementsRoute from "./routes/supplements.mjs";
 import fuelRoute from "./routes/fuel.mjs";
 import staticRoute from "./routes/static.mjs";

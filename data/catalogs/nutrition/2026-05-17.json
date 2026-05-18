@@ -1,5 +1,54 @@
 {
   "date": "2026-05-17",
-  "meals": [],
+  "meals": [
+    {
+      "id": "meal_1779118294120",
+      "meal_id": null,
+      "type": "dinner",
+      "description": "125g Käsleberkäse + 65g Semmel",
+      "notes": "",
+      "kcal": 512,
+      "protein": 20,
+      "carbs": 29,
+      "fat": 31,
+      "time": "2026-05-18T15:31:34.120Z"
+    },
+    {
+      "id": "meal_1779118330041",
+      "meal_id": null,
+      "type": "meal",
+      "description": "125g Käsleberkäse + 65g Semmel",
+      "notes": "",
+      "kcal": 512,
+      "protein": 20,
+      "carbs": 29,
+      "fat": 31,
+      "time": "2026-05-18T15:32:10.041Z"
+    },
+    {
+      "id": "meal_1779118347576",
+      "meal_id": null,
+      "type": "meal",
+      "description": "125g Käsleberkäse + 65g Semmel",
+      "notes": "",
+      "kcal": 512,
+      "protein": 20,
+      "carbs": 29,
+      "fat": 31,
+      "time": "2026-05-18T15:32:27.576Z"
+    },
+    {
+      "id": "meal_1779118353933",
+      "meal_id": null,
+      "type": "meal",
+      "description": "125g Käsleberkäse + 65g Semmel",
+      "notes": "",
+      "kcal": 512,
+      "protein": 20,
+      "carbs": 29,
+      "fat": 31,
+      "time": "2026-05-18T15:32:33.933Z"
+    }
+  ],
   "water_ml": 0
 }

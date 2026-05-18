@@ -16,6 +16,23 @@
       "potassium_mg": 270,
       "created_at": "2026-05-18T15:25:01.752Z",
       "updated_at": "2026-05-18T15:25:01.752Z"
+    },
+    {
+      "id": "micro_1779118420389",
+      "name": "2 Eier mit Salz",
+      "description": "2 Eier mit Salz",
+      "vitamin_b12_ug": 1.1,
+      "calcium_mg": 56,
+      "iron_mg": 1.8,
+      "vitamin_d_ug": 2.5,
+      "vitamin_e_mg": 1,
+      "folate_ug": 47,
+      "magnesium_mg": 12,
+      "zinc_mg": 1.4,
+      "sodium_mg": 450,
+      "potassium_mg": 140,
+      "created_at": "2026-05-18T15:33:40.389Z",
+      "updated_at": "2026-05-18T15:33:40.389Z"
     }
   ]
 }
