@@ -6,7 +6,7 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import { format, parseISO, startOfMonth, endOfMonth } from "date-fns";
-import { Activity, CalendarDays, Droplets, Flame, Leaf, NotebookPen, Pill, PlusCircle, Settings2, Sparkles, TrendingUp, UtensilsCrossed, Waves } from "lucide-react";
+import { Activity, CalendarDays, Droplets, Flame, Leaf, Microscope, NotebookPen, Pill, PlusCircle, Settings2, Sparkles, TrendingUp, UtensilsCrossed, Waves } from "lucide-react";
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -15,6 +15,7 @@ import { create } from "zustand";
 import { twMerge } from "tailwind-merge";
 import "./styles.css";
 import FoodView from "./views/FoodView.jsx";
+import MicrosView from "./views/MicrosView.jsx";
 import NutritionHeatmap from "./components/NutritionHeatmap.jsx";
 import FoodSearch, { PORTIONS } from "./components/FoodSearch.jsx";
 
@@ -203,6 +204,7 @@ function App() {
               ["calendar", "Big Calendar", CalendarDays],
               ["journal", "Journal", NotebookPen],
               ["supplements", "Supplements", Pill],
+              ["micros", "Mikros", Microscope],
               ["settings", "Setup", Settings2],
             ].map(([key, label, Icon]) => (
               <button
@@ -247,6 +249,7 @@ function App() {
             suppLog={suppLog}
           />
         )}
+        {activeTab === "micros" && <MicrosView />}
         {activeTab === "settings" && <SettingsView />}
       </div>
     </div>
