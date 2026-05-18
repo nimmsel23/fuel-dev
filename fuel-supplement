@@ -249,6 +249,50 @@ def _make_id() -> str:
     import hashlib, time
     return "supp_" + hashlib.sha1(str(time.time()).encode()).hexdigest()[:12]
 
+def do_interactive() -> None:
+    """Interactive supplement selection via gum choose menu."""
+    catalog = load_catalog()
+    if not catalog:
+        gum_log("error", "Catalog ist leer")
+        raise SystemExit(1)
+
+    # Format catalog items as gum choose options (name + default dose)
+    options = [f"{item['name']:<30} {item.get('default_dose', 0)}{item['unit']}" for item in catalog.values()]
+
+    try:
+        # Show interactive menu, user selects via arrow keys + enter
+        result = subprocess.run(
+            ["gum", "choose"] + options,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if result.returncode != 0:  # User cancelled (Ctrl+C)
+            raise SystemExit(0)
+
+        selected = result.stdout.strip()
+        if not selected:
+            raise SystemExit(0)
+
+        # Map selected label back to supplement ID
+        selected_id = None
+        for sup_id, item in catalog.items():
+            label = f"{item['name']:<30} {item.get('default_dose', 0)}{item['unit']}"
+            if label == selected:
+                selected_id = sup_id
+                break
+
+        if not selected_id:
+            gum_log("error", "Supplement nicht gefunden")
+            raise SystemExit(1)
+
+        # Log with default dose
+        do_log(selected_id, None, None, None)
+
+    except FileNotFoundError:
+        gum_log("error", "gum nicht gefunden (apt install gum / brew install gum)")
+        raise SystemExit(1)
+
 def do_log(supplement_id: str, dose: float | None, time_of_day: str | None, day: str | None) -> None:
     catalog = load_catalog()
     if supplement_id not in catalog:
@@ -522,14 +566,22 @@ def _print_help_with_catalog() -> None:
 
 @app.callback(invoke_without_command=True)
 def main(ctx: typer.Context) -> None:
+    # Show extended help with catalog
     if "--help" in sys.argv or "-h" in sys.argv:
         _print_help_with_catalog()
         raise SystemExit(0)
 
+    # No arguments → interactive gum menu
+    if ctx.invoked_subcommand is None and len(sys.argv) == 1:
+        do_interactive()
+        raise SystemExit(0)
+
+    # Shorthand: fuel melatonin [dose] [--time ...] [--day ...]
+    # Parse and invoke log_command with parsed args
     if ctx.invoked_subcommand is None and len(sys.argv) > 1:
         first_arg = sys.argv[1]
         catalog = load_catalog()
-        # Wenn erstes Argument ist Supplement → log command
+        # If first arg is supplement ID → treat as shorthand for log
         if first_arg in catalog:
             ctx.invoke(log_command)
 
