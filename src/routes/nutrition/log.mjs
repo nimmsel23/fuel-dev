@@ -10,6 +10,7 @@ const logPostSchema = z.object({
     type: z.string().optional(),
     description: z.string().min(1),
     notes: z.string().optional(),
+    catalog_id: z.string().optional(),
     kcal: z.coerce.number().min(0).optional(),
     protein: z.coerce.number().min(0).optional(),
     carbs: z.coerce.number().min(0).optional(),
@@ -64,7 +65,7 @@ export default async function logRoute(app) {
       if (parsed.data.meal) {
         log.meals.push({
           id: `meal_${Date.now()}`,
-          meal_id: parsed.data.meal_id || null,
+          catalog_id: parsed.data.meal.catalog_id || null,
           type: parsed.data.meal.type || "meal",
           description: parsed.data.meal.description,
           notes: parsed.data.meal.notes || "",

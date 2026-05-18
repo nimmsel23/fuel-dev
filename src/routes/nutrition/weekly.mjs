@@ -1,8 +1,10 @@
 import path from "path";
 import fs from "fs";
-import { NUTRITION_DIR } from "../../config/paths.mjs";
-import { loadMicrosCatalog } from "../../services/nutrition-micros.mjs";
+import { NUTRITION_DIR, NUTRITION_CATALOG_PATH } from "../../config/paths.mjs";
+import { loadMicrosCatalog, getMicrosForComponents, zeroMicros } from "../../services/nutrition-micros.mjs";
 import { DACH, getStatus } from "../../config/dach.mjs";
+
+const MICRO_KEYS = Object.keys(DACH);
 
 function getWeekDates(year, week) {
   const simple = new Date(year, 0, 1 + (week - 1) * 7);
@@ -23,22 +25,33 @@ function getWeekDates(year, week) {
 function loadLog(date) {
   const filePath = path.join(NUTRITION_DIR, `${date}.json`);
   if (fs.existsSync(filePath)) {
-    try {
-      return JSON.parse(fs.readFileSync(filePath, "utf-8"));
-    } catch {
-      return { date, meals: [], water_ml: 0 };
-    }
+    try { return JSON.parse(fs.readFileSync(filePath, "utf-8")); } catch { /* fall through */ }
   }
   return { date, meals: [], water_ml: 0 };
 }
 
+function loadMealCatalog() {
+  if (fs.existsSync(NUTRITION_CATALOG_PATH)) {
+    try { return JSON.parse(fs.readFileSync(NUTRITION_CATALOG_PATH, "utf-8")); } catch { /* fall through */ }
+  }
+  return { items: [] };
+}
+
+// Collect all components + addons from a catalog entry (addons = default ones only)
+function getEffectiveComponents(catalogItem) {
+  const components = [...(catalogItem.components || [])];
+  const defaultAddonIds = new Set(catalogItem.default_addon_ids || []);
+  for (const addon of catalogItem.addons || []) {
+    if (defaultAddonIds.has(addon.id)) components.push(addon);
+  }
+  return components;
+}
+
 export default async function weeklyRoute(app) {
-  // GET /nutrition/weekly/:year/:week — Get weekly micronutrient totals + RDA comparison
   app.get("/nutrition/weekly/:year/:week", async (req, reply) => {
     try {
-      const { year, week } = req.params;
-      const y = parseInt(year);
-      const w = parseInt(week);
+      const y = parseInt(req.params.year);
+      const w = parseInt(req.params.week);
 
       if (isNaN(y) || isNaN(w) || w < 1 || w > 53) {
         return reply.status(400).send({ ok: false, error: "Invalid year or week" });
@@ -46,49 +59,45 @@ export default async function weeklyRoute(app) {
 
       const dates = getWeekDates(y, w);
       const microsCatalog = loadMicrosCatalog();
+      const mealCatalog = loadMealCatalog();
 
-      // Aggregate micros for the week
-      const weekTotals = {
-        vitamin_b12_ug: 0,
-        calcium_mg: 0,
-        iron_mg: 0,
-        vitamin_d_ug: 0,
-        vitamin_e_mg: 0,
-        folate_ug: 0,
-        magnesium_mg: 0,
-        zinc_mg: 0,
-        sodium_mg: 0,
-        potassium_mg: 0,
-      };
-
+      const weekTotals = zeroMicros();
       const dayBreakdown = {};
 
       for (const date of dates) {
         const log = loadLog(date);
-        dayBreakdown[date] = { ...weekTotals };
+        const dayTotals = zeroMicros();
 
         for (const meal of log.meals || []) {
-          const microItem = microsCatalog.items.find(
-            (item) => item.name === meal.description
+          // Find catalog entry via catalog_id or description fallback
+          const catalogEntry = mealCatalog.items.find(
+            (i) => (meal.catalog_id && i.id === meal.catalog_id) ||
+                    i.name === meal.description ||
+                    i.description === meal.description
           );
-          if (microItem) {
-            for (const key of Object.keys(weekTotals)) {
-              dayBreakdown[date][key] += microItem[key] || 0;
-              weekTotals[key] += microItem[key] || 0;
-            }
+
+          if (!catalogEntry) continue;
+
+          const components = getEffectiveComponents(catalogEntry);
+          const { micros } = getMicrosForComponents(components, microsCatalog);
+
+          for (const k of MICRO_KEYS) {
+            dayTotals[k] = Math.round((dayTotals[k] + micros[k]) * 10) / 10;
           }
+        }
+
+        dayBreakdown[date] = dayTotals;
+        for (const k of MICRO_KEYS) {
+          weekTotals[k] = Math.round((weekTotals[k] + dayTotals[k]) * 10) / 10;
         }
       }
 
-      // Calculate averages and status
-      const avgDaily = {};
       const status = {};
-
       for (const [key, dach] of Object.entries(DACH)) {
         const avg = weekTotals[key] / 7;
-        avgDaily[key] = Math.round(avg * 10) / 10;
         status[key] = {
           dach: dach.value,
+          unit: dach.unit,
           total_week: Math.round(weekTotals[key] * 10) / 10,
           avg_daily: Math.round(avg * 10) / 10,
           percent_of_dach: Math.round((avg / dach.value) * 100),
@@ -102,7 +111,6 @@ export default async function weeklyRoute(app) {
         week: w,
         dates,
         week_totals: weekTotals,
-        avg_daily: avgDaily,
         rda_comparison: status,
         day_breakdown: dayBreakdown,
       });
