@@ -168,16 +168,46 @@ Der aktuelle Vite-Stack ist absichtlich breit angelegt:
 
 ## CLI-Tools & Logging
 
+### Meal Logging
+
+**Interaktiv via `fuel meal`:**
+```bash
+fuel meal                           # fzf Catalog-Durchsuche → auswählen → loggen
+```
+
+**Mit manuellen Makros:**
+```bash
+fuel meal "Nussschnecke Billa" --kcal 250 --protein 5 --carbs 40 --fat 12
+```
+
+**Mit Catalog-Save (für Wiederverwendung):**
+```bash
+fuel meal "Nussschnecke Billa" --kcal 250 --protein 5 --carbs 40 --fat 12 --save-catalog
+```
+
+**Mit Gemini Auto-Schätzung (keine Makros angeben):**
+```bash
+fuel meal "Wiener Schnitzel mit Kartoffeln"  # → Gemini schätzt alle Makros automatisch
+```
+
+**Features**:
+- **fzf Integration**: Interaktives Menu zum Durchsuchen des Catalogs
+- **Gemini API**: Automatische Makro-Schätzung wenn keine Werte angegeben
+  - Lädt API-Key aus `~/.env/gemini.env`
+  - Graceful Fallback wenn API nicht verfügbar
+- **Catalog Save**: `--save-catalog` speichert Meal für schnelle Wiederverwendung
+- **Flexible Input**: Manuell oder AI-generiert
+
 ### Supplements Logging
 
 **Direktes Logging via `fuel` CLI:**
 ```bash
-fuel melatonin --yesterday          # default dose aus catalog
-fuel melatonin 2 --time morning     # custom dose
-fuel melatonin kollagen zink        # mehrere auf einmal
-fuel today --day 2026-05-14         # tagesübersicht
-fuel list                           # alle supplements
-fuel week                           # wochenreport + CSV
+fuel log melatonin --yesterday          # default dose aus catalog
+fuel log melatonin 2 --time morning     # custom dose
+fuel log melatonin kollagen zink        # mehrere auf einmal
+fuel today --day 2026-05-14             # tagesübersicht
+fuel list                               # alle supplements
+fuel week                               # wochenreport + CSV
 ```
 
 **Universal Dispatcher `hab`** (in `~/.dotfiles/logger/hab`):
