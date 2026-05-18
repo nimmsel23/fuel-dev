@@ -1,0 +1,18 @@
+{
+  "date": "2026-05-19",
+  "meals": [
+    {
+      "id": "meal_1779117944822",
+      "meal_id": 4,
+      "type": "meal",
+      "description": "3 mittlere Freiland-Eier mit Salz und Pfeffer",
+      "notes": "",
+      "kcal": 232,
+      "protein": 20.8,
+      "carbs": 0.9,
+      "fat": 16.2,
+      "time": "2026-05-18T15:25:44.822Z"
+    }
+  ],
+  "water_ml": 0
+}

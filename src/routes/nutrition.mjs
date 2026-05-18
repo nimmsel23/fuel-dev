@@ -4,6 +4,8 @@ import { readEntry, writeEntry, listEntries } from "../services/nutrition-journa
 import { searchNutrition } from "../services/nutrition-search.mjs";
 import { composeMeal } from "../services/nutrition-compose.mjs";
 import { upsertIngredient, createMeal, getMeal } from "../services/nutrition-db.mjs";
+import { estimateMicros } from "../services/nutrition-estimate-micros.mjs";
+import { loadMicrosCatalog, saveMicrosCatalog, addOrUpdateMicroItem } from "../services/nutrition-micros.mjs";
 import { isISODate, todayISO } from "../lib/validation.mjs";
 import path from "path";
 import fs from "fs";
@@ -244,7 +246,16 @@ export default async function nutritionRoute(app) {
         }
 
         const mealId = createMeal(description, description, composed.components);
-        return reply.send({ ok: true, description, ...composed, saved: true, meal_id: mealId });
+
+        // Estimate and save micronutrients
+        const micros = await estimateMicros(description);
+        if (Object.keys(micros).length > 0) {
+          const microsCatalog = loadMicrosCatalog();
+          addOrUpdateMicroItem(microsCatalog, catalogItem, micros);
+          saveMicrosCatalog(microsCatalog);
+        }
+
+        return reply.send({ ok: true, description, ...composed, saved: true, meal_id: mealId, micros });
       }
 
       return reply.send({ ok: true, description, ...composed, saved: false });
@@ -311,21 +322,41 @@ export default async function nutritionRoute(app) {
         water_ml: log.water_ml || 0,
       };
 
-      // For each meal logged, get its micronutrient data from SQLite if available
+      // For each meal logged, aggregate macros + micros
+      const microsCatalog = loadMicrosCatalog();
       for (const meal of log.meals || []) {
         totals.macros.kcal += meal.kcal || 0;
         totals.macros.protein += meal.protein || 0;
         totals.macros.carbs += meal.carbs || 0;
         totals.macros.fat += meal.fat || 0;
 
-        // If meal has meal_id (from Gemini-compose), fetch micronutrient data
+        // Try to find micros in Micros Catalog
+        const microItem = microsCatalog.items.find(
+          (item) => item.name === meal.description
+        );
+        if (microItem) {
+          totals.micros.sodium_mg += microItem.sodium_mg || 0;
+          totals.micros.potassium_mg += microItem.potassium_mg || 0;
+          totals.micros.calcium_mg += microItem.calcium_mg || 0;
+          totals.micros.iron_mg += microItem.iron_mg || 0;
+          totals.micros.magnesium_mg += microItem.magnesium_mg || 0;
+          totals.micros.zinc_mg += microItem.zinc_mg || 0;
+          totals.micros.vitamin_a_ug += microItem.vitamin_a_ug || 0;
+          totals.micros.vitamin_b12_ug += microItem.vitamin_b12_ug || 0;
+          totals.micros.vitamin_d_ug += microItem.vitamin_d_ug || 0;
+          totals.micros.vitamin_e_mg += microItem.vitamin_e_mg || 0;
+          totals.micros.folate_ug += microItem.folate_ug || 0;
+        }
+
+        // Fallback: If meal has meal_id, fetch micronutrient data from SQLite
         if (meal.meal_id) {
           const dbMeal = getMeal(meal.meal_id);
           if (dbMeal && dbMeal.components) {
-            // Aggregate micronutrients from components
-            for (const comp of dbMeal.components) {
-              totals.micros.sodium_mg += comp.sodium_mg || 0;
-              // Other micros would go here as wger data improves
+            // Aggregate sodium from components (only available from wger currently)
+            if (!microItem) {
+              for (const comp of dbMeal.components) {
+                totals.micros.sodium_mg += comp.sodium_mg || 0;
+              }
             }
           }
         }

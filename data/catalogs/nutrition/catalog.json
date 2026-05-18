@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-18T14:45:12.354Z",
+  "updated_at": "2026-05-18T15:24:54.391Z",
   "items": [
     {
       "id": "mcdonalds_at_double_cheeseburger_nice_price_menu",
@@ -804,6 +804,60 @@
       "source": "manual",
       "created_at": "2026-05-18T14:45:12.354Z",
       "updated_at": "2026-05-18T14:45:12.354Z"
+    },
+    {
+      "id": "meal_3_mittlere_freiland-eier_mit_salz_und_pfeffer",
+      "kind": "meal",
+      "category": "meal",
+      "name": "3 mittlere Freiland-Eier mit Salz und Pfeffer",
+      "meal_type": "meal",
+      "description": "3 mittlere Freiland-Eier mit Salz und Pfeffer",
+      "notes": "",
+      "kcal": 232,
+      "protein": 20.8,
+      "carbs": 0.9,
+      "fat": 16.2,
+      "yield_g": null,
+      "components": [
+        {
+          "wger_id": 1972,
+          "name": "10 Schweizer Freilandeier",
+          "quantity_g": 165,
+          "kcal": 231,
+          "protein": 20.8,
+          "carbs": 0.8,
+          "fat": 16.2,
+          "sodium_mg": 259,
+          "brand": "Terra Natura"
+        },
+        {
+          "wger_id": 289,
+          "name": "$5 Salsa",
+          "quantity_g": 2,
+          "kcal": 0.5,
+          "protein": 0,
+          "carbs": 0.1,
+          "fat": 0,
+          "sodium_mg": 11.7,
+          "brand": ""
+        },
+        {
+          "wger_id": 284,
+          "name": "#surfer",
+          "quantity_g": 1,
+          "kcal": 0,
+          "protein": 0,
+          "carbs": 0,
+          "fat": 0,
+          "sodium_mg": 0,
+          "brand": ""
+        }
+      ],
+      "addons": [],
+      "default_addon_ids": [],
+      "source": "manual",
+      "created_at": "2026-05-18T15:24:54.391Z",
+      "updated_at": "2026-05-18T15:24:54.391Z"
     }
   ]
 }

@@ -1,0 +1,21 @@
+{
+  "items": [
+    {
+      "id": "micro_1779117901752",
+      "name": "3 mittlere Freiland-Eier mit Salz und Pfeffer",
+      "description": "3 mittlere Freiland-Eier mit Salz und Pfeffer",
+      "vitamin_b12_ug": 1.8,
+      "calcium_mg": 150,
+      "iron_mg": 3.2,
+      "vitamin_d_ug": 4.5,
+      "vitamin_e_mg": 2.3,
+      "folate_ug": 83,
+      "magnesium_mg": 21,
+      "zinc_mg": 2.4,
+      "sodium_mg": 450,
+      "potassium_mg": 270,
+      "created_at": "2026-05-18T15:25:01.752Z",
+      "updated_at": "2026-05-18T15:25:01.752Z"
+    }
+  ]
+}

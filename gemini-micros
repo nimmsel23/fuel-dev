@@ -1,0 +1,124 @@
+#!/usr/bin/env python3
+"""
+gemini-micros — Estimate micronutrients for a meal description using Gemini
+
+Usage:
+  gemini-micros "Eierspeise mit 6 Eier, Salz, Pfeffer und Olivenöl"
+
+Output: JSON with estimated micronutrients {vitamin_b12_ug, calcium_mg, iron_mg, ...}
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import sys
+from pathlib import Path
+import urllib.request
+
+# ── Load .env files ───────────────────────────────────────────────────────────
+
+def _load_env_file(path: Path) -> None:
+    if path.exists():
+        with open(path) as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    key, sep, value = line.partition("=")
+                    if sep:
+                        os.environ[key.strip()] = value.strip()
+
+_load_env_file(Path.home() / ".env" / "fuel.env")
+
+# ── Config ─────────────────────────────────────────────────────────────────────
+
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-flash-latest")
+GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
+
+# ── Gemini: Estimate micronutrients ────────────────────────────────────────────
+
+def estimate_micros_with_gemini(description: str) -> dict:
+    """
+    Ask Gemini to estimate micronutrients for a meal.
+    Returns: {vitamin_b12_ug, calcium_mg, iron_mg, vitamin_d_ug, vitamin_e_mg,
+              folate_ug, magnesium_mg, zinc_mg, sodium_mg, potassium_mg}
+    """
+    if not GEMINI_API_KEY:
+        return {}
+
+    prompt = f"""Schätze die Mikronährstoffe für diese Mahlzeit:
+"{description}"
+
+Basiere deine Schätzung auf typischen Werten für die genannten Lebensmittel.
+Antworte NUR mit JSON (keine Erklärungen, keine zusätzlichen Felder):
+
+{{
+  "vitamin_b12_ug": <Wert>,
+  "calcium_mg": <Wert>,
+  "iron_mg": <Wert>,
+  "vitamin_d_ug": <Wert>,
+  "vitamin_e_mg": <Wert>,
+  "folate_ug": <Wert>,
+  "magnesium_mg": <Wert>,
+  "zinc_mg": <Wert>,
+  "sodium_mg": <Wert>,
+  "potassium_mg": <Wert>
+}}
+
+Nutze realistische Werte basierend auf den Lebensmitteln. Wenn unsicher, schätze konservativ.
+Beispiel für "2 Eier mit Salz":
+{{
+  "vitamin_b12_ug": 1.2,
+  "calcium_mg": 100,
+  "iron_mg": 2.1,
+  "vitamin_d_ug": 3.0,
+  "vitamin_e_mg": 1.5,
+  "folate_ug": 55,
+  "magnesium_mg": 14,
+  "zinc_mg": 1.6,
+  "sodium_mg": 300,
+  "potassium_mg": 180
+}}
+"""
+
+    try:
+        payload = {"contents": [{"parts": [{"text": prompt}]}]}
+        data = json.dumps(payload, ensure_ascii=False).encode('utf-8')
+        req = urllib.request.Request(
+            GEMINI_API_URL,
+            data=data,
+            headers={"Content-Type": "application/json", "X-goog-api-key": GEMINI_API_KEY},
+            method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            result = json.loads(resp.read())
+
+        if "candidates" in result and result["candidates"]:
+            text = result["candidates"][0]["content"]["parts"][0]["text"].strip()
+            try:
+                micros = json.loads(text)
+                # Validate that we have the expected keys
+                expected_keys = {"vitamin_b12_ug", "calcium_mg", "iron_mg", "vitamin_d_ug",
+                               "vitamin_e_mg", "folate_ug", "magnesium_mg", "zinc_mg",
+                               "sodium_mg", "potassium_mg"}
+                if isinstance(micros, dict) and expected_keys.issubset(micros.keys()):
+                    return micros
+            except json.JSONDecodeError:
+                pass
+    except Exception:
+        pass
+
+    return {}
+
+def main():
+    if len(sys.argv) < 2:
+        print(json.dumps({"error": "Usage: gemini-micros 'meal description'"}), file=sys.stderr)
+        sys.exit(1)
+
+    description = sys.argv[1]
+    micros = estimate_micros_with_gemini(description)
+    print(json.dumps(micros, ensure_ascii=False))
+
+if __name__ == "__main__":
+    main()
