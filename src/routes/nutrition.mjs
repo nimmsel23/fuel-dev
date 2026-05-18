@@ -1,9 +1,7 @@
-import http from "http";
-import https from "https";
 import { z } from "zod";
-import { WGER_API_URL, WGER_API_TOKEN, WGER_MIN_RESULTS, OFF_API_URL } from "../config/constants.mjs";
 import { loadCatalog, saveCatalog, addOrUpdateItem } from "../services/nutrition-catalog.mjs";
 import { readEntry, writeEntry, listEntries } from "../services/nutrition-journal.mjs";
+import { searchNutrition } from "../services/nutrition-search.mjs";
 import { isISODate, todayISO } from "../lib/validation.mjs";
 import path from "path";
 import fs from "fs";
@@ -46,67 +44,6 @@ const journalSchema = z.object({
   content: z.string().optional(),
 });
 
-async function searchWger(query, limit) {
-  return new Promise((resolve) => {
-    const url = `${WGER_API_URL}/ingredient/?format=json&limit=${limit}&name__search=${encodeURIComponent(query)}`;
-    const req = http.get(url, { headers: { "Authorization": `Token ${WGER_API_TOKEN}` } }, (r) => {
-      let raw = "";
-      r.on("data", (c) => (raw += c));
-      r.on("end", () => {
-        try {
-          const data = JSON.parse(raw);
-          const results = (data.results || [])
-            .filter((i) => i.name && i.energy != null)
-            .map((i) => ({
-              name: i.name.trim(),
-              brand: i.brand || "",
-              kcal: Math.round((i.energy ?? 0) * 10) / 10,
-              kh: Math.round((parseFloat(i.carbohydrates) ?? 0) * 10) / 10,
-              fett: Math.round((parseFloat(i.fat) ?? 0) * 10) / 10,
-              ew: Math.round((parseFloat(i.protein) ?? 0) * 10) / 10,
-              _src: "wger",
-            }));
-          resolve(results);
-        } catch {
-          resolve([]);
-        }
-      });
-    });
-    req.on("error", () => resolve([]));
-    req.setTimeout(3000, () => { req.destroy(); resolve([]); });
-  });
-}
-
-async function searchOFF(query, limit) {
-  return new Promise((resolve) => {
-    const url = `${OFF_API_URL}?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=${limit}`;
-    const req = https.get(url, { headers: { "User-Agent": "fuel-dev/2.0" } }, (r) => {
-      let raw = "";
-      r.on("data", (c) => (raw += c));
-      r.on("end", () => {
-        try {
-          const data = JSON.parse(raw);
-          const results = (data.products || [])
-            .filter((p) => p.product_name && p.nutriments?.["energy-kcal_100g"] != null)
-            .map((p) => ({
-              name: p.product_name,
-              brand: p.brands || "",
-              kcal: Math.round((p.nutriments["energy-kcal_100g"] ?? 0) * 10) / 10,
-              kh: Math.round((p.nutriments.carbohydrates_100g ?? 0) * 10) / 10,
-              fett: Math.round((p.nutriments.fat_100g ?? 0) * 10) / 10,
-              ew: Math.round((p.nutriments.proteins_100g ?? 0) * 10) / 10,
-              _src: "off",
-            }));
-          resolve(results);
-        } catch {
-          resolve([]);
-        }
-      });
-    });
-    req.on("error", () => resolve([]));
-    req.setTimeout(8000, () => { req.destroy(); resolve([]); });
-  });
-}
 
 function loadLog(date) {
   const filePath = path.join(NUTRITION_DIR, `${date}.json`);
@@ -133,14 +70,7 @@ export default async function nutritionRoute(app) {
       return reply.status(400).send({ ok: false, error: "Invalid query" });
     }
     const { q, limit } = parsed.data;
-    const wgerResults = await searchWger(q, limit);
-    let results = wgerResults;
-    if (wgerResults.length < WGER_MIN_RESULTS) {
-      const offResults = await searchOFF(q, limit);
-      const seen = new Set(wgerResults.map((r) => r.name.toLowerCase()));
-      const merged = [...wgerResults, ...offResults.filter((r) => !seen.has(r.name.toLowerCase()))];
-      results = merged.slice(0, limit);
-    }
+    const results = await searchNutrition(q, limit);
     return reply.send({ ok: true, count: results.length, results });
   });
 
