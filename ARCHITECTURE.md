@@ -4,6 +4,38 @@ Stand: 2026-05-18
 
 ---
 
+## Catalog Storage Strategy
+
+**Current State (to be refactored):**
+- Catalogs stored in `~/.aos/fuel/` (user home)
+- Supplements: `~/.aos/fuel/supplements/catalog.json`
+- Nutrition: `~/.aos/fuel/nutrition/catalog.json` (when implemented)
+- Meals: `~/.aos/fuel/nutrition/meals/catalog.json` (when implemented)
+
+**Target State (future):**
+- Catalogs versioned in repo: `fuel-dev/data/catalogs/`
+- `~/.aos/fuel/` becomes symlink layer
+- Example structure:
+  ```
+  fuel-dev/data/catalogs/
+  ├── supplements.json (master catalog, git-tracked)
+  ├── nutrition.json (ingredients, git-tracked)
+  └── meals.json (dishes, git-tracked)
+  
+  ~/.aos/fuel/ (runtime layer)
+  ├── supplements/ → ../../fuel-dev/data/catalogs/supplements.json
+  ├── nutrition/ → ../../fuel-dev/data/catalogs/nutrition.json
+  └── nutrition/meals/ → ../../fuel-dev/data/catalogs/meals.json
+  ```
+
+**Benefits:**
+- Catalogs versioned in git (portable, shareable)
+- Easy to export/backup (just copy `data/catalogs/`)
+- Multi-user support: each user can have own `~/.aos/fuel` symlinks
+- Development: catalogs in repo for testing
+
+---
+
 ## Was steht (implementiert)
 
 ### Server (`server.mjs`, Port 9000)
@@ -79,6 +111,23 @@ Aktuell nicht als Datenquelle genutzt — OFF übernimmt diese Rolle.
 ---
 
 ## Was noch nicht steht (geplant / offen)
+
+### Catalog Refactoring (Git-Tracked Storage)
+
+Move catalogs from `~/.aos/fuel/` to `fuel-dev/data/catalogs/` and create symlinks.
+
+**Steps:**
+1. Create `fuel-dev/data/catalogs/` directory
+2. Copy current catalogs from `~/.aos/fuel/` to repo
+3. Update server config to use repo paths (or keep symlinks)
+4. Document setup in README (symlink creation)
+5. Add `data/catalogs/` to git, ignore `~/.aos/` locally
+
+**Why:**
+- Version control for catalogs (portable, shareable)
+- Easy export/backup
+- Multi-user: each user can have own `~/.aos` symlinks
+- Development: catalogs in repo for testing/CI
 
 ### Offline Write-Through (POST-Queue)
 
