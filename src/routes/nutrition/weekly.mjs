@@ -2,7 +2,7 @@ import path from "path";
 import fs from "fs";
 import { NUTRITION_DIR } from "../../config/paths.mjs";
 import { loadMicrosCatalog } from "../../services/nutrition-micros.mjs";
-import { RDA, getStatus } from "../../config/rda.mjs";
+import { DACH, getStatus } from "../../config/dach.mjs";
 
 function getWeekDates(year, week) {
   const simple = new Date(year, 0, 1 + (week - 1) * 7);
@@ -84,15 +84,15 @@ export default async function weeklyRoute(app) {
       const avgDaily = {};
       const status = {};
 
-      for (const [key, rda] of Object.entries(RDA)) {
+      for (const [key, dach] of Object.entries(DACH)) {
         const avg = weekTotals[key] / 7;
         avgDaily[key] = Math.round(avg * 10) / 10;
         status[key] = {
-          rda: rda.value,
+          dach: dach.value,
           total_week: Math.round(weekTotals[key] * 10) / 10,
           avg_daily: Math.round(avg * 10) / 10,
-          percent_of_rda: Math.round((avg / rda.value) * 100),
-          status: getStatus(avg, rda.value),
+          percent_of_dach: Math.round((avg / dach.value) * 100),
+          status: getStatus(avg, dach.value),
         };
       }
 
