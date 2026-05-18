@@ -59,6 +59,7 @@ def gum_log(level: str, msg: str) -> None:
         dest = sys.stderr if level == "error" else sys.stdout
         print(f"{colors.get(level, '')}{msg}\033[0m", file=dest)
 
+
 # ── Validation ─────────────────────────────────────────────────────────────────
 
 class MealInput(BaseModel):
@@ -124,7 +125,6 @@ def do_meal_interactive() -> None:
         result = _api_call("GET", "/nutrition/catalog")
         items = result.get("items", [])
     except SystemExit:
-        gum_log("error", "Catalog nicht erreichbar")
         raise SystemExit(1)
 
     if not items:
