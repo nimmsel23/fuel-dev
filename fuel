@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 """
-fuel — Supplement-Tracker CLI
+fuel — Nutrition & Supplement Tracker CLI
 
-Direktes Logging:
+Meals:
+  fuel meal log "Nussschnecke Billa" --kcal 250 --protein 5 --carbs 40 --fat 12
+  fuel meal log "..." --kcal 250 --save-catalog     (speichert auch im Catalog)
+  fuel meal today                                    (was heute gegessen)
+
+Supplements:
   fuel melatonin            mit Default-Dosis aus catalog.json
   fuel melatonin 2          custom Dosis (gleiche Einheit wie catalog)
   fuel melatonin kollagen   mehrere Supplements auf einmal
@@ -23,6 +28,8 @@ import subprocess
 import sys
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+import urllib.request
+import urllib.error
 
 import typer
 from loguru import logger
@@ -33,6 +40,32 @@ from rich.table import Table
 
 console = Console()
 
+# ── API Base URL ───────────────────────────────────────────────────────────────
+
+API_BASE = os.environ.get("FUEL_API_URL", "http://127.0.0.1:9000")
+
+def _api_call(method: str, endpoint: str, body: dict | None = None) -> dict:
+    """Macht HTTP-Call zu Fuel-API."""
+    url = f"{API_BASE}{endpoint}"
+    headers = {"Content-Type": "application/json"}
+
+    try:
+        if method == "GET":
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req) as resp:
+                return json.loads(resp.read())
+        elif method == "POST":
+            data = json.dumps(body, ensure_ascii=False).encode('utf-8')
+            req = urllib.request.Request(url, data=data, headers=headers, method="POST")
+            with urllib.request.urlopen(req) as resp:
+                return json.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        gum_log("error", f"API Error {e.code}: {e.reason}")
+        raise SystemExit(1)
+    except urllib.error.URLError as e:
+        gum_log("error", f"API Fehler (Server antwortet nicht): {e.reason}")
+        raise SystemExit(1)
+
 # ── Validation (Pydantic) ──────────────────────────────────────────────────────
 
 class SupplementInput(BaseModel):
@@ -42,6 +75,16 @@ class SupplementInput(BaseModel):
     dose: float | None = Field(None, ge=0, description="Dose amount")
     unit: str | None = Field(None, description="Unit (mg, g, etc.)")
     time_of_day: str | None = Field(None, description="morning, evening, night, any")
+    notes: str = Field("", description="Optional notes")
+
+class MealInput(BaseModel):
+    model_config = ConfigDict(validate_assignment=True)
+
+    description: str = Field(..., min_length=1, description="Meal description")
+    kcal: float = Field(0, ge=0, description="Calories")
+    protein: float = Field(0, ge=0, description="Protein grams")
+    carbs: float = Field(0, ge=0, description="Carbs grams")
+    fat: float = Field(0, ge=0, description="Fat grams")
     notes: str = Field("", description="Optional notes")
 
 # ── Pfade ──────────────────────────────────────────────────────────────────────
@@ -186,6 +229,65 @@ def do_today(day: str | None) -> None:
 
     console.print(table)
 
+# ── Meal Logging (Nutrition) ───────────────────────────────────────────────────
+
+def do_meal_log(description: str, kcal: float, protein: float, carbs: float, fat: float, notes: str, day: str | None, save_catalog: bool) -> None:
+    """Loggt eine Mahlzeit über API und speichert optional im Catalog."""
+    today = day or date.today().isoformat()
+
+    # Validate input
+    try:
+        MealInput(
+            description=description,
+            kcal=kcal,
+            protein=protein,
+            carbs=carbs,
+            fat=fat,
+            notes=notes,
+        )
+    except ValidationError as e:
+        gum_log("error", f"Validation error: {e.error_count()} Fehler")
+        for err in e.errors():
+            gum_log("error", f"  {err['loc'][0]}: {err['msg']}")
+        raise SystemExit(1)
+
+    # Log meal via API
+    payload = {
+        "date": today,
+        "meal": {
+            "meal_type": "lunch",
+            "description": description,
+            "kcal": kcal,
+            "protein": protein,
+            "carbs": carbs,
+            "fat": fat,
+            "notes": notes,
+        }
+    }
+
+    try:
+        result = _api_call("POST", "/nutrition/log", payload)
+        gum_log("info", f"{description} ({kcal} kcal) geloggt — {today}")
+    except SystemExit:
+        raise
+
+    # Save to catalog if requested
+    if save_catalog:
+        catalog_item = {
+            "item": {
+                "name": description,
+                "kcal": kcal,
+                "protein": protein,
+                "carbs": carbs,
+                "fat": fat,
+            }
+        }
+        try:
+            _api_call("POST", "/nutrition/catalog", catalog_item)
+            gum_log("info", f"Zum Catalog hinzugefügt: {description}")
+        except SystemExit:
+            pass  # Log successful, catalog save failed is non-critical
+
 # ── Typer App ──────────────────────────────────────────────────────────────────
 
 app = typer.Typer(
@@ -267,6 +369,19 @@ def log_command(
     for i, supp in enumerate(supplements):
         d = dose if i == 0 else None
         do_log(supp, d, time, day)
+
+@app.command(name="meal-log", help="Mahlzeit loggen und optional im Catalog speichern")
+def meal_log_command(
+    description: str          = typer.Argument(..., help="Mahlzeitbeschreibung (z.B. 'Nussschnecke Billa')"),
+    kcal:       float | None  = typer.Option(0, "--kcal", help="Kalorien"),
+    protein:    float | None  = typer.Option(0, "--protein", help="Protein in Gramm"),
+    carbs:      float | None  = typer.Option(0, "--carbs", help="Kohlenhydrate in Gramm"),
+    fat:        float | None  = typer.Option(0, "--fat", help="Fett in Gramm"),
+    notes:      str | None    = typer.Option("", "--notes", "-n", help="Notizen"),
+    day:        str | None    = typer.Option(None, "--day", "-d", help="Datum YYYY-MM-DD (Standard: heute)"),
+    save_catalog: bool        = typer.Option(False, "--save-catalog", "-s", help="Im Catalog speichern"),
+) -> None:
+    do_meal_log(description, kcal or 0, protein or 0, carbs or 0, fat or 0, notes or "", day, save_catalog)
 
 @app.command(help="Was heute geloggt wurde")
 def today(
@@ -377,6 +492,55 @@ def do_weekly_report(day: str | None = None) -> None:
 
 def _main() -> None:
     catalog = load_catalog()
+
+    # Shortcut: fuel meal "Nussschnecke Billa" --kcal 250 ...
+    if len(sys.argv) >= 2 and sys.argv[1] == "meal":
+        # Parse meal arguments
+        description = None
+        kcal = 0
+        protein = 0
+        carbs = 0
+        fat = 0
+        notes = ""
+        day = None
+        save_catalog = False
+
+        args = sys.argv[2:]
+        i = 0
+        while i < len(args):
+            if args[i] in ("--kcal",):
+                kcal = float(args[i + 1]) if i + 1 < len(args) else 0
+                i += 2
+            elif args[i] in ("--protein",):
+                protein = float(args[i + 1]) if i + 1 < len(args) else 0
+                i += 2
+            elif args[i] in ("--carbs",):
+                carbs = float(args[i + 1]) if i + 1 < len(args) else 0
+                i += 2
+            elif args[i] in ("--fat",):
+                fat = float(args[i + 1]) if i + 1 < len(args) else 0
+                i += 2
+            elif args[i] in ("--notes", "-n"):
+                notes = args[i + 1] if i + 1 < len(args) else ""
+                i += 2
+            elif args[i] in ("--day", "-d"):
+                day = args[i + 1] if i + 1 < len(args) else None
+                i += 2
+            elif args[i] in ("--save-catalog", "-s"):
+                save_catalog = True
+                i += 1
+            elif not args[i].startswith("--") and not description:
+                description = args[i]
+                i += 1
+            else:
+                i += 1
+
+        if description:
+            do_meal_log(description, kcal, protein, carbs, fat, notes, day, save_catalog)
+        else:
+            gum_log("error", "Keine Mahlzeitbeschreibung gegeben")
+            raise SystemExit(1)
+        return
 
     # Shortcut: fuel zink [dose] [--time ...] [--day ...] [--yesterday] [--1d] etc.
     if len(sys.argv) >= 2 and sys.argv[1] in catalog:
