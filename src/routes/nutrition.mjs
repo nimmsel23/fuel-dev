@@ -2,6 +2,7 @@ import { z } from "zod";
 import { loadCatalog, saveCatalog, addOrUpdateItem } from "../services/nutrition-catalog.mjs";
 import { readEntry, writeEntry, listEntries } from "../services/nutrition-journal.mjs";
 import { searchNutrition } from "../services/nutrition-search.mjs";
+import { composeMeal } from "../services/nutrition-compose.mjs";
 import { isISODate, todayISO } from "../lib/validation.mjs";
 import path from "path";
 import fs from "fs";
@@ -195,6 +196,39 @@ export default async function nutritionRoute(app) {
       const { estimateMacros } = await import("../services/nutrition-estimate.mjs");
       const macros = await estimateMacros(description);
       return reply.send({ ok: true, description, macros });
+    } catch (error) {
+      console.error(error);
+      return reply.status(500).send({ ok: false, error: "Internal server error" });
+    }
+  });
+
+  // POST /nutrition/compose — Compose meal from wger + Gemini (saves to catalog)
+  app.post("/nutrition/compose", async (req, reply) => {
+    try {
+      const { description, save_catalog } = req.body || {};
+      if (!description || typeof description !== "string" || description.trim().length === 0) {
+        return reply.status(400).send({ ok: false, error: "description required" });
+      }
+
+      const composed = await composeMeal(description);
+
+      // Save to catalog if requested
+      if (save_catalog && composed.kcal > 0) {
+        const catalog = loadCatalog();
+        const catalogItem = {
+          name: description,
+          description: description,
+          kcal: composed.kcal,
+          protein: composed.protein,
+          carbs: composed.carbs,
+          fat: composed.fat,
+          components: composed.components,
+        };
+        addOrUpdateItem(catalog, catalogItem);
+        saveCatalog(catalog);
+      }
+
+      return reply.send({ ok: true, description, ...composed, saved: save_catalog && composed.kcal > 0 });
     } catch (error) {
       console.error(error);
       return reply.status(500).send({ ok: false, error: "Internal server error" });
