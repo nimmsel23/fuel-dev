@@ -28,6 +28,9 @@ Ziel:
 - `data/` - lokaler, dateibasierter Speicher für Logs und Kataloge
 - `NUTRITION.md` - Doku für CLI-Backend und Ausbildungskontext
 - `ARCHITECTURE.md` - technische Architektur, implementiert vs. geplant
+- `HOT.md` - Open Source Nährstoff-/Supplement-DBs + nützliche Node Module
+- `OFFEN.md` - offene technische Punkte + bekannte Bugs
+- `AGENT.md` - nutrition-agent Rollenbeschreibung + Ticketing-Workflow
 
 ## CLI-Backend: wger-food
 

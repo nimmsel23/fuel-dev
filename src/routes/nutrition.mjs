@@ -3,6 +3,7 @@ import { loadCatalog, saveCatalog, addOrUpdateItem } from "../services/nutrition
 import { readEntry, writeEntry, listEntries } from "../services/nutrition-journal.mjs";
 import { searchNutrition } from "../services/nutrition-search.mjs";
 import { composeMeal } from "../services/nutrition-compose.mjs";
+import { upsertIngredient, createMeal, getMeal } from "../services/nutrition-db.mjs";
 import { isISODate, todayISO } from "../lib/validation.mjs";
 import path from "path";
 import fs from "fs";
@@ -226,9 +227,46 @@ export default async function nutritionRoute(app) {
         };
         addOrUpdateItem(catalog, catalogItem);
         saveCatalog(catalog);
+
+        // Also save to SQLite for micronutrient tracking
+        for (const comp of composed.components || []) {
+          upsertIngredient(comp.wger_id, {
+            name: comp.name,
+            brand: comp.brand,
+            kcal: comp.kcal / (comp.quantity_g / 100),
+            protein: comp.protein / (comp.quantity_g / 100),
+            carbs: comp.carbs / (comp.quantity_g / 100),
+            fat: comp.fat / (comp.quantity_g / 100),
+            sodium_mg: comp.sodium_mg ? comp.sodium_mg / (comp.quantity_g / 100) : 0,
+          });
+        }
+
+        const mealId = createMeal(description, description, composed.components);
+        return reply.send({ ok: true, description, ...composed, saved: true, meal_id: mealId });
       }
 
-      return reply.send({ ok: true, description, ...composed, saved: save_catalog && composed.kcal > 0 });
+      return reply.send({ ok: true, description, ...composed, saved: false });
+    } catch (error) {
+      console.error(error);
+      return reply.status(500).send({ ok: false, error: "Internal server error" });
+    }
+  });
+
+  // GET /nutrition/meal/:id — Get meal with micronutrient data
+  app.get("/nutrition/meal/:id", async (req, reply) => {
+    try {
+      const { id } = req.params;
+      const mealId = parseInt(id);
+      if (!mealId) {
+        return reply.status(400).send({ ok: false, error: "id required" });
+      }
+
+      const meal = getMeal(mealId);
+      if (!meal) {
+        return reply.status(404).send({ ok: false, error: "meal not found" });
+      }
+
+      return reply.send({ ok: true, meal });
     } catch (error) {
       console.error(error);
       return reply.status(500).send({ ok: false, error: "Internal server error" });

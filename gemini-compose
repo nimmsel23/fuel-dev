@@ -93,7 +93,7 @@ Beispiel für "Wiener Schnitzel mit Kartoffeln":
 # ── wger: Search ingredients ───────────────────────────────────────────────────
 
 def search_wger(ingredient_name: str, limit: int = 1) -> dict | None:
-    """Search wger local database for ingredient. Returns best match."""
+    """Search wger local database for ingredient. Returns best match with macros + sodium."""
     try:
         url = f"{WGER_API_URL}/ingredient/?format=json&limit={limit}&name__search={urllib.parse.quote(ingredient_name)}"
         req = urllib.request.Request(
@@ -105,6 +105,7 @@ def search_wger(ingredient_name: str, limit: int = 1) -> dict | None:
 
         if result.get("results"):
             ing = result["results"][0]
+            sodium_g = float(ing.get("sodium") or 0)
             return {
                 "wger_id": ing.get("id"),
                 "name": ing.get("name", "").strip(),
@@ -113,6 +114,7 @@ def search_wger(ingredient_name: str, limit: int = 1) -> dict | None:
                 "protein": round((float(ing.get("protein") or 0)) * 10) / 10,
                 "carbs": round((float(ing.get("carbohydrates") or 0)) * 10) / 10,
                 "fat": round((float(ing.get("fat") or 0)) * 10) / 10,
+                "sodium_mg": round(sodium_g * 1000 * 10) / 10,  # convert g to mg
             }
     except Exception:
         pass
@@ -162,6 +164,8 @@ def compose_meal(description: str) -> dict:
         total_carbs += carbs
         total_fat += fat
 
+        sodium = round(wger_ing.get("sodium_mg", 0) * multiplier * 10) / 10
+
         components.append({
             "wger_id": wger_ing["wger_id"],
             "name": wger_ing["name"],
@@ -170,6 +174,7 @@ def compose_meal(description: str) -> dict:
             "protein": protein,
             "carbs": carbs,
             "fat": fat,
+            "sodium_mg": sodium,
             "brand": wger_ing["brand"],
         })
 

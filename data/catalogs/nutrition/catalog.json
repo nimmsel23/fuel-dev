@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-18T13:56:07.846Z",
+  "updated_at": "2026-05-18T14:37:34.457Z",
   "items": [
     {
       "id": "mcdonalds_at_double_cheeseburger_nice_price_menu",
@@ -689,6 +689,67 @@
       "source": "manual",
       "created_at": "2026-05-18T13:56:07.846Z",
       "updated_at": "2026-05-18T13:56:07.846Z"
+    },
+    {
+      "id": "meal_6_groe_freiland-eier_mit_salz_pfeffer_und_olivenl",
+      "kind": "meal",
+      "category": "meal",
+      "name": "6 große Freiland-Eier mit Salz, Pfeffer und Olivenöl",
+      "meal_type": "meal",
+      "description": "6 große Freiland-Eier mit Salz, Pfeffer und Olivenöl",
+      "notes": "",
+      "kcal": 643,
+      "protein": 45.6,
+      "carbs": 2.2,
+      "fat": 50.6,
+      "yield_g": null,
+      "components": [
+        {
+          "wger_id": 1972,
+          "name": "10 Schweizer Freilandeier",
+          "quantity_g": 360,
+          "kcal": 504,
+          "protein": 45.4,
+          "carbs": 1.8,
+          "fat": 35.3,
+          "brand": "Terra Natura"
+        },
+        {
+          "wger_id": 977,
+          "name": "1 cal olive oil",
+          "quantity_g": 30,
+          "kcal": 138.6,
+          "protein": 0.2,
+          "carbs": 0.3,
+          "fat": 15.3,
+          "brand": "Asda"
+        },
+        {
+          "wger_id": 289,
+          "name": "$5 Salsa",
+          "quantity_g": 2,
+          "kcal": 0.5,
+          "protein": 0,
+          "carbs": 0.1,
+          "fat": 0,
+          "brand": ""
+        },
+        {
+          "wger_id": 284,
+          "name": "#surfer",
+          "quantity_g": 1,
+          "kcal": 0,
+          "protein": 0,
+          "carbs": 0,
+          "fat": 0,
+          "brand": ""
+        }
+      ],
+      "addons": [],
+      "default_addon_ids": [],
+      "source": "manual",
+      "created_at": "2026-05-18T14:21:49.536Z",
+      "updated_at": "2026-05-18T14:21:49.536Z"
     }
   ]
 }
