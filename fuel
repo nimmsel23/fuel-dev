@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -40,9 +41,27 @@ from rich.table import Table
 
 console = Console()
 
-# ── API Base URL ───────────────────────────────────────────────────────────────
+# ── Load .env files ────────────────────────────────────────────────────────────
+
+def _load_env_file(path: Path) -> None:
+    """Load env vars from a file."""
+    if path.exists():
+        with open(path) as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    key, sep, value = line.partition("=")
+                    if sep:
+                        os.environ[key.strip()] = value.strip()
+
+_load_env_file(Path.home() / ".env" / "gemini.env")
+
+# ── API Base URLs ─────────────────────────────────────────────────────────────
 
 API_BASE = os.environ.get("FUEL_API_URL", "http://127.0.0.1:9000")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-flash-latest")
+GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
 
 def _api_call(method: str, endpoint: str, body: dict | None = None) -> dict:
     """Macht HTTP-Call zu Fuel-API."""
@@ -65,6 +84,81 @@ def _api_call(method: str, endpoint: str, body: dict | None = None) -> dict:
     except urllib.error.URLError as e:
         gum_log("error", f"API Fehler (Server antwortet nicht): {e.reason}")
         raise SystemExit(1)
+
+def _parse_macros_with_gemini(description: str) -> dict:
+    """Nutzt Google Gemini um Makros für eine Mahlzeitbeschreibung zu schätzen."""
+    if not GEMINI_API_KEY:
+        gum_log("warn", "GEMINI_API_KEY nicht gesetzt, Makros manuell eingeben")
+        return {"kcal": 0, "protein": 0, "carbs": 0, "fat": 0}
+
+    prompt = f"""Schätze die Nährwerte (pro Portion) für folgende Speise/Mahlzeit:
+"{description}"
+
+Antworte NUR mit einem JSON-Objekt (keine anderen Worte):
+{{
+  "kcal": <Kilokalorien als Zahl>,
+  "protein": <Protein in Gramm als Zahl>,
+  "carbs": <Kohlenhydrate in Gramm als Zahl>,
+  "fat": <Fett in Gramm als Zahl>
+}}
+
+Beispiele:
+- "Käseleberkäse-Semmel": {{"kcal": 512, "protein": 20, "carbs": 29, "fat": 31}}
+- "Nussschnecke Billa": {{"kcal": 250, "protein": 5, "carbs": 40, "fat": 12}}
+"""
+
+    try:
+        payload = {
+            "contents": [{
+                "parts": [{"text": prompt}]
+            }]
+        }
+
+        data = json.dumps(payload, ensure_ascii=False).encode('utf-8')
+        req = urllib.request.Request(
+            GEMINI_API_URL,
+            data=data,
+            headers={
+                "Content-Type": "application/json",
+                "X-goog-api-key": GEMINI_API_KEY,
+            },
+            method="POST"
+        )
+
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            result = json.loads(resp.read())
+
+        # Extract text from Gemini response
+        if "candidates" in result and result["candidates"]:
+            text = result["candidates"][0]["content"]["parts"][0]["text"].strip()
+            # Try to extract JSON from response
+            try:
+                # If response is pure JSON
+                macros = json.loads(text)
+            except json.JSONDecodeError:
+                # Try to find JSON block in response
+                import re
+                json_match = re.search(r'\{[^{}]*\}', text, re.DOTALL)
+                if json_match:
+                    macros = json.loads(json_match.group())
+                else:
+                    raise ValueError(f"Kein JSON gefunden in: {text}")
+
+            gum_log("info", f"Makros von Gemini: {macros.get('kcal', 0)} kcal")
+            return macros
+        else:
+            gum_log("warn", "Gemini antwortete ohne Daten")
+            return {"kcal": 0, "protein": 0, "carbs": 0, "fat": 0}
+
+    except urllib.error.HTTPError as e:
+        gum_log("warn", f"Gemini API Error {e.code}, Makros auf 0 gesetzt")
+        return {"kcal": 0, "protein": 0, "carbs": 0, "fat": 0}
+    except (json.JSONDecodeError, KeyError, ValueError) as e:
+        gum_log("warn", f"Gemini Parsing Error: {e}")
+        return {"kcal": 0, "protein": 0, "carbs": 0, "fat": 0}
+    except Exception as e:
+        gum_log("warn", f"Gemini Fehler: {e}")
+        return {"kcal": 0, "protein": 0, "carbs": 0, "fat": 0}
 
 # ── Validation (Pydantic) ──────────────────────────────────────────────────────
 
@@ -305,6 +399,15 @@ def do_meal_interactive() -> None:
 def do_meal_log(description: str, kcal: float, protein: float, carbs: float, fat: float, notes: str, day: str | None, save_catalog: bool) -> None:
     """Loggt eine Mahlzeit über API und speichert optional im Catalog."""
     today = day or date.today().isoformat()
+
+    # Wenn keine Makros angegeben: Gemini nutzen
+    if kcal == 0 and protein == 0 and carbs == 0 and fat == 0:
+        gum_log("info", f"Gemini wird aufgefordert, Makros für '{description}' zu schätzen...")
+        macros = _parse_macros_with_gemini(description)
+        kcal = macros.get("kcal", 0)
+        protein = macros.get("protein", 0)
+        carbs = macros.get("carbs", 0)
+        fat = macros.get("fat", 0)
 
     # Validate input
     try:
