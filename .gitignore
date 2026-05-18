@@ -5,3 +5,9 @@ dist/
 *.log
 *.bak
 .claude/TICKETS/
+
+# Runtime data (daily logs, journals, user sessions)
+data/
+
+# Keep catalogs (versioniert)
+!catalogs/

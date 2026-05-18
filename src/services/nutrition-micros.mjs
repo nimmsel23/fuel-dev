@@ -1,8 +1,8 @@
 import path from "path";
 import fs from "fs";
-import { NUTRITION_DIR } from "../config/paths.mjs";
+import { NUTRITION_MICROS_CATALOG_PATH } from "../config/paths.mjs";
 
-const MICROS_CATALOG_PATH = path.join(NUTRITION_DIR, "micros-catalog.json");
+const MICROS_CATALOG_PATH = NUTRITION_MICROS_CATALOG_PATH;
 
 export function loadMicrosCatalog() {
   if (fs.existsSync(MICROS_CATALOG_PATH)) {
