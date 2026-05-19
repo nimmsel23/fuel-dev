@@ -50,12 +50,33 @@ function initDb() {
       zinc_mg          REAL DEFAULT 0,
       sodium_mg        REAL DEFAULT 0,
       potassium_mg     REAL DEFAULT 0,
+      vitamin_c_mg     REAL DEFAULT 0,
+      vitamin_b6_mg    REAL DEFAULT 0,
+      vitamin_b1_mg    REAL DEFAULT 0,
+      vitamin_b2_mg    REAL DEFAULT 0,
+      phosphorus_mg    REAL DEFAULT 0,
+      selenium_ug      REAL DEFAULT 0,
+      iodine_ug        REAL DEFAULT 0,
       source           TEXT DEFAULT 'gemini',
       created_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at       DATETIME DEFAULT CURRENT_TIMESTAMP
     );
     CREATE INDEX IF NOT EXISTS idx_meal_micros_name ON meal_micros(meal_name COLLATE NOCASE);
   `);
+
+  // Migrate existing DBs: add new columns if they don't exist yet
+  const newCols = [
+    "vitamin_a_ug REAL DEFAULT 0",  "vitamin_k_ug REAL DEFAULT 0",
+    "vitamin_c_mg REAL DEFAULT 0",  "vitamin_b1_mg REAL DEFAULT 0",
+    "vitamin_b2_mg REAL DEFAULT 0", "vitamin_b3_mg REAL DEFAULT 0",
+    "vitamin_b5_mg REAL DEFAULT 0", "vitamin_b6_mg REAL DEFAULT 0",
+    "vitamin_b7_ug REAL DEFAULT 0", "phosphorus_mg REAL DEFAULT 0",
+    "selenium_ug REAL DEFAULT 0",   "iodine_ug REAL DEFAULT 0",
+    "omega3_mg REAL DEFAULT 0",
+  ];
+  for (const col of newCols) {
+    try { db.exec(`ALTER TABLE meal_micros ADD COLUMN ${col}`); } catch { /* column exists */ }
+  }
 }
 
 // ── Ingredients (wger cache) ──────────────────────────────────────────────────
@@ -85,8 +106,12 @@ export function getIngredientByWgerId(wgerId) {
 // ── Meal micros ───────────────────────────────────────────────────────────────
 
 const MICRO_COLS = [
-  "vitamin_b12_ug", "calcium_mg", "iron_mg", "vitamin_d_ug", "vitamin_e_mg",
-  "folate_ug", "magnesium_mg", "zinc_mg", "sodium_mg", "potassium_mg",
+  "vitamin_a_ug", "vitamin_d_ug", "vitamin_e_mg", "vitamin_k_ug",
+  "vitamin_c_mg", "vitamin_b1_mg", "vitamin_b2_mg", "vitamin_b3_mg",
+  "vitamin_b5_mg", "vitamin_b6_mg", "vitamin_b7_ug", "folate_ug", "vitamin_b12_ug",
+  "calcium_mg", "phosphorus_mg", "magnesium_mg", "iron_mg", "zinc_mg",
+  "selenium_ug", "iodine_ug", "potassium_mg", "sodium_mg",
+  "omega3_mg",
 ];
 
 export function upsertMealMicros(mealName, micros, source = "gemini") {

@@ -3,6 +3,8 @@ import fs from "fs";
 import { NUTRITION_DIR } from "../../config/paths.mjs";
 import { getMicrosForMeal, zeroMicros, MICRO_KEYS } from "../../services/nutrition-micros.mjs";
 import { loadCatalog } from "../../services/nutrition-catalog.mjs";
+import { loadCatalog as loadSupplementsCatalog } from "../../services/supplements-catalog.mjs";
+import { loadLog as loadSupplementLog } from "../../services/supplements-log.mjs";
 import { DACH, getStatus } from "../../config/dach.mjs";
 
 function getWeekDates(year, week) {
@@ -21,12 +23,25 @@ function getWeekDates(year, week) {
   return dates;
 }
 
-function loadLog(date) {
+function loadNutritionLog(date) {
   const filePath = path.join(NUTRITION_DIR, `${date}.json`);
   if (fs.existsSync(filePath)) {
     try { return JSON.parse(fs.readFileSync(filePath, "utf-8")); } catch { /* fall through */ }
   }
   return { date, meals: [], water_ml: 0 };
+}
+
+function addSupplementMicros(dayTotals, date, supplementCatalogMap) {
+  const suppLog = loadSupplementLog(date);
+  for (const intake of suppLog.intakes || []) {
+    const entry = supplementCatalogMap[intake.supplement_id];
+    if (!entry?.micros) continue;
+    for (const k of MICRO_KEYS) {
+      if (entry.micros[k]) {
+        dayTotals[k] = Math.round((dayTotals[k] + entry.micros[k]) * 10) / 10;
+      }
+    }
+  }
 }
 
 export default async function weeklyRoute(app) {
@@ -41,15 +56,17 @@ export default async function weeklyRoute(app) {
 
       const dates = getWeekDates(y, w);
       const catalog = loadCatalog();
+      const suppCatalog = loadSupplementsCatalog();
+      const suppCatalogMap = Object.fromEntries(suppCatalog.items.map((i) => [i.id, i]));
+
       const weekTotals = zeroMicros();
       const dayBreakdown = {};
 
       for (const date of dates) {
-        const log = loadLog(date);
+        const log = loadNutritionLog(date);
         const dayTotals = zeroMicros();
 
         for (const meal of log.meals || []) {
-          // Resolve meal name: catalog entry name takes precedence over logged description
           const catalogEntry = catalog.items.find(
             (i) => (meal.catalog_id && i.id === meal.catalog_id) || i.name === meal.description
           );
@@ -62,6 +79,8 @@ export default async function weeklyRoute(app) {
             dayTotals[k] = Math.round((dayTotals[k] + (micros[k] || 0)) * 10) / 10;
           }
         }
+
+        addSupplementMicros(dayTotals, date, suppCatalogMap);
 
         dayBreakdown[date] = dayTotals;
         for (const k of MICRO_KEYS) {

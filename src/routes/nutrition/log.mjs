@@ -69,11 +69,64 @@ function resolveCatalogItem(catalog, catalogItemId, addonIds = []) {
   };
 }
 
+const logPatchSchema = z.object({
+  date: z.string().optional(),
+  meal_id: z.string().min(1),
+  new_date: z.string().optional(),
+  meal: z.object({
+    type: z.string().optional(),
+    description: z.string().min(1).optional(),
+    notes: z.string().optional(),
+    kcal: z.coerce.number().min(0).optional(),
+    protein: z.coerce.number().min(0).optional(),
+    carbs: z.coerce.number().min(0).optional(),
+    fat: z.coerce.number().min(0).optional(),
+  }).optional(),
+});
+
 export default async function logRoute(app) {
   app.get("/nutrition/log", async (req, reply) => {
     const date = (req.query.date || todayISO()).toString();
     if (!isISODate(date)) return reply.status(400).send({ ok: false, error: "Invalid date" });
     return reply.send({ ok: true, data: loadLog(date) });
+  });
+
+  app.patch("/nutrition/log", async (req, reply) => {
+    try {
+      const parsed = logPatchSchema.safeParse(req.body || {});
+      if (!parsed.success) return reply.status(400).send({ ok: false, error: "Invalid data" });
+
+      const { meal_id, meal: updates, new_date } = parsed.data;
+      const date = (parsed.data.date || todayISO()).toString();
+      if (!isISODate(date)) return reply.status(400).send({ ok: false, error: "Invalid date" });
+      if (new_date && !isISODate(new_date)) return reply.status(400).send({ ok: false, error: "Invalid new_date" });
+
+      const sourceLog = loadLog(date);
+      const mealIndex = sourceLog.meals.findIndex((m) => m.id === meal_id);
+      if (mealIndex === -1) return reply.status(404).send({ ok: false, error: "Meal not found" });
+
+      const meal = { ...sourceLog.meals[mealIndex] };
+
+      if (updates) {
+        Object.assign(meal, Object.fromEntries(Object.entries(updates).filter(([, v]) => v !== undefined)));
+      }
+
+      if (new_date && new_date !== date) {
+        sourceLog.meals.splice(mealIndex, 1);
+        saveLog(sourceLog);
+        const targetLog = loadLog(new_date);
+        targetLog.meals.push({ ...meal, id: `meal_${Date.now()}` });
+        saveLog(targetLog);
+        return reply.send({ ok: true, data: targetLog });
+      } else {
+        sourceLog.meals[mealIndex] = meal;
+        saveLog(sourceLog);
+        return reply.send({ ok: true, data: sourceLog });
+      }
+    } catch (error) {
+      console.error(error);
+      return reply.status(500).send({ ok: false, error: "Internal server error" });
+    }
   });
 
   app.post("/nutrition/log", async (req, reply) => {

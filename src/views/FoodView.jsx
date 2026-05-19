@@ -44,6 +44,7 @@ export default function FoodView({ activeDate, setActiveDate }) {
   const [recipeNotes, setRecipeNotes] = useState("");
   const [recipeComponents, setRecipeComponents] = useState([]);
   const [catalogAddonSelection, setCatalogAddonSelection] = useState({});
+  const [moveDate, setMoveDate] = useState("");
   const isEditing = Boolean(form.id);
 
   const { data: dayData } = useQuery({
@@ -80,10 +81,11 @@ export default function FoodView({ activeDate, setActiveDate }) {
     setForm({ id: meal.id, type: meal.type, description: meal.description,
       notes: meal.notes || "", kcal: meal.kcal, protein: meal.protein,
       carbs: meal.carbs, fat: meal.fat });
+    setMoveDate("");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  function cancelEdit() { setForm(EMPTY_FORM); }
+  function cancelEdit() { setForm(EMPTY_FORM); setMoveDate(""); }
 
   function clearRecipe() {
     setRecipeName("");
@@ -181,19 +183,29 @@ export default function FoodView({ activeDate, setActiveDate }) {
 
   const save = useMutation({
     mutationFn: () => {
-      const body = isEditing
-        ? { date: activeDate, update_meal: { ...form } }
-        : { date: activeDate, meal: form };
+      if (isEditing) {
+        const body = { date: activeDate, meal_id: form.id,
+          meal: { type: form.type, description: form.description, notes: form.notes,
+            kcal: form.kcal, protein: form.protein, carbs: form.carbs, fat: form.fat } };
+        if (moveDate && moveDate !== activeDate) body.new_date = moveDate;
+        return fetch("/nutrition/log", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        }).then((r) => { if (!r.ok) throw new Error(r.statusText); return r.json(); });
+      }
       return fetch("/nutrition/log", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ date: activeDate, meal: form }),
       }).then((r) => { if (!r.ok) throw new Error(r.statusText); return r.json(); });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["nutrition", activeDate] });
+      if (moveDate) qc.invalidateQueries({ queryKey: ["nutrition", moveDate] });
       qc.invalidateQueries({ queryKey: ["week-logs"] });
       setForm(EMPTY_FORM);
+      setMoveDate("");
     },
   });
 
@@ -279,9 +291,14 @@ export default function FoodView({ activeDate, setActiveDate }) {
         isEditing ? "border-orange-400/40 bg-orange-400/5" : "border-white/10 bg-slate-950/50"
       )}>
         {isEditing && (
-          <div className="flex items-center justify-between">
-            <span className="text-xs uppercase tracking-widest text-orange-400">Eintrag bearbeiten</span>
-            <button onClick={cancelEdit} className="text-xs text-slate-500 hover:text-slate-300">Abbrechen</button>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-xs uppercase tracking-widest text-orange-400 shrink-0">Eintrag bearbeiten</span>
+            <div className="flex items-center gap-2 ml-auto">
+              <span className="text-xs text-slate-500 shrink-0">Verschieben nach</span>
+              <input type="date" className="rounded-lg border border-white/10 bg-slate-950/70 px-2 py-1 text-xs text-slate-300"
+                value={moveDate} onChange={(e) => setMoveDate(e.target.value)} />
+            </div>
+            <button onClick={cancelEdit} className="text-xs text-slate-500 hover:text-slate-300 shrink-0">Abbrechen</button>
           </div>
         )}
 

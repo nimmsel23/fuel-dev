@@ -1,16 +1,33 @@
 import { useQueries } from "@tanstack/react-query";
 
 const NUTRIENTS = [
-  { key: "vitamin_b12_ug", label: "B12",      unit: "µg" },
-  { key: "vitamin_d_ug",   label: "Vit. D",   unit: "µg" },
-  { key: "vitamin_e_mg",   label: "Vit. E",   unit: "mg" },
-  { key: "folate_ug",      label: "Folat",    unit: "µg" },
-  { key: "iron_mg",        label: "Eisen",    unit: "mg" },
-  { key: "zinc_mg",        label: "Zink",     unit: "mg" },
-  { key: "magnesium_mg",   label: "Mg",       unit: "mg" },
-  { key: "calcium_mg",     label: "Calcium",  unit: "mg" },
-  { key: "potassium_mg",   label: "Kalium",   unit: "mg" },
-  { key: "sodium_mg",      label: "Natrium",  unit: "mg" },
+  // Fettlöslich
+  { key: "vitamin_a_ug",   label: "Vit. A",    unit: "µg" },
+  { key: "vitamin_d_ug",   label: "Vit. D",    unit: "µg" },
+  { key: "vitamin_e_mg",   label: "Vit. E",    unit: "mg" },
+  { key: "vitamin_k_ug",   label: "Vit. K",    unit: "µg" },
+  // Wasserlöslich
+  { key: "vitamin_c_mg",   label: "Vit. C",    unit: "mg" },
+  { key: "vitamin_b1_mg",  label: "B1",        unit: "mg" },
+  { key: "vitamin_b2_mg",  label: "B2",        unit: "mg" },
+  { key: "vitamin_b3_mg",  label: "B3",        unit: "mg" },
+  { key: "vitamin_b5_mg",  label: "B5",        unit: "mg" },
+  { key: "vitamin_b6_mg",  label: "B6",        unit: "mg" },
+  { key: "vitamin_b7_ug",  label: "B7",        unit: "µg" },
+  { key: "folate_ug",      label: "Folat",     unit: "µg" },
+  { key: "vitamin_b12_ug", label: "B12",       unit: "µg" },
+  // Mineralstoffe
+  { key: "calcium_mg",     label: "Calcium",   unit: "mg" },
+  { key: "phosphorus_mg",  label: "Phosphor",  unit: "mg" },
+  { key: "magnesium_mg",   label: "Mg",        unit: "mg" },
+  { key: "iron_mg",        label: "Eisen",     unit: "mg" },
+  { key: "zinc_mg",        label: "Zink",      unit: "mg" },
+  { key: "selenium_ug",    label: "Selen",     unit: "µg" },
+  { key: "iodine_ug",      label: "Jod",       unit: "µg" },
+  { key: "potassium_mg",   label: "Kalium",    unit: "mg" },
+  { key: "sodium_mg",      label: "Natrium",   unit: "mg" },
+  // Fettsäuren
+  { key: "omega3_mg",      label: "Omega-3",   unit: "mg" },
 ];
 
 function getISOWeek(date) {

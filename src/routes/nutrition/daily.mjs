@@ -3,6 +3,8 @@ import { searchNutrition } from "../../services/nutrition-search.mjs";
 import { isISODate } from "../../lib/validation.mjs";
 import { getMicrosForMeal, zeroMicros, MICRO_KEYS } from "../../services/nutrition-micros.mjs";
 import { loadCatalog } from "../../services/nutrition-catalog.mjs";
+import { loadCatalog as loadSupplementsCatalog } from "../../services/supplements-catalog.mjs";
+import { loadLog as loadSupplementLog } from "../../services/supplements-log.mjs";
 import path from "path";
 import fs from "fs";
 import { NUTRITION_DIR } from "../../config/paths.mjs";
@@ -53,6 +55,20 @@ export default async function dailyRoute(app) {
         if (mealMicros) {
           for (const k of MICRO_KEYS) {
             micros[k] = Math.round((micros[k] + (mealMicros[k] || 0)) * 10) / 10;
+          }
+        }
+      }
+
+      // Supplement micros
+      const suppCatalog = loadSupplementsCatalog();
+      const suppCatalogMap = Object.fromEntries(suppCatalog.items.map((i) => [i.id, i]));
+      const suppLog = loadSupplementLog(date);
+      for (const intake of suppLog.intakes || []) {
+        const entry = suppCatalogMap[intake.supplement_id];
+        if (!entry?.micros) continue;
+        for (const k of MICRO_KEYS) {
+          if (entry.micros[k]) {
+            micros[k] = Math.round((micros[k] + entry.micros[k]) * 10) / 10;
           }
         }
       }
