@@ -11,6 +11,54 @@
       "carbs": 2.2,
       "fat": 49.4,
       "time": "2026-05-18T13:55:03.450Z"
+    },
+    {
+      "id": "meal_1779135048566",
+      "catalog_id": null,
+      "type": "meal",
+      "description": "500g Käseleberkäse BILLA AT mit 4 Kaisersemmeln",
+      "notes": "Abendessen",
+      "kcal": 2005,
+      "protein": 85,
+      "carbs": 122,
+      "fat": 124,
+      "time": "2026-05-18T20:10:48.566Z"
+    },
+    {
+      "id": "meal_1779198571310",
+      "catalog_id": "meal_nussschnecke_billa",
+      "type": "snack",
+      "description": "Nussschnecke Billa",
+      "notes": "",
+      "kcal": 250,
+      "protein": 5,
+      "carbs": 40,
+      "fat": 12,
+      "time": "2026-05-19T13:49:31.310Z"
+    },
+    {
+      "id": "meal_1779198587091",
+      "catalog_id": "kollagen_morgenroutine",
+      "type": "breakfast",
+      "description": "Kaffee + Kollagen + Mandel Drink",
+      "notes": "Mikros (Vit C 80mg, Zink 5mg) fließen via Supplement-Log (Kollagen-Eintrag)",
+      "kcal": 62,
+      "protein": 9.8,
+      "carbs": 1.3,
+      "fat": 2.2,
+      "time": "2026-05-19T13:49:47.091Z"
+    },
+    {
+      "id": "meal_1779293954149",
+      "catalog_id": null,
+      "type": "meal",
+      "description": "Snacknüsse geröstet gesalzen 40g (Billa)",
+      "notes": "",
+      "kcal": 240,
+      "protein": 6,
+      "carbs": 6,
+      "fat": 21,
+      "time": "2026-05-20T16:19:14.149Z"
     }
   ],
   "water_ml": 0

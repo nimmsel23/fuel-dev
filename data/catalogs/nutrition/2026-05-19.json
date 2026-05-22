@@ -1,5 +1,90 @@
 {
   "date": "2026-05-19",
-  "meals": [],
+  "meals": [
+    {
+      "id": "meal_1779198576484",
+      "catalog_id": "meal_nussschnecke_billa",
+      "type": "snack",
+      "description": "Nussschnecke Billa",
+      "notes": "",
+      "kcal": 250,
+      "protein": 5,
+      "carbs": 40,
+      "fat": 12,
+      "time": "2026-05-19T13:49:36.484Z"
+    },
+    {
+      "id": "meal_1779198582248",
+      "catalog_id": "kollagen_morgenroutine",
+      "type": "breakfast",
+      "description": "Kaffee + Kollagen + Mandel Drink",
+      "notes": "Mikros (Vit C 80mg, Zink 5mg) fließen via Supplement-Log (Kollagen-Eintrag)",
+      "kcal": 62,
+      "protein": 9.8,
+      "carbs": 1.3,
+      "fat": 2.2,
+      "time": "2026-05-19T13:49:42.248Z"
+    },
+    {
+      "id": "meal_1779228085798",
+      "catalog_id": null,
+      "type": "meal",
+      "description": "Parboiled Reis + Billa TexMex Gemüse + Haubers PizzaStyle Chicken Cheese Nuggets",
+      "notes": "",
+      "kcal": 635,
+      "protein": 30.1,
+      "carbs": 90.3,
+      "fat": 17.1,
+      "time": "2026-05-19T22:01:25.799Z"
+    },
+    {
+      "id": "meal_1779228086203",
+      "catalog_id": null,
+      "type": "meal",
+      "description": "290g Käseleberkäse mit 2 Semmeln",
+      "notes": "",
+      "kcal": 1100,
+      "protein": 49,
+      "carbs": 54,
+      "fat": 80,
+      "time": "2026-05-19T22:01:26.203Z"
+    },
+    {
+      "id": "meal_1779228086560",
+      "catalog_id": null,
+      "type": "meal",
+      "description": "Jomo Erdbeer Roulade ganze Packung 350g",
+      "notes": "",
+      "kcal": 1005,
+      "protein": 13,
+      "carbs": 130,
+      "fat": 49,
+      "time": "2026-05-19T22:01:26.560Z"
+    },
+    {
+      "id": "meal_1779228087027",
+      "catalog_id": null,
+      "type": "meal",
+      "description": "Red Bull Simply Cola 0,33L Dose",
+      "notes": "",
+      "kcal": 139,
+      "protein": 0,
+      "carbs": 33,
+      "fat": 0,
+      "time": "2026-05-19T22:01:27.027Z"
+    },
+    {
+      "id": "meal_1779293954505",
+      "catalog_id": null,
+      "type": "meal",
+      "description": "Snacknüsse geröstet gesalzen 40g (Billa)",
+      "notes": "",
+      "kcal": 240,
+      "protein": 6,
+      "carbs": 6,
+      "fat": 21,
+      "time": "2026-05-20T16:19:14.505Z"
+    }
+  ],
   "water_ml": 0
 }

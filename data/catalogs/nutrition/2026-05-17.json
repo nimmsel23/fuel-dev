@@ -16,7 +16,7 @@
     {
       "id": "meal_1779118330041",
       "meal_id": null,
-      "type": "meal",
+      "type": "dinner",
       "description": "125g Käsleberkäse + 65g Semmel",
       "notes": "",
       "kcal": 512,
@@ -28,7 +28,7 @@
     {
       "id": "meal_1779118347576",
       "meal_id": null,
-      "type": "meal",
+      "type": "dinner",
       "description": "125g Käsleberkäse + 65g Semmel",
       "notes": "",
       "kcal": 512,
@@ -40,7 +40,7 @@
     {
       "id": "meal_1779118353933",
       "meal_id": null,
-      "type": "meal",
+      "type": "dinner",
       "description": "125g Käsleberkäse + 65g Semmel",
       "notes": "",
       "kcal": 512,
@@ -48,6 +48,54 @@
       "carbs": 29,
       "fat": 31,
       "time": "2026-05-18T15:32:33.933Z"
+    },
+    {
+      "id": "meal_1779198544090",
+      "catalog_id": null,
+      "type": "snack",
+      "description": "Nussschnecke Billa",
+      "notes": "",
+      "kcal": 250,
+      "protein": 5,
+      "carbs": 40,
+      "fat": 12,
+      "time": "2026-05-19T13:49:04.090Z"
+    },
+    {
+      "id": "meal_1779198547374",
+      "catalog_id": "meal_nussschnecke_billa",
+      "type": "snack",
+      "description": "Nussschnecke Billa",
+      "notes": "",
+      "kcal": 250,
+      "protein": 5,
+      "carbs": 40,
+      "fat": 12,
+      "time": "2026-05-19T13:49:07.374Z"
+    },
+    {
+      "id": "meal_1779198597671",
+      "catalog_id": null,
+      "type": "breakfast",
+      "description": "Morgenkaffee mit 10g Naduria Kollagen und 250ml Mandel Drink",
+      "notes": "Mikros (Vit C 80mg, Zink 5mg) fließen via Supplement-Log (Kollagen-Eintrag)",
+      "kcal": 62,
+      "protein": 9.8,
+      "carbs": 1.3,
+      "fat": 2.2,
+      "time": "2026-05-19T13:49:57.671Z"
+    },
+    {
+      "id": "meal_1779293953770",
+      "catalog_id": null,
+      "type": "meal",
+      "description": "Snacknüsse geröstet gesalzen 40g (Billa)",
+      "notes": "",
+      "kcal": 240,
+      "protein": 6,
+      "carbs": 6,
+      "fat": 21,
+      "time": "2026-05-20T16:19:13.770Z"
     }
   ],
   "water_ml": 0
