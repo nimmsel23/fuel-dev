@@ -54,14 +54,23 @@ export default defineConfig({
         // Background sync für offline POSTs
       },
       devOptions: {
-        enabled: true,
-        type: "module",
+        enabled: false,
       },
     }),
   ],
   build: {
     outDir,
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "vendor-react": ["react", "react-dom"],
+          "vendor-query": ["@tanstack/react-query"],
+          "vendor-calendar": ["@fullcalendar/react", "@fullcalendar/daygrid", "@fullcalendar/timegrid", "@fullcalendar/interaction"],
+          "vendor-charts": ["recharts"],
+        },
+      },
+    },
   },
   server: {
     host: "0.0.0.0",
