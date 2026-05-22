@@ -112,65 +112,6 @@ export default function SupplementsView({ date, sup, catalog, suppLog }) {
   return (
     <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
       <div className="grid gap-6">
-        <form onSubmit={supplementForm.handleSubmit((values) => createSupplementMutation.mutate(values))} className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <div>
-              <div className="mb-2 flex items-center gap-2">
-                <Pill className="h-5 w-5 text-violet-300" />
-                <h2 className="text-xl font-semibold">Supplement logger</h2>
-              </div>
-              <p className="text-sm text-slate-400">Loggt direkt nach `/supplements/log` fuer das gewaehlte Datum.</p>
-            </div>
-            <span className="rounded-full border border-white/10 bg-slate-950/60 px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-400">
-              {intakes.length} intakes
-            </span>
-          </div>
-
-          <div className="grid gap-3 md:grid-cols-2">
-            <Field label="Datum">
-              <Input type="date" {...supplementForm.register("date")} />
-            </Field>
-            <Field label="Supplement">
-              <select className={inputClassName} {...supplementForm.register("supplement_id")}>
-                {catalog.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Dose">
-              <Input type="number" min="0" step="0.1" {...supplementForm.register("dose")} />
-            </Field>
-            <Field label="Unit">
-              <Input {...supplementForm.register("unit")} />
-            </Field>
-            <Field label="Time of day">
-              <select className={inputClassName} {...supplementForm.register("time_of_day")}>
-                <option value="morning">Morning</option>
-                <option value="midday">Midday</option>
-                <option value="evening">Evening</option>
-                <option value="night">Night</option>
-                <option value="any">Any</option>
-              </select>
-            </Field>
-            <Field label="Notizen">
-              <Input placeholder="optional" {...supplementForm.register("notes")} />
-            </Field>
-          </div>
-
-          {supplementForm.formState.errors.supplement_id ? (
-            <p className="mt-3 text-sm text-rose-300">{supplementForm.formState.errors.supplement_id.message}</p>
-          ) : null}
-          {createSupplementMutation.isError ? <p className="mt-3 text-sm text-rose-300">{createSupplementMutation.error.message}</p> : null}
-          {createSupplementMutation.isSuccess ? <p className="mt-3 text-sm text-emerald-300">Supplement gespeichert.</p> : null}
-
-          <button disabled={createSupplementMutation.isPending || catalog.length === 0} className="mt-4 inline-flex items-center gap-2 rounded-full bg-violet-300 px-5 py-3 font-medium text-slate-950 disabled:opacity-60">
-            <Pill className="h-4 w-4" />
-            {createSupplementMutation.isPending ? "Saving..." : "Log supplement"}
-          </button>
-        </form>
-
         <section className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
@@ -184,7 +125,6 @@ export default function SupplementsView({ date, sup, catalog, suppLog }) {
               {date}
             </span>
           </div>
-
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {quickCatalog.length ? quickCatalog.map((item) => {
               const count = intakeCountBySupplement[item.id] || 0;
@@ -212,6 +152,60 @@ export default function SupplementsView({ date, sup, catalog, suppLog }) {
           </div>
           {createSupplementMutation.isError ? <p className="mt-3 text-sm text-rose-300">{createSupplementMutation.error.message}</p> : null}
         </section>
+
+        <form onSubmit={supplementForm.handleSubmit((values) => createSupplementMutation.mutate(values))} className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <div className="mb-2 flex items-center gap-2">
+                <Pill className="h-5 w-5 text-violet-300" />
+                <h2 className="text-xl font-semibold">Supplement logger</h2>
+              </div>
+              <p className="text-sm text-slate-400">Loggt direkt nach `/supplements/log` fuer das gewaehlte Datum.</p>
+            </div>
+            <span className="rounded-full border border-white/10 bg-slate-950/60 px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-400">
+              {intakes.length} intakes
+            </span>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            <Field label="Datum">
+              <Input type="date" {...supplementForm.register("date")} />
+            </Field>
+            <Field label="Supplement">
+              <select className={inputClassName} {...supplementForm.register("supplement_id")}>
+                {catalog.map((item) => (
+                  <option key={item.id} value={item.id}>{item.name}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Dose">
+              <Input type="number" min="0" step="0.1" {...supplementForm.register("dose")} />
+            </Field>
+            <Field label="Unit">
+              <Input {...supplementForm.register("unit")} />
+            </Field>
+            <Field label="Time of day">
+              <select className={inputClassName} {...supplementForm.register("time_of_day")}>
+                <option value="morning">Morning</option>
+                <option value="midday">Midday</option>
+                <option value="evening">Evening</option>
+                <option value="night">Night</option>
+                <option value="any">Any</option>
+              </select>
+            </Field>
+            <Field label="Notizen">
+              <Input placeholder="optional" {...supplementForm.register("notes")} />
+            </Field>
+          </div>
+          {supplementForm.formState.errors.supplement_id ? (
+            <p className="mt-3 text-sm text-rose-300">{supplementForm.formState.errors.supplement_id.message}</p>
+          ) : null}
+          {createSupplementMutation.isError ? <p className="mt-3 text-sm text-rose-300">{createSupplementMutation.error.message}</p> : null}
+          {createSupplementMutation.isSuccess ? <p className="mt-3 text-sm text-emerald-300">Supplement gespeichert.</p> : null}
+          <button disabled={createSupplementMutation.isPending || catalog.length === 0} className="mt-4 inline-flex items-center gap-2 rounded-full bg-violet-300 px-5 py-3 font-medium text-slate-950 disabled:opacity-60">
+            <Pill className="h-4 w-4" />
+            {createSupplementMutation.isPending ? "Saving..." : "Log supplement"}
+          </button>
+        </form>
 
         <section className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur">
           <div className="mb-4 flex items-center gap-2">

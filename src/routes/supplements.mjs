@@ -153,18 +153,20 @@ export default async function supplementsRoute(app) {
         }
       }
 
-      // Calculate streaks (simplified: count from anchor backwards)
+      // Calculate streaks: backwards from anchor, skip today if not yet logged
+      const todayStr = todayISO();
       for (const suppId in stats) {
         let streak = 0;
         for (let i = 0; i < days; i++) {
-          const d = new Date(startDate);
-          d.setDate(d.getDate() + days - 1 - i);
+          const d = new Date(anchorDate);
+          d.setDate(d.getDate() - i);
           const dateStr = d.toISOString().split("T")[0];
           const logPath = path.join(SUPPLEMENTS_LOG_DIR, `${dateStr}.json`);
-          const hasSuppToday = fs.existsSync(logPath) &&
-            loadLog(dateStr).intakes.some((i) => i.supplement_id === suppId);
-          if (hasSuppToday) streak += 1;
-          else break;
+          const hasIntake = fs.existsSync(logPath) &&
+            loadLog(dateStr).intakes.some((intake) => intake.supplement_id === suppId);
+          if (hasIntake) { streak += 1; }
+          else if (dateStr === todayStr) { continue; } // heute noch nicht geloggt → nicht brechen
+          else { break; }
         }
         stats[suppId].current_streak = streak;
       }
