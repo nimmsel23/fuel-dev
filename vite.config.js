@@ -75,6 +75,7 @@ export default defineConfig({
       "/supplements": "http://127.0.0.1:9000",
       "/fuel": "http://127.0.0.1:9000",
       "/health": "http://127.0.0.1:9000",
+      "/api": "http://127.0.0.1:9080",
     },
   },
 });
