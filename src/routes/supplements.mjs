@@ -6,6 +6,11 @@ import { SUPPLEMENTS_LOG_DIR } from "../config/paths.mjs";
 import fs from "fs";
 import path from "path";
 
+const SYNC_PING_URL = process.env.FUEL_FIRESTORE_PING_URL || "http://127.0.0.1:9080/api/fuel-firestore/ping";
+function fireSyncPing() {
+  fetch(SYNC_PING_URL, { method: "POST", signal: AbortSignal.timeout(3000) }).catch(() => {});
+}
+
 const catalogPostSchema = z.object({
   name: z.string().min(1),
   unit: z.string().optional(),
@@ -33,7 +38,7 @@ const statsQuerySchema = z.object({
 
 export default async function supplementsRoute(app) {
   // GET /supplements/catalog
-  app.get("/supplements/catalog", async (req, reply) => {
+  app.get("/supplements/catalog", async (_req, reply) => {
     const catalog = loadCatalog();
     return reply.send({ ok: true, items: catalog.items || [] });
   });
@@ -98,6 +103,7 @@ export default async function supplementsRoute(app) {
       }
 
       saveLog(log);
+      fireSyncPing();
       return reply.send({ ok: true, data: log });
     } catch (error) {
       console.error(error);

@@ -84,6 +84,12 @@ const logPatchSchema = z.object({
   }).optional(),
 });
 
+const SYNC_PING_URL = process.env.FUEL_FIRESTORE_PING_URL || "http://127.0.0.1:9080/api/fuel-firestore/ping";
+
+function fireSyncPing() {
+  fetch(SYNC_PING_URL, { method: "POST", signal: AbortSignal.timeout(3000) }).catch(() => {});
+}
+
 export default async function logRoute(app) {
   app.get("/nutrition/log", async (req, reply) => {
     const date = (req.query.date || todayISO()).toString();
@@ -165,6 +171,7 @@ export default async function logRoute(app) {
       }
 
       saveLog(log);
+      fireSyncPing();
       return reply.send({ ok: true, data: log });
     } catch (error) {
       console.error(error);
