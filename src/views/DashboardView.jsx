@@ -1,5 +1,5 @@
 import { Activity, Leaf, NotebookPen, TrendingUp, UtensilsCrossed, Waves } from "lucide-react";
-import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
+import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from "recharts";
 import { Card, GoalBar, MealRow, Empty } from "../components/ui.jsx";
 import { useSettings } from "../store.js";
 import { sumMetric, formatMetric } from "../lib/utils.js";
@@ -40,15 +40,17 @@ export default function DashboardView({ nutrition, sup, journal, macroTrend }) {
           </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={macroTrend || []}>
+              <LineChart data={macroTrend || []} margin={{ right: 16 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                 <XAxis dataKey="day" stroke="#94a3b8" tick={{ fontSize: 11 }} />
-                <YAxis stroke="#94a3b8" tick={{ fontSize: 11 }} />
+                <YAxis yAxisId="macros" stroke="#94a3b8" tick={{ fontSize: 11 }} unit="g" />
+                <YAxis yAxisId="kcal" orientation="right" stroke="#f97316" tick={{ fontSize: 11, fill: "#f97316" }} unit=" kcal" />
                 <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12 }} />
-                <Line type="monotone" dataKey="kcal" stroke="#f97316" strokeWidth={2} dot={false} name="kcal" />
-                <Line type="monotone" dataKey="protein" stroke="#10b981" strokeWidth={2} dot={false} name="Protein g" />
-                <Line type="monotone" dataKey="carbs" stroke="#38bdf8" strokeWidth={2} dot={false} name="Carbs g" />
-                <Line type="monotone" dataKey="fat" stroke="#a78bfa" strokeWidth={2} dot={false} name="Fat g" />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Line yAxisId="kcal"   type="monotone" dataKey="kcal"    stroke="#f97316" strokeWidth={2} dot={false} name="kcal" />
+                <Line yAxisId="macros" type="monotone" dataKey="protein"  stroke="#10b981" strokeWidth={2} dot={false} name="Protein g" />
+                <Line yAxisId="macros" type="monotone" dataKey="carbs"    stroke="#38bdf8" strokeWidth={2} dot={false} name="Carbs g" />
+                <Line yAxisId="macros" type="monotone" dataKey="fat"      stroke="#a78bfa" strokeWidth={2} dot={false} name="Fat g" />
               </LineChart>
             </ResponsiveContainer>
           </div>
