@@ -98,6 +98,31 @@ async function postJson(path, body) {
   return res.json();
 }
 
+function useMacroTrend(anchorDate, days = 10) {
+  return useQuery({
+    queryKey: ["macro-trend", anchorDate, days],
+    queryFn: async () => {
+      const anchor = new Date(anchorDate);
+      const dates = Array.from({ length: days }, (_, i) => {
+        const d = new Date(anchor);
+        d.setDate(d.getDate() - (days - 1 - i));
+        return d.toISOString().slice(0, 10);
+      });
+      const results = await Promise.all(
+        dates.map((d) => fetchJson(`/nutrition/log?date=${d}`).then((r) => ({ date: d, meals: r.data?.meals || [] })).catch(() => ({ date: d, meals: [] })))
+      );
+      return results.map(({ date, meals }) => ({
+        day: date.slice(5),
+        kcal: Math.round(meals.reduce((s, m) => s + (m.kcal || 0), 0)),
+        protein: Math.round(meals.reduce((s, m) => s + (m.protein || 0), 0)),
+        carbs: Math.round(meals.reduce((s, m) => s + (m.carbs || 0), 0)),
+        fat: Math.round(meals.reduce((s, m) => s + (m.fat || 0), 0)),
+      }));
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 function useNutritionData(date) {
   return useQuery({
     queryKey: ["nutrition", date],
@@ -178,15 +203,7 @@ function App() {
 
   const meals = nutrition?.meals || [];
   const totalKcal = sumMetric(meals, "kcal");
-  const totalProtein = sumMetric(meals, "protein");
-  const totalCarbs = sumMetric(meals, "carbs");
-  const totalFat = sumMetric(meals, "fat");
-  const macroSeries = [
-    { name: "Kcal", value: totalKcal },
-    { name: "Protein", value: totalProtein },
-    { name: "Carbs", value: totalCarbs },
-    { name: "Fat", value: totalFat },
-  ];
+  const { data: macroTrend } = useMacroTrend(activeDate);
 
   return (
     <div className="min-h-screen text-slate-100">
@@ -244,7 +261,7 @@ function App() {
             nutrition={nutrition}
             sup={sup}
             journal={journal}
-            macroSeries={macroSeries}
+            macroTrend={macroTrend}
           />
         )}
         {activeTab === "food" && <FoodView activeDate={activeDate} setActiveDate={setActiveDate} />}
@@ -303,7 +320,7 @@ function GoalBar({ label, value, goal, unit, color = "bg-orange-400" }) {
   );
 }
 
-function Dashboard({ nutrition, sup, journal, macroSeries }) {
+function Dashboard({ nutrition, sup, journal, macroTrend }) {
   const meals = nutrition?.meals || [];
   const streak = sup?.stats?.[0]?.current_streak || 0;
   const totalKcal = sumMetric(meals, "kcal");
@@ -332,19 +349,22 @@ function Dashboard({ nutrition, sup, journal, macroSeries }) {
         <section className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur">
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-semibold">Day Macros</h2>
-              <p className="text-sm text-slate-400">Direkt aus den Nutrition-Logs berechnet.</p>
+              <h2 className="text-lg font-semibold">Makro-Verlauf</h2>
+              <p className="text-sm text-slate-400">Letzte 10 Tage</p>
             </div>
             <TrendingUp className="h-5 w-5 text-orange-300" />
           </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={macroSeries}>
+              <LineChart data={macroTrend || []}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                <XAxis dataKey="name" stroke="#94a3b8" />
-                <YAxis stroke="#94a3b8" />
-                <Tooltip />
-                <Line type="monotone" dataKey="value" stroke="#f97316" strokeWidth={3} dot={false} />
+                <XAxis dataKey="day" stroke="#94a3b8" tick={{ fontSize: 11 }} />
+                <YAxis stroke="#94a3b8" tick={{ fontSize: 11 }} />
+                <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12 }} />
+                <Line type="monotone" dataKey="kcal" stroke="#f97316" strokeWidth={2} dot={false} name="kcal" />
+                <Line type="monotone" dataKey="protein" stroke="#10b981" strokeWidth={2} dot={false} name="Protein g" />
+                <Line type="monotone" dataKey="carbs" stroke="#38bdf8" strokeWidth={2} dot={false} name="Carbs g" />
+                <Line type="monotone" dataKey="fat" stroke="#a78bfa" strokeWidth={2} dot={false} name="Fat g" />
               </LineChart>
             </ResponsiveContainer>
           </div>
