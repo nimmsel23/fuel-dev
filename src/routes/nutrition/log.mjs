@@ -87,7 +87,10 @@ const logPatchSchema = z.object({
 const SYNC_PING_URL = process.env.FUEL_FIRESTORE_PING_URL || "http://127.0.0.1:9080/api/fuel-firestore/ping";
 
 function fireSyncPing() {
-  fetch(SYNC_PING_URL, { method: "POST", signal: AbortSignal.timeout(3000) }).catch(() => {});
+  fetch(SYNC_PING_URL, { method: "POST", signal: AbortSignal.timeout(3000) })
+    .then((r) => r.json())
+    .then((body) => { if (!body.ok) console.warn("[fuel-firestore] sync warn:", body.error); })
+    .catch((e) => console.warn("[fuel-firestore] sync unreachable:", e.message));
 }
 
 export default async function logRoute(app) {

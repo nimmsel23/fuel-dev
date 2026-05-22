@@ -46,8 +46,25 @@ export function createApp() {
   return app;
 }
 
+const SYNC_PULL_URL = process.env.FUEL_FIRESTORE_PING_URL || "http://127.0.0.1:9080/api/fuel-firestore/ping";
+
+async function pullFromFirestoreOnStart() {
+  try {
+    const r = await fetch(SYNC_PULL_URL, { method: "POST", signal: AbortSignal.timeout(5000) });
+    const body = await r.json();
+    if (body.ok) {
+      console.log("[fuel-firestore] startup pull ok:", JSON.stringify(body));
+    } else {
+      console.warn("[fuel-firestore] startup pull warn:", body.error);
+    }
+  } catch (e) {
+    console.warn("[fuel-firestore] startup pull unreachable:", e.message);
+  }
+}
+
 export async function startServer() {
   const app = createApp();
   await app.listen({ port: PORT, host: HOST });
   console.log(`🍽️  Fuel Centre running on http://${HOST}:${PORT}`);
+  pullFromFirestoreOnStart();
 }
