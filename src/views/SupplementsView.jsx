@@ -1,9 +1,10 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Flame, Pill, Settings2 } from "lucide-react";
+import { Flame, Pill, Settings2, Sparkles } from "lucide-react";
+import GeminiCatalogModal from "../components/GeminiCatalogModal.jsx";
 import { Field, Input, Empty, inputClassName } from "../components/ui.jsx";
 import { postJson } from "../lib/api.js";
 import { formatMetric, normalizeSupplementUnit } from "../lib/utils.js";
@@ -21,6 +22,7 @@ const QUICK_LOG_IDS = ["melatonin", "glycin", "magnesium", "kollagen", "vitamin_
 
 export default function SupplementsView({ date, sup, catalog, suppLog }) {
   const queryClient = useQueryClient();
+  const [geminiOpen, setGeminiOpen] = useState(false);
   const stats = sup?.stats || [];
   const intakes = suppLog?.intakes || [];
   const intakeCountBySupplement = intakes.reduce((map, intake) => {
@@ -259,9 +261,18 @@ export default function SupplementsView({ date, sup, catalog, suppLog }) {
         </section>
 
         <section className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur">
-          <div className="mb-4 flex items-center gap-2">
-            <Settings2 className="h-5 w-5 text-slate-300" />
-            <h3 className="text-lg font-semibold">Catalog</h3>
+          <div className="mb-4 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Settings2 className="h-5 w-5 text-slate-300" />
+              <h3 className="text-lg font-semibold">Catalog</h3>
+            </div>
+            <button
+              onClick={() => setGeminiOpen(true)}
+              className="inline-flex items-center gap-2 rounded-full border border-violet-400/30 bg-violet-400/10 px-3 py-1.5 text-xs text-violet-200 transition hover:bg-violet-400/20"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Gemini
+            </button>
           </div>
           <div className="grid gap-3">
             {catalog.length ? catalog.map((item) => (
@@ -277,7 +288,101 @@ export default function SupplementsView({ date, sup, catalog, suppLog }) {
             )) : <Empty text="Kein Supplement-Katalog geladen." />}
           </div>
         </section>
+
+        {geminiOpen && <GeminiCatalogModal onClose={() => setGeminiOpen(false)} onSaved={() => { setGeminiOpen(false); queryClient.invalidateQueries({ queryKey: ["supp-catalog"] }); }} />}
       </div>
     </section>
+  );
+}
+
+function GeminiCatalogModal({ onClose, onSaved }) {
+  const [description, setDescription] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [preview, setPreview] = useState(null);
+
+  async function handleEstimate() {
+    if (!description.trim()) return;
+    setLoading(true);
+    setError("");
+    setPreview(null);
+    try {
+      const res = await postJson("/supplements/catalog/estimate", { description: description.trim() });
+      setPreview(res.item);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSave() {
+    if (!preview) return;
+    setLoading(true);
+    setError("");
+    try {
+      await postJson("/supplements/catalog", preview);
+      onSaved();
+    } catch (e) {
+      setError(e.message);
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="w-full max-w-md rounded-3xl border border-white/10 bg-slate-900 p-6 shadow-xl">
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-violet-300" />
+            <h3 className="text-lg font-semibold">Supplement via Gemini</h3>
+          </div>
+          <button onClick={onClose} className="rounded-full p-1 text-slate-400 hover:text-slate-100">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <p className="mb-4 text-sm text-slate-400">Beschreibe das Supplement — Gemini schätzt Name, Dosis und Einheit.</p>
+
+        <textarea
+          className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-violet-400"
+          rows={3}
+          placeholder="z.B. Magnesium Glycinat 400mg abends zur Entspannung"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+        />
+
+        {!preview && (
+          <button
+            onClick={handleEstimate}
+            disabled={loading || !description.trim()}
+            className="mt-3 w-full rounded-full bg-violet-400 py-3 font-medium text-slate-950 disabled:opacity-60"
+          >
+            {loading ? "Gemini schätzt…" : "Schätzen"}
+          </button>
+        )}
+
+        {preview && (
+          <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/60 p-4 text-sm">
+            <div className="mb-2 flex items-center justify-between">
+              <strong className="text-slate-100">{preview.name}</strong>
+              <span className="text-xs uppercase tracking-[0.18em] text-slate-500">{preview.default_time_of_day}</span>
+            </div>
+            <p className="text-slate-400">{formatMetric(preview.default_dose ?? 0)} {preview.unit}</p>
+            {preview.notes && <p className="mt-1 text-slate-500">{preview.notes}</p>}
+            <div className="mt-4 flex gap-3">
+              <button onClick={() => setPreview(null)} className="flex-1 rounded-full border border-white/10 py-2 text-slate-300 hover:bg-white/5">
+                Nochmal
+              </button>
+              <button onClick={handleSave} disabled={loading} className="flex-1 rounded-full bg-emerald-400 py-2 font-medium text-slate-950 disabled:opacity-60">
+                {loading ? "Speichern…" : "In Katalog"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {error && <p className="mt-3 text-sm text-rose-300">{error}</p>}
+      </div>
+    </div>
   );
 }

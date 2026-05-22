@@ -8,6 +8,7 @@ import { normalizeRoutedPath } from "./lib/validation.mjs";
 import healthRoute from "./routes/health.mjs";
 import nutritionRoute from "./routes/nutrition/index.mjs";
 import supplementsRoute from "./routes/supplements.mjs";
+import supplementEstimateRoute from "./routes/supplement-estimate.mjs";
 import fuelRoute from "./routes/fuel.mjs";
 import staticRoute from "./routes/static.mjs";
 
@@ -34,6 +35,7 @@ export function createApp() {
   app.register(healthRoute);
   app.register(nutritionRoute);
   app.register(supplementsRoute);
+  app.register(supplementEstimateRoute);
   app.register(fuelRoute);
   app.register(staticRoute); // Catch-all
 
