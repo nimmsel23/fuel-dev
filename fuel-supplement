@@ -183,9 +183,10 @@ class MealInput(BaseModel):
 
 # ── Pfade ──────────────────────────────────────────────────────────────────────
 
-FUEL_DIR    = Path(os.environ.get("AOS_FUEL_DIR", Path.home() / ".aos" / "fuel"))
-CATALOG     = FUEL_DIR / "supplements" / "catalog.json"
-LOGS_DIR    = FUEL_DIR / "supplements" / "logs"
+FUEL_DIR      = Path(os.environ.get("AOS_FUEL_DIR", Path.home() / ".aos" / "fuel"))
+CATALOG       = FUEL_DIR / "supplements" / "catalog.json"
+LOGS_DIR      = FUEL_DIR / "supplements" / "logs"
+NUTRITION_DIR = FUEL_DIR / "nutrition"
 
 # ── gum ───────────────────────────────────────────────────────────────────────
 
@@ -238,6 +239,12 @@ def read_log(day: str) -> dict:
     if p.exists():
         return json.loads(p.read_text())
     return {"date": day, "intakes": []}
+
+def read_nutrition_log(day: str) -> dict:
+    p = NUTRITION_DIR / f"{day}.json"
+    if p.exists():
+        return json.loads(p.read_text())
+    return {"date": day, "meals": []}
 
 def write_log(day: str, data: dict) -> None:
     LOGS_DIR.mkdir(parents=True, exist_ok=True)
@@ -346,26 +353,61 @@ def do_log(supplement_id: str, dose: float | None, time_of_day: str | None, day:
 
 def do_today(day: str | None) -> None:
     today = day or date.today().isoformat()
-    data  = read_log(today)
-    intakes = data.get("intakes", [])
+    meals   = read_nutrition_log(today).get("meals", [])
+    intakes = read_log(today).get("intakes", [])
 
-    if not intakes:
+    if not meals and not intakes:
         console.print(f"[yellow]Noch nichts geloggt am {today}[/yellow]")
         return
 
-    table = Table(title=f"Fuel Supplements — {today}", show_header=True, header_style="bold magenta")
-    table.add_column("SUPPLEMENT", style="green")
-    table.add_column("DOSIS", style="cyan")
-    table.add_column("ZEIT", style="blue")
+    console.print(f"\n[bold magenta]Fuel — {today}[/bold magenta]\n")
 
-    for i in intakes:
-        table.add_row(
-            i["name"],
-            f"{i['dose']}{i['unit']}",
-            i["time_of_day"]
+    if meals:
+        total_kcal    = sum(m.get("kcal", 0)    for m in meals)
+        total_protein = sum(m.get("protein", 0) for m in meals)
+        total_carbs   = sum(m.get("carbs", 0)   for m in meals)
+        total_fat     = sum(m.get("fat", 0)      for m in meals)
+
+        mt = Table(
+            title=f"Mahlzeiten — {len(meals)}x · {total_kcal:.0f} kcal",
+            show_header=True, header_style="bold green",
         )
+        mt.add_column("MAHLZEIT", style="white")
+        mt.add_column("KCAL",    style="yellow",  justify="right")
+        mt.add_column("P",       style="cyan",    justify="right")
+        mt.add_column("K",       style="green",   justify="right")
+        mt.add_column("F",       style="red",     justify="right")
 
-    console.print(table)
+        for m in meals:
+            mt.add_row(
+                m.get("description", ""),
+                f"{m.get('kcal', 0):.0f}",
+                f"{m.get('protein', 0):.1f}g",
+                f"{m.get('carbs', 0):.1f}g",
+                f"{m.get('fat', 0):.1f}g",
+            )
+        mt.add_section()
+        mt.add_row(
+            "[bold]GESAMT[/bold]",
+            f"[bold]{total_kcal:.0f}[/bold]",
+            f"[bold]{total_protein:.1f}g[/bold]",
+            f"[bold]{total_carbs:.1f}g[/bold]",
+            f"[bold]{total_fat:.1f}g[/bold]",
+        )
+        console.print(mt)
+
+    if intakes:
+        st = Table(
+            title=f"Supplements — {len(intakes)}x",
+            show_header=True, header_style="bold blue",
+        )
+        st.add_column("SUPPLEMENT", style="green")
+        st.add_column("DOSIS",      style="cyan")
+        st.add_column("ZEIT",       style="blue")
+
+        for i in intakes:
+            st.add_row(i["name"], f"{i['dose']}{i['unit']}", i["time_of_day"])
+        console.print(st)
 
 # ── Meal Logging (Nutrition) ───────────────────────────────────────────────────
 
@@ -440,9 +482,10 @@ def do_meal_interactive() -> None:
         gum_log("error", "fzf nicht gefunden (apt install fzf / brew install fzf)")
         raise SystemExit(1)
 
-def do_meal_log(description: str, kcal: float, protein: float, carbs: float, fat: float, notes: str, day: str | None, save_catalog: bool) -> None:
+def do_meal_log(description: str, kcal: float, protein: float, carbs: float, fat: float, notes: str, day: str | None, save_catalog: bool, qty: int = 1) -> None:
     """Loggt eine Mahlzeit über API und speichert optional im Catalog."""
     today = day or date.today().isoformat()
+    qty = max(1, int(qty))
 
     # Wenn keine Makros angegeben: Gemini nutzen
     if kcal == 0 and protein == 0 and carbs == 0 and fat == 0:
@@ -452,6 +495,13 @@ def do_meal_log(description: str, kcal: float, protein: float, carbs: float, fat
         protein = macros.get("protein", 0)
         carbs = macros.get("carbs", 0)
         fat = macros.get("fat", 0)
+
+    # Portionen skalieren
+    if qty > 1:
+        kcal    = round(kcal    * qty, 1)
+        protein = round(protein * qty, 1)
+        carbs   = round(carbs   * qty, 1)
+        fat     = round(fat     * qty, 1)
 
     # Validate input
     try:
@@ -469,12 +519,14 @@ def do_meal_log(description: str, kcal: float, protein: float, carbs: float, fat
             gum_log("error", f"  {err['loc'][0]}: {err['msg']}")
         raise SystemExit(1)
 
+    desc_with_qty = f"{qty}× {description}" if qty > 1 else description
+
     # Log meal via API
     payload = {
         "date": today,
         "meal": {
             "meal_type": "lunch",
-            "description": description,
+            "description": desc_with_qty,
             "kcal": kcal,
             "protein": protein,
             "carbs": carbs,
@@ -485,7 +537,7 @@ def do_meal_log(description: str, kcal: float, protein: float, carbs: float, fat
 
     try:
         result = _api_call("POST", "/nutrition/log", payload)
-        gum_log("info", f"{description} ({kcal} kcal) geloggt — {today}")
+        gum_log("info", f"{desc_with_qty} ({kcal} kcal) geloggt — {today}")
     except SystemExit:
         raise
 
@@ -606,8 +658,9 @@ def meal_log_command(
     notes:      str | None    = typer.Option("", "--notes", "-n", help="Notizen"),
     day:        str | None    = typer.Option(None, "--day", "-d", help="Datum YYYY-MM-DD (Standard: heute)"),
     save_catalog: bool        = typer.Option(False, "--save-catalog", "-s", help="Im Catalog speichern"),
+    qty:        int           = typer.Option(1, "--qty", "-q", help="Portionsanzahl (Makros werden multipliziert)"),
 ) -> None:
-    do_meal_log(description, kcal or 0, protein or 0, carbs or 0, fat or 0, notes or "", day, save_catalog)
+    do_meal_log(description, kcal or 0, protein or 0, carbs or 0, fat or 0, notes or "", day, save_catalog, qty)
 
 @app.command(help="Was heute geloggt wurde")
 def today(
@@ -643,78 +696,111 @@ def weekly(
 # ── Weekly Report (Pandas) ─────────────────────────────────────────────────────
 
 def do_weekly_report(day: str | None = None) -> None:
-    """Generate weekly report with pandas and export to CSV."""
     today = day or date.today().isoformat()
     target_date = date.fromisoformat(today)
 
-    # Get ISO week info
     iso = target_date.isocalendar()
     week_key = f"{iso.year}-W{iso.week:02d}"
 
-    # Calculate week start (Monday)
     jan4 = date(iso.year, 1, 4)
     week_monday = jan4 - timedelta(days=jan4.weekday())
     week_monday += timedelta(weeks=iso.week - 1)
+    week_start = week_monday.isoformat()
+    week_end   = (week_monday + timedelta(days=6)).isoformat()
 
-    # Collect all intakes for the week
-    rows = []
+    console.print(f"\n[bold magenta]Fuel Weekly Report — {week_key}[/bold magenta] [dim]Mo {week_start} — So {week_end}[/dim]\n")
+
+    # ── Mahlzeiten ────────────────────────────────────────────────────────────
+    meal_rows = []
     for i in range(7):
         day_date = week_monday + timedelta(days=i)
-        day_str = day_date.isoformat()
-        data = read_log(day_str)
-
-        for intake in data.get("intakes", []):
-            rows.append({
-                "date": day_str,
-                "day": day_date.strftime("%a"),
-                "supplement": intake.get("name", ""),
-                "dose": intake.get("dose", 0),
-                "unit": intake.get("unit", ""),
-                "time_of_day": intake.get("time_of_day", "any"),
-                "notes": intake.get("notes", ""),
+        day_str  = day_date.isoformat()
+        for m in read_nutrition_log(day_str).get("meals", []):
+            meal_rows.append({
+                "date":        day_str,
+                "day":         day_date.strftime("%a"),
+                "description": m.get("description", ""),
+                "kcal":        m.get("kcal", 0),
+                "protein":     m.get("protein", 0),
+                "carbs":       m.get("carbs", 0),
+                "fat":         m.get("fat", 0),
             })
 
-    if not rows:
-        gum_log("warn", f"Keine Supplements für Woche {week_key} geloggt")
-        return
+    if meal_rows:
+        mdf = pd.DataFrame(meal_rows)
+        for col in ("kcal", "protein", "carbs", "fat"):
+            mdf[col] = pd.to_numeric(mdf[col], errors="coerce").fillna(0)
 
-    # Create DataFrame and aggregate
-    df = pd.DataFrame(rows)
-    df["dose"] = pd.to_numeric(df["dose"], errors="coerce").fillna(0)
+        daily = mdf.groupby("date")[["kcal","protein","carbs","fat"]].sum().round(1)
 
-    # Summary by supplement (total dose per week)
-    summary = df.groupby("supplement").agg({
-        "dose": "sum",
-        "unit": "first",
-        "date": "count",
-    }).rename(columns={"date": "count"}).round(2)
+        mt = Table(title=f"Mahlzeiten — {len(meal_rows)}x diese Woche", show_header=True, header_style="bold green")
+        mt.add_column("TAG",     style="dim")
+        mt.add_column("KCAL",    style="yellow",  justify="right")
+        mt.add_column("PROTEIN", style="cyan",    justify="right")
+        mt.add_column("CARBS",   style="green",   justify="right")
+        mt.add_column("FAT",     style="red",     justify="right")
 
-    # Export to CSV
-    csv_file = FUEL_DIR / f"fuel_weekly_{week_key}.csv"
-    df.to_csv(csv_file, index=False, encoding="utf-8")
-    gum_log("info", f"CSV exportiert: {csv_file}")
-
-    # Display summary with rich Table
-    week_start = week_monday.isoformat()
-    week_end = (week_monday + timedelta(days=6)).isoformat()
-    console.print(f"[bold magenta]Fuel Weekly Report — {week_key}[/bold magenta] [dim]Mo {week_start} — So {week_end}[/dim]")
-
-    table = Table(show_header=True, header_style="bold magenta")
-    table.add_column("SUPPLEMENT", style="green")
-    table.add_column("TOTAL DOSE", style="cyan")
-    table.add_column("UNIT", style="yellow")
-    table.add_column("COUNT", style="blue")
-
-    for supplement, row in summary.iterrows():
-        table.add_row(
-            supplement,
-            str(row["dose"]),
-            row["unit"],
-            str(int(row["count"]))
+        for d, row in daily.iterrows():
+            dow = date.fromisoformat(d).strftime("%a %d.%m")
+            mt.add_row(dow,
+                f"{row['kcal']:.0f}",
+                f"{row['protein']:.1f}g",
+                f"{row['carbs']:.1f}g",
+                f"{row['fat']:.1f}g",
+            )
+        mt.add_section()
+        mt.add_row(
+            "[bold]∅ pro Tag[/bold]",
+            f"[bold]{daily['kcal'].mean():.0f}[/bold]",
+            f"[bold]{daily['protein'].mean():.1f}g[/bold]",
+            f"[bold]{daily['carbs'].mean():.1f}g[/bold]",
+            f"[bold]{daily['fat'].mean():.1f}g[/bold]",
         )
+        console.print(mt)
 
-    console.print(table)
-    console.print(f"[dim]CSV: {csv_file}[/dim]")
+        csv_meals = FUEL_DIR / f"fuel_meals_{week_key}.csv"
+        mdf.to_csv(csv_meals, index=False, encoding="utf-8")
+        gum_log("info", f"Mahlzeiten-CSV: {csv_meals}")
+    else:
+        console.print("[dim]Keine Mahlzeiten diese Woche.[/dim]")
+
+    # ── Supplements ───────────────────────────────────────────────────────────
+    supp_rows = []
+    for i in range(7):
+        day_date = week_monday + timedelta(days=i)
+        day_str  = day_date.isoformat()
+        for intake in read_log(day_str).get("intakes", []):
+            supp_rows.append({
+                "date":       day_str,
+                "day":        day_date.strftime("%a"),
+                "supplement": intake.get("name", ""),
+                "dose":       intake.get("dose", 0),
+                "unit":       intake.get("unit", ""),
+                "time_of_day": intake.get("time_of_day", "any"),
+            })
+
+    if supp_rows:
+        sdf = pd.DataFrame(supp_rows)
+        sdf["dose"] = pd.to_numeric(sdf["dose"], errors="coerce").fillna(0)
+        summary = sdf.groupby("supplement").agg(
+            dose=("dose", "sum"), unit=("unit", "first"), count=("date", "count")
+        ).round(2)
+
+        st = Table(title="Supplements", show_header=True, header_style="bold blue")
+        st.add_column("SUPPLEMENT", style="green")
+        st.add_column("GESAMT",     style="cyan",   justify="right")
+        st.add_column("EINHEIT",    style="yellow")
+        st.add_column("TAGE",       style="blue",   justify="right")
+
+        for supp, row in summary.iterrows():
+            st.add_row(supp, str(row["dose"]), row["unit"], str(int(row["count"])))
+        console.print(st)
+
+        csv_supps = FUEL_DIR / f"fuel_supplements_{week_key}.csv"
+        sdf.to_csv(csv_supps, index=False, encoding="utf-8")
+        gum_log("info", f"Supplements-CSV: {csv_supps}")
+    else:
+        console.print("[dim]Keine Supplements diese Woche.[/dim]")
 
 def _main() -> None:
     catalog = load_catalog()
@@ -735,6 +821,7 @@ def _main() -> None:
         notes = ""
         day = None
         save_catalog = False
+        qty = 1
 
         args = sys.argv[2:]
         i = 0
@@ -757,6 +844,9 @@ def _main() -> None:
             elif args[i] in ("--day", "-d"):
                 day = args[i + 1] if i + 1 < len(args) else None
                 i += 2
+            elif args[i] in ("--qty", "-q"):
+                qty = int(args[i + 1]) if i + 1 < len(args) else 1
+                i += 2
             elif args[i] in ("--save-catalog", "-s"):
                 save_catalog = True
                 i += 1
@@ -767,7 +857,7 @@ def _main() -> None:
                 i += 1
 
         if description:
-            do_meal_log(description, kcal, protein, carbs, fat, notes, day, save_catalog)
+            do_meal_log(description, kcal, protein, carbs, fat, notes, day, save_catalog, qty)
         else:
             gum_log("error", "Keine Mahlzeitbeschreibung gegeben")
             raise SystemExit(1)
