@@ -12,7 +12,7 @@ export const DATA_DIR = process.env.AOS_FUEL_DATA_DIR
 export const REPO_DATA_DIR = path.join(ROOT, "data"); // Kataloge im Repo
 export const PUBLIC_DIR = path.join(ROOT, "public"); // V1 vanilla HTML
 export const VITE_BUILD_DIR = process.env.FUEL_BUILD_DIR ? path.resolve(process.env.FUEL_BUILD_DIR) : path.join(ROOT, "dist"); // V2 React build output
-export const STATIC_DIR = process.env.FUEL_STATIC_DIR ? path.resolve(process.env.FUEL_STATIC_DIR) : PUBLIC_DIR; // Legacy compat
+export const STATIC_DIR = process.env.FUEL_STATIC_DIR ? path.resolve(process.env.FUEL_STATIC_DIR) : VITE_BUILD_DIR;
 
 export const FUEL_DIR = path.join(DATA_DIR, "fuel");
 export const NUTRITION_DIR = path.join(DATA_DIR, "nutrition");
