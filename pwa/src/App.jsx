@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { Utensils, Search, Pill, BookOpen, Wifi, WifiOff } from "lucide-react";
-import { useOnlineStatus } from "./hooks/useOnlineStatus.js";
+import { useState, useEffect } from "react";
+import { Utensils, Search, Pill, BookOpen, LogIn, LogOut, User } from "lucide-react";
+import { watchAuth, signIn, signOut } from "./db.js";
 import NutritionHeatmap from "./components/NutritionHeatmap.jsx";
 import TodayScreen from "./screens/TodayScreen.jsx";
 import FoodLoggerScreen from "./screens/FoodLoggerScreen.jsx";
@@ -20,28 +20,44 @@ const TABS = [
 ];
 
 export default function App() {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("today");
   const [selectedDate, setSelectedDate] = useState(localToday);
-  const online = useOnlineStatus();
+
+  useEffect(() => {
+    return watchAuth((u) => {
+      setUser(u);
+      setLoading(false);
+    });
+  }, []);
+
+  if (loading) return <div className="loading">Lade Fuel...</div>;
+
+  if (!user) return (
+    <div className="screen" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem' }}>
+      <h1>Fuel PWA</h1>
+      <button className="btn" onClick={signIn}><LogIn size={18} /> Mit Google anmelden</button>
+    </div>
+  );
 
   return (
     <>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.4rem 1rem 0", background: "var(--bg)" }}>
-        <span style={{ fontSize: "0.75rem", color: "var(--muted)" }}>
-          {selectedDate}
-        </span>
-        <span className={`badge ${online ? "online" : "offline"}`}>
-          {online ? <Wifi size={11} /> : <WifiOff size={11} />}
-          {online ? "Online" : "Offline"}
-        </span>
-      </div>
+      <header style={{ padding: "0.5rem 1rem", background: "var(--surface)", borderBottom: "1px solid var(--border)" }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: "0.8rem", color: "var(--muted)" }}>{selectedDate}</span>
+          <button className="ghost" onClick={signOut} style={{ padding: "4px 8px" }}><LogOut size={14} /></button>
+        </div>
+      </header>
 
       <NutritionHeatmap selectedDate={selectedDate} onSelectDate={setSelectedDate} />
 
-      {tab === "today"   && <TodayScreen   date={selectedDate} />}
-      {tab === "food"    && <FoodLoggerScreen date={selectedDate} />}
-      {tab === "supps"   && <SupplementsScreen />}
-      {tab === "journal" && <JournalScreen date={selectedDate} />}
+      <div className="screen">
+        {tab === "today"   && <TodayScreen   date={selectedDate} />}
+        {tab === "food"    && <FoodLoggerScreen date={selectedDate} />}
+        {tab === "supps"   && <SupplementsScreen />}
+        {tab === "journal" && <JournalScreen date={selectedDate} />}
+      </div>
 
       <nav className="tab-bar">
         {TABS.map(({ id, label, Icon }) => (
