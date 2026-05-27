@@ -1,31 +1,65 @@
 /**
- * Firestore Data Layer
+ * Firestore Data Layer — Fuel PWA (Multi-User)
  * Struktur:
  *   nutrition/{uid}/logs/{date}        → {date, meals:[], water_ml:0}
  *   nutrition/{uid}/journal/{date}     → {date, content:""}
  *   supplements/{uid}/meta/catalog     → {items:[]}
  *   supplements/{uid}/logs/{date}      → {date, intakes:[]}
- *
- * uid: "default" bis Firebase Auth eingebaut ist
  */
 
 import {
   doc,
   getDoc,
+  getDocs,
   setDoc,
   updateDoc,
+  collection,
+  query,
+  orderBy,
+  limit,
   arrayUnion,
   arrayRemove,
   serverTimestamp,
 } from "firebase/firestore";
-import { db } from "./firebase.js";
+import { 
+  signInWithPopup, 
+  onAuthStateChanged,
+  signOut as fbSignOut 
+} from "firebase/auth";
+import { db, auth, googleProvider } from "./firebase.js";
 
-const UID = "default";
+let currentUid = null;
 
-function todayISO() {
+// ── Auth ──────────────────────────────────────────────────────────────────────
+
+export function watchAuth(callback) {
+  return onAuthStateChanged(auth, (user) => {
+    currentUid = user ? user.uid : null;
+    callback(user);
+  });
+}
+
+export async function signIn() {
+  await signInWithPopup(auth, googleProvider);
+}
+
+export async function signOut() {
+  await fbSignOut(auth);
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function getUid() {
+  if (!currentUid) throw new Error("Nicht eingeloggt");
+  return currentUid;
+}
+
+export function todayISO() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
+
+export function localToday() { return todayISO(); }
 
 function randomId(prefix) {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
@@ -34,7 +68,7 @@ function randomId(prefix) {
 // ── Nutrition ─────────────────────────────────────────────────────────────────
 
 export async function getNutritionLog(date = todayISO()) {
-  const snap = await getDoc(doc(db, "nutrition", UID, "logs", date));
+  const snap = await getDoc(doc(db, "nutrition", getUid(), "logs", date));
   return snap.exists() ? snap.data() : { date, meals: [], water_ml: 0 };
 }
 
@@ -51,16 +85,23 @@ export async function addMeal(date = todayISO(), meal) {
     time: new Date().toISOString(),
   };
   await setDoc(
-    doc(db, "nutrition", UID, "logs", date),
+    doc(db, "nutrition", getUid(), "logs", date),
     { date, meals: arrayUnion(entry), updated_at: serverTimestamp() },
     { merge: true },
   );
   return entry;
 }
 
+export async function removeMeal(date = todayISO(), meal) {
+  await updateDoc(doc(db, "nutrition", getUid(), "logs", date), {
+    meals: arrayRemove(meal),
+    updated_at: serverTimestamp(),
+  });
+}
+
 export async function setWater(date = todayISO(), water_ml) {
   await setDoc(
-    doc(db, "nutrition", UID, "logs", date),
+    doc(db, "nutrition", getUid(), "logs", date),
     { date, water_ml: Number(water_ml), updated_at: serverTimestamp() },
     { merge: true },
   );
@@ -69,12 +110,12 @@ export async function setWater(date = todayISO(), water_ml) {
 // ── Journal ───────────────────────────────────────────────────────────────────
 
 export async function getJournal(date = todayISO()) {
-  const snap = await getDoc(doc(db, "nutrition", UID, "journal", date));
+  const snap = await getDoc(doc(db, "nutrition", getUid(), "journal", date));
   return snap.exists() ? snap.data().content : "";
 }
 
 export async function saveJournal(date = todayISO(), content) {
-  await setDoc(doc(db, "nutrition", UID, "journal", date), {
+  await setDoc(doc(db, "nutrition", getUid(), "journal", date), {
     date,
     content,
     updated_at: serverTimestamp(),
@@ -93,7 +134,7 @@ const SUPPLEMENT_SEED = [
 ];
 
 export async function getSupplementsCatalog() {
-  const ref = doc(db, "supplements", UID, "meta", "catalog");
+  const ref = doc(db, "supplements", getUid(), "meta", "catalog");
   const snap = await getDoc(ref);
   if (snap.exists()) return snap.data().items || [];
   await setDoc(ref, { items: SUPPLEMENT_SEED, updated_at: serverTimestamp() });
@@ -109,7 +150,7 @@ export async function addSupplementToCatalog(item) {
     default_time_of_day: item.default_time_of_day || "any",
   };
   await setDoc(
-    doc(db, "supplements", UID, "meta", "catalog"),
+    doc(db, "supplements", getUid(), "meta", "catalog"),
     { items: arrayUnion(newItem), updated_at: serverTimestamp() },
     { merge: true },
   );
@@ -117,7 +158,7 @@ export async function addSupplementToCatalog(item) {
 }
 
 export async function getSupplementLog(date = todayISO()) {
-  const snap = await getDoc(doc(db, "supplements", UID, "logs", date));
+  const snap = await getDoc(doc(db, "supplements", getUid(), "logs", date));
   return snap.exists() ? snap.data() : { date, intakes: [] };
 }
 
@@ -133,7 +174,7 @@ export async function addSupplementIntake(date = todayISO(), intake) {
     time: new Date().toISOString(),
   };
   await setDoc(
-    doc(db, "supplements", UID, "logs", date),
+    doc(db, "supplements", getUid(), "logs", date),
     { date, intakes: arrayUnion(entry), updated_at: serverTimestamp() },
     { merge: true },
   );
@@ -141,15 +182,15 @@ export async function addSupplementIntake(date = todayISO(), intake) {
 }
 
 export async function removeSupplementIntake(date = todayISO(), intake) {
-  await updateDoc(doc(db, "supplements", UID, "logs", date), {
+  await updateDoc(doc(db, "supplements", getUid(), "logs", date), {
     intakes: arrayRemove(intake),
   });
 }
 
-// ── Food Search (Proxy via lokalem Server oder Cloud Function) ─────────────────
+// ── Food Search ───────────────────────────────────────────────────────────────
 
 export async function searchFood(q, limit = 15) {
-  const res = await fetch(`/nutrition/search?q=${encodeURIComponent(q)}&limit=${limit}`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return (await res.json()).results || [];
+  // Für die PWA via Cloud Function oder Proxy
+  // Fallback: leer
+  return [];
 }
