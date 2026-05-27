@@ -9,7 +9,10 @@ jobs:
       - name: Install Dependencies
         run: cd pwa && npm ci
       - name: Create firebase.config.js
-        run: echo "${{ secrets.FIREBASE_CONFIG_JS }}" > pwa/src/firebase.config.js
+        env:
+          FIREBASE_CONFIG: ${{ secrets.FIREBASE_CONFIG_JS }}
+        run: |
+          echo "$FIREBASE_CONFIG" > pwa/src/firebase.config.js
       - name: Build
         run: cd pwa && npm run build
       - uses: FirebaseExtended/action-hosting-deploy@v0
