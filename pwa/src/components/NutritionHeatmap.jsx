@@ -1,3 +1,4 @@
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useWeekLogs } from "../hooks/useWeekLogs.js";
 
 const DAY_LABELS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
@@ -16,71 +17,103 @@ export default function NutritionHeatmap({ selectedDate, onSelectDate }) {
   const today = new Date().toISOString().slice(0, 10);
   const { logs, dates } = useWeekLogs(selectedDate);
 
+  const shiftWeek = (amount) => {
+    const d = new Date(selectedDate);
+    d.setDate(d.getDate() + amount * 7);
+    onSelectDate(d.toISOString().slice(0, 10));
+  };
+
   return (
     <div style={{
-      display: "grid",
-      gridTemplateColumns: "repeat(7, 1fr)",
-      gap: "4px",
-      padding: "0.75rem 1rem",
       background: "var(--surface)",
       borderBottom: "1px solid var(--border)",
+      padding: "0.5rem 0.5rem 0.75rem",
     }}>
-      {dates.map((dk, i) => {
-        const meals = logs[dk]?.meals || [];
-        const kcal = meals.reduce((s, m) => s + (m.kcal || 0), 0);
-        const level = kcalLevel(kcal);
-        const isToday = dk === today;
-        const isSelected = dk === selectedDate;
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "4px",
+      }}>
+        <button 
+          className="ghost" 
+          onClick={() => shiftWeek(-1)}
+          style={{ padding: "4px", minWidth: "32px" }}
+        >
+          <ChevronLeft size={16} />
+        </button>
 
-        return (
-          <button
-            key={dk}
-            onClick={() => onSelectDate(dk)}
-            style={{
-              background: "transparent",
-              border: "none",
-              borderBottom: isSelected ? "2px solid var(--accent)" : "2px solid transparent",
-              padding: "0 0 4px",
-              cursor: "pointer",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: "3px",
-            }}
-          >
-            <span style={{
-              fontSize: "9px",
-              fontWeight: 700,
-              letterSpacing: ".08em",
-              color: isSelected ? "var(--accent)" : isToday ? "#4ade80" : "#4a5060",
-            }}>
-              {DAY_LABELS[i]}
-            </span>
-            <span style={{
-              fontSize: "10px",
-              color: isSelected ? "var(--accent)" : isToday ? "#4ade80" : "var(--muted)",
-              fontWeight: isSelected || isToday ? 700 : 400,
-            }}>
-              {dk.slice(8)}
-            </span>
-            <div style={{
-              width: "100%",
-              height: "5px",
-              borderRadius: "999px",
-              background: "#1a1a1a",
-              overflow: "hidden",
-            }}>
-              <div style={{
-                height: "100%",
-                borderRadius: "999px",
-                width: `${LEVEL_WIDTH[level]}%`,
-                background: LEVEL_COLORS[level],
-                transition: "width 0.3s ease",
-              }} />
-            </div>
-          </button>
-        );
-      })}
+        <div style={{
+          flex: 1,
+          display: "grid",
+          gridTemplateColumns: "repeat(7, 1fr)",
+          gap: "4px",
+        }}>
+          {dates.map((dk, i) => {
+            const meals = logs[dk]?.meals || [];
+            const kcal = meals.reduce((s, m) => s + (m.kcal || 0), 0);
+            const level = kcalLevel(kcal);
+            const isToday = dk === today;
+            const isSelected = dk === selectedDate;
+
+            return (
+              <button
+                key={dk}
+                onClick={() => onSelectDate(dk)}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  borderBottom: isSelected ? "2px solid var(--accent)" : "2px solid transparent",
+                  padding: "0 0 4px",
+                  cursor: "pointer",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: "3px",
+                }}
+              >
+                <span style={{
+                  fontSize: "9px",
+                  fontWeight: 700,
+                  letterSpacing: ".08em",
+                  color: isSelected ? "var(--accent)" : isToday ? "#4ade80" : "#4a5060",
+                }}>
+                  {DAY_LABELS[i]}
+                </span>
+                <span style={{
+                  fontSize: "10px",
+                  color: isSelected ? "var(--accent)" : isToday ? "#4ade80" : "var(--muted)",
+                  fontWeight: isSelected || isToday ? 700 : 400,
+                }}>
+                  {dk.slice(8)}
+                </span>
+                <div style={{
+                  width: "100%",
+                  height: "5px",
+                  borderRadius: "999px",
+                  background: "#1a1a1a",
+                  overflow: "hidden",
+                }}>
+                  <div style={{
+                    height: "100%",
+                    borderRadius: "999px",
+                    width: `${LEVEL_WIDTH[level]}%`,
+                    background: LEVEL_COLORS[level],
+                    transition: "width 0.3s ease",
+                  }} />
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        <button 
+          className="ghost" 
+          onClick={() => shiftWeek(1)}
+          style={{ padding: "4px", minWidth: "32px" }}
+        >
+          <ChevronRight size={16} />
+        </button>
+      </div>
     </div>
   );
 }

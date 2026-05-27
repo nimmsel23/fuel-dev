@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
 import { collection, query, where, getDocs } from "firebase/firestore";
-import { db } from "../firebase.js";
-
-const UID = "default";
+import { db, auth } from "../firebase.js";
 
 function toLocalISO(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -24,19 +22,27 @@ export function useWeekLogs(anchorDate) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) {
+      setLoading(false);
+      return;
+    }
+
     const dates = weekDates(anchorDate ? new Date(anchorDate) : new Date());
     setLoading(true);
+    
     const q = query(
-      collection(db, "nutrition", UID, "logs"),
+      collection(db, "nutrition", uid, "logs"),
       where("date", "in", dates),
     );
+    
     getDocs(q).then((snap) => {
       const map = {};
       snap.forEach((d) => { map[d.id] = d.data(); });
       setLogs(map);
       setLoading(false);
     });
-  }, [anchorDate]);
+  }, [anchorDate, auth.currentUser]);
 
   return { logs, loading, dates: weekDates(anchorDate ? new Date(anchorDate) : new Date()) };
 }

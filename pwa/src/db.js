@@ -10,7 +10,6 @@
 import {
   doc,
   getDoc,
-  getDocs,
   setDoc,
   updateDoc,
   collection,
@@ -40,11 +39,21 @@ export function watchAuth(callback) {
 }
 
 export async function signIn() {
-  await signInWithPopup(auth, googleProvider);
+  try {
+    await signInWithPopup(auth, googleProvider);
+  } catch (error) {
+    console.error("Login Fehler:", error);
+    throw error;
+  }
 }
 
 export async function signOut() {
-  await fbSignOut(auth);
+  try {
+    await fbSignOut(auth);
+  } catch (error) {
+    console.error("Logout Fehler:", error);
+    throw error;
+  }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
