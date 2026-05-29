@@ -156,6 +156,18 @@ async function push(uid = UID_DEFAULT) {
     });
   }
 
+  // 4. Catalog (Supplements)
+  const supplementsCatalogDir = join(DATA_DIR, "supplements");
+  const supplementsCatalog = join(supplementsCatalogDir, "catalog.json");
+  if (existsSync(supplementsCatalog)) {
+    const data = JSON.parse(readFileSync(supplementsCatalog, "utf8"));
+    console.log(`  → Supplements Catalog`);
+    await db.collection("supplements").doc(uid).collection("meta").doc("catalog").set({
+      items: data.items || data,
+      updated_at: admin.firestore.FieldValue.serverTimestamp()
+    });
+  }
+
   console.log("✅ Push abgeschlossen.");
 }
 
