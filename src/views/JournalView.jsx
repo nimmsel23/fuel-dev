@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -6,8 +6,6 @@ import { z } from "zod";
 import { Droplets, NotebookPen, UtensilsCrossed } from "lucide-react";
 import { Field, Input, MealRow, Empty, inputClassName } from "../components/ui.jsx";
 import { postJson } from "../lib/api.js";
-import { callGemini, extractJson } from "../services/gemini.mjs";
-import * as firestore from "../lib/firestore-db.js";
 
 const mealSchema = z.object({
   date: z.string().min(1),
@@ -45,20 +43,9 @@ export default function JournalView({ date, nutrition, journal }) {
     setLoading(true);
 
     try {
-      const prompt = `Analysiere diesen Text. Ist es eine Mahlzeit? Wenn ja, schätze Makros (kcal, protein, carbs, fat). Wenn nein, ist es ein Tagebucheintrag. Gib JSON zurück:
-      {"type": "meal" | "journal", "meal": {"description", "kcal", "protein", "carbs", "fat"}?, "content": "..."?}
-      Text: ${text}`;
-      
-      const raw = await callGemini(prompt);
-      const result = JSON.parse(extractJson(raw));
-
-      if (result.type === "meal") {
-        await postJson("/nutrition/log", { date, meal: result.meal });
-        queryClient.invalidateQueries({ queryKey: ["nutrition", date] });
-      } else {
-        await postJson("/nutrition/journal", { date, content: result.content || text });
-        queryClient.invalidateQueries({ queryKey: ["journal", date] });
-      }
+      await postJson("/nutrition/ai-log", { text, date });
+      queryClient.invalidateQueries({ queryKey: ["nutrition", date] });
+      queryClient.invalidateQueries({ queryKey: ["journal", date] });
       setText("");
     } catch (err) {
       console.error("AI Logging error:", err);
