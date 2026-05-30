@@ -17,11 +17,21 @@ import { useApp } from "./store.js";
 import { useNutritionData, useMacroTrend, useJournal } from "./hooks/useNutrition.js";
 import { useSuppStats, useSuppCatalog, useSuppLog } from "./hooks/useSupplements.js";
 import { sumMetric, formatMetric } from "./lib/utils.js";
-import { watchAuth, signIn, signOut } from "./lib/firestore-db.js";
+import { watchAuth, signIn, signOut, getUid, setUseDefaultPartition } from "./lib/firestore-db.js";
 
 import { useRegisterSW } from "virtual:pwa-register/react";
 
 const qc = new QueryClient();
+
+// Global Debug Object
+if (typeof window !== "undefined") {
+  window.fuelDebug = {
+    version: "2.0.1-debug",
+    getUid: () => getUid(),
+    setUseDefault: (v) => setUseDefaultPartition(v),
+    forceSync: () => qc.invalidateQueries(),
+  };
+}
 
 const TABS = [
   ["dashboard", "Dashboard", Flame],

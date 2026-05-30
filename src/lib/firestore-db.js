@@ -24,13 +24,15 @@ import {
 } from "firebase/auth";
 import { db, auth, googleProvider } from "./firebase.js";
 
-let currentUid = "default"; // Fallback auf "default" fuer CLI/Sync Kompatibilitaet
+let currentUid = "default";
+let useDefaultPartition = true;
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
 export function watchAuth(callback) {
   return onAuthStateChanged(auth, (user) => {
     currentUid = user ? user.uid : "default";
+    console.log(`[Auth] User status changed: ${user ? user.email : "logged out"} (UID: ${currentUid})`);
     callback(user);
   });
 }
@@ -55,9 +57,16 @@ export async function signOut() {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-export function getUid() {
-  // Wenn eingeloggt, die UID des Users nutzen, sonst "default"
+export function getUid(forceUserUid = false) {
+  // Wenn useDefaultPartition wahr ist, nutzen wir immer den "default" Pfad
+  // (da dort die synchronisierten Daten liegen).
+  if (useDefaultPartition && !forceUserUid) return "default";
   return auth.currentUser?.uid || currentUid;
+}
+
+export function setUseDefaultPartition(val) {
+  useDefaultPartition = val;
+  console.log(`[Firestore] useDefaultPartition is now: ${val}`);
 }
 
 export { serverTimestamp, db };
