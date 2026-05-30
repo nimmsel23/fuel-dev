@@ -11,7 +11,12 @@ import { dirname } from "node:path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
-const DATA_DIR = join(ROOT, "data");
+
+// Unify with src/config/paths.mjs logic
+const DATA_DIR = process.env.AOS_FUEL_DATA_DIR
+  ? resolve(process.env.AOS_FUEL_DATA_DIR)
+  : join(process.env.HOME || "", ".aos", "fuel");
+
 const SA_PATH = join(process.env.HOME, ".config", "fuel-pwa", "service-account.json");
 
 const UID_DEFAULT = "default";
@@ -125,7 +130,7 @@ async function push(uid = UID_DEFAULT) {
         ...localData,
         updated_at: admin.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
-      console.log(`  ✅ fuel.nutrition.log[${date}] -> firebase ok`);
+      console.log(`  ✅ fuel.nutrition.log[${date}] (${localData.meals?.length || 0} meals) -> firebase ok`);
     }
   }
 
@@ -141,7 +146,7 @@ async function push(uid = UID_DEFAULT) {
         ...localData,
         updated_at: admin.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
-      console.log(`  ✅ fuel.supplements.log[${date}] -> firebase ok`);
+      console.log(`  ✅ fuel.supplements.log[${date}] (${localData.intakes?.length || 0} intakes) -> firebase ok`);
     }
   }
 
