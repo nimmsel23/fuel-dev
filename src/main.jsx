@@ -26,9 +26,8 @@ const qc = new QueryClient();
 // Global Debug Object
 if (typeof window !== "undefined") {
   window.fuelDebug = {
-    version: "2.0.1-debug",
+    version: "2.1.0-personal-uid",
     getUid: () => getUid(),
-    setUseDefault: (v) => setUseDefaultPartition(v),
     forceSync: () => qc.invalidateQueries(),
   };
 }

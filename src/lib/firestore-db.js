@@ -25,7 +25,6 @@ import {
 import { db, auth, googleProvider } from "./firebase.js";
 
 let currentUid = "default";
-let useDefaultPartition = true;
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
@@ -57,16 +56,8 @@ export async function signOut() {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-export function getUid(forceUserUid = false) {
-  // Wenn useDefaultPartition wahr ist, nutzen wir immer den "default" Pfad
-  // (da dort die synchronisierten Daten liegen).
-  if (useDefaultPartition && !forceUserUid) return "default";
+export function getUid() {
   return auth.currentUser?.uid || currentUid;
-}
-
-export function setUseDefaultPartition(val) {
-  useDefaultPartition = val;
-  console.log(`[Firestore] useDefaultPartition is now: ${val}`);
 }
 
 export { serverTimestamp, db };

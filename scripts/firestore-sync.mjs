@@ -19,7 +19,7 @@ const DATA_DIR = process.env.AOS_FUEL_DATA_DIR
 
 const SA_PATH = join(process.env.HOME, ".config", "fuel-pwa", "service-account.json");
 
-const UID_DEFAULT = "default";
+const UID_DEFAULT = process.env.FUEL_CLOUD_UID || "default";
 
 // ── Gemini Logic ──────────────────────────────────────────────────────────────
 
