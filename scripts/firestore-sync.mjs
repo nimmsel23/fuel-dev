@@ -1,13 +1,14 @@
+import admin from "firebase-admin";
+import Database from "better-sqlite3";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from "fs";
+import { join, resolve } from "path";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
 /**
  * firestore-sync.mjs — Sync-Bridge für Fuel Centre
  * Synchronisiert lokale JSON-Logs (data/) mit Firebase Firestore.
  */
 
-import admin from "firebase-admin";
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from "node:fs";
-import { join, resolve, basename } from "node:path";
-import { fileURLToPath } from "node:url";
-import { dirname } from "node:path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
@@ -184,12 +185,6 @@ async function push(uid = UID_DEFAULT) {
     console.log(`  ✅ fuel.meal.catalog[${nutritionItems.length} items] -> firebase ok`);
   }
 
-import admin from "firebase-admin";
-import Database from "better-sqlite3";
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from "fs";
-import { join, resolve } from "path";
-import { fileURLToPath } from "node:url";
-import { dirname } from "node:path";
 ...
   if (suppData) {
     await db.collection("supplements").doc(uid).collection("meta").doc("catalog").set({
