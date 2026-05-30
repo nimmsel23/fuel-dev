@@ -1,35 +1,52 @@
 import * as firestore from "./firestore-db.js";
 import { doc, setDoc } from "firebase/firestore";
 
-const isCloud = () => typeof window !== "undefined" && (window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com"));
+const isCloud = () => {
+  if (typeof window === "undefined") return false;
+  const host = window.location.hostname;
+  // Auf web.app oder firebaseapp.com sind wir definitiv in der Cloud
+  if (host.includes("web.app") || host.includes("firebaseapp.com")) return true;
+  // Falls wir über die Tailscale URL aufrufen, wollen wir NICHT in den Cloud Modus,
+  // sondern das lokale Backend nutzen (da Tailscale ja eine LAN-Simulation ist).
+  if (host.includes("ts.net")) return false;
+  // Standard lokal
+  return false;
+};
+
+function normalizePath(path) {
+  // Entferne /api Präfix falls vorhanden für das Matching
+  return path.startsWith("/api/") ? path.slice(4) : path;
+}
 
 export async function fetchJson(path) {
+  const normPath = normalizePath(path);
+
   if (isCloud()) {
     // Map paths to Firestore functions
-    if (path.startsWith("/nutrition/log")) {
+    if (normPath.startsWith("/nutrition/log")) {
       const url = new URL(path, window.location.origin);
       const date = url.searchParams.get("date");
       return { data: await firestore.getNutritionLog(date) };
     }
-    if (path === "/nutrition/catalog") {
+    if (normPath === "/nutrition/catalog") {
       return { items: await firestore.getNutritionCatalog() };
     }
-    if (path.startsWith("/nutrition/journal")) {
+    if (normPath.startsWith("/nutrition/journal")) {
       const url = new URL(path, window.location.origin);
       const date = url.searchParams.get("date");
       return { content: await firestore.getJournal(date) };
     }
-    if (path.startsWith("/supplements/catalog")) {
+    if (normPath.startsWith("/supplements/catalog")) {
       return { items: await firestore.getSupplementsCatalog() };
     }
-    if (path.startsWith("/supplements/log")) {
+    if (normPath.startsWith("/supplements/log")) {
       const url = new URL(path, window.location.origin);
       const date = url.searchParams.get("date");
       return { data: await firestore.getSupplementLog(date) };
     }
-    if (path.startsWith("/supplements/stats")) {
+    if (normPath.startsWith("/supplements/stats")) {
       const url = new URL(path, window.location.origin);
-      const date = url.searchParams.get("anchor");
+      const date = url.searchParams.get("anchor") || url.searchParams.get("date");
       return await firestore.getSupplementStats(date);
     }
   }
@@ -40,26 +57,24 @@ export async function fetchJson(path) {
 }
 
 export async function postJson(path, body) {
+  const normPath = normalizePath(path);
+
   if (isCloud()) {
-    if (path === "/nutrition/log") {
+    if (normPath === "/nutrition/log") {
       await firestore.saveNutritionLog(body.date, body.meal ? { meals: [body.meal] } : body);
       return { ok: true };
     }
-    if (path === "/nutrition/journal") {
+    if (normPath === "/nutrition/journal") {
       await firestore.saveJournal(body.date, body.content);
       return { ok: true };
     }
-    if (path === "/nutrition/catalog") {
-      // In der Cloud koennen wir den Katalog theoretisch auch updaten, 
-      // aber primär sollte er vom Laptop kommen.
-      // Wir implementieren es hier trotzdem fuer Konsistenz.
+    if (normPath === "/nutrition/catalog") {
       const items = await firestore.getNutritionCatalog();
       items.push(body.item);
       const ref = doc(firestore.db, "nutrition", firestore.getUid(), "meta", "catalog");
       await setDoc(ref, { items, updated_at: firestore.serverTimestamp() });
       return { ok: true };
     }
-    // TODO: Add more mappings as needed
   }
 
   const res = await fetch(path, {
