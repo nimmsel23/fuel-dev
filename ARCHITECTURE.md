@@ -1,13 +1,27 @@
 # Fuel Centre — Architektur
 
-Stand: 2026-05-18
+Stand: 2026-05-29
 
 ---
 
 ## Überblick
 
-Fastify-Backend (Port 9000), React-Frontend (V2 Vite), Vanilla-PWA (V1).
-Daten: dateibasierte JSON-Logs in `~/.aos/fuel/`, SQLite für Caches, Repo-Kataloge in `catalogs/`.
+Hybrid-Architektur für maximale Flexibilität:
+- **Lokal:** Fastify-Backend (Port 9000), JSON-Speicher in `data/`, SQLite Caches.
+- **Cloud:** Firebase Hosting & Firestore. Ermöglicht 24/7 Nutzung der PWA unabhängig vom Laptop.
+- **Sync:** Bidirektionaler Abgleich zwischen lokalem Dateisystem und Firestore.
+
+---
+
+## Daten-Layer & API-Routing
+
+Die App nutzt in `src/lib/api.js` eine intelligente Weiche:
+
+1.  **Detection:** Läuft die App auf `*.web.app` oder `*.firebaseapp.com`?
+2.  **Routing:**
+    -   **Lokal:** Requests gehen an den Node-Server (`/nutrition/...`).
+    -   **Cloud:** Requests werden auf Firestore-Calls umgeleitet (`src/lib/firestore-db.js`).
+    -   **Fallback:** Wenn der lokale Server nicht erreichbar ist, kann auch lokal auf Firestore ausgewichen werden.
 
 ---
 
@@ -49,7 +63,7 @@ GET|POST /fuel/log
 
 ## Datenspeicherung
 
-### Laufzeit-Daten (`~/.aos/fuel/`)
+### Laufzeit-Daten (`data/catalogs/`)
 
 ```
 ~/.aos/fuel/

@@ -106,29 +106,37 @@ Gibt `name, brand, kcal, kh, fett, ew` pro 100 g zurück. Kein API-Key, kein Acc
 
 ## Nutzung
 
+### Lokal (Entwicklung)
+
 ```bash
 npm install
-npm start
+npm run dev
 ```
 
-Danach läuft die App standardmäßig auf `http://127.0.0.1:9000`.
+Danach läuft die App auf `http://127.0.0.1:9000`. Der Supervisor startet Backend und Frontend zusammen.
 
-Einstiege:
-- `http://127.0.0.1:9000/` -> `v1 / Fuel Classic`
-- `http://127.0.0.1:9000/v2` -> `v2 / Fuel Studio`
+### Cloud (Firebase Deployment)
 
-Dev und Prod:
-- `npm run dev` -> ein `nodemon`-Supervisor startet Backend und Vite-Frontend zusammen
-- `npm run build` -> Vite baut nach `/opt/fuel`
-- `npm run prod` -> Static Server auf Port `7000` mit `/opt/fuel` als Build-Root
+Die App ist für Firebase Hosting optimiert und funktioniert in der Cloud ohne eigenen Server (via Firestore).
 
-Für schnelle Erfassung:
+1.  **Build:** `npm run build`
+2.  **Deployment:** `firebase deploy` (im Hauptverzeichnis)
+
+Die App erkennt automatisch, ob sie auf `*.web.app` läuft, und nutzt dann Firestore statt der lokalen API.
+
+### Daten-Synchronisation
+
+Um lokale Kataloge und Logs mit der Cloud abzugleichen:
 
 ```bash
-./fuel-log.zsh
+npm run sync:push   # Lokal -> Firestore
+npm run sync:pull   # Firestore -> Lokal
 ```
 
+Detaillierte Infos zur Cloud-Anbindung findest du in [FIRESTORE.md](FIRESTORE.md).
+
 ## PWA-Status
+
 
 - installierbar über das Manifest
 - Offline-Basis über Service Worker
