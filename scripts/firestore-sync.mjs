@@ -11,7 +11,7 @@ import { dirname } from "node:path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
-const DATA_DIR = join(ROOT, "data", "catalogs");
+const DATA_DIR = join(ROOT, "data");
 const SA_PATH = join(process.env.HOME, ".config", "fuel-pwa", "service-account.json");
 
 const UID_DEFAULT = "default";
@@ -180,12 +180,19 @@ async function push(uid = UID_DEFAULT) {
   }
 
   // 4. Catalog (Supplements)
-  const supplementsCatalogDir = join(DATA_DIR, "supplements");
-  const supplementsCatalog = join(supplementsCatalogDir, "catalog.json");
+  const supplementsCatalog = join(ROOT, "catalogs", "supplements", "catalog.json");
+  const legacySuppCatalog = join(DATA_DIR, "supplements", "catalog.json");
+  
+  let suppData = null;
   if (existsSync(supplementsCatalog)) {
-    const data = JSON.parse(readFileSync(supplementsCatalog, "utf8"));
+    suppData = JSON.parse(readFileSync(supplementsCatalog, "utf8"));
+  } else if (existsSync(legacySuppCatalog)) {
+    suppData = JSON.parse(readFileSync(legacySuppCatalog, "utf8"));
+  }
+
+  if (suppData) {
     await db.collection("supplements").doc(uid).collection("meta").doc("catalog").set({
-      items: data.items || data,
+      items: suppData.items || suppData,
       updated_at: admin.firestore.FieldValue.serverTimestamp()
     });
     console.log(`  ✅ fuel.supplement.catalog -> firebase ok`);
