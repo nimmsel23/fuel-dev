@@ -17,7 +17,7 @@ import { useApp } from "./store.js";
 import { useNutritionData, useMacroTrend, useJournal } from "./hooks/useNutrition.js";
 import { useSuppStats, useSuppCatalog, useSuppLog } from "./hooks/useSupplements.js";
 import { sumMetric, formatMetric } from "./lib/utils.js";
-import { watchAuth, signIn, signOut, getUid, setUseDefaultPartition } from "./lib/firestore-db.js";
+import { watchAuth, signIn, signOut, getUid } from "./lib/firestore-db.js";
 
 import { useRegisterSW } from "virtual:pwa-register/react";
 
