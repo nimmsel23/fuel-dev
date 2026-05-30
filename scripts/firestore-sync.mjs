@@ -111,7 +111,7 @@ async function watchTasks() {
 }
 
 async function push(uid = UID_DEFAULT) {
-  console.log(`🚀 Starte Push für User: ${uid}`);
+  console.log(`🏰 Temple Fuel: starting push for user "${uid}"`);
   
   // 1. Nutrition Logs
   const nutritionDir = join(DATA_DIR, "nutrition");
@@ -121,11 +121,11 @@ async function push(uid = UID_DEFAULT) {
       const date = file.replace(".json", "");
       const localData = JSON.parse(readFileSync(join(nutritionDir, file), "utf8"));
       
-      console.log(`  → Nutrition ${date}`);
       await db.collection("nutrition").doc(uid).collection("logs").doc(date).set({
         ...localData,
         updated_at: admin.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
+      console.log(`  ✅ fuel.nutrition.log[${date}] -> firebase ok`);
     }
   }
 
@@ -137,19 +137,16 @@ async function push(uid = UID_DEFAULT) {
       const date = file.replace(".json", "");
       const localData = JSON.parse(readFileSync(join(suppLogsDir, file), "utf8"));
       
-      console.log(`  → Supplements ${date}`);
       await db.collection("supplements").doc(uid).collection("logs").doc(date).set({
         ...localData,
         updated_at: admin.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
+      console.log(`  ✅ fuel.supplements.log[${date}] -> firebase ok`);
     }
   }
 
   // 3. Catalog (Nutrition)
-  console.log(`  → Processing Nutrition Catalog...`);
   let nutritionItems = [];
-  
-  // A) Check individual meal files in catalogs/
   const mealsDir = join(ROOT, "catalogs", "nutrition", "meals");
   if (existsSync(mealsDir)) {
     const mealFiles = readdirSync(mealsDir).filter(f => f.endsWith(".json"));
@@ -158,33 +155,28 @@ async function push(uid = UID_DEFAULT) {
         const item = JSON.parse(readFileSync(join(mealsDir, file), "utf8"));
         nutritionItems.push(item);
       } catch (e) {
-        console.error(`    ❌ Fehler in Meal-File ${file}:`, e.message);
+        console.error(`    ❌ fuel.meal.item[${file}] parse error:`, e.message);
       }
     }
-    console.log(`    Found ${nutritionItems.length} individual meals in catalogs/`);
   }
 
-  // B) Fallback/Legacy: central catalog.json
   const legacyCatalog = join(nutritionDir, "catalog.json");
   if (existsSync(legacyCatalog)) {
     try {
       const data = JSON.parse(readFileSync(legacyCatalog, "utf8"));
       const items = data.items || data;
-      if (Array.isArray(items)) {
-        nutritionItems = [...nutritionItems, ...items];
-        console.log(`    Added items from legacy catalog.json`);
-      }
+      if (Array.isArray(items)) nutritionItems = [...nutritionItems, ...items];
     } catch (e) {
-      console.error(`    ❌ Fehler in legacy catalog.json:`, e.message);
+      console.error(`    ❌ fuel.meal.legacy_catalog parse error:`, e.message);
     }
   }
 
   if (nutritionItems.length > 0) {
-    console.log(`    Pushing ${nutritionItems.length} nutrition items to Firestore`);
     await db.collection("nutrition").doc(uid).collection("meta").doc("catalog").set({
       items: nutritionItems,
       updated_at: admin.firestore.FieldValue.serverTimestamp()
     });
+    console.log(`  ✅ fuel.meal.catalog[${nutritionItems.length} items] -> firebase ok`);
   }
 
   // 4. Catalog (Supplements)
@@ -192,24 +184,19 @@ async function push(uid = UID_DEFAULT) {
   const supplementsCatalog = join(supplementsCatalogDir, "catalog.json");
   if (existsSync(supplementsCatalog)) {
     const data = JSON.parse(readFileSync(supplementsCatalog, "utf8"));
-    console.log(`  → Supplements Catalog`);
     await db.collection("supplements").doc(uid).collection("meta").doc("catalog").set({
       items: data.items || data,
       updated_at: admin.firestore.FieldValue.serverTimestamp()
     });
+    console.log(`  ✅ fuel.supplement.catalog -> firebase ok`);
   }
-
-  console.log("✅ Push abgeschlossen.");
 }
 
 async function pushRelax(uid = UID_DEFAULT) {
   const relaxDir = resolve(ROOT, "..", "relax-dev", "data");
-  if (!existsSync(relaxDir)) {
-    console.log("ℹ️ relax-dev Verzeichnis nicht gefunden, überspringe.");
-    return;
-  }
+  if (!existsSync(relaxDir)) return;
   
-  console.log(`🚀 Starte Relax-Push für User: ${uid}`);
+  console.log(`🏰 Temple Relax: starting push for user "${uid}"`);
   
   // 1. Relax Sessions
   const sessionsDir = join(relaxDir, "sessions");
@@ -218,11 +205,11 @@ async function pushRelax(uid = UID_DEFAULT) {
     for (const file of files) {
       const date = file.replace(".json", "");
       const localData = JSON.parse(readFileSync(join(sessionsDir, file), "utf8"));
-      console.log(`  → Relax Session ${date}`);
       await db.collection("relax").doc(uid).collection("sessions").doc(date).set({
         ...localData,
         updated_at: admin.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
+      console.log(`  ✅ relax.sessions.log[${date}] -> firebase ok`);
     }
   }
 
@@ -233,20 +220,51 @@ async function pushRelax(uid = UID_DEFAULT) {
     for (const file of files) {
       const date = file.replace(".md", "");
       const content = readFileSync(join(journalDir, file), "utf8");
-      console.log(`  → Relax Journal ${date}`);
       await db.collection("relax").doc(uid).collection("journal").doc(date).set({
         date,
         content,
         updated_at: admin.firestore.FieldValue.serverTimestamp()
       });
+      console.log(`  ✅ relax.journal.log[${date}] -> firebase ok`);
     }
   }
+}
+
+async function pushFitness(uid = UID_DEFAULT) {
+  const fitnessDir = resolve(ROOT, "..", "fitness-dev", "data");
+  if (!existsSync(fitnessDir)) return;
   
-  console.log("✅ Relax-Push abgeschlossen.");
+  console.log(`🏰 Temple Fitness: starting push for user "${uid}"`);
+  
+  // 1. Fitness Sessions
+  const sessionsDir = join(fitnessDir, "sessions");
+  if (existsSync(sessionsDir)) {
+    const files = readdirSync(sessionsDir).filter(f => f.match(/^\d{4}-\d{2}-\d{2}\.json$/));
+    for (const file of files) {
+      const date = file.replace(".json", "");
+      const localData = JSON.parse(readFileSync(join(sessionsDir, file), "utf8"));
+      await db.collection("fitness").doc(uid).collection("sessions").doc(date).set({
+        ...localData,
+        updated_at: admin.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      console.log(`  ✅ fitness.sessions.log[${date}] -> firebase ok`);
+    }
+  }
+
+  // 2. Exercises / Catalog
+  const catalogFile = join(fitnessDir, "catalog", "exercises.json");
+  if (existsSync(catalogFile)) {
+    const data = JSON.parse(readFileSync(catalogFile, "utf8"));
+    await db.collection("fitness").doc(uid).collection("meta").doc("catalog").set({
+      items: data.items || data,
+      updated_at: admin.firestore.FieldValue.serverTimestamp()
+    });
+    console.log(`  ✅ fitness.exercise.catalog -> firebase ok`);
+  }
 }
 
 async function pull(uid = UID_DEFAULT) {
-  console.log(`📥 Starte Pull für User: ${uid}`);
+  console.log(`📥 Temple Fuel: starting pull for user "${uid}"`);
 
   const nutritionDir = join(DATA_DIR, "nutrition");
   if (!existsSync(nutritionDir)) mkdirSync(nutritionDir, { recursive: true });
@@ -256,7 +274,7 @@ async function pull(uid = UID_DEFAULT) {
     const data = doc.data();
     delete data.updated_at;
     writeFileSync(join(nutritionDir, `${doc.id}.json`), JSON.stringify(data, null, 2));
-    console.log(`  ← Nutrition ${doc.id}`);
+    console.log(`  ← fuel.nutrition.log[${doc.id}] fetched`);
   });
 
   const suppLogsDir = join(DATA_DIR, "supplements", "logs");
@@ -267,10 +285,10 @@ async function pull(uid = UID_DEFAULT) {
     const data = doc.data();
     delete data.updated_at;
     writeFileSync(join(suppLogsDir, `${doc.id}.json`), JSON.stringify(data, null, 2));
-    console.log(`  ← Supplements ${doc.id}`);
+    console.log(`  ← fuel.supplements.log[${doc.id}] fetched`);
   });
 
-  console.log("✅ Pull abgeschlossen.");
+  console.log("✅ fuel.pull finished");
 }
 
 // ── CLI Runner ────────────────────────────────────────────────────────────────
@@ -280,7 +298,11 @@ const [,, cmd, uidArg] = process.argv;
 if (cmd === "push") {
   push(uidArg)
     .then(() => pushRelax(uidArg))
-    .then(() => process.exit(0))
+    .then(() => pushFitness(uidArg))
+    .then(() => {
+      console.log("\n✨ All temples synchronized to Firebase.");
+      process.exit(0);
+    })
     .catch(e => { console.error(e); process.exit(1); });
 } else if (cmd === "pull") {
   pull(uidArg).then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
