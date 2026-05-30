@@ -6,8 +6,10 @@ const isCloud = () => {
   const host = window.location.hostname;
   // Auf web.app oder firebaseapp.com sind wir definitiv in der Cloud
   if (host.includes("web.app") || host.includes("firebaseapp.com")) return true;
+  // Falls wir lokal arbeiten (localhost / 127.0.0.1), sind wir NICHT in der Cloud
+  if (host === "localhost" || host === "127.0.0.1") return false;
   // Falls wir über die Tailscale URL aufrufen, wollen wir NICHT in den Cloud Modus,
-  // sondern das lokale Backend nutzen (da Tailscale ja eine LAN-Simulation ist).
+  // sondern das lokale Backend nutzen
   if (host.includes("ts.net")) return false;
   // Standard lokal
   return false;
@@ -73,6 +75,19 @@ export async function postJson(path, body) {
       items.push(body.item);
       const ref = doc(firestore.db, "nutrition", firestore.getUid(), "meta", "catalog");
       await setDoc(ref, { items, updated_at: firestore.serverTimestamp() });
+      return { ok: true };
+    }
+    if (normPath === "/supplements/log") {
+      // Wenn es ein delete_id gibt, löschen wir, sonst speichern wir
+      const existing = await firestore.getSupplementLog(body.date);
+      if (body.delete_id) {
+        existing.intakes = (existing.intakes || []).filter(i => i.id !== body.delete_id);
+      } else {
+        const intake = { ...body.intake, id: `supp_${Date.now()}` };
+        existing.intakes = [...(existing.intakes || []), intake];
+      }
+      const ref = doc(firestore.db, "supplements", firestore.getUid(), "logs", body.date);
+      await setDoc(ref, { ...existing, updated_at: firestore.serverTimestamp() });
       return { ok: true };
     }
   }
