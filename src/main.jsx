@@ -19,6 +19,8 @@ import { useSuppStats, useSuppCatalog, useSuppLog } from "./hooks/useSupplements
 import { sumMetric, formatMetric } from "./lib/utils.js";
 import { watchAuth, signIn, signOut } from "./lib/firestore-db.js";
 
+import { useRegisterSW } from "virtual:pwa-register/react";
+
 const qc = new QueryClient();
 
 const TABS = [
@@ -34,6 +36,33 @@ const TABS = [
 function App() {
   const { activeTab, setActiveTab, activeDate, setActiveDate } = useApp();
   const [user, setUser] = React.useState(null);
+
+  // Service Worker Registration & Auto-Update Logic
+  const {
+    needRefresh: [needRefresh],
+    updateServiceWorker,
+  } = useRegisterSW({
+    onRegistered(r) {
+      console.log("SW registered");
+      if (r) {
+        // Check for updates every hour
+        setInterval(() => {
+          r.update();
+        }, 60 * 60 * 1000);
+      }
+    },
+    onRegisterError(error) {
+      console.error("SW registration error", error);
+    }
+  });
+
+  // Auto-refresh when a new version is available
+  React.useEffect(() => {
+    if (needRefresh) {
+      console.log("New version available, updating...");
+      updateServiceWorker(true);
+    }
+  }, [needRefresh, updateServiceWorker]);
 
   React.useEffect(() => {
     return watchAuth((u) => setUser(u));
@@ -135,9 +164,3 @@ createRoot(document.getElementById("root")).render(
     </QueryClientProvider>
   </React.StrictMode>,
 );
-
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch(() => {});
-  });
-}
