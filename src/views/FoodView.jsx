@@ -404,16 +404,16 @@ export default function FoodView({ activeDate, setActiveDate }) {
                   <div className="min-w-0">
                     <div className="truncate font-medium text-slate-100">{component.label}</div>
                     <div className="mt-0.5 text-xs text-slate-500">
-                      {component.grams != null ? `${component.grams} g · ` : ""}
-                      {Math.round(component.kcal)} kcal · P {Math.round(component.protein * 10) / 10}g · C {Math.round(component.carbs * 10) / 10}g · F {Math.round(component.fat * 10) / 10}g
+                      {component.grams ? `${component.grams}g · ` : ""}
+                      {component.kcal} kcal · P {component.protein}g · C {component.carbs}g · F {component.fat}g
                     </div>
                   </div>
                   <button
                     type="button"
-                    onClick={() => setRecipeComponents((items) => items.filter((item) => item.id !== component.id))}
-                    className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-400 hover:text-red-300 transition"
+                    onClick={() => setRecipeComponents((prev) => prev.filter((c) => c.id !== component.id))}
+                    className="shrink-0 p-1 text-slate-500 hover:text-red-400 transition"
                   >
-                    Entfernen
+                    <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
               </div>
@@ -565,6 +565,7 @@ export default function FoodView({ activeDate, setActiveDate }) {
           </div>
         )}
         {logCatalogItem.isError ? <p className="mt-3 text-sm text-red-300">{logCatalogItem.error.message}</p> : null}
+      </div>
       </div>
 
       {/* Geloggte Mahlzeiten */}
