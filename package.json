@@ -10,9 +10,9 @@
     "ui:dev": "vite",
     "build": "vite build",
     "prod": "PORT=7000 HOST=0.0.0.0 FUEL_STATIC_DIR=/opt/fuel node server.mjs",
-    "sync:push": "node scripts/firestore-sync.mjs push",
-    "sync:pull": "node scripts/firestore-sync.mjs pull",
-    "sync:watch": "node scripts/firestore-sync.mjs watch",
+    "sync:push": "node --env-file-if-exists=.env scripts/firestore-sync.mjs push",
+    "sync:pull": "node --env-file-if-exists=.env scripts/firestore-sync.mjs pull",
+    "sync:watch": "node --env-file-if-exists=.env scripts/firestore-sync.mjs watch",
     "preview": "vite preview"
   },
   "dependencies": {
