@@ -184,6 +184,21 @@ async function push(uid = UID_DEFAULT) {
     console.log(`  ✅ fuel.meal.catalog[${nutritionItems.length} items] -> firebase ok`);
   }
 
+import admin from "firebase-admin";
+import Database from "better-sqlite3";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from "fs";
+import { join, resolve } from "path";
+import { fileURLToPath } from "node:url";
+import { dirname } from "node:path";
+...
+  if (suppData) {
+    await db.collection("supplements").doc(uid).collection("meta").doc("catalog").set({
+      items: suppData.items || suppData,
+      updated_at: admin.firestore.FieldValue.serverTimestamp()
+    });
+    console.log(`  ✅ fuel.supplement.catalog -> firebase ok`);
+  }
+
   // 4. Catalog (Supplements)
   const supplementsCatalog = join(ROOT, "catalogs", "supplements", "catalog.json");
   const legacySuppCatalog = join(DATA_DIR, "supplements", "catalog.json");
@@ -201,6 +216,21 @@ async function push(uid = UID_DEFAULT) {
       updated_at: admin.firestore.FieldValue.serverTimestamp()
     });
     console.log(`  ✅ fuel.supplement.catalog -> firebase ok`);
+  }
+
+  // 5. Micros Catalog (from SQLite)
+  const dbPath = join(DATA_DIR, "nutrition", "nutrition.db");
+  if (existsSync(dbPath)) {
+      const dbSqlite = new Database(dbPath);
+      const micros = dbSqlite.prepare("SELECT * FROM meal_micros").all();
+      if (micros.length > 0) {
+        await db.collection("nutrition").doc(uid).collection("meta").doc("micros").set({
+            items: micros,
+            updated_at: admin.firestore.FieldValue.serverTimestamp()
+        });
+        console.log(`  ✅ fuel.micros.catalog[${micros.length} items] -> firebase ok`);
+      }
+      dbSqlite.close();
   }
 }
 
