@@ -5,20 +5,6 @@ import { estimateMicros } from "../../services/nutrition-estimate-micros.mjs";
 import { saveMicrosForMeal } from "../../services/nutrition-micros.mjs";
 
 export default async function composeRoute(app) {
-  // POST /nutrition/estimate — Gemini macro estimation (no save)
-  app.post("/nutrition/estimate", async (req, reply) => {
-    try {
-      const { description } = req.body || {};
-      if (!description?.trim()) return reply.status(400).send({ ok: false, error: "description required" });
-      const { estimateMacros } = await import("../../services/nutrition-estimate.mjs");
-      const macros = await estimateMacros(description);
-      return reply.send({ ok: true, description, macros });
-    } catch (error) {
-      console.error(error);
-      return reply.status(500).send({ ok: false, error: "Internal server error" });
-    }
-  });
-
   // POST /nutrition/compose — Compose meal via wger + Gemini, optionally save to catalog
   app.post("/nutrition/compose", async (req, reply) => {
     try {
