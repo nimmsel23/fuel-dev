@@ -134,8 +134,8 @@ export default function JournalView({ date, nutrition, journal }) {
         <form onSubmit={mealForm.handleSubmit((values) => mealMutation.mutate(values))} className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-xl font-semibold">Meal Logger</h2>
-              <p className="text-sm text-slate-400">Schreibt direkt nach `/nutrition/log`.</p>
+              <h2 className="text-xl font-semibold text-orange-400">Heutiges Logbuch</h2>
+              <p className="text-sm text-slate-400">Füge eine neue Mahlzeit zum aktuellen Tag hinzu.</p>
             </div>
             <span className="rounded-full border border-white/10 bg-slate-950/60 px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-400">
               {meals.length} meals
@@ -218,8 +218,8 @@ export default function JournalView({ date, nutrition, journal }) {
         <form onSubmit={journalForm.handleSubmit((values) => journalMutation.mutate(values))} className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-xl font-semibold">Journal Editor</h2>
-              <p className="text-sm text-slate-400">Schreibt direkt nach `/nutrition/journal`.</p>
+              <h2 className="text-xl font-semibold text-sky-400">Tagebuch & Notizen</h2>
+              <p className="text-sm text-slate-400">Halte Gedanken, Wohlbefinden oder Besonderheiten fest.</p>
             </div>
             <NotebookPen className="h-5 w-5 text-sky-300" />
           </div>

@@ -262,22 +262,24 @@ export default function FoodView({ activeDate, setActiveDate }) {
         />
       )}
 
-      {/* Formular */}
+      {/* Formular für das heutige Logbuch */}
       <div className={twMerge(
-        "rounded-2xl border p-5 space-y-4 mb-6",
+        "rounded-2xl border p-5 space-y-4 mb-6 mt-4",
         isEditing ? "border-orange-400/40 bg-orange-400/5" : "border-white/10 bg-slate-950/50"
       )}>
-        {isEditing && (
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-xs uppercase tracking-widest text-orange-400 shrink-0">Eintrag bearbeiten</span>
-            <div className="flex items-center gap-2 ml-auto">
+        <div className="flex items-center justify-between mb-2">
+           <h3 className="text-lg font-semibold text-slate-200">
+             {isEditing ? "Eintrag bearbeiten" : "Manuell loggen"}
+           </h3>
+           {isEditing && (
+            <div className="flex items-center gap-2">
               <span className="text-xs text-slate-500 shrink-0">Verschieben nach</span>
               <input type="date" className="rounded-lg border border-white/10 bg-slate-950/70 px-2 py-1 text-xs text-slate-300"
                 value={moveDate} onChange={(e) => setMoveDate(e.target.value)} />
+              <button onClick={cancelEdit} className="text-xs text-slate-500 hover:text-slate-300 shrink-0">Abbrechen</button>
             </div>
-            <button onClick={cancelEdit} className="text-xs text-slate-500 hover:text-slate-300 shrink-0">Abbrechen</button>
-          </div>
-        )}
+           )}
+        </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Datum">
@@ -336,17 +338,23 @@ export default function FoodView({ activeDate, setActiveDate }) {
         {saveCatalog.isSuccess ? <p className="text-sm text-emerald-300">Gericht im Katalog gespeichert.</p> : null}
       </div>
 
-      <div className="mb-6 rounded-2xl border border-sky-400/15 bg-sky-400/5 p-5">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-sky-300">
-              <ChefHat className="h-3.5 w-3.5" />
-              Gericht bauen
+      <div className="mb-6 mt-12 border-t border-white/10 pt-8">
+        <h2 className="text-2xl font-bold text-slate-100 flex items-center gap-2 mb-4">
+          <BookmarkPlus className="h-6 w-6 text-sky-400" />
+          Food Manager (Katalog)
+        </h2>
+        
+        <div className="mb-6 rounded-2xl border border-sky-400/15 bg-sky-400/5 p-5">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-sky-300">
+                <ChefHat className="h-3.5 w-3.5" />
+                Gericht bauen
+              </div>
+              <p className="mt-1 text-sm text-slate-400">
+                Einzelteile suchen, zusammensetzen und als Menü oder Rezept speichern.
+              </p>
             </div>
-            <p className="mt-1 text-sm text-slate-400">
-              Einzelteile suchen, zusammensetzen und als Menü oder Rezept speichern.
-            </p>
-          </div>
           <span className="rounded-full border border-white/10 bg-slate-950/70 px-3 py-1 text-xs text-slate-400">
             {recipeComponents.length} Komponenten
           </span>
