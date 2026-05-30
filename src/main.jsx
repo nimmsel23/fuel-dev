@@ -17,6 +17,7 @@ import { useApp } from "./store.js";
 import { useNutritionData, useMacroTrend, useJournal } from "./hooks/useNutrition.js";
 import { useSuppStats, useSuppCatalog, useSuppLog } from "./hooks/useSupplements.js";
 import { sumMetric, formatMetric } from "./lib/utils.js";
+import { watchAuth, signIn, signOut } from "./lib/firestore-db.js";
 
 const qc = new QueryClient();
 
@@ -32,6 +33,12 @@ const TABS = [
 
 function App() {
   const { activeTab, setActiveTab, activeDate, setActiveDate } = useApp();
+  const [user, setUser] = React.useState(null);
+
+  React.useEffect(() => {
+    return watchAuth((u) => setUser(u));
+  }, []);
+
   const { data: nutrition } = useNutritionData(activeDate);
   const { data: sup } = useSuppStats(activeDate);
   const { data: suppCatalog } = useSuppCatalog();
@@ -45,16 +52,27 @@ function App() {
   const totalCarbs = sumMetric(meals, "carbs");
   const totalFat = sumMetric(meals, "fat");
 
+  const isCloud = window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com");
+
   return (
     <div className="min-h-screen text-slate-100">
       <div className="mx-auto max-w-7xl px-4 py-6 lg:px-8">
         <header className="mb-6 grid gap-4 rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-glow backdrop-blur">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="mb-2 inline-flex items-center gap-2 rounded-full border border-orange-400/30 bg-orange-400/10 px-3 py-1 text-xs uppercase tracking-[0.25em] text-orange-200">
-                <Sparkles className="h-3.5 w-3.5" />
-                FuelCtx v2
-              </p>
+              <div className="flex items-center gap-3 mb-2">
+                <p className="inline-flex items-center gap-2 rounded-full border border-orange-400/30 bg-orange-400/10 px-3 py-1 text-xs uppercase tracking-[0.25em] text-orange-200">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  FuelCtx v2
+                </p>
+                {isCloud && (
+                  user ? (
+                    <button onClick={signOut} className="text-[10px] text-slate-500 hover:text-white uppercase tracking-widest">Logout ({user.displayName?.split(" ")[0]})</button>
+                  ) : (
+                    <button onClick={signIn} className="text-[10px] text-orange-400 hover:text-orange-300 font-bold uppercase tracking-widest">Cloud Login</button>
+                  )
+                )}
+              </div>
               <h1 className="text-3xl font-semibold tracking-tight md:text-5xl">Nutrition Journal Control Deck</h1>
               <p className="mt-3 max-w-2xl text-sm text-slate-300 md:text-base">
                 Fuel Studio schreibt jetzt direkt in die Nutrition- und Journal-Daten statt nur Mock-UI zu zeigen.

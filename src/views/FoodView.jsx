@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { twMerge } from "tailwind-merge";
 import { BookmarkPlus, ChefHat, Pencil, Play, Trash2 } from "lucide-react";
+import { fetchJson, postJson } from "../lib/api.js";
 import FoodSearch from "../components/FoodSearch.jsx";
 
 const MEAL_TYPES = [
@@ -49,12 +50,12 @@ export default function FoodView({ activeDate, setActiveDate }) {
 
   const { data: dayData } = useQuery({
     queryKey: ["nutrition", activeDate],
-    queryFn: () => fetch(`/nutrition/log?date=${activeDate}`).then((r) => r.json()).then((d) => d.data),
+    queryFn: () => fetchJson(`/nutrition/log?date=${activeDate}`).then((d) => d.data),
     staleTime: 30_000,
   });
   const { data: catalogData } = useQuery({
     queryKey: ["nutrition-catalog"],
-    queryFn: () => fetch("/nutrition/catalog").then((r) => r.json()),
+    queryFn: () => fetchJson("/nutrition/catalog"),
     staleTime: 60_000,
   });
   const meals = dayData?.meals || [];
@@ -188,17 +189,9 @@ export default function FoodView({ activeDate, setActiveDate }) {
           meal: { type: form.type, description: form.description, notes: form.notes,
             kcal: form.kcal, protein: form.protein, carbs: form.carbs, fat: form.fat } };
         if (moveDate && moveDate !== activeDate) body.new_date = moveDate;
-        return fetch("/nutrition/log", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        }).then((r) => { if (!r.ok) throw new Error(r.statusText); return r.json(); });
+        return postJson("/nutrition/log", body);
       }
-      return fetch("/nutrition/log", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date: activeDate, meal: form }),
-      }).then((r) => { if (!r.ok) throw new Error(r.statusText); return r.json(); });
+      return postJson("/nutrition/log", { date: activeDate, meal: form });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["nutrition", activeDate] });
@@ -210,21 +203,14 @@ export default function FoodView({ activeDate, setActiveDate }) {
   });
 
   const saveCatalog = useMutation({
-    mutationFn: (source = form) => fetch("/nutrition/catalog", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ item: buildCatalogItem(source) }),
-    }).then((r) => { if (!r.ok) throw new Error(r.statusText); return r.json(); }),
+    mutationFn: (source = form) => postJson("/nutrition/catalog", { item: buildCatalogItem(source) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["nutrition-catalog"] });
     },
   });
 
   const saveRecipeCatalog = useMutation({
-    mutationFn: () => fetch("/nutrition/catalog", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    mutationFn: () => postJson("/nutrition/catalog", {
         item: buildCatalogItem({
           name: recipeName.trim(),
           description: recipeName.trim(),
@@ -238,7 +224,6 @@ export default function FoodView({ activeDate, setActiveDate }) {
           components: recipeComponents,
         }),
       }),
-    }).then((r) => { if (!r.ok) throw new Error(r.statusText); return r.json(); }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["nutrition-catalog"] });
       clearRecipe();
@@ -246,15 +231,11 @@ export default function FoodView({ activeDate, setActiveDate }) {
   });
 
   const logCatalogItem = useMutation({
-    mutationFn: ({ catalogItemId, addonIds = [] }) => fetch("/nutrition/log", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    mutationFn: ({ catalogItemId, addonIds = [] }) => postJson("/nutrition/log", {
         date: activeDate,
         catalog_item_id: catalogItemId,
         catalog_addon_ids: addonIds,
       }),
-    }).then((r) => { if (!r.ok) throw new Error(r.statusText); return r.json(); }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["nutrition", activeDate] });
       qc.invalidateQueries({ queryKey: ["week-logs"] });
@@ -262,11 +243,7 @@ export default function FoodView({ activeDate, setActiveDate }) {
   });
 
   const deleteMeal = useMutation({
-    mutationFn: (id) => fetch("/nutrition/log", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ date: activeDate, delete_meal_id: id }),
-    }).then((r) => r.json()),
+    mutationFn: (id) => postJson("/nutrition/log", { date: activeDate, delete_meal_id: id }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["nutrition", activeDate] });
       qc.invalidateQueries({ queryKey: ["week-logs"] });
