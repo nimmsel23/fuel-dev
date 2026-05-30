@@ -146,12 +146,43 @@ async function push(uid = UID_DEFAULT) {
   }
 
   // 3. Catalog (Nutrition)
-  const nutritionCatalog = join(nutritionDir, "catalog.json");
-  if (existsSync(nutritionCatalog)) {
-    const data = JSON.parse(readFileSync(nutritionCatalog, "utf8"));
-    console.log(`  → Nutrition Catalog`);
+  console.log(`  → Processing Nutrition Catalog...`);
+  let nutritionItems = [];
+  
+  // A) Check individual meal files in catalogs/
+  const mealsDir = join(ROOT, "catalogs", "nutrition", "meals");
+  if (existsSync(mealsDir)) {
+    const mealFiles = readdirSync(mealsDir).filter(f => f.endsWith(".json"));
+    for (const file of mealFiles) {
+      try {
+        const item = JSON.parse(readFileSync(join(mealsDir, file), "utf8"));
+        nutritionItems.push(item);
+      } catch (e) {
+        console.error(`    ❌ Fehler in Meal-File ${file}:`, e.message);
+      }
+    }
+    console.log(`    Found ${nutritionItems.length} individual meals in catalogs/`);
+  }
+
+  // B) Fallback/Legacy: central catalog.json
+  const legacyCatalog = join(nutritionDir, "catalog.json");
+  if (existsSync(legacyCatalog)) {
+    try {
+      const data = JSON.parse(readFileSync(legacyCatalog, "utf8"));
+      const items = data.items || data;
+      if (Array.isArray(items)) {
+        nutritionItems = [...nutritionItems, ...items];
+        console.log(`    Added items from legacy catalog.json`);
+      }
+    } catch (e) {
+      console.error(`    ❌ Fehler in legacy catalog.json:`, e.message);
+    }
+  }
+
+  if (nutritionItems.length > 0) {
+    console.log(`    Pushing ${nutritionItems.length} nutrition items to Firestore`);
     await db.collection("nutrition").doc(uid).collection("meta").doc("catalog").set({
-      items: data.items || data,
+      items: nutritionItems,
       updated_at: admin.firestore.FieldValue.serverTimestamp()
     });
   }

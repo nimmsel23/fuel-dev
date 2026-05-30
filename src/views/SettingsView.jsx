@@ -49,6 +49,7 @@ export default function SettingsView() {
               <div className="min-w-0 flex-1">
                 <div className="font-semibold text-slate-100">{user.displayName}</div>
                 <div className="truncate text-xs text-slate-500">{user.email}</div>
+                <div className="mt-1 font-mono text-[9px] text-slate-600">UID: {user.uid}</div>
               </div>
               <span className="rounded-full bg-sky-500/20 px-3 py-1 text-[10px] uppercase tracking-widest text-sky-300">Cloud</span>
             </div>
