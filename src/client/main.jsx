@@ -6,7 +6,6 @@ import { twMerge } from "tailwind-merge";
 
 import "./styles.css";
 import FoodView from "./views/FoodView.jsx";
-import CoachView from "./views/CoachView.jsx";
 import MicrosView from "./views/MicrosView.jsx";
 import DashboardView from "./views/DashboardView.jsx";
 import CalendarView from "./views/CalendarView.jsx";
@@ -36,7 +35,6 @@ if (typeof window !== "undefined") {
 const TABS = [
   ["dashboard", "Dashboard", Flame],
   ["food", "Food", UtensilsCrossed],
-  ["coach", "Coach", Sparkles],
   ["calendar", "Big Calendar", CalendarDays],
   ["journal", "Journal", NotebookPen],
   ["supplements", "Supplements", Pill],
@@ -158,9 +156,9 @@ function App() {
         {activeTab === "dashboard" && (
           <DashboardView nutrition={nutrition} sup={sup} journal={journal} macroTrend={macroTrend} />
         )}
-        {activeTab === "food" && <FoodView activeDate={activeDate} setActiveDate={setActiveDate} />}
-        {activeTab === "coach" && <CoachView activeDate={activeDate} setActiveDate={setActiveDate} />}
+        {activeTab === "food" && <FoodView activeDate={activeDate} setActiveDate={setActiveDate} nutrition={nutrition} />}
         {activeTab === "calendar" && <CalendarView date={activeDate} nutrition={nutrition} />}
+
         {activeTab === "journal" && (
           <JournalView date={activeDate} nutrition={nutrition} journal={journal || ""} />
         )}
