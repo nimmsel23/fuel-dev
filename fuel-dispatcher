@@ -1,13 +1,6 @@
 #!/usr/bin/env python3
 """
-fuel — Smart logging dispatcher. 
-Automatically distinguishes between supplements and meals.
-
-Usage:
-  fuel melatonin [dose]       -> logs supplement (if id exists in catalog)
-  fuel "Pizza"                -> logs meal (if not a supplement id)
-  fuel today                  -> combined status
-  fuel list                   -> list supplements
+fuel — Typer-powered smart logging dispatcher.
 """
 
 import json
@@ -15,6 +8,9 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+import typer
+
+app = typer.Typer(help="Fuel Centre Smart CLI", no_args_is_help=False)
 
 # Resolve to actual fuel-dev directory
 FUEL_DIR = Path(__file__).resolve().parent
@@ -37,45 +33,50 @@ def show_combined_today():
     print("\n--- SUPPLEMENTS ---")
     subprocess.run([str(FUEL_DIR / "fuel-supplement"), "today"])
 
-def main():
-    if len(sys.argv) < 2:
+@app.command()
+def meal(ctx: typer.Context):
+    """Route to fuel-meal."""
+    subprocess.run([str(FUEL_DIR / "fuel-meal")] + ctx.args)
+
+@app.command()
+def supplement(ctx: typer.Context):
+    """Route to fuel-supplement."""
+    subprocess.run([str(FUEL_DIR / "fuel-supplement")] + ctx.args)
+
+@app.command()
+def today():
+    """Show combined status for today."""
+    show_combined_today()
+
+@app.command()
+def list():
+    """List available supplements."""
+    subprocess.run([str(FUEL_DIR / "fuel-supplement"), "list"])
+
+@app.callback(invoke_without_command=True)
+def main(ctx: typer.Context):
+    if ctx.invoked_subcommand is not None:
+        return
+
+    # No command given -> check arguments for smart routing
+    args = sys.argv[1:]
+    if not args:
         show_combined_today()
         return
 
-    subcommand = sys.argv[1]
-    args = sys.argv[2:]
-
-    # 1. Check for global commands
-    if subcommand == "today":
-        show_combined_today()
-        return
-    elif subcommand == "list":
-        subprocess.run([str(FUEL_DIR / "fuel-supplement"), "list"])
-        return
-    elif subcommand in ("--help", "-h"):
-        print(__doc__)
-        return
-
-    # 2. Smart Routing
+    subcommand = args[0]
+    
+    # 1. Smart Routing Logic
     supp_ids = load_supplement_ids()
     
     if subcommand in supp_ids:
-        # Route to supplement
-        subprocess.run([str(FUEL_DIR / "fuel-supplement")] + sys.argv[1:])
+        # Route to supplement shorthand
+        subprocess.run([str(FUEL_DIR / "fuel-supplement")] + args)
     else:
-        # Route everything else to meal
-        # If the user typed 'fuel meal pizza', pass it through.
-        # If the user typed 'fuel pizza', prefix it with 'log' for fuel-meal.
-        if subcommand == "meal":
-            subprocess.run([str(FUEL_DIR / "fuel-meal")] + args)
-        elif subcommand == "supplement":
-             subprocess.run([str(FUEL_DIR / "fuel-supplement")] + args)
-        else:
-            # Smart meal log: prefix with 'log' unless it's already a subcommand of fuel-meal
-            if subcommand in ("list", "today"): # fuel-meal specific today/list
-                 subprocess.run([str(FUEL_DIR / "fuel-meal"), subcommand] + args)
-            else:
-                 subprocess.run([str(FUEL_DIR / "fuel-meal"), "log"] + sys.argv[1:])
+        # Avoid looping if user typed 'meal' or 'supplement' but Typer didn't catch it as subcommand
+        if subcommand not in ("meal", "supplement", "today", "list"):
+            # Route to meal log shorthand
+            subprocess.run([str(FUEL_DIR / "fuel-meal"), "log"] + args)
 
 if __name__ == "__main__":
-    main()
+    app()
