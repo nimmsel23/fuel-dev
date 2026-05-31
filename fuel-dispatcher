@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """
-fuel — Universal logging dispatcher for supplements, meals, and nutrition.
+fuel — Universal logging dispatcher for supplements and meals.
 
-Routes to subcommands:
-  fuel supplement log melatonin
-  fuel meal "Nussschnecke Billa" --kcal 250
-  fuel nutrition apple 100g
+Subcommands:
+  fuel meal [args]            Meal logging (log, list, today)
+  fuel supplement [args]      Supplement logging (log, list, today)
+  fuel today                  Show all logs for today
+  fuel list                   List available supplements
+  fuel [id] [dose]            Shorthand to log a supplement
 """
 
 import subprocess
@@ -17,23 +19,34 @@ FUEL_DIR = Path(__file__).resolve().parent
 
 def main():
     if len(sys.argv) < 2:
-        subprocess.run([str(FUEL_DIR / "fuel-supplement"), "--help"])
+        # No arguments -> Show combined status for today
+        show_combined_today()
         return
 
     subcommand = sys.argv[1]
     args = sys.argv[2:]
 
-    if subcommand == "supplement":
-        subprocess.run([str(FUEL_DIR / "fuel-supplement")] + args)
-    elif subcommand == "meal":
+    if subcommand == "meal":
         subprocess.run([str(FUEL_DIR / "fuel-meal")] + args)
-    elif subcommand == "nutrition":
-        subprocess.run([str(FUEL_DIR / "fuel-nutrition")] + args)
+    elif subcommand == "supplement":
+        subprocess.run([str(FUEL_DIR / "fuel-supplement")] + args)
+    elif subcommand == "today":
+        show_combined_today()
+    elif subcommand == "list":
+        # Default list to supplements
+        subprocess.run([str(FUEL_DIR / "fuel-supplement"), "list"])
     elif subcommand in ("--help", "-h"):
-        subprocess.run([str(FUEL_DIR / "fuel-supplement"), "--help"])
+        print(__doc__)
     else:
         # Assume it's a supplement shorthand (e.g., `fuel melatonin`)
         subprocess.run([str(FUEL_DIR / "fuel-supplement")] + sys.argv[1:])
+
+def show_combined_today():
+    """Execute 'today' for both meal and supplement scripts."""
+    print("\n--- MEALS ---")
+    subprocess.run([str(FUEL_DIR / "fuel-meal"), "today"])
+    print("\n--- SUPPLEMENTS ---")
+    subprocess.run([str(FUEL_DIR / "fuel-supplement"), "today"])
 
 if __name__ == "__main__":
     main()

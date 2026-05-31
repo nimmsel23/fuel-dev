@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 """
-fuel-meal — Meal logging via fuel CLI (interactive, manual, Gemini-powered)
+fuel-meal — Meal logging CLI (interactive, manual, Gemini-powered)
 
 Usage:
-  fuel meal                              # Interactive fzf catalog browser
-  fuel meal "Nussschnecke" --kcal 250    # With manual macros
-  fuel meal "Wiener Schnitzel"           # Auto-estimate via Gemini
-  fuel meal "Name" --save-catalog        # Save to reusable catalog
+  fuel meal log "Nussschnecke" --kcal 250    # With manual macros
+  fuel meal log "Wiener Schnitzel"           # Auto-estimate via Gemini
+  fuel meal log "Name" --save-catalog        # Save to reusable catalog
+  fuel meal list                             # List meals in catalog
+  fuel meal today                            # Show today's meals
 """
 
 from __future__ import annotations
 
 import json
 import os
-import re
 import shutil
 import subprocess
 import sys
@@ -22,25 +22,12 @@ from pathlib import Path
 import urllib.request
 import urllib.error
 
-from loguru import logger
+import typer
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from rich.console import Console
+from rich.table import Table
 
 console = Console()
-
-# ── Load .env files (for Gemini API key) ──────────────────────────────────────
-
-def _load_env_file(path: Path) -> None:
-    if path.exists():
-        with open(path) as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith("#"):
-                    key, sep, value = line.partition("=")
-                    if sep:
-                        os.environ[key.strip()] = value.strip()
-
-_load_env_file(Path.home() / ".env" / "gemini.env")
 
 # ── API URLs ───────────────────────────────────────────────────────────────────
 
@@ -96,12 +83,14 @@ def _api_call(method: str, endpoint: str, body: dict | None = None) -> dict:
 def _parse_macros_with_gemini(description: str) -> dict:
     """Auto-estimate macros via standalone gemini-estimate script."""
     try:
+        fuel_dir = Path(__file__).resolve().parent
+        script_path = fuel_dir / "gemini-estimate"
+        
         result = subprocess.run(
-            ["./gemini-estimate", description],
+            [str(script_path), description],
             capture_output=True,
             text=True,
             timeout=15,
-            cwd=Path(__file__).parent,
         )
         if result.returncode == 0:
             macros = json.loads(result.stdout.strip())
@@ -171,13 +160,17 @@ def do_meal_interactive() -> None:
 
 # ── Meal Logging ───────────────────────────────────────────────────────────────
 
-def do_meal_log(description: str, kcal: float, protein: float, carbs: float, fat: float, notes: str, day: str | None, save_catalog: bool) -> None:
+def do_meal_log(description: str, kcal: float, protein: float, carbs: float, fat: float, notes: str, day: str | None, save_catalog: bool, qty: int = 1) -> None:
     today = day or date.today().isoformat()
+    qty = max(1, int(qty))
 
     if kcal == 0 and protein == 0 and carbs == 0 and fat == 0:
         gum_log("info", f"Gemini schätzt Makros für '{description}'...")
         macros = _parse_macros_with_gemini(description)
         kcal, protein, carbs, fat = macros.get("kcal", 0), macros.get("protein", 0), macros.get("carbs", 0), macros.get("fat", 0)
+
+    if qty > 1:
+        kcal, protein, carbs, fat = kcal * qty, protein * qty, carbs * qty, fat * qty
 
     try:
         MealInput(description=description, kcal=kcal, protein=protein, carbs=carbs, fat=fat, notes=notes)
@@ -189,12 +182,8 @@ def do_meal_log(description: str, kcal: float, protein: float, carbs: float, fat
         "date": today,
         "meal": {
             "meal_type": "lunch",
-            "description": description,
-            "kcal": kcal,
-            "protein": protein,
-            "carbs": carbs,
-            "fat": fat,
-            "notes": notes,
+            "description": f"{qty}x {description}" if qty > 1 else description,
+            "kcal": kcal, "protein": protein, "carbs": carbs, "fat": fat, "notes": notes,
         }
     }
 
@@ -203,73 +192,72 @@ def do_meal_log(description: str, kcal: float, protein: float, carbs: float, fat
 
     if save_catalog:
         catalog_item = {
-            "item": {
-                "name": description,
-                "kcal": kcal,
-                "protein": protein,
-                "carbs": carbs,
-                "fat": fat,
-            }
+            "item": { "name": description, "kcal": kcal/qty, "protein": protein/qty, "carbs": carbs/qty, "fat": fat/qty }
         }
-        try:
-            _api_call("POST", "/nutrition/catalog", catalog_item)
-            gum_log("info", f"Zum Catalog hinzugefügt: {description}")
-        except SystemExit:
-            pass
+        _api_call("POST", "/nutrition/catalog", catalog_item)
+        gum_log("info", f"Zum Catalog hinzugefügt: {description}")
 
-# ── CLI ────────────────────────────────────────────────────────────────────────
-
-def main():
-    logger.remove()
-
-    if len(sys.argv) == 1:
-        do_meal_interactive()
+def do_today(day: str | None) -> None:
+    today = day or date.today().isoformat()
+    try:
+        result = _api_call("GET", f"/nutrition/log?date={today}")
+        meals = result.get("data", {}).get("meals", [])
+    except SystemExit:
         return
 
-    description = None
-    kcal = 0
-    protein = 0
-    carbs = 0
-    fat = 0
-    notes = ""
-    day = None
-    save_catalog = False
+    if not meals:
+        console.print(f"[yellow]Keine Mahlzeiten geloggt am {today}[/yellow]")
+        return
 
-    args = sys.argv[1:]
-    i = 0
-    while i < len(args):
-        if args[i] in ("--kcal",):
-            kcal = float(args[i + 1]) if i + 1 < len(args) else 0
-            i += 2
-        elif args[i] in ("--protein",):
-            protein = float(args[i + 1]) if i + 1 < len(args) else 0
-            i += 2
-        elif args[i] in ("--carbs",):
-            carbs = float(args[i + 1]) if i + 1 < len(args) else 0
-            i += 2
-        elif args[i] in ("--fat",):
-            fat = float(args[i + 1]) if i + 1 < len(args) else 0
-            i += 2
-        elif args[i] in ("--notes", "-n"):
-            notes = args[i + 1] if i + 1 < len(args) else ""
-            i += 2
-        elif args[i] in ("--day", "-d"):
-            day = args[i + 1] if i + 1 < len(args) else None
-            i += 2
-        elif args[i] in ("--save-catalog", "-s"):
-            save_catalog = True
-            i += 1
-        elif not args[i].startswith("--") and not description:
-            description = args[i]
-            i += 1
-        else:
-            i += 1
+    table = Table(title=f"Mahlzeiten — {today}", show_header=True, header_style="bold green")
+    table.add_column("MAHLZEIT")
+    table.add_column("KCAL", justify="right")
+    table.add_column("P", justify="right")
+    table.add_column("K", justify="right")
+    table.add_column("F", justify="right")
 
-    if description:
-        do_meal_log(description, kcal, protein, carbs, fat, notes, day, save_catalog)
-    else:
-        gum_log("error", "Keine Mahlzeitbeschreibung gegeben")
-        raise SystemExit(1)
+    for m in meals:
+        table.add_row(m["description"], f"{m['kcal']:.0f}", f"{m['protein']:.1f}g", f"{m['carbs']:.1f}g", f"{m['fat']:.1f}g")
+    
+    console.print(table)
+
+# ── Typer App ──────────────────────────────────────────────────────────────────
+
+app = typer.Typer(help="Meal Logging CLI")
+
+@app.callback(invoke_without_command=True)
+def main(ctx: typer.Context) -> None:
+    if ctx.invoked_subcommand is None:
+        do_meal_interactive()
+
+@app.command(name="log")
+def log_command(
+    description: str = typer.Argument(..., help="Beschreibung"),
+    kcal: float = typer.Option(0, "--kcal"),
+    protein: float = typer.Option(0, "--protein"),
+    carbs: float = typer.Option(0, "--carbs"),
+    fat: float = typer.Option(0, "--fat"),
+    notes: str = typer.Option("", "--notes", "-n"),
+    day: str = typer.Option(None, "--day", "-d"),
+    save_catalog: bool = typer.Option(False, "--save-catalog", "-s"),
+    qty: int = typer.Option(1, "--qty", "-q"),
+) -> None:
+    do_meal_log(description, kcal, protein, carbs, fat, notes, day, save_catalog, qty)
+
+@app.command()
+def list() -> None:
+    result = _api_call("GET", "/nutrition/catalog")
+    items = result.get("items", [])
+    table = Table(title="Meal Catalog", show_header=True, header_style="bold magenta")
+    table.add_column("NAME")
+    table.add_column("KCAL", justify="right")
+    for i in items:
+        table.add_row(i["name"], f"{i.get('kcal',0):.0f}")
+    console.print(table)
+
+@app.command()
+def today(day: str = typer.Option(None, "--day", "-d")):
+    do_today(day)
 
 if __name__ == "__main__":
-    main()
+    app()
