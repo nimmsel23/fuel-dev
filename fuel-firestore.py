@@ -92,6 +92,9 @@ def _journal_path(d: str) -> Path:
 def _supplements_path(d: str) -> Path:
     return FUEL_DATA_DIR / "supplements" / "logs" / f"{d}.json"
 
+def _supplements_catalog_path() -> Path:
+    return FUEL_DATA_DIR / "supplements" / "catalog.json"
+
 
 # ── Datei-Helfer ──────────────────────────────────────────────────────────────
 
@@ -221,9 +224,38 @@ def _sync_journal(d: str, direction: str) -> dict:
     return {"journal_chars": len(result_content)}
 
 
+# ── Sync: Supplements Catalog ─────────────────────────────────────────────────
+
+def _sync_supplements_catalog(direction: str) -> dict:
+    fs = _get_fs()
+    local_path = _supplements_catalog_path()
+    local_items = _read_json(local_path, {"items": []}).get("items", [])
+
+    doc_ref = fs.collection("supplements").document(UID).collection("meta").document("catalog")
+    snap = doc_ref.get()
+    remote_items = snap.to_dict().get("items", []) if snap.exists else []
+
+    if direction == "push":
+        merged_items = _merge_by_id(local_items, remote_items)
+    elif direction == "pull":
+        merged_items = remote_items
+    else:  # bisync
+        # Für Kataloge nehmen wir an, dass die lokale Version die Master-Version ist,
+        # die vom Benutzer gepflegt wird, und Firestore nur ein Spiegel ist.
+        # Daher push-only bei bisync.
+        merged_items = _merge_by_id(local_items, remote_items)
+
+    # Schreiben der gemergten Daten lokal und in Firestore
+    _write_json(local_path, {"items": merged_items})
+    doc_ref.set({"items": merged_items}, merge=True)
+
+    return {"catalog_items": len(merged_items)}
+
+
 # ── Core sync ─────────────────────────────────────────────────────────────────
 
-def do_sync(d: str, direction: str) -> dict:
+
+def do_daily_sync(d: str, direction: str) -> dict:
     results: dict[str, Any] = {}
     for name, fn in [
         ("nutrition", _sync_nutrition),
@@ -234,6 +266,18 @@ def do_sync(d: str, direction: str) -> dict:
             results[name] = fn(d, direction)
         except Exception as e:
             logger.error(f"fuel-firestore: {name} sync fehlgeschlagen ({d}): {e}")
+            results[name] = {"error": str(e)}
+    return results
+
+def do_catalog_sync(direction: str) -> dict:
+    results: dict[str, Any] = {}
+    for name, fn in [
+        ("supplements_catalog", _sync_supplements_catalog),
+    ]:
+        try:
+            results[name] = fn(direction)
+        except Exception as e:
+            logger.error(f"fuel-firestore: {name} sync fehlgeschlagen: {e}")
             results[name] = {"error": str(e)}
     return results
 
@@ -269,8 +313,9 @@ async def handle_ping(request: web.Request) -> web.Response:
     d = date.today().isoformat()
     logger.info(f"fuel-firestore: ping → bisync {d}")
     try:
-        results = do_sync(d, "bisync")
-        return web.json_response({"ok": True, "date": d, "direction": "bisync", **results})
+        daily_results = do_daily_sync(d, "bisync")
+        catalog_results = do_catalog_sync("bisync") # Catalog always syncs on "bisync"
+        return web.json_response({"ok": True, "date": d, "direction": "bisync", **daily_results, **catalog_results})
     except Exception as e:
         logger.error(f"fuel-firestore ping error: {e}")
         return web.json_response({"ok": False, "error": str(e)}, status=500)
@@ -280,8 +325,9 @@ async def handle_sync(request: web.Request) -> web.Response:
     d = _get_date(request)
     logger.info(f"fuel-firestore: bisync {d}")
     try:
-        results = do_sync(d, "bisync")
-        return web.json_response({"ok": True, "date": d, "direction": "bisync", **results})
+        daily_results = do_daily_sync(d, "bisync")
+        catalog_results = do_catalog_sync("bisync")
+        return web.json_response({"ok": True, "date": d, "direction": "bisync", **daily_results, **catalog_results})
     except Exception as e:
         return web.json_response({"ok": False, "error": str(e)}, status=500)
 
@@ -290,8 +336,9 @@ async def handle_push(request: web.Request) -> web.Response:
     d = _get_date(request)
     logger.info(f"fuel-firestore: push {d} → Firestore")
     try:
-        results = do_sync(d, "push")
-        return web.json_response({"ok": True, "date": d, "direction": "push", **results})
+        daily_results = do_daily_sync(d, "push")
+        catalog_results = do_catalog_sync("push")
+        return web.json_response({"ok": True, "date": d, "direction": "push", **daily_results, **catalog_results})
     except Exception as e:
         return web.json_response({"ok": False, "error": str(e)}, status=500)
 
@@ -300,8 +347,9 @@ async def handle_pull(request: web.Request) -> web.Response:
     d = _get_date(request)
     logger.info(f"fuel-firestore: pull {d} ← Firestore")
     try:
-        results = do_sync(d, "pull")
-        return web.json_response({"ok": True, "date": d, "direction": "pull", **results})
+        daily_results = do_daily_sync(d, "pull")
+        catalog_results = do_catalog_sync("pull")
+        return web.json_response({"ok": True, "date": d, "direction": "pull", **daily_results, **catalog_results})
     except Exception as e:
         return web.json_response({"ok": False, "error": str(e)}, status=500)
 

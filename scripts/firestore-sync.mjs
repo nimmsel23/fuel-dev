@@ -212,7 +212,6 @@ async function push(uid = UID_DEFAULT) {
             updated_at: admin.firestore.FieldValue.serverTimestamp()
         });
         console.log(`  ✅ fuel.micros.catalog[${micros.length} items] -> firebase shared`);
-      }
       dbSqlite.close();
   }
   }
