@@ -3,18 +3,18 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // Nutrition & Supplements (Fuel Centre)
     match /nutrition/{uid}/{document=**} {
-      allow read, write: if request.auth != null && (request.auth.uid == uid || uid == "default");
+      allow read, write: if request.auth != null && request.auth.uid == uid;
     }
     match /supplements/{uid}/{document=**} {
-      allow read, write: if request.auth != null && (request.auth.uid == uid || uid == "default");
+      allow read, write: if request.auth != null && request.auth.uid == uid;
     }
     
     // Relax & Physio (Knowledge Base & Sessions)
     match /relax/{uid}/{document=**} {
-      allow read, write: if request.auth != null && (request.auth.uid == uid || uid == "default");
+      allow read, write: if request.auth != null && request.auth.uid == uid;
     }
     match /fitness/{uid}/{document=**} {
-      allow read, write: if request.auth != null && (request.auth.uid == uid || uid == "default");
+      allow read, write: if request.auth != null && request.auth.uid == uid;
     }
     
     // Global Knowledge (optional, readable by all authenticated users)

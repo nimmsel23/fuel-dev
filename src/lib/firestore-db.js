@@ -24,14 +24,11 @@ import {
 } from "firebase/auth";
 import { db, auth, googleProvider } from "./firebase.js";
 
-let currentUid = "default";
-
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
 export function watchAuth(callback) {
   return onAuthStateChanged(auth, (user) => {
-    currentUid = user ? user.uid : "default";
-    console.log(`[Auth] User status changed: ${user ? user.email : "logged out"} (UID: ${currentUid})`);
+    console.log(`[Auth] User status changed: ${user ? user.email : "logged out"}`);
     callback(user);
   });
 }
@@ -57,7 +54,8 @@ export async function signOut() {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 export function getUid() {
-  return auth.currentUser?.uid || currentUid;
+  if (!auth.currentUser) throw new Error("User not authenticated");
+  return auth.currentUser.uid;
 }
 
 export { serverTimestamp, db };
