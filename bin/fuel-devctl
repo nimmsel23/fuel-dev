@@ -2,11 +2,13 @@
 set -euo pipefail
 
 PORT="${PORT:-9000}"
+PROD_PORT="${PROD_PORT:-7000}"
 VITE_PORT="${VITE_PORT:-5173}"
 HEALTH_URL="http://127.0.0.1:${PORT}/health"
-V2_URL="http://127.0.0.1:${PORT}/v2"
-# Fix: DEV_DIR should point to the repo root, not the bin/ folder
+PROD_HEALTH_URL="http://127.0.0.1:${PROD_PORT}/health"
+# DEV_DIR points to the repo root
 DEV_DIR="$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/.." && pwd)"
+PROD_DIR="/opt/aos/fuel"
 LOGFILE="${LOGFILE:-/tmp/fuelctx-dev.log}"
 PIDFILE="${PIDFILE:-/tmp/fuelctx-dev.pid}"
 
@@ -22,12 +24,17 @@ cmd_status() {
     if [[ -f "$PIDFILE" ]]; then
       pid="$(cat "$PIDFILE" 2>/dev/null || true)"
     fi
-    msg "fuel-dev is running on :$PORT (pid: ${pid:-unknown})"
-    printf 'health: %s\n' "$HEALTH_URL"
-    printf 'v2:     %s\n' "$V2_URL"
+    msg "fuel-dev (LOKAL) is running on :$PORT (pid: ${pid:-unknown})"
+    printf 'URL: http://127.0.0.1:%s\n' "$PORT"
   else
-    warn "fuel-dev is not responding on :$PORT"
-    return 1
+    warn "fuel-dev (LOKAL) is not responding on :$PORT"
+  fi
+
+  if curl -fsS --connect-timeout 1 --max-time 2 "$PROD_HEALTH_URL" >/dev/null 2>&1; then
+    msg "fuel-prod (STABLE) is running on :$PROD_PORT"
+    printf 'URL: http://127.0.0.1:%s\n' "$PROD_PORT"
+  else
+    warn "fuel-prod (STABLE) is not responding on :$PROD_PORT"
   fi
 }
 
@@ -45,8 +52,7 @@ cmd_start() {
 
   if curl -fsS --connect-timeout 1 --max-time 3 "$HEALTH_URL" >/dev/null 2>&1; then
     msg "started fuel-dev"
-    printf 'health: %s\n' "$HEALTH_URL"
-    printf 'v2:     %s\n' "$V2_URL"
+    printf 'URL: http://127.0.0.1:%s\n' "$PORT"
   else
     warn "fuel-dev did not come up cleanly; last log lines:"
     tail -30 "$LOGFILE" || true
@@ -87,29 +93,34 @@ cmd_logs() {
   fi
 }
 
-cmd_health() {
-  local out
-  if out="$(curl -fsS --connect-timeout 3 --max-time 8 "$HEALTH_URL" 2>&1)"; then
-    msg "health OK  $HEALTH_URL"
-    echo "$out"
+cmd_build() {
+  local mode="${1:-coach}"
+  if [[ "$mode" == "client" ]]; then
+    msg "==> Building Client PWA (V2)"
+    cd "$DEV_DIR"
+    npm run build:client
   else
-    warn "health FAIL  $HEALTH_URL"
-    exit 1
+    msg "==> Building Coach Zentrale (V3)"
+    cd "$DEV_DIR"
+    npm run build:coach
   fi
 }
 
-cmd_build() {
-  msg "==> Building Coach V3"
-  cd "$DEV_DIR"
-  npm run build:coach
-}
-
 cmd_deploy() {
-  local target="/opt/aos/fuel"
+  local target="$PROD_DIR"
+  
+  if have_gum; then
+    gum confirm "Möchtest du das stable Backend nach $target deployen?" || die "Abgebrochen."
+  else
+    printf "Möchtest du das stable Backend nach %s deployen? (y/N) " "$target"
+    read -r resp
+    [[ "$resp" == "y" || "$resp" == "Y" ]] || die "Abgebrochen."
+  fi
+
   msg "==> Deploying stable prod backend to $target"
 
   # 1. Build Coach V3 (Backend + Full UI)
-  cmd_build
+  cmd_build coach
 
   # 2. Ensure target exists
   if [[ ! -d "$target" ]]; then
@@ -136,7 +147,7 @@ cmd_deploy() {
   (cd "$target" && npm install --production --silent)
 
   msg "✅ Deployment to $target complete."
-  msg "Start with: cd $target && npm run prod"
+  msg "Start mit: cd $target && npm run prod"
 }
 
 cmd_dev() {
@@ -160,23 +171,21 @@ cmd_help() {
 fuel-devctl — DEV control for fuel-dev (local Node API + Vite)
 
 Commands:
-  status      check whether fuel-dev responds on :$PORT
-  start       start npm run dev in background
+  status      check LOKAL and STABLE backend status
+  start       start LOKAL npm run dev in background
   stop        stop background fuel-dev processes
   restart     restart background fuel-dev processes
   logs        tail $LOGFILE
-  health      GET $HEALTH_URL
-  build       npm run build:coach
-  deploy      sync Coach V3 to /opt/aos/fuel (PROD)
+  build       [coach|client] build frontend
+  deploy      sync Coach V3 to $PROD_DIR (PROD)
   dev         run npm run dev in foreground
   gitstatus   git status of fuel-dev repo
   help        this message
 
 Repo:    $DEV_DIR
-Health:  $HEALTH_URL
-v2:      $V2_URL
-Log:     $LOGFILE
-PID:     $PIDFILE
+STABLE:  $PROD_DIR
+Local:   http://127.0.0.1:$PORT
+Stable:  http://127.0.0.1:$PROD_PORT
 EOF
 }
 
@@ -186,8 +195,7 @@ case "${1:-help}" in
   stop)           cmd_stop ;;
   restart)        cmd_restart ;;
   logs)           cmd_logs ;;
-  health)         cmd_health ;;
-  build)          cmd_build ;;
+  build)          cmd_build "${2:-coach}" ;;
   deploy)         cmd_deploy ;;
   dev)            cmd_dev ;;
   gitstatus)      cmd_gitstatus ;;
