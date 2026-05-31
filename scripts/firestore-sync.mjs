@@ -4,6 +4,7 @@
  */
 
 import admin from "firebase-admin";
+import Database from "better-sqlite3";
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from "node:fs";
 import { join, resolve, basename } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -199,21 +200,22 @@ async function push(uid = UID_DEFAULT) {
     });
   }
 
-  // 5. Micros Catalog (from SQLite)
+  // 5. Micros Catalog (Global Shared from SQLite)
   const dbPath = join(DATA_DIR, "nutrition", "nutrition.db");
   if (existsSync(dbPath)) {
       const dbSqlite = new Database(dbPath);
       const micros = dbSqlite.prepare("SELECT * FROM meal_micros").all();
       if (micros.length > 0) {
-        await db.collection("nutrition").doc(uid).collection("meta").doc("micros").set({
+        // Push to shared public path
+        await db.collection("nutrition").doc("public").collection("meta").doc("micros").set({
             items: micros,
             updated_at: admin.firestore.FieldValue.serverTimestamp()
         });
-        console.log(`  ✅ fuel.micros.catalog[${micros.length} items] -> firebase ok`);
+        console.log(`  ✅ fuel.micros.catalog[${micros.length} items] -> firebase shared`);
       }
       dbSqlite.close();
   }
-
+  }
   console.log("✅ Push abgeschlossen.");
 }
 
