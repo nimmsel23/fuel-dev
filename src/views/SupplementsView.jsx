@@ -88,6 +88,7 @@ export default function SupplementsView({ date, sup, catalog, suppLog }) {
     onSuccess: (_, values) => {
       queryClient.invalidateQueries({ queryKey: ["supp-log", values.date] });
       queryClient.invalidateQueries({ queryKey: ["supp-stats", values.date] });
+      queryClient.invalidateQueries({ queryKey: ["nutrition-weekly"] });
     },
   });
 

@@ -28,6 +28,7 @@ export default function FoodView({ activeDate, nutrition }) {
     try {
       await postJson("/nutrition/ai-log", { text: aiText, date: activeDate });
       qc.invalidateQueries({ queryKey: ["nutrition", activeDate] });
+      qc.invalidateQueries({ queryKey: ["nutrition-weekly"] });
       qc.invalidateQueries({ queryKey: ["nutrition-catalog"] });
       setAiText("");
     } catch (err) {

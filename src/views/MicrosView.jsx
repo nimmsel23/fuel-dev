@@ -1,3 +1,4 @@
+import React from "react";
 import { useQueries } from "@tanstack/react-query";
 
 const NUTRIENTS = [
@@ -129,8 +130,8 @@ export default function MicrosView() {
 
           {/* Nutrient rows */}
           {NUTRIENTS.map(({ key, label, unit }) => (
-            <>
-              <div key={key + "-label"} className="flex items-center pr-2 text-sm font-medium text-slate-300">
+            <React.Fragment key={key}>
+              <div className="flex items-center pr-2 text-sm font-medium text-slate-300">
                 {label}
                 <span className="ml-1 text-[10px] text-slate-500">{unit}</span>
               </div>
@@ -146,7 +147,7 @@ export default function MicrosView() {
                   />
                 );
               })}
-            </>
+            </React.Fragment>
           ))}
         </div>
       </div>
