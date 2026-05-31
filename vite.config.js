@@ -6,8 +6,8 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const appMode = process.env.VITE_APP_MODE || env.VITE_APP_MODE || "v2";
   
-  // Split output directories: v2 builds to dist/ (local server default), client builds to dist-client/
-  const outDir = appMode === "client" ? "./dist-client" : "./dist";
+  // Split output directories: v2 builds to dist/ (local server default), v3 builds to dist-firebase/
+  const outDir = appMode === "v3" || appMode === "client" ? "./dist-firebase" : "./dist";
 
   console.log(`🚀 Building for mode: ${mode}, APP_MODE: ${appMode} -> outDir: ${outDir}`);
 
@@ -83,10 +83,10 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       host: "0.0.0.0",
-      port: 5173,
+      port: 9001,
       hmr: {
         host: "localhost",
-        port: 5173,
+        port: 9001,
       },
       proxy: {
         "/nutrition": "http://127.0.0.1:9000",

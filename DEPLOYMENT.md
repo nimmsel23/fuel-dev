@@ -1,56 +1,54 @@
 # Fuel Centre — Deployment & App-Architektur
 
-Dieses Dokument beschreibt die Trennung zwischen der **Cloud-Instanz (V3)** und der **lokalen Instanz (V2)**.
+Dieses Dokument beschreibt die Trennung zwischen der **Firebase PWA (V3)** und der **Desktop Produktion (V2)**.
 
 ## 1. Die zwei Welten
 
 Fuel Centre operiert in zwei getrennten Umgebungen mit unterschiedlichen Schwerpunkten.
 
-### Cloud-PWA (V3)
-- **Status:** Die moderne, AI-gestützte Version für das Handy.
+### Firebase PWA (V3)
+- **Status:** Die moderne, AI-gestützte Version für das Handy (Cloud).
 - **Umgebung:** Firebase Hosting (`fuel-aos.web.app`)
-- **Daten:** Google Firestore (Cloud)
+- **Daten:** Google Firestore (Cloud-Schnittstelle).
 - **Features:** Schnelles AI-Logging, Heatmap, Dashboard.
-- **Build-Befehl:** `fuelctl dev build client` (Erzeugt `dist-client/`)
+- **Build-Befehl:** `fuelctl dev build v3` (Erzeugt `dist-firebase/`)
 
-### Lokale Instanz (V2)
-- **Status:** Die originale Power-Version (Pre-Firebase) für den Desktop.
+### Desktop Produktion (V2)
+- **Status:** Die komplette Backend-Version mit Katalog-Management (Enhancement).
 - **Umgebung:** Lokaler Node.js Server (Port 7000), Pfad: `/opt/fuel`
 - **Daten:** Lokale JSON-Dateien (`data/`) & SQLite.
-- **Features:** Recipe Builder, wger-Suche, lokaler Katalog-Master.
+- **Features:** Vollständiges Backend, Inhaltsstoff-Suche, lokaler Katalog-Master.
 - **Start:** `npm run prod` im Ordner `/opt/fuel`.
 
 ---
 
-## 2. Deployment-Prozess (V3)
+## 2. Automatisierung & Daemons
 
-Das Deployment nach Firebase erfolgt nur bei Änderungen am Client-Code automatisch (via Git-Hook). Manuell kann es so ausgelöst werden:
+### Firestore Sync Watcher
+Ein Daemon-Prozess überwacht lokale Änderungen und gleicht sie mit der Cloud ab.
+- **Service:** `fuel-sync-watcher.service`
+- **Script:** `scripts/firestore-sync.mjs watch`
 
-1.  **Build erzeugen:**
-    ```bash
-    fuelctl dev build client
-    ```
-2.  **Deploy nach Firebase:**
-    ```bash
-    firebase deploy --only hosting
-    ```
+### Inbox (Geplant)
+Eine Inbox-Funktion für die schnelle Erfassung von Rohdaten zur späteren Katalogisierung.
 
 ---
 
-## 3. System-Steuerung (`fuelctl`)
+## 3. Deployment-Prozess (V3)
+
+Das Deployment nach Firebase erfolgt automatisch bei Änderungen am Frontend (via Git-Hook).
+
+1.  **Manueller Build:** `fuelctl dev build v3`
+2.  **Manueller Deploy:** `firebase deploy --only hosting`
+
+*Hinweis: Firebase ist so konfiguriert, dass es ausschließlich aus dem Verzeichnis `dist-firebase/` veröffentlicht.*
+
+---
+
+## 4. System-Steuerung (`fuelctl`)
 
 Das Tool `fuelctl` dient als Master-Controller für die lokale Umgebung.
 
-- **`fuelctl status`**: Zeigt den Zustand von Dev (9000), V2 (7000) und Sync an.
+- **`fuelctl status`**: Zeigt den Zustand von Dev (9000), V2 (7000) und dem Sync-Watcher an.
 - **`fuelctl dev up`**: Startet das lokale Entwicklungslabor (Port 9000).
-- **`fuelctl sync`**: Gleicht lokale Daten (V2) mit der Cloud (V3) ab.
-
----
-
-## 4. Lokale Entwicklung
-
-Für die Arbeit an der modernen V3-Basis:
-```bash
-fuelctl dev up
-```
-Dies startet das Backend auf Port 9000 und die UI auf 5173.
+- **`fuelctl sync`**: Manueller Datenabgleich zwischen V2 (Lokal) und V3 (Cloud).

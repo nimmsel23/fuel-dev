@@ -94,7 +94,7 @@ function App() {
   const isClientBuild = import.meta.env.VITE_APP_MODE === "client";
 
   React.useEffect(() => {
-    document.title = (isCloud || isClientBuild) ? "Fuel Centre v3" : "Fuel Centre v2";
+    document.title = (isCloud || isClientBuild) ? "Fuel Centre V3 (Firebase PWA)" : "Fuel Centre V2 (Desktop Prod)";
   }, [isCloud, isClientBuild]);
 
   return (
@@ -106,7 +106,7 @@ function App() {
               <div className="flex items-center gap-3 mb-2">
                 <p className="inline-flex items-center gap-2 rounded-full border border-orange-400/30 bg-orange-400/10 px-3 py-1 text-xs uppercase tracking-[0.25em] text-orange-200">
                   <Sparkles className="h-3.5 w-3.5" />
-                  {(isCloud || isClientBuild) ? "Fuel Centre v3" : "Fuel Centre v2"}
+                  {(isCloud || isClientBuild) ? "Fuel Centre V3" : "Fuel Centre V2"}
                 </p>
                 {isCloud && (
                   user ? (

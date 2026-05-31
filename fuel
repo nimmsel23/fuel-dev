@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-fuel — Smart logging dispatcher with fzf-browsing.
+fuel — Typer-powered smart logging dispatcher.
 """
 
 import json
@@ -17,7 +17,7 @@ FUEL_DIR = Path(__file__).resolve().parent
 CATALOG_PATH = Path(os.environ.get("AOS_FUEL_DIR", Path.home() / ".aos" / "fuel")) / "supplements" / "catalog.json"
 
 def load_supplement_ids():
-    """Load supplement IDs from catalog."""
+    """Load supplement IDs from catalog for smart routing."""
     if not CATALOG_PATH.exists():
         return set()
     try:
@@ -35,12 +35,12 @@ def show_combined_today():
 
 @app.command()
 def meal(ctx: typer.Context):
-    """Interactive meal browser or explicit routing."""
+    """Route to fuel-meal."""
     subprocess.run([str(FUEL_DIR / "fuel-meal")] + ctx.args)
 
 @app.command()
 def supplement(ctx: typer.Context):
-    """Interactive supplement browser or explicit routing."""
+    """Route to fuel-supplement."""
     subprocess.run([str(FUEL_DIR / "fuel-supplement")] + ctx.args)
 
 @app.command()
@@ -54,15 +54,17 @@ def list():
     subprocess.run([str(FUEL_DIR / "fuel-supplement"), "list"])
 
 def main():
-    # 1. No args -> Open Interactive Supplement Browser (fzf)
+    # 1. Check for basic no-args case
     if len(sys.argv) == 1:
-        subprocess.run([str(FUEL_DIR / "fuel-supplement")])
+        show_combined_today()
         return
 
+    # 2. Extract first argument to check if it's a known command or a shorthand
     first_arg = sys.argv[1]
     
-    # 2. Check for explicit commands
+    # List of explicit commands that Typer should handle
     KNOWN_COMMANDS = {"meal", "supplement", "today", "list", "--help", "-h"}
+    
     if first_arg in KNOWN_COMMANDS:
         app()
         return
@@ -71,9 +73,11 @@ def main():
     supp_ids = load_supplement_ids()
     
     if first_arg in supp_ids:
+        # Route to supplement shorthand
         subprocess.run([str(FUEL_DIR / "fuel-supplement")] + sys.argv[1:])
     else:
-        # Route to meal log
+        # Route everything else to meal log
+        # Ensure we're calling fuel-meal correctly from within the dispatcher
         subprocess.run([str(FUEL_DIR / "fuel-meal"), "log"] + sys.argv[1:])
 
 if __name__ == "__main__":

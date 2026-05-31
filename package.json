@@ -9,7 +9,7 @@
     "start": "node server.mjs",
     "ui:dev": "vite",
     "build": "VITE_APP_MODE=v2 vite build",
-    "build:client": "VITE_APP_MODE=client vite build",
+    "build:v3": "VITE_APP_MODE=v3 vite build",
     "build:v2": "VITE_APP_MODE=v2 vite build",
     "prod": "PORT=7000 HOST=0.0.0.0 FUEL_STATIC_DIR=/opt/fuel node server.mjs",
     "sync:push": "node --env-file-if-exists=.env scripts/firestore-sync.mjs push",
