@@ -17,6 +17,11 @@ Fuel Centre operiert in zwei völlig getrennten Umgebungen, die auf demselben Qu
 - **Daten:** Lokale JSON-Dateien (`data/`) & SQLite.
 - **Features:** Voller Zugriff auf wger-Suche, Recipe Builder (Compose), lokale Katalog-Pflege.
 - **Build-Befehl:** `npm run build:coach` (Erzeugt `dist/`)
+- **Deployment (Stable Backend):**
+  ```bash
+  bin/fuel-devctl deploy
+  ```
+  *Dies synchronisiert den Stand nach `/opt/aos/fuel` und installiert nur Production-Dependencies.*
 
 ---
 

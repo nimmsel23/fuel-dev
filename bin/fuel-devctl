@@ -5,7 +5,8 @@ PORT="${PORT:-9000}"
 VITE_PORT="${VITE_PORT:-5173}"
 HEALTH_URL="http://127.0.0.1:${PORT}/health"
 V2_URL="http://127.0.0.1:${PORT}/v2"
-DEV_DIR="$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")" && pwd)"
+# Fix: DEV_DIR should point to the repo root, not the bin/ folder
+DEV_DIR="$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/.." && pwd)"
 LOGFILE="${LOGFILE:-/tmp/fuelctx-dev.log}"
 PIDFILE="${PIDFILE:-/tmp/fuelctx-dev.pid}"
 
@@ -98,9 +99,44 @@ cmd_health() {
 }
 
 cmd_build() {
-  msg "==> npm run build"
+  msg "==> Building Coach V3"
   cd "$DEV_DIR"
-  npm run build
+  npm run build:coach
+}
+
+cmd_deploy() {
+  local target="/opt/aos/fuel"
+  msg "==> Deploying stable prod backend to $target"
+
+  # 1. Build Coach V3 (Backend + Full UI)
+  cmd_build
+
+  # 2. Ensure target exists
+  if [[ ! -d "$target" ]]; then
+    warn "$target does not exist. Creating it..."
+    sudo mkdir -p "$target"
+    sudo chown "$(id -u):$(id -g)" "$target"
+  fi
+
+  # 3. Sync core files (excluding dev junk and local dynamic logs)
+  msg "Syncing files..."
+  rsync -avz --delete \
+    --exclude ".git" \
+    --exclude ".env" \
+    --exclude "node_modules" \
+    --exclude "data" \
+    --exclude "dist-client" \
+    --exclude ".firebase" \
+    --exclude ".archiv" \
+    --exclude ".bak" \
+    "$DEV_DIR/" "$target/"
+
+  # 4. Install production dependencies
+  msg "Installing production dependencies in $target..."
+  (cd "$target" && npm install --production --silent)
+
+  msg "✅ Deployment to $target complete."
+  msg "Start with: cd $target && npm run prod"
 }
 
 cmd_dev() {
@@ -130,7 +166,8 @@ Commands:
   restart     restart background fuel-dev processes
   logs        tail $LOGFILE
   health      GET $HEALTH_URL
-  build       npm run build
+  build       npm run build:coach
+  deploy      sync Coach V3 to /opt/aos/fuel (PROD)
   dev         run npm run dev in foreground
   gitstatus   git status of fuel-dev repo
   help        this message
@@ -151,6 +188,7 @@ case "${1:-help}" in
   logs)           cmd_logs ;;
   health)         cmd_health ;;
   build)          cmd_build ;;
+  deploy)         cmd_deploy ;;
   dev)            cmd_dev ;;
   gitstatus)      cmd_gitstatus ;;
   help|--help|-h) cmd_help ;;
