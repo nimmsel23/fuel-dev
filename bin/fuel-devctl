@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# fuel-devctl — Dedicated control for LOCAL development stack (Port 9000)
+
 PORT="${PORT:-9000}"
-PROD_PORT="${PROD_PORT:-7000}"
 VITE_PORT="${VITE_PORT:-5173}"
 HEALTH_URL="http://127.0.0.1:${PORT}/health"
-PROD_HEALTH_URL="http://127.0.0.1:${PROD_PORT}/health"
 # DEV_DIR points to the repo root
 DEV_DIR="$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/.." && pwd)"
-PROD_DIR="/opt/aos/fuel"
 LOGFILE="${LOGFILE:-/tmp/fuelctx-dev.log}"
 PIDFILE="${PIDFILE:-/tmp/fuelctx-dev.pid}"
 
@@ -28,13 +27,7 @@ cmd_status() {
     printf 'URL: http://127.0.0.1:%s\n' "$PORT"
   else
     warn "fuel-dev (LOKAL) is not responding on :$PORT"
-  fi
-
-  if curl -fsS --connect-timeout 1 --max-time 2 "$PROD_HEALTH_URL" >/dev/null 2>&1; then
-    msg "fuel-prod (STABLE) is running on :$PROD_PORT"
-    printf 'URL: http://127.0.0.1:%s\n' "$PROD_PORT"
-  else
-    warn "fuel-prod (STABLE) is not responding on :$PROD_PORT"
+    return 1
   fi
 }
 
@@ -95,97 +88,40 @@ cmd_logs() {
 
 cmd_build() {
   local mode="${1:-coach}"
+  cd "$DEV_DIR"
   if [[ "$mode" == "client" ]]; then
     msg "==> Building Client PWA (V2)"
-    cd "$DEV_DIR"
     npm run build:client
   else
     msg "==> Building Coach Zentrale (V3)"
-    cd "$DEV_DIR"
     npm run build:coach
   fi
 }
 
-cmd_deploy() {
-  local target="$PROD_DIR"
-  
-  if have_gum; then
-    gum confirm "Möchtest du das stable Backend nach $target deployen?" || die "Abgebrochen."
-  else
-    printf "Möchtest du das stable Backend nach %s deployen? (y/N) " "$target"
-    read -r resp
-    [[ "$resp" == "y" || "$resp" == "Y" ]] || die "Abgebrochen."
-  fi
-
-  msg "==> Deploying stable prod backend to $target"
-
-  # 1. Build Coach V3 (Backend + Full UI)
-  cmd_build coach
-
-  # 2. Ensure target exists
-  if [[ ! -d "$target" ]]; then
-    warn "$target does not exist. Creating it..."
-    sudo mkdir -p "$target"
-    sudo chown "$(id -u):$(id -g)" "$target"
-  fi
-
-  # 3. Sync core files (excluding dev junk and local dynamic logs)
-  msg "Syncing files..."
-  rsync -avz --delete \
-    --exclude ".git" \
-    --exclude ".env" \
-    --exclude "node_modules" \
-    --exclude "data" \
-    --exclude "dist-client" \
-    --exclude ".firebase" \
-    --exclude ".archiv" \
-    --exclude ".bak" \
-    "$DEV_DIR/" "$target/"
-
-  # 4. Install production dependencies
-  msg "Installing production dependencies in $target..."
-  (cd "$target" && npm install --production --silent)
-
-  msg "✅ Deployment to $target complete."
-  msg "Start mit: cd $target && npm run prod"
-}
-
 cmd_dev() {
   msg "Starting fuel-dev in foreground..."
-  msg "API:  :$PORT"
-  msg "Vite: :$VITE_PORT"
   cd "$DEV_DIR"
   PORT="$PORT" FUEL_VITE_ORIGIN="http://127.0.0.1:${VITE_PORT}" npm run dev
 }
 
-cmd_gitstatus() {
-  if [[ ! -d "$DEV_DIR/.git" ]]; then
-    die "no .git in $DEV_DIR"
-  fi
-  msg "==> fuel-dev git status"
-  git -C "$DEV_DIR" status --short --branch
-}
-
 cmd_help() {
   cat <<EOF
-fuel-devctl — DEV control for fuel-dev (local Node API + Vite)
+fuel-devctl — Dedicated control for LOCAL development stack
 
 Commands:
-  status      check LOKAL and STABLE backend status
+  status      check LOKAL backend status
   start       start LOKAL npm run dev in background
   stop        stop background fuel-dev processes
   restart     restart background fuel-dev processes
   logs        tail $LOGFILE
   build       [coach|client] build frontend
-  deploy      sync Coach V3 to $PROD_DIR (PROD)
   dev         run npm run dev in foreground
-  gitstatus   git status of fuel-dev repo
   help        this message
 
 Repo:    $DEV_DIR
-STABLE:  $PROD_DIR
-Local:   http://127.0.0.1:$PORT
-Stable:  http://127.0.0.1:$PROD_PORT
+URL:     http://127.0.0.1:$PORT
+Log:     $LOGFILE
+PID:     $PIDFILE
 EOF
 }
 
@@ -196,9 +132,7 @@ case "${1:-help}" in
   restart)        cmd_restart ;;
   logs)           cmd_logs ;;
   build)          cmd_build "${2:-coach}" ;;
-  deploy)         cmd_deploy ;;
   dev)            cmd_dev ;;
-  gitstatus)      cmd_gitstatus ;;
   help|--help|-h) cmd_help ;;
   *) die "unknown command: $1 (try: fuel-devctl help)" ;;
 esac

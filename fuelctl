@@ -6,7 +6,10 @@ set -euo pipefail
 PORT="${PORT:-9000}"
 PROD_PORT="${PROD_PORT:-7000}"
 VITE_PORT="${VITE_PORT:-5173}"
+HEALTH_URL="http://127.0.0.1:${PORT}/health"
+PROD_HEALTH_URL="http://127.0.0.1:${PROD_PORT}/health"
 WORKDIR="$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")" && pwd)"
+PROD_DIR="/opt/aos/fuel"
 BIN_DEVCTL="$WORKDIR/bin/fuel-devctl"
 SYNC_SCRIPT="$WORKDIR/scripts/firestore-sync.mjs"
 
@@ -20,7 +23,17 @@ die()  { err "$*"; exit 1; }
 # --- Commands ---
 
 cmd_status() {
-  "$BIN_DEVCTL" status
+  "$BIN_DEVCTL" status || true
+  
+  msg "--- Production Server (STABLE) ---"
+  if curl -fsS --connect-timeout 1 --max-time 2 "$PROD_HEALTH_URL" >/dev/null 2>&1; then
+    msg "● fuel-prod is running on :$PROD_PORT"
+    printf 'URL:  http://127.0.0.1:%s\n' "$PROD_PORT"
+    printf 'Path: %s\n' "$PROD_DIR"
+  else
+    warn "○ fuel-prod is NOT responding on :$PROD_PORT"
+  fi
+
   msg "--- Firestore Sync ---"
   if pgrep -f "firestore-sync.mjs watch" > /dev/null; then
     msg "● Sync Watcher is active"
@@ -62,7 +75,47 @@ cmd_sync() {
 }
 
 cmd_deploy() {
-  "$BIN_DEVCTL" deploy
+  local target="$PROD_DIR"
+  
+  if have_gum; then
+    gum confirm "Möchtest du das stable Backend nach $target deployen?" || die "Abgebrochen."
+  else
+    printf "Möchtest du das stable Backend nach %s deployen? (y/N) " "$target"
+    read -r resp
+    [[ "$resp" == "y" || "$resp" == "Y" ]] || die "Abgebrochen."
+  fi
+
+  msg "==> Deploying stable prod backend to $target"
+
+  # 1. Build Coach V3 (Backend + Full UI)
+  "$BIN_DEVCTL" build coach
+
+  # 2. Ensure target exists
+  if [[ ! -d "$target" ]]; then
+    warn "$target does not exist. Creating it..."
+    sudo mkdir -p "$target"
+    sudo chown "$(id -u):$(id -g)" "$target"
+  fi
+
+  # 3. Sync core files (excluding dev junk and local dynamic logs)
+  msg "Syncing files..."
+  rsync -avz --delete \
+    --exclude ".git" \
+    --exclude ".env" \
+    --exclude "node_modules" \
+    --exclude "data" \
+    --exclude "dist-client" \
+    --exclude ".firebase" \
+    --exclude ".archiv" \
+    --exclude ".bak" \
+    "$WORKDIR/" "$target/"
+
+  # 4. Install production dependencies
+  msg "Installing production dependencies in $target..."
+  (cd "$target" && npm install --production --silent)
+
+  msg "✅ Deployment to $target complete."
+  msg "Start mit: cd $target && npm run prod"
 }
 
 cmd_build() {
@@ -84,12 +137,12 @@ Usage:
   fuelctl down            Stop development stack
   fuelctl logs            Tail development logs
   fuelctl sync [action]   Cloud sync (push, pull, watch)
-  fuelctl deploy          Update stable prod backend (/opt/aos/fuel)
+  fuelctl deploy          Update stable prod backend ($PROD_DIR)
   fuelctl build [target]  Manual frontend build (coach, client)
   fuelctl help            Show this message
 
-Frontend V2 (Cloud) Build:  fuelctl build client
-Frontend V3 (Coach) Build:  fuelctl build coach (default)
+Dev Stack:    http://127.0.0.1:$PORT
+Prod Stack:   http://127.0.0.1:$PROD_PORT
 EOF
 }
 
