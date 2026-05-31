@@ -53,30 +53,31 @@ def list():
     """List available supplements."""
     subprocess.run([str(FUEL_DIR / "fuel-supplement"), "list"])
 
-@app.callback(invoke_without_command=True)
-def main(ctx: typer.Context):
-    if ctx.invoked_subcommand is not None:
-        return
-
-    # No command given -> check arguments for smart routing
-    args = sys.argv[1:]
-    if not args:
+def main():
+    # 1. Check for basic no-args case
+    if len(sys.argv) == 1:
         show_combined_today()
         return
 
-    subcommand = args[0]
+    # 2. Extract first argument to check if it's a known command or a shorthand
+    first_arg = sys.argv[1]
     
-    # 1. Smart Routing Logic
+    # List of explicit commands that Typer should handle
+    KNOWN_COMMANDS = {"meal", "supplement", "today", "list", "--help", "-h"}
+    
+    if first_arg in KNOWN_COMMANDS:
+        app()
+        return
+
+    # 3. Smart Routing for Shorthands (bypass Typer's command check)
     supp_ids = load_supplement_ids()
     
-    if subcommand in supp_ids:
+    if first_arg in supp_ids:
         # Route to supplement shorthand
-        subprocess.run([str(FUEL_DIR / "fuel-supplement")] + args)
+        subprocess.run([str(FUEL_DIR / "fuel-supplement")] + sys.argv[1:])
     else:
-        # Avoid looping if user typed 'meal' or 'supplement' but Typer didn't catch it as subcommand
-        if subcommand not in ("meal", "supplement", "today", "list"):
-            # Route to meal log shorthand
-            subprocess.run([str(FUEL_DIR / "fuel-meal"), "log"] + args)
+        # Route to meal log shorthand
+        subprocess.run([str(FUEL_DIR / "fuel-meal"), "log"] + sys.argv[1:])
 
 if __name__ == "__main__":
-    app()
+    main()
