@@ -28,8 +28,6 @@ cmd_status() {
   msg "--- Production Server (STABLE) ---"
   if curl -fsS --connect-timeout 1 --max-time 2 "$PROD_HEALTH_URL" >/dev/null 2>&1; then
     msg "● fuel-prod is running on :$PROD_PORT"
-    printf 'URL:  http://127.0.0.1:%s\n' "$PROD_PORT"
-    printf 'Path: %s\n' "$PROD_DIR"
   else
     warn "○ fuel-prod is NOT responding on :$PROD_PORT"
   fi
@@ -42,14 +40,29 @@ cmd_status() {
   fi
 }
 
-cmd_up() {
-  msg "Starting Fuel Development Stack..."
-  "$BIN_DEVCTL" start
-}
-
-cmd_down() {
-  msg "Stopping Fuel Development Stack..."
-  "$BIN_DEVCTL" stop
+cmd_dev() {
+  local action="${1:-status}"
+  case "$action" in
+    up|start)
+      msg "Starting Fuel Development Stack..."
+      "$BIN_DEVCTL" start
+      ;;
+    down|stop)
+      msg "Stopping Fuel Development Stack..."
+      "$BIN_DEVCTL" stop
+      ;;
+    status)
+      "$BIN_DEVCTL" status
+      ;;
+    logs)
+      "$BIN_DEVCTL" logs
+      ;;
+    build)
+      local target="${2:-coach}"
+      "$BIN_DEVCTL" build "$target"
+      ;;
+    *) die "Usage: fuelctl dev [up|down|status|logs|build]" ;;
+  esac
 }
 
 cmd_sync() {
@@ -86,18 +99,13 @@ cmd_deploy() {
   fi
 
   msg "==> Deploying stable prod backend to $target"
-
-  # 1. Build Coach V3 (Backend + Full UI)
   "$BIN_DEVCTL" build coach
 
-  # 2. Ensure target exists
   if [[ ! -d "$target" ]]; then
-    warn "$target does not exist. Creating it..."
     sudo mkdir -p "$target"
     sudo chown "$(id -u):$(id -g)" "$target"
   fi
 
-  # 3. Sync core files (excluding dev junk and local dynamic logs)
   msg "Syncing files..."
   rsync -avz --delete \
     --exclude ".git" \
@@ -110,21 +118,10 @@ cmd_deploy() {
     --exclude ".bak" \
     "$WORKDIR/" "$target/"
 
-  # 4. Install production dependencies
   msg "Installing production dependencies in $target..."
   (cd "$target" && npm install --production --silent)
 
   msg "✅ Deployment to $target complete."
-  msg "Start mit: cd $target && npm run prod"
-}
-
-cmd_build() {
-  local target="${1:-coach}"
-  "$BIN_DEVCTL" build "$target"
-}
-
-cmd_logs() {
-  "$BIN_DEVCTL" logs
 }
 
 cmd_help() {
@@ -133,12 +130,12 @@ fuelctl — Universal System Control for Fuel Centre
 
 Usage:
   fuelctl status          Check all systems (Dev, Prod, Sync)
-  fuelctl up              Start development stack (Node + Vite)
-  fuelctl down            Stop development stack
-  fuelctl logs            Tail development logs
+  fuelctl dev up          Start development stack (Port 9000)
+  fuelctl dev down        Stop development stack
+  fuelctl dev logs        Tail development logs
+  fuelctl dev build       Manual frontend build (coach, client)
   fuelctl sync [action]   Cloud sync (push, pull, watch)
   fuelctl deploy          Update stable prod backend ($PROD_DIR)
-  fuelctl build [target]  Manual frontend build (coach, client)
   fuelctl help            Show this message
 
 Dev Stack:    http://127.0.0.1:$PORT
@@ -149,13 +146,13 @@ EOF
 # --- Dispatcher ---
 case "${1:-status}" in
   status)         cmd_status ;;
-  up|start)       cmd_up ;;
-  down|stop)      cmd_down ;;
-  restart)        cmd_down && cmd_up ;;
+  dev)            cmd_dev "${2:-}" "${3:-}" ;;
+  up|start)       cmd_dev up ;;    # Legacy compatibility
+  down|stop)      cmd_dev down ;;  # Legacy compatibility
+  restart)        cmd_dev down && cmd_dev up ;;
   sync)           cmd_sync "${2:-}" ;;
   deploy)         cmd_deploy ;;
-  build)          cmd_build "${2:-}" ;;
-  logs)           cmd_logs ;;
+  logs)           cmd_dev logs ;;
   help|--help|-h) cmd_help ;;
   *)              cmd_help; exit 1 ;;
 esac
