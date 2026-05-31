@@ -1,71 +1,56 @@
 # Fuel Centre — Deployment & App-Architektur
 
-Dieses Dokument beschreibt die Trennung zwischen der **Klienten-PWA (V2)** und der **Coach-Zentrale (V3)**.
+Dieses Dokument beschreibt die Trennung zwischen der **Cloud-Instanz (V3)** und der **lokalen Instanz (V2)**.
 
-## 1. Die zwei Modi
+## 1. Die zwei Welten
 
-Fuel Centre operiert in zwei völlig getrennten Umgebungen, die auf demselben Quellcode basieren, aber unterschiedliche Backends nutzen.
+Fuel Centre operiert in zwei getrennten Umgebungen mit unterschiedlichen Schwerpunkten.
 
-### Klienten-PWA (Cloud / V2)
+### Cloud-PWA (V3)
+- **Status:** Die moderne, AI-gestützte Version für das Handy.
 - **Umgebung:** Firebase Hosting (`fuel-aos.web.app`)
 - **Daten:** Google Firestore (Cloud)
-- **Features:** Schlankes Tracking für Klienten, kein Coach-Tab, keine lokalen API-Anfragen.
-- **Build-Befehl:** `npm run build:client` (Erzeugt `dist-client/`)
+- **Features:** Schnelles AI-Logging, Heatmap, Dashboard.
+- **Build-Befehl:** `fuelctl dev build client` (Erzeugt `dist-client/`)
 
-### Coach-Zentrale (Lokal / V3)
-- **Umgebung:** Lokaler Node.js Server (Port 9000), Localhost oder Tailscale.
+### Lokale Instanz (V2)
+- **Status:** Die originale Power-Version (Pre-Firebase) für den Desktop.
+- **Umgebung:** Lokaler Node.js Server (Port 7000), Pfad: `/opt/fuel`
 - **Daten:** Lokale JSON-Dateien (`data/`) & SQLite.
-- **Features:** Voller Zugriff auf wger-Suche, Recipe Builder (Compose), lokale Katalog-Pflege.
-- **Build-Befehl:** `npm run build:coach` (Erzeugt `dist/`)
-- **Deployment (Stable Backend):**
-  ```bash
-  bin/fuel-devctl deploy
-  ```
-  *Dies synchronisiert den Stand nach `/opt/aos/fuel` und installiert nur Production-Dependencies.*
+- **Features:** Recipe Builder, wger-Suche, lokaler Katalog-Master.
+- **Start:** `npm run prod` im Ordner `/opt/fuel`.
 
 ---
 
-## 2. Deployment-Prozess
+## 2. Deployment-Prozess (V3)
 
-Das Deployment nach Firebase erfolgt **manuell**, um die Stabilität der Klienten-App zu gewährleisten. Der automatische `post-commit` Hook wurde deaktiviert.
+Das Deployment nach Firebase erfolgt nur bei Änderungen am Client-Code automatisch (via Git-Hook). Manuell kann es so ausgelöst werden:
 
-### Schritte für ein Klienten-Update:
 1.  **Build erzeugen:**
     ```bash
-    npm run build:client
+    fuelctl dev build client
     ```
 2.  **Deploy nach Firebase:**
     ```bash
     firebase deploy --only hosting
     ```
-    *Hinweis: `firebase.json` ist so konfiguriert, dass sie NUR den Inhalt von `dist-client/` hochlädt.*
 
 ---
 
-## 3. Technische Trennung (Code-Ebene)
+## 3. System-Steuerung (`fuelctl`)
 
-Die Trennung erfolgt auf zwei Ebenen:
+Das Tool `fuelctl` dient als Master-Controller für die lokale Umgebung.
 
-### A. API-Weiche (`src/client/lib/api.js`)
-Die Funktion `isCloud()` erkennt anhand des Hostnames, ob die App in der Cloud läuft.
-- `true` -> Anfragen werden an das `firestore-db.js` Modul umgeleitet.
-- `false` -> Echte HTTP-Anfragen gehen an das lokale Backend (Port 9000).
-
-### B. Build-Time Filter (`vite.config.js`)
-Über die Umgebungsvariable `VITE_APP_MODE` wird beim Kompilieren entschieden, welche Teile inkludiert werden.
-- Im `client`-Modus wird der `CoachView.jsx` Code durch Tree-Shaking entfernt.
+- **`fuelctl status`**: Zeigt den Zustand von Dev (9000), V2 (7000) und Sync an.
+- **`fuelctl dev up`**: Startet das lokale Entwicklungslabor (Port 9000).
+- **`fuelctl sync`**: Gleicht lokale Daten (V2) mit der Cloud (V3) ab.
 
 ---
 
 ## 4. Lokale Entwicklung
 
-Für die tägliche Arbeit als Coach:
+Für die Arbeit an der modernen V3-Basis:
 ```bash
-npm run dev
+fuelctl dev up
 ```
-Dies startet das lokale Backend und den Vite-Dev-Server. In diesem Modus ist der **Coach-Tab** sichtbar und alle Änderungen landen in deinen lokalen `data/` Ordnern.
-
-Um lokale Master-Daten (z.B. neue Katalog-Einträge) für die Klienten freizugeben, nutze die Sync-Scripte:
-```bash
-npm run sync:push
-```
+Dies startet das Backend auf Port 9000 und die UI auf 5173.

@@ -4,9 +4,9 @@ import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
-  const appMode = process.env.VITE_APP_MODE || env.VITE_APP_MODE || "coach";
+  const appMode = process.env.VITE_APP_MODE || env.VITE_APP_MODE || "v2";
   
-  // Split output directories: coach builds to dist/ (local server default), client builds to dist-client/
+  // Split output directories: v2 builds to dist/ (local server default), client builds to dist-client/
   const outDir = appMode === "client" ? "./dist-client" : "./dist";
 
   console.log(`🚀 Building for mode: ${mode}, APP_MODE: ${appMode} -> outDir: ${outDir}`);
@@ -24,17 +24,17 @@ export default defineConfig(({ mode }) => {
         registerType: "autoUpdate",
         injectRegister: "auto",
         manifest: {
-          name: appMode === "coach" ? "Fuel Coach V3" : "Fuel Centre",
-          short_name: appMode === "coach" ? "Coach" : "Fuel",
-          description: appMode === "coach" ? "Coach Control Deck" : "Nutrition Journal",
+          name: appMode === "v2" ? "Fuel Centre V2" : "Fuel Centre V3",
+          short_name: appMode === "v2" ? "Fuel V2" : "Fuel V3",
+          description: appMode === "v2" ? "Local Power Instance" : "Cloud Nutrition Journal",
           theme_color: "#080b12",
           background_color: "#080b12",
           display: "standalone",
           start_url: "/",
           scope: "/",
           icons: [
-            { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-            { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+            { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any maskable" },
+            { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" },
           ],
         },
         workbox: {

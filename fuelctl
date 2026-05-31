@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
-# fuelctl — Central control for Fuel Centre (Dev, Prod, Sync, Deploy)
+# fuelctl — Central control for Fuel Centre (Dev, Sync)
 set -euo pipefail
 
 # --- Configuration ---
 PORT="${PORT:-9000}"
-PROD_PORT="${PROD_PORT:-7000}"
+V2_PORT="${V2_PORT:-7000}"
 VITE_PORT="${VITE_PORT:-5173}"
 HEALTH_URL="http://127.0.0.1:${PORT}/health"
-PROD_HEALTH_URL="http://127.0.0.1:${PROD_PORT}/health"
+V2_HEALTH_URL="http://127.0.0.1:${V2_PORT}/health"
 WORKDIR="$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")" && pwd)"
-PROD_DIR="/opt/fuel"
 BIN_DEVCTL="$WORKDIR/bin/fuel-devctl"
 SYNC_SCRIPT="$WORKDIR/scripts/firestore-sync.mjs"
 
@@ -25,11 +24,11 @@ die()  { err "$*"; exit 1; }
 cmd_status() {
   "$BIN_DEVCTL" status || true
   
-  msg "--- Production Server (STABLE) ---"
-  if curl -fsS --connect-timeout 1 --max-time 2 "$PROD_HEALTH_URL" >/dev/null 2>&1; then
-    msg "● fuel-prod is running on :$PROD_PORT"
+  msg "--- Fuel Centre V2 (STABLE) ---"
+  if curl -fsS --connect-timeout 1 --max-time 2 "$V2_HEALTH_URL" >/dev/null 2>&1; then
+    msg "● Fuel V2 is running on :$V2_PORT"
   else
-    warn "○ fuel-prod is NOT responding on :$PROD_PORT"
+    warn "○ Fuel V2 is NOT responding on :$V2_PORT"
   fi
 
   msg "--- Firestore Sync ---"
@@ -58,7 +57,7 @@ cmd_dev() {
       "$BIN_DEVCTL" logs
       ;;
     build)
-      local target="${2:-coach}"
+      local target="${2:-client}"
       "$BIN_DEVCTL" build "$target"
       ;;
     *) die "Usage: fuelctl dev [up|down|status|logs|build]" ;;
@@ -87,59 +86,21 @@ cmd_sync() {
   esac
 }
 
-cmd_deploy() {
-  local target="$PROD_DIR"
-  
-  if have_gum; then
-    gum confirm "Möchtest du das stable Backend nach $target deployen?" || die "Abgebrochen."
-  else
-    printf "Möchtest du das stable Backend nach %s deployen? (y/N) " "$target"
-    read -r resp
-    [[ "$resp" == "y" || "$resp" == "Y" ]] || die "Abgebrochen."
-  fi
-
-  msg "==> Deploying stable prod backend to $target"
-  "$BIN_DEVCTL" build coach
-
-  if [[ ! -d "$target" ]]; then
-    sudo mkdir -p "$target"
-    sudo chown "$(id -u):$(id -g)" "$target"
-  fi
-
-  msg "Syncing files..."
-  rsync -avz --delete \
-    --exclude ".git" \
-    --exclude ".env" \
-    --exclude "node_modules" \
-    --exclude "data" \
-    --exclude "dist-client" \
-    --exclude ".firebase" \
-    --exclude ".archiv" \
-    --exclude ".bak" \
-    "$WORKDIR/" "$target/"
-
-  msg "Installing production dependencies in $target..."
-  (cd "$target" && npm install --production --silent)
-
-  msg "✅ Deployment to $target complete."
-}
-
 cmd_help() {
   cat <<EOF
 fuelctl — Universal System Control for Fuel Centre
 
 Usage:
-  fuelctl status          Check all systems (Dev, Prod, Sync)
+  fuelctl status          Check all systems (Dev, V2, Sync)
   fuelctl dev up          Start development stack (Port 9000)
   fuelctl dev down        Stop development stack
   fuelctl dev logs        Tail development logs
-  fuelctl dev build       Manual frontend build (coach, client)
+  fuelctl dev build       Build client PWA for Firebase (V3)
   fuelctl sync [action]   Cloud sync (push, pull, watch)
-  fuelctl deploy          Update stable prod backend ($PROD_DIR)
   fuelctl help            Show this message
 
 Dev Stack:    http://127.0.0.1:$PORT
-Prod Stack:   http://127.0.0.1:$PROD_PORT
+V2 Stack:     http://127.0.0.1:$V2_PORT
 EOF
 }
 
@@ -151,7 +112,6 @@ case "${1:-status}" in
   down|stop)      cmd_dev down ;;  # Legacy compatibility
   restart)        cmd_dev down && cmd_dev up ;;
   sync)           cmd_sync "${2:-}" ;;
-  deploy)         cmd_deploy ;;
   logs)           cmd_dev logs ;;
   help|--help|-h) cmd_help ;;
   *)              cmd_help; exit 1 ;;

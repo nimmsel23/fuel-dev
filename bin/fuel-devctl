@@ -87,14 +87,14 @@ cmd_logs() {
 }
 
 cmd_build() {
-  local mode="${1:-coach}"
+  local mode="${1:-v2}"
   cd "$DEV_DIR"
-  if [[ "$mode" == "client" ]]; then
-    msg "==> Building Client PWA (V2)"
+  if [[ "$mode" == "client" || "$mode" == "v3" ]]; then
+    msg "==> Building Client PWA (V3)"
     npm run build:client
   else
-    msg "==> Building Coach Zentrale (V3)"
-    npm run build:coach
+    msg "==> Building Local Instance (V2)"
+    npm run build:v2
   fi
 }
 
@@ -114,7 +114,7 @@ Commands:
   stop        stop background fuel-dev processes
   restart     restart background fuel-dev processes
   logs        tail $LOGFILE
-  build       [coach|client] build frontend
+  build       [v2|v3] build frontend
   dev         run npm run dev in foreground
   help        this message
 
@@ -131,7 +131,7 @@ case "${1:-help}" in
   stop)           cmd_stop ;;
   restart)        cmd_restart ;;
   logs)           cmd_logs ;;
-  build)          cmd_build "${2:-coach}" ;;
+  build)          cmd_build "${2:-v2}" ;;
   dev)            cmd_dev ;;
   help|--help|-h) cmd_help ;;
   *) die "unknown command: $1 (try: fuel-devctl help)" ;;
