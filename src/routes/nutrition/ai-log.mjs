@@ -2,6 +2,7 @@ import { callGemini, extractJson } from "../../services/gemini.mjs";
 import { loadLog, saveLog, addMeal } from "../../services/nutrition-log.mjs";
 import { writeEntry } from "../../services/nutrition-journal.mjs";
 import { loadCatalog, saveCatalog } from "../../services/nutrition-catalog.mjs";
+import { saveMicrosForMeal, MICRO_KEYS } from "../../services/nutrition-micros.mjs";
 import { todayISO } from "../../lib/validation.mjs";
 
 export default async function aiLogRoute(app) {
@@ -10,14 +11,20 @@ export default async function aiLogRoute(app) {
     const date = dateArg || todayISO();
     if (!text?.trim()) return reply.status(400).send({ ok: false, error: "text fehlt" });
 
-    const prompt = `Analysiere diesen Text. Entscheide, ob es ein 'meal' (Eintrag für heute), ein 'journal' (Tagebuch) oder eine Anweisung für den 'catalog' (Gericht definieren) ist. Gib JSON zurück:
-      {"type": "meal" | "journal" | "catalog", "meal": {"description", "kcal", "protein", "carbs", "fat"}?, "content": "..."?}
+    const prompt = `Analysiere diesen Text. Ist es ein Nahrungs- oder Supplement-Eintrag für heute (meal)? Oder eine Anweisung für den Katalog (Gericht definieren - catalog)? Gib JSON zurück:
+      {"type": "meal" | "catalog", "meal": {"description", "kcal", "protein", "carbs", "fat", "micros": {${MICRO_KEYS.join(", ")}}}?}
+      Ignoriere Text, der sich nicht auf Ernährung oder Supplemente bezieht.
       Text: ${text}`;
       
     try {
       const raw = await callGemini(prompt);
       const result = JSON.parse(extractJson(raw));
       
+      const mealName = result.meal.description;
+      if (result.meal.micros) {
+        saveMicrosForMeal(mealName, result.meal.micros);
+      }
+
       if (result.type === "meal") {
         const log = loadLog(date);
         addMeal(log, result.meal);
@@ -25,12 +32,12 @@ export default async function aiLogRoute(app) {
         return reply.send({ ok: true, type: "meal" });
       } else if (result.type === "catalog") {
         const catalog = loadCatalog();
-        catalog.items.push({ ...result.meal, id: result.meal.description.toLowerCase().replace(/ /g, "_") });
+        const id = mealName.toLowerCase().replace(/ /g, "_");
+        catalog.items.push({ ...result.meal, id });
         saveCatalog(catalog);
         return reply.send({ ok: true, type: "catalog" });
       } else {
-        writeEntry(date, result.content || text);
-        return reply.send({ ok: true, type: "journal" });
+        return reply.status(400).send({ ok: false, error: "Keine Ernährungsinformation erkannt" });
       }
     } catch (e) {
       console.error("ai-log error:", e);
