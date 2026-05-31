@@ -22,11 +22,8 @@ export function useWeekLogs(anchorDate) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const uid = auth.currentUser?.uid;
-    if (!uid) {
-      setLoading(false);
-      return;
-    }
+    // Fallback to 'default' UID for shared/unsynced logs
+    const uid = auth.currentUser?.uid || "default";
 
     const dates = weekDates(anchorDate ? new Date(anchorDate) : new Date());
     setLoading(true);

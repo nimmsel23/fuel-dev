@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { Utensils, Search, Pill, BookOpen, LogIn, LogOut, User } from "lucide-react";
+import { Utensils, Search, Pill, BookOpen, LogIn, LogOut, User, RefreshCw } from "lucide-react";
 import { watchAuth, signIn, signOut } from "./db.js";
 import NutritionHeatmap from "./components/NutritionHeatmap.jsx";
 import TodayScreen from "./screens/TodayScreen.jsx";
 import FoodLoggerScreen from "./screens/FoodLoggerScreen.jsx";
 import SupplementsScreen from "./screens/SupplementsScreen.jsx";
 import JournalScreen from "./screens/JournalScreen.jsx";
+import { useRegisterSW } from "virtual:pwa-register/react";
 
 function localToday() {
   const d = new Date();
@@ -24,6 +25,9 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("today");
   const [selectedDate, setSelectedDate] = useState(localToday);
+
+  // Auto-Update Logic
+  const { needRefresh: [needRefresh], updateServiceWorker } = useRegisterSW();
 
   useEffect(() => {
     return watchAuth((u) => {
@@ -46,7 +50,14 @@ export default function App() {
       <header style={{ padding: "0.5rem 1rem", background: "var(--surface)", borderBottom: "1px solid var(--border)" }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: "0.8rem", color: "var(--muted)" }}>{selectedDate}</span>
-          <button className="ghost" onClick={signOut} style={{ padding: "4px 8px" }}><LogOut size={14} /></button>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            {needRefresh && (
+              <button className="ghost" onClick={() => updateServiceWorker(true)} style={{ padding: "4px 8px", color: "#f59e0b" }}>
+                <RefreshCw size={14} /> Update
+              </button>
+            )}
+            <button className="ghost" onClick={signOut} style={{ padding: "4px 8px" }}><LogOut size={14} /></button>
+          </div>
         </div>
       </header>
 
