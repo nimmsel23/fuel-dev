@@ -1,45 +1,34 @@
 #!/usr/bin/env python3
 """
-fuel — Universal logging dispatcher for supplements and meals.
+fuel — Smart logging dispatcher. 
+Automatically distinguishes between supplements and meals.
 
-Subcommands:
-  fuel meal [args]            Meal logging (log, list, today)
-  fuel supplement [args]      Supplement logging (log, list, today)
-  fuel today                  Show all logs for today
-  fuel list                   List available supplements
-  fuel [id] [dose]            Shorthand to log a supplement
+Usage:
+  fuel melatonin [dose]       -> logs supplement (if id exists in catalog)
+  fuel "Pizza"                -> logs meal (if not a supplement id)
+  fuel today                  -> combined status
+  fuel list                   -> list supplements
 """
 
+import json
+import os
 import subprocess
 import sys
 from pathlib import Path
 
-# Resolve to actual fuel-dev directory (handles symlinks)
+# Resolve to actual fuel-dev directory
 FUEL_DIR = Path(__file__).resolve().parent
+CATALOG_PATH = Path(os.environ.get("AOS_FUEL_DIR", Path.home() / ".aos" / "fuel")) / "supplements" / "catalog.json"
 
-def main():
-    if len(sys.argv) < 2:
-        # No arguments -> Show combined status for today
-        show_combined_today()
-        return
-
-    subcommand = sys.argv[1]
-    args = sys.argv[2:]
-
-    if subcommand == "meal":
-        subprocess.run([str(FUEL_DIR / "fuel-meal")] + args)
-    elif subcommand == "supplement":
-        subprocess.run([str(FUEL_DIR / "fuel-supplement")] + args)
-    elif subcommand == "today":
-        show_combined_today()
-    elif subcommand == "list":
-        # Default list to supplements
-        subprocess.run([str(FUEL_DIR / "fuel-supplement"), "list"])
-    elif subcommand in ("--help", "-h"):
-        print(__doc__)
-    else:
-        # Assume it's a supplement shorthand (e.g., `fuel melatonin`)
-        subprocess.run([str(FUEL_DIR / "fuel-supplement")] + sys.argv[1:])
+def load_supplement_ids():
+    """Load supplement IDs from catalog for smart routing."""
+    if not CATALOG_PATH.exists():
+        return set()
+    try:
+        data = json.loads(CATALOG_PATH.read_text())
+        return {item["id"] for item in data.get("items", [])}
+    except:
+        return set()
 
 def show_combined_today():
     """Execute 'today' for both meal and supplement scripts."""
@@ -47,6 +36,46 @@ def show_combined_today():
     subprocess.run([str(FUEL_DIR / "fuel-meal"), "today"])
     print("\n--- SUPPLEMENTS ---")
     subprocess.run([str(FUEL_DIR / "fuel-supplement"), "today"])
+
+def main():
+    if len(sys.argv) < 2:
+        show_combined_today()
+        return
+
+    subcommand = sys.argv[1]
+    args = sys.argv[2:]
+
+    # 1. Check for global commands
+    if subcommand == "today":
+        show_combined_today()
+        return
+    elif subcommand == "list":
+        subprocess.run([str(FUEL_DIR / "fuel-supplement"), "list"])
+        return
+    elif subcommand in ("--help", "-h"):
+        print(__doc__)
+        return
+
+    # 2. Smart Routing
+    supp_ids = load_supplement_ids()
+    
+    if subcommand in supp_ids:
+        # Route to supplement
+        subprocess.run([str(FUEL_DIR / "fuel-supplement")] + sys.argv[1:])
+    else:
+        # Route everything else to meal
+        # If the user typed 'fuel meal pizza', pass it through.
+        # If the user typed 'fuel pizza', prefix it with 'log' for fuel-meal.
+        if subcommand == "meal":
+            subprocess.run([str(FUEL_DIR / "fuel-meal")] + args)
+        elif subcommand == "supplement":
+             subprocess.run([str(FUEL_DIR / "fuel-supplement")] + args)
+        else:
+            # Smart meal log: prefix with 'log' unless it's already a subcommand of fuel-meal
+            if subcommand in ("list", "today"): # fuel-meal specific today/list
+                 subprocess.run([str(FUEL_DIR / "fuel-meal"), subcommand] + args)
+            else:
+                 subprocess.run([str(FUEL_DIR / "fuel-meal"), "log"] + sys.argv[1:])
 
 if __name__ == "__main__":
     main()
