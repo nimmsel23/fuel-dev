@@ -6,6 +6,7 @@ import { twMerge } from "tailwind-merge";
 
 import "./styles.css";
 import FoodView from "./views/FoodView.jsx";
+import CoachView from "./views/CoachView.jsx";
 import MicrosView from "./views/MicrosView.jsx";
 import DashboardView from "./views/DashboardView.jsx";
 import CalendarView from "./views/CalendarView.jsx";
@@ -35,6 +36,7 @@ if (typeof window !== "undefined") {
 const TABS = [
   ["dashboard", "Dashboard", Flame],
   ["food", "Food", UtensilsCrossed],
+  ["coach", "Coach", Sparkles],
   ["calendar", "Big Calendar", CalendarDays],
   ["journal", "Journal", NotebookPen],
   ["supplements", "Supplements", Pill],
@@ -91,6 +93,7 @@ function App() {
   const totalFat = sumMetric(meals, "fat");
 
   const isCloud = window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com");
+  const isClientBuild = import.meta.env.VITE_APP_MODE === "client";
 
   return (
     <div className="min-h-screen text-slate-100">
@@ -130,7 +133,7 @@ function App() {
           <NutritionHeatmap selectedDate={activeDate} onSelectDate={setActiveDate} />
 
           <nav className="flex flex-wrap gap-2">
-            {TABS.map(([key, label, Icon]) => (
+            {TABS.filter(([key]) => (!isCloud && !isClientBuild) || key !== "coach").map(([key, label, Icon]) => (
               <button
                 key={key}
                 onClick={() => setActiveTab(key)}
@@ -152,6 +155,7 @@ function App() {
           <DashboardView nutrition={nutrition} sup={sup} journal={journal} macroTrend={macroTrend} />
         )}
         {activeTab === "food" && <FoodView activeDate={activeDate} setActiveDate={setActiveDate} />}
+        {activeTab === "coach" && <CoachView activeDate={activeDate} setActiveDate={setActiveDate} />}
         {activeTab === "calendar" && <CalendarView date={activeDate} nutrition={nutrition} />}
         {activeTab === "journal" && (
           <JournalView date={activeDate} nutrition={nutrition} journal={journal || ""} />
