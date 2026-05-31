@@ -95,6 +95,10 @@ function App() {
   const isCloud = window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com");
   const isClientBuild = import.meta.env.VITE_APP_MODE === "client";
 
+  React.useEffect(() => {
+    document.title = (isCloud || isClientBuild) ? "Fuel Centre v2" : "Fuel Coach v3";
+  }, [isCloud, isClientBuild]);
+
   return (
     <div className="min-h-screen text-slate-100">
       <div className="mx-auto max-w-7xl px-4 py-6 lg:px-8">
@@ -104,7 +108,7 @@ function App() {
               <div className="flex items-center gap-3 mb-2">
                 <p className="inline-flex items-center gap-2 rounded-full border border-orange-400/30 bg-orange-400/10 px-3 py-1 text-xs uppercase tracking-[0.25em] text-orange-200">
                   <Sparkles className="h-3.5 w-3.5" />
-                  FuelCtx v2
+                  {(isCloud || isClientBuild) ? "Fuel Centre v2" : "Fuel Coach v3"}
                 </p>
                 {isCloud && (
                   user ? (
