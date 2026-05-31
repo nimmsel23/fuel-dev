@@ -9,7 +9,7 @@ VITE_PORT="${VITE_PORT:-5173}"
 HEALTH_URL="http://127.0.0.1:${PORT}/health"
 PROD_HEALTH_URL="http://127.0.0.1:${PROD_PORT}/health"
 WORKDIR="$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")" && pwd)"
-PROD_DIR="/opt/aos/fuel"
+PROD_DIR="/opt/fuel"
 BIN_DEVCTL="$WORKDIR/bin/fuel-devctl"
 SYNC_SCRIPT="$WORKDIR/scripts/firestore-sync.mjs"
 
