@@ -1,0 +1,39 @@
+#!/usr/bin/env python3
+"""
+fuel — Universal logging dispatcher for supplements, meals, and nutrition.
+
+Routes to subcommands:
+  fuel supplement log melatonin
+  fuel meal "Nussschnecke Billa" --kcal 250
+  fuel nutrition apple 100g
+"""
+
+import subprocess
+import sys
+from pathlib import Path
+
+# Resolve to actual fuel-dev directory (handles symlinks)
+FUEL_DIR = Path(__file__).resolve().parent
+
+def main():
+    if len(sys.argv) < 2:
+        subprocess.run([str(FUEL_DIR / "fuel-supplement"), "--help"])
+        return
+
+    subcommand = sys.argv[1]
+    args = sys.argv[2:]
+
+    if subcommand == "supplement":
+        subprocess.run([str(FUEL_DIR / "fuel-supplement")] + args)
+    elif subcommand == "meal":
+        subprocess.run([str(FUEL_DIR / "fuel-meal")] + args)
+    elif subcommand == "nutrition":
+        subprocess.run([str(FUEL_DIR / "fuel-nutrition")] + args)
+    elif subcommand in ("--help", "-h"):
+        subprocess.run([str(FUEL_DIR / "fuel-supplement"), "--help"])
+    else:
+        # Assume it's a supplement shorthand (e.g., `fuel melatonin`)
+        subprocess.run([str(FUEL_DIR / "fuel-supplement")] + sys.argv[1:])
+
+if __name__ == "__main__":
+    main()

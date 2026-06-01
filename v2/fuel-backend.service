@@ -1,0 +1,15 @@
+[Unit]
+Description=Fuel Centre Backend Service
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/fuel
+Environment=AOS_FUEL_DATA_DIR=/var/lib/fuel/data
+Environment=PORT=9000
+ExecStart=/usr/bin/node server.mjs
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target
