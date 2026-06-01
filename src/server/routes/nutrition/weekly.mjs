@@ -73,7 +73,20 @@ export default async function weeklyRoute(app) {
           const lookupName = catalogEntry?.name || meal.description;
 
           const micros = getMicrosForMeal(lookupName);
-          if (!micros) continue;
+          if (!micros) {
+            // Asynchronously trigger estimation in the background
+            import("../../services/nutrition-estimate-micros.mjs").then(({ estimateMicros }) => {
+              import("../../services/nutrition-micros.mjs").then(({ saveMicrosForMeal }) => {
+                estimateMicros(lookupName).then((est) => {
+                  if (Object.keys(est).length > 0) {
+                    saveMicrosForMeal(lookupName, est);
+                    console.log(`[micros] Background estimation completed for: ${lookupName}`);
+                  }
+                });
+              });
+            });
+            continue;
+          }
 
           for (const k of MICRO_KEYS) {
             dayTotals[k] = Math.round((dayTotals[k] + (micros[k] || 0)) * 10) / 10;

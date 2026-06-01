@@ -4,10 +4,10 @@ import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
-  const appMode = process.env.VITE_APP_MODE || env.VITE_APP_MODE || "v2";
+  const appMode = process.env.VITE_APP_MODE || env.VITE_APP_MODE || "coach";
   
-  // Split output directories: v2 builds to dist/ (local server default), v3 builds to dist-firebase/
-  const outDir = appMode === "v3" || appMode === "client" ? "./dist-firebase" : "./dist";
+  // coach builds to dist/ (local server), client builds to dist-firebase/ (for firebase deploy)
+  const outDir = appMode === "client" ? "./dist-firebase" : "./dist";
 
   console.log(`🚀 Building for mode: ${mode}, APP_MODE: ${appMode} -> outDir: ${outDir}`);
 
@@ -24,9 +24,9 @@ export default defineConfig(({ mode }) => {
         registerType: "autoUpdate",
         injectRegister: "auto",
         manifest: {
-          name: appMode === "v2" ? "Fuel Centre V2" : "Fuel Centre V3",
-          short_name: appMode === "v2" ? "Fuel V2" : "Fuel V3",
-          description: appMode === "v2" ? "Local Power Instance" : "Cloud Nutrition Journal",
+          name: appMode === "coach" ? "Fuel Coach" : "Fuel Centre",
+          short_name: appMode === "coach" ? "Coach" : "Fuel",
+          description: appMode === "coach" ? "Coach Control Deck" : "Nutrition Journal",
           theme_color: "#080b12",
           background_color: "#080b12",
           display: "standalone",

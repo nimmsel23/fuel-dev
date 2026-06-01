@@ -107,7 +107,7 @@ cmd_v2() {
       (
         cd "$V2_PROD_DIR"
         msg "Running npm install..."
-        npm install --production --silent
+        npm install --silent
         msg "Building frontend..."
         npm run build > /dev/null
       )

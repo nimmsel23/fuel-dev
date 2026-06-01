@@ -1,12 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# fuel-devctl — Dedicated control for LOCAL development stack (Port 9000)
+# fuel-devctl — Fuel Centre Stack Control
 
 PORT="${PORT:-9000}"
-VITE_PORT="${VITE_PORT:-5173}"
 HEALTH_URL="http://127.0.0.1:${PORT}/health"
-# DEV_DIR points to the repo root
 DEV_DIR="$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/.." && pwd)"
 LOGFILE="${LOGFILE:-/tmp/fuelctx-dev.log}"
 PIDFILE="${PIDFILE:-/tmp/fuelctx-dev.pid}"
@@ -23,32 +21,32 @@ cmd_status() {
     if [[ -f "$PIDFILE" ]]; then
       pid="$(cat "$PIDFILE" 2>/dev/null || true)"
     fi
-    msg "fuel-dev (LOKAL) is running on :$PORT (pid: ${pid:-unknown})"
-    printf 'URL: http://127.0.0.1:%s\n' "$PORT"
+    msg "Fuel Stack is running (pid: ${pid:-unknown})"
+    printf '  URL:  http://127.0.0.1:%s\n' "$PORT"
   else
-    warn "fuel-dev (LOKAL) is not responding on :$PORT"
+    warn "Stack is not responding on :$PORT"
     return 1
   fi
 }
 
 cmd_start() {
   if curl -fsS --connect-timeout 1 --max-time 2 "$HEALTH_URL" >/dev/null 2>&1; then
-    warn "fuel-dev already running on :$PORT"
+    warn "Stack already running on :$PORT"
     return 0
   fi
 
   cd "$DEV_DIR"
   : > "$LOGFILE"
-  PORT="$PORT" FUEL_VITE_ORIGIN="http://127.0.0.1:${VITE_PORT}" npm run dev >"$LOGFILE" 2>&1 &
+  msg "Starting stack..."
+  npm run dev >"$LOGFILE" 2>&1 &
   echo $! > "$PIDFILE"
-  sleep 2
+  sleep 4
 
   if curl -fsS --connect-timeout 1 --max-time 3 "$HEALTH_URL" >/dev/null 2>&1; then
-    msg "started fuel-dev"
-    printf 'URL: http://127.0.0.1:%s\n' "$PORT"
+    msg "Stack started"
+    printf '  URL:  http://127.0.0.1:%s\n' "$PORT"
   else
-    warn "fuel-dev did not come up cleanly; last log lines:"
-    tail -30 "$LOGFILE" || true
+    warn "Stack failed to start; check logs"
     return 1
   fi
 }
@@ -69,7 +67,7 @@ cmd_stop() {
 
   pkill -f "node.*scripts/dev-runner.mjs|nodemon.*scripts/dev-runner.mjs|node.*server.mjs|node_modules/.bin/vite|vite" >/dev/null 2>&1 || true
   rm -f "$PIDFILE"
-  msg "stopped fuel-dev"
+  msg "Stack stopped"
 }
 
 cmd_restart() {
@@ -82,46 +80,39 @@ cmd_logs() {
   if [[ -f "$LOGFILE" ]]; then
     tail -f "$LOGFILE"
   else
-    die "log file not found: $LOGFILE"
+    die "Log file not found: $LOGFILE"
   fi
 }
 
 cmd_build() {
-  local mode="${1:-v2}"
   cd "$DEV_DIR"
-  if [[ "$mode" == "client" || "$mode" == "v3" ]]; then
-    msg "==> Building Client PWA (V3)"
-    npm run build:client
-  else
-    msg "==> Building Local Instance (V2)"
-    npm run build:v2
-  fi
+  msg "Building UI..."
+  npm run build
 }
 
 cmd_dev() {
-  msg "Starting fuel-dev in foreground..."
+  msg "Starting stack in foreground..."
   cd "$DEV_DIR"
-  PORT="$PORT" FUEL_VITE_ORIGIN="http://127.0.0.1:${VITE_PORT}" npm run dev
+  npm run dev
 }
 
 cmd_help() {
   cat <<EOF
-fuel-devctl — Dedicated control for LOCAL development stack
+fuel-devctl — Fuel Centre Stack Control
 
 Commands:
-  status      check LOKAL backend status
-  start       start LOKAL npm run dev in background
-  stop        stop background fuel-dev processes
-  restart     restart background fuel-dev processes
-  logs        tail $LOGFILE
-  build       [v2|v3] build frontend
-  dev         run npm run dev in foreground
-  help        this message
+  status      Check status
+  start       Start in background
+  stop        Stop processes
+  restart     Restart stack
+  logs        Tail $LOGFILE
+  build       Build UI
+  dev         Run in foreground
+  help        Show this message
 
-Repo:    $DEV_DIR
-URL:     http://127.0.0.1:$PORT
-Log:     $LOGFILE
-PID:     $PIDFILE
+Environment:
+  Repo:  $DEV_DIR
+  URL:   http://127.0.0.1:$PORT
 EOF
 }
 
@@ -131,8 +122,8 @@ case "${1:-help}" in
   stop)           cmd_stop ;;
   restart)        cmd_restart ;;
   logs)           cmd_logs ;;
-  build)          cmd_build "${2:-v2}" ;;
+  build)          cmd_build ;;
   dev)            cmd_dev ;;
   help|--help|-h) cmd_help ;;
-  *) die "unknown command: $1 (try: fuel-devctl help)" ;;
+  *) die "Unknown command: $1" ;;
 esac

@@ -1,1 +1,0 @@
-/home/alpha/.dotfiles/config/fish

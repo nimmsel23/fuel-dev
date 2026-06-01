@@ -3,7 +3,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.join(__dirname, "../..");
+const ROOT = path.join(__dirname, "../../..");
 
 export const DATA_DIR = process.env.AOS_FUEL_DATA_DIR
   ? path.resolve(process.env.AOS_FUEL_DATA_DIR)

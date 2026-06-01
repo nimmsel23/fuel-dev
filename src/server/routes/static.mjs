@@ -4,21 +4,29 @@ import { PUBLIC_DIR, VITE_BUILD_DIR } from "../config/paths.mjs";
 import { VITE_ORIGIN } from "../../shared/config/constants.mjs";
 
 export default async function staticRoute(app) {
-  // 1. Dev Mode: Proxy to Vite
+  // 1. Dev Mode: Transparent Proxy to Vite
   if (VITE_ORIGIN) {
-    app.log.info(`[static] Dev mode active, proxying frontend to ${VITE_ORIGIN}`);
+    app.log.info(`[static] Dev mode: Proxying UI requests to ${VITE_ORIGIN}`);
     
-    // Redirect root
-    app.get("/", async (_, reply) => {
-      return reply.redirect(`${VITE_ORIGIN}/`);
-    });
-
-    // Proxy everything else that isn't handled by other routes
     app.get("/*", async (req, reply) => {
-      const pathname = req.url.split("?")[0];
-      // Only proxy if it looks like a frontend request (assets, or not an API call)
-      // This is a safety net; better to just let it fall through if possible.
-      return reply.redirect(`${VITE_ORIGIN}${req.url}`);
+      // Only proxy GET requests that aren't API calls
+      if (req.method !== "GET" || req.url.startsWith("/api") || req.url.startsWith("/nutrition") || req.url.startsWith("/supplements")) {
+        return reply.status(404).send({ ok: false, error: "Not found" });
+      }
+
+      try {
+        const targetUrl = `${VITE_ORIGIN}${req.url}`;
+        const response = await fetch(targetUrl);
+        
+        // Forward headers and status
+        const contentType = response.headers.get("content-type");
+        if (contentType) reply.type(contentType);
+        
+        return reply.status(response.status).send(Buffer.from(await response.arrayBuffer()));
+      } catch (e) {
+        app.log.error(`[static] Proxy error: ${e.message}`);
+        return reply.status(502).send("Vite dev server not reachable. Run 'npm run dev'?");
+      }
     });
     return;
   }
