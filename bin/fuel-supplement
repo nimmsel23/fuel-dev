@@ -28,10 +28,20 @@ from rich.table import Table
 
 console = Console()
 
-# ── API Base URLs ─────────────────────────────────────────────────────────────
+# ── Config ────────────────────────────────────────────────────────────────────
 
 API_BASE = os.environ.get("FUEL_API_URL", "http://127.0.0.1:9000")
-UID = "default"
+
+def _load_env():
+    env_path = Path(__file__).resolve().parent.parent / ".env"
+    if env_path.exists():
+        for line in env_path.read_text().splitlines():
+            if "=" in line and not line.startswith("#"):
+                k, v = line.split("=", 1)
+                os.environ[k.strip()] = v.strip()
+
+_load_env()
+UID = os.environ.get("FUEL_CLOUD_UID", "default")
 
 def _api_call(method: str, endpoint: str, body: dict | None = None) -> dict:
     """Macht HTTP-Call zu Fuel-API. Fallback zu lokal bei Fehler."""
@@ -121,6 +131,24 @@ def gum_log(level: str, msg: str) -> None:
         colors = {"info": "\033[1;32m", "warn": "\033[1;33m", "error": "\033[1;31m"}
         dest = sys.stderr if level == "error" else sys.stdout
         print(f"{colors.get(level, '')}{msg}\033[0m", file=dest)
+
+# ── Log I/O ────────────────────────────────────────────────────────────────────
+
+def log_path(day: str) -> Path:
+    return LOGS_DIR / f"{day}.json"
+
+def read_log(day: str) -> dict:
+    p = log_path(day)
+    if p.exists():
+        try:
+            return json.loads(p.read_text())
+        except:
+            pass
+    return {"date": day, "intakes": []}
+
+def write_log(day: str, data: dict) -> None:
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)
+    log_path(day).write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
 
 # ── Catalog ────────────────────────────────────────────────────────────────────
 

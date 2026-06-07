@@ -13,19 +13,9 @@ from pathlib import Path
 from typing import Optional
 
 import typer
+from wasabi import Printer
 
-# Try to import wasabi for stylish output, fallback to a simple printer
-try:
-    from wasabi import Printer
-    msg = Printer()
-except ImportError:
-    class SimplePrinter:
-        def good(self, text): print(f"✔ {text}")
-        def info(self, text): print(f"ℹ {text}")
-        def warn(self, text): print(f"⚠ {text}")
-        def fail(self, text): print(f"✘ {text}")
-        def divider(self, text): print(f"\n--- {text} ---\n")
-    msg = SimplePrinter()
+msg = Printer()
 
 app = typer.Typer(help="Fuel Centre Stack Control (Python Edition)", no_args_is_help=True)
 
@@ -38,6 +28,16 @@ LOGFILE = Path("/tmp/fuelctx-dev.log")
 PIDFILE = Path("/tmp/fuelctx-dev.pid")
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
+def gum_log(level: str, text: str):
+    """Wrapper for gum log if available."""
+    try:
+        subprocess.run(["gum", "log", f"--level={level}", text])
+    except:
+        # Fallback to wasabi if gum fails
+        if level == "info": msg.info(text)
+        elif level == "warn": msg.warn(text)
+        elif level == "error": msg.fail(text)
 
 def get_pid() -> Optional[int]:
     if PIDFILE.exists():
@@ -87,10 +87,9 @@ def start():
         msg.fail(f"Could not prepare logfile {LOGFILE}: {e}")
         raise typer.Exit(1)
 
-    msg.info(f"Starting stack in background (Logs: {LOGFILE})...")
+    gum_log("info", f"Starting stack in background (Logs: {LOGFILE})...")
     
     # Using start_new_session=True to detach from this terminal
-    # Equivalent to setsid or preexec_fn=os.setpgrp
     proc = subprocess.Popen(
         ["npm", "run", "dev"],
         stdout=open(LOGFILE, "a"),
@@ -120,7 +119,7 @@ def stop():
     pid = get_pid()
     
     if pid:
-        msg.info(f"Terminating process group for PID {pid}...")
+        gum_log("warn", f"Terminating process group for PID {pid}...")
         try:
             os.killpg(os.getpgid(pid), signal.SIGTERM)
             time.sleep(1)

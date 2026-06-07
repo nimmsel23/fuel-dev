@@ -53,7 +53,14 @@ const SYNC_PULL_URL = process.env.FUEL_FIRESTORE_PING_URL || "http://127.0.0.1:9
 
 async function pullFromFirestoreOnStart() {
   try {
-    const r = await fetch(SYNC_PULL_URL, { method: "POST", signal: AbortSignal.timeout(5000) });
+    const uid = process.env.FUEL_CLOUD_UID || "default";
+    const headers = { "Content-Type": "application/json", "X-Fuel-UID": uid };
+    
+    const r = await fetch(SYNC_PULL_URL, { 
+      method: "POST", 
+      headers,
+      signal: AbortSignal.timeout(5000) 
+    });
     const body = await r.json();
     if (body.ok) {
       console.log("[fuel-firestore] startup pull ok:", JSON.stringify(body));

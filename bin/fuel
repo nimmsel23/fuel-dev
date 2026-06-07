@@ -10,6 +10,15 @@ import sys
 from pathlib import Path
 import typer
 
+# Try to import wasabi for stylish output
+try:
+    from wasabi import Printer
+    msg = Printer()
+except ImportError:
+    class SimplePrinter:
+        def divider(self, text): print(f"\n--- {text} ---\n")
+    msg = SimplePrinter()
+
 app = typer.Typer(help="Fuel Centre Smart CLI", no_args_is_help=False)
 
 # Resolve to actual fuel-dev directory
@@ -37,9 +46,9 @@ def load_supplement_ids():
 
 def show_combined_today():
     """Execute 'today' for both meal and supplement scripts."""
-    print("\n--- MEALS ---")
+    msg.divider("MEALS")
     subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-meal"), "today"])
-    print("\n--- SUPPLEMENTS ---")
+    msg.divider("SUPPLEMENTS")
     subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-supplement"), "today"])
 
 @app.command()

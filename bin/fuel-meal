@@ -30,10 +30,20 @@ from rich.table import Table
 
 console = Console()
 
-# ── API URLs ───────────────────────────────────────────────────────────────────
+# ── Config ────────────────────────────────────────────────────────────────────
 
 API_BASE = os.environ.get("FUEL_API_URL", "http://127.0.0.1:9000")
-UID = "default"
+
+def _load_env():
+    env_path = Path(__file__).resolve().parent.parent / ".env"
+    if env_path.exists():
+        for line in env_path.read_text().splitlines():
+            if "=" in line and not line.startswith("#"):
+                k, v = line.split("=", 1)
+                os.environ[k.strip()] = v.strip()
+
+_load_env()
+UID = os.environ.get("FUEL_CLOUD_UID", "default")
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 
