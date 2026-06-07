@@ -265,17 +265,46 @@ export async function getSupplementStats(anchorDate, days = 30) {
     return d.toISOString().slice(0, 10);
   });
 
-  const q = query(
-    collection(db, "supplements", getUid(), "logs"),
-    where("date", "in", dates.slice(0, 10)) // Firestore "in" limit is 10
-  );
-  // For simplicity, we just fetch the last 10 days for now or we could chunk it.
-  // Actually, let's just fetch all and filter in JS if the range is small.
   const snap = await getDocs(query(collection(db, "supplements", getUid(), "logs"), orderBy("date", "desc"), limit(days)));
-  const intakes = [];
-  snap.forEach(doc => {
-    const data = doc.data();
-    if (data.intakes) intakes.push(...data.intakes);
+  const logsMap = {};
+  snap.forEach(doc => { logsMap[doc.id] = doc.data(); });
+
+  const catalog = await getSupplementsCatalog();
+  const stats = {};
+
+  // Initialize stats from intakes found in logs
+  Object.values(logsMap).forEach(log => {
+    (log.intakes || []).forEach(intake => {
+      const suppId = intake.supplement_id;
+      if (!stats[suppId]) {
+        const catalogItem = catalog.find(i => i.id === suppId);
+        stats[suppId] = {
+          supplement: catalogItem || { id: suppId, name: intake.name || suppId },
+          days_taken: 0,
+          current_streak: 0,
+        };
+      }
+      stats[suppId].days_taken += 1;
+    });
   });
-  return { intakes };
+
+  // Calculate streaks
+  const todayStr = todayISO();
+  for (const suppId in stats) {
+    let streak = 0;
+    for (const dateStr of dates) {
+      const log = logsMap[dateStr];
+      const hasIntake = log && (log.intakes || []).some(i => i.supplement_id === suppId);
+      if (hasIntake) {
+        streak += 1;
+      } else if (dateStr === todayStr) {
+        continue; // Don't break streak if today isn't logged yet
+      } else {
+        break;
+      }
+    }
+    stats[suppId].current_streak = streak;
+  }
+
+  return { ok: true, anchor: anchorDate, days, stats: Object.values(stats) };
 }
