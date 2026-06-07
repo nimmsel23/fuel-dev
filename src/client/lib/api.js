@@ -46,10 +46,24 @@ export async function fetchJson(path) {
       const date = url.searchParams.get("date");
       return { data: await firestore.getSupplementLog(date) };
     }
-    if (normPath.startsWith("/supplements/stats")) {
+    if (normPath.startsWith("/nutrition/search")) {
       const url = new URL(path, window.location.origin);
-      const date = url.searchParams.get("anchor") || url.searchParams.get("date");
-      return await firestore.getSupplementStats(date);
+      const q = url.searchParams.get("q");
+      const limit = parseInt(url.searchParams.get("limit") || "20");
+      const results = await firestore.searchNutritionCatalog(q, limit);
+      return { ok: true, count: results.length, results };
+    }
+    if (normPath.startsWith("/nutrition/weekly")) {
+      const parts = normPath.split("/");
+      const year = parseInt(parts[parts.length - 2]);
+      const week = parseInt(parts[parts.length - 1]);
+      return await firestore.getWeeklyMicros(year, week);
+    }
+    if (normPath === "/api/fuel-firestore/status") {
+      return { ok: true, firestore: "connected", mode: "native-cloud" };
+    }
+    if (normPath === "/health") {
+      return { status: "ok", mode: "native-cloud" };
     }
   }
 

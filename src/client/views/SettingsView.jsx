@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Activity, Flame, LogIn, LogOut, Settings2, Sparkles } from "lucide-react";
 import { useSettings } from "../store.js";
 import { signIn, signOut, watchAuth } from "../lib/firestore-db.js";
+import { fetchJson, postJson } from "../lib/api.js";
 
 const sectionCls = "rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur grid gap-4";
 const labelCls = "text-xs uppercase tracking-[0.18em] text-slate-500 mb-1 block";
@@ -15,17 +16,17 @@ export default function SettingsView() {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    fetch("/health").then(r => r.json()).then(setHealth).catch(() => setHealth({ status: "error" }));
-    fetch("/api/fuel-firestore/status").then(r => r.json()).then(setSyncStatus).catch(() => setSyncStatus({ ok: false, firestore: "unreachable" }));
+    fetchJson("/health").then(setHealth).catch(() => setHealth({ status: "error" }));
+    fetchJson("/api/fuel-firestore/status").then(setSyncStatus).catch(() => setSyncStatus({ ok: false, firestore: "unreachable" }));
     return watchAuth(setUser);
   }, []);
 
   async function handleSync() {
     setSyncing(true);
     try {
-      await fetch("/api/fuel-firestore/ping", { method: "POST" });
-      const r = await fetch("/api/fuel-firestore/status");
-      setSyncStatus(await r.json());
+      await postJson("/api/fuel-firestore/ping", {});
+      const r = await fetchJson("/api/fuel-firestore/status");
+      setSyncStatus(r);
     } catch {
       setSyncStatus({ ok: false, firestore: "unreachable" });
     } finally {

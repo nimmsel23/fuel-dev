@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { fetchJson } from "../lib/api.js";
 
 export function localISO(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
@@ -16,10 +17,12 @@ export function weekDates(anchor) {
 }
 
 async function fetchLog(date) {
-  const r = await fetch(`/nutrition/log?date=${date}`);
-  if (!r.ok) return { date, meals: [] };
-  const data = await r.json();
-  return { date, meals: data.data?.meals || [] };
+  try {
+    const data = await fetchJson(`/nutrition/log?date=${date}`);
+    return { date, meals: data.data?.meals || [] };
+  } catch (err) {
+    return { date, meals: [] };
+  }
 }
 
 export function useWeekLogs(anchor) {

@@ -1,5 +1,6 @@
 import React from "react";
 import { useQueries } from "@tanstack/react-query";
+import { fetchJson } from "../lib/api.js";
 
 const NUTRIENTS = [
   // Fettlöslich
@@ -84,8 +85,7 @@ export default function MicrosView() {
     queries: weeks.map(({ year, week }) => ({
       queryKey: ["nutrition-weekly", year, week],
       queryFn: () =>
-        fetch(`/nutrition/weekly/${year}/${week}`)
-          .then((r) => r.json())
+        fetchJson(`/nutrition/weekly/${year}/${week}`)
           .then((d) => (d.ok ? d : null)),
       staleTime: 5 * 60 * 1000,
     })),

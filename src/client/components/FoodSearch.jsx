@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { twMerge } from "tailwind-merge";
+import { fetchJson } from "../lib/api.js";
 
 export const PORTIONS = [
   { key: "s",  label: "S",  g: 100 },
@@ -24,8 +25,7 @@ export default function FoodSearch({ onSelect }) {
     debounce.current = setTimeout(async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/nutrition/search?q=${encodeURIComponent(q)}&limit=15`);
-        const data = await res.json();
+        const data = await fetchJson(`/nutrition/search?q=${encodeURIComponent(q)}&limit=15`);
         setResults(data.results || []);
         setOpen(true);
       } catch { setResults([]); }

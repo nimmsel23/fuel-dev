@@ -6,12 +6,15 @@ set -euo pipefail
 PORT="${PORT:-9000}"
 V2_PORT="${V2_PORT:-7000}"
 VITE_PORT="${VITE_PORT:-5173}"
+CATALOG_PORT=9050
+
 HEALTH_URL="http://127.0.0.1:${PORT}/health"
 V2_HEALTH_URL="http://127.0.0.1:${V2_PORT}/health"
 # WORKDIR points to the repo root
 WORKDIR="$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/.." && pwd)"
 BIN_DEVCTL="$WORKDIR/bin/fuel-devctl"
 SYNC_SCRIPT="$WORKDIR/scripts/firestore-sync.mjs"
+CATALOG_SERVER_SCRIPT="$WORKDIR/fuel-catalog-server.py"
 
 V2_PROD_DIR="/opt/fuel"
 V2_SOURCE_DIR="$WORKDIR/v2"
@@ -34,6 +37,13 @@ cmd_status() {
     msg "● Fuel V2 is running on :$V2_PORT"
   else
     warn "○ Fuel V2 is NOT responding on :$V2_PORT"
+  fi
+
+  msg "--- Catalog Server ---"
+  if curl -fsS --connect-timeout 1 --max-time 2 "http://127.0.0.1:$CATALOG_PORT/catalogs/nutrition" >/dev/null 2>&1; then
+    msg "● Catalog Server is running on :$CATALOG_PORT"
+  else
+    warn "○ Catalog Server is NOT responding on :$CATALOG_PORT"
   fi
 
   msg "--- Firestore Sync ---"
@@ -128,6 +138,28 @@ cmd_v2() {
   esac
 }
 
+cmd_catalog() {
+  local action="${1:-status}"
+  case "$action" in
+    start)
+      msg "Starting Catalog Server on port $CATALOG_PORT..."
+      nohup "$CATALOG_SERVER_SCRIPT" > /dev/null 2>&1 &
+      ;;
+    stop)
+      msg "Stopping Catalog Server..."
+      pkill -f "python3 $CATALOG_SERVER_SCRIPT" || warn "Catalog Server not running"
+      ;;
+    status)
+      if curl -fsS --connect-timeout 1 --max-time 2 "http://127.0.0.1:$CATALOG_PORT/catalogs/nutrition" >/dev/null 2>&1; then
+        msg "● Catalog Server is running on :$CATALOG_PORT"
+      else
+        warn "○ Catalog Server is NOT running"
+      fi
+      ;;
+    *) die "Usage: fuelctl catalog [start|stop|status]" ;;
+  esac
+}
+
 cmd_sync() {
   local action="${1:-menu}"
   case "$action" in
@@ -163,10 +195,12 @@ Usage:
   fuelctl v2 deploy       Backup and update Desktop Prod (/opt/fuel)
   fuelctl v2 logs         Tail V2 production logs
   fuelctl sync [action]   Cloud sync (push, pull, watch)
+  fuelctl catalog [action] Manage catalog server (start, stop, status)
   fuelctl help            Show this message
 
 Dev Stack:    http://127.0.0.1:$PORT
 V2 Prod:      http://127.0.0.1:$V2_PORT
+Catalog Server: http://127.0.0.1:$CATALOG_PORT
 EOF
 }
 
@@ -175,6 +209,7 @@ case "${1:-status}" in
   status)         cmd_status ;;
   dev)            cmd_dev "${2:-}" "${3:-}" ;;
   v2)             cmd_v2 "${2:-}" ;;
+  catalog)        cmd_catalog "${2:-}" ;;
   up|start)       cmd_dev up ;;    # Legacy compatibility
   down|stop)      cmd_dev down ;;  # Legacy compatibility
   restart)        cmd_dev down && cmd_dev up ;;

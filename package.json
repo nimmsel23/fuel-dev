@@ -1,6 +1,6 @@
 {
   "name": "fuelctx",
-  "version": "0.1.0",
+  "version": "3.0.0",
   "private": true,
   "type": "module",
   "description": "Fuel Centre - nutrition tracking",
@@ -30,6 +30,7 @@
     "date-fns": "^4.3.0",
     "fastify": "^4.28.1",
     "firebase": "^11.0.1",
+    "firebase-admin": "^13.10.0",
     "lucide-react": "^0.451.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

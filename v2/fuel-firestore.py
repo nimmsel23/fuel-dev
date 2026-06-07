@@ -275,10 +275,11 @@ async def handle_status(request: web.Request) -> web.Response:
 
 async def handle_ping(request: web.Request) -> web.Response:
     """Event-Trigger aus fuel-dev: sync heute nach jedem Write."""
+    uid = request.headers.get("X-Fuel-UID", UID)
     d = date.today().isoformat()
-    logger.info(f"fuel-firestore: ping → bisync {d}")
+    logger.info(f"fuel-firestore: ping → bisync {d} (uid: {uid})")
     try:
-        results = do_sync(d, "bisync")
+        results = do_sync(d, "bisync", uid)
         return web.json_response({"ok": True, "date": d, "direction": "bisync", **results})
     except Exception as e:
         logger.error(f"fuel-firestore ping error: {e}")
@@ -286,30 +287,33 @@ async def handle_ping(request: web.Request) -> web.Response:
 
 
 async def handle_sync(request: web.Request) -> web.Response:
+    uid = request.headers.get("X-Fuel-UID", UID)
     d = _get_date(request)
-    logger.info(f"fuel-firestore: bisync {d}")
+    logger.info(f"fuel-firestore: bisync {d} (uid: {uid})")
     try:
-        results = do_sync(d, "bisync")
+        results = do_sync(d, "bisync", uid)
         return web.json_response({"ok": True, "date": d, "direction": "bisync", **results})
     except Exception as e:
         return web.json_response({"ok": False, "error": str(e)}, status=500)
 
 
 async def handle_push(request: web.Request) -> web.Response:
+    uid = request.headers.get("X-Fuel-UID", UID)
     d = _get_date(request)
-    logger.info(f"fuel-firestore: push {d} → Firestore")
+    logger.info(f"fuel-firestore: push {d} → Firestore (uid: {uid})")
     try:
-        results = do_sync(d, "push")
+        results = do_sync(d, "push", uid)
         return web.json_response({"ok": True, "date": d, "direction": "push", **results})
     except Exception as e:
         return web.json_response({"ok": False, "error": str(e)}, status=500)
 
 
 async def handle_pull(request: web.Request) -> web.Response:
+    uid = request.headers.get("X-Fuel-UID", UID)
     d = _get_date(request)
-    logger.info(f"fuel-firestore: pull {d} ← Firestore")
+    logger.info(f"fuel-firestore: pull {d} ← Firestore (uid: {uid})")
     try:
-        results = do_sync(d, "pull")
+        results = do_sync(d, "pull", uid)
         return web.json_response({"ok": True, "date": d, "direction": "pull", **results})
     except Exception as e:
         return web.json_response({"ok": False, "error": str(e)}, status=500)

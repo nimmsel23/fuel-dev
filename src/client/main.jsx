@@ -26,7 +26,7 @@ const qc = new QueryClient();
 // Global Debug Object
 if (typeof window !== "undefined") {
   window.fuelDebug = {
-    version: "2.1.0-personal-uid",
+    version: "3.0.0",
     getUid: () => getUid(),
     forceSync: () => qc.invalidateQueries(),
   };
