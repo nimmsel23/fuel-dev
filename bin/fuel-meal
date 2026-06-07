@@ -21,6 +21,7 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 import urllib.request
 import urllib.error
+import urllib.parse
 
 import typer
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
@@ -32,6 +33,14 @@ console = Console()
 # ── API URLs ───────────────────────────────────────────────────────────────────
 
 API_BASE = os.environ.get("FUEL_API_URL", "http://127.0.0.1:9000")
+UID = "default"
+
+# ── Paths ──────────────────────────────────────────────────────────────────────
+
+DATA_DIR = Path(os.environ.get("AOS_FUEL_DATA_DIR", Path.home() / ".aos" / "fuel")).expanduser()
+NUTRITION_DIR = DATA_DIR / "nutrition"
+CATALOG_DIR = Path(__file__).resolve().parent.parent / "catalogs" / "nutrition"
+LOCAL_CATALOG_FILE = DATA_DIR / "nutrition" / "catalog.json"
 
 # ── gum logging ────────────────────────────────────────────────────────────────
 
@@ -46,6 +55,44 @@ def gum_log(level: str, msg: str) -> None:
         dest = sys.stderr if level == "error" else sys.stdout
         print(f"{colors.get(level, '')}{msg}\033[0m", file=dest)
 
+
+# ── Local I/O ──────────────────────────────────────────────────────────────────
+
+def _load_log_local(date_str: str) -> dict:
+    p = NUTRITION_DIR / f"{date_str}.json"
+    if p.exists():
+        try:
+            return json.loads(p.read_text())
+        except:
+            pass
+    return {"date": date_str, "meals": [], "water_ml": 0}
+
+def _save_log_local(log: dict) -> None:
+    NUTRITION_DIR.mkdir(parents=True, exist_ok=True)
+    p = NUTRITION_DIR / f"{log['date']}.json"
+    p.write_text(json.dumps(log, indent=2, ensure_ascii=False) + "\n")
+
+def _load_catalog_local() -> dict:
+    items = []
+    # 1. From individual meal files
+    meals_dir = CATALOG_DIR / "meals"
+    if meals_dir.exists():
+        for f in meals_dir.glob("*.json"):
+            try:
+                items.append(json.loads(f.read_text()))
+            except:
+                pass
+    
+    # 2. From central catalog.json
+    if LOCAL_CATALOG_FILE.exists():
+        try:
+            data = json.loads(LOCAL_CATALOG_FILE.read_text())
+            c_items = data.get("items", data)
+            if isinstance(c_items, list):
+                items.extend(c_items)
+        except:
+            pass
+    return {"ok": True, "items": items}
 
 # ── Validation ─────────────────────────────────────────────────────────────────
 
@@ -62,22 +109,48 @@ class MealInput(BaseModel):
 
 def _api_call(method: str, endpoint: str, body: dict | None = None) -> dict:
     url = f"{API_BASE}{endpoint}"
-    headers = {"Content-Type": "application/json"}
+    headers = {"Content-Type": "application/json", "X-Fuel-UID": UID}
     try:
         if method == "GET":
             req = urllib.request.Request(url, headers=headers)
-            with urllib.request.urlopen(req) as resp:
+            with urllib.request.urlopen(req, timeout=2) as resp:
                 return json.loads(resp.read())
         elif method == "POST":
             data = json.dumps(body, ensure_ascii=False).encode('utf-8')
             req = urllib.request.Request(url, data=data, headers=headers, method="POST")
-            with urllib.request.urlopen(req) as resp:
+            with urllib.request.urlopen(req, timeout=2) as resp:
                 return json.loads(resp.read())
     except urllib.error.HTTPError as e:
         gum_log("error", f"API Error {e.code}: {e.reason}")
         raise SystemExit(1)
-    except urllib.error.URLError as e:
-        gum_log("error", f"API Fehler: {e.reason}")
+    except (urllib.error.URLError, TimeoutError) as e:
+        # Fallback to local mode
+        if endpoint == "/nutrition/catalog":
+            return _load_catalog_local()
+        if endpoint.startswith("/nutrition/log"):
+            # GET /nutrition/log?date=...
+            if method == "GET":
+                qs = urllib.parse.parse_qs(urllib.parse.urlparse(endpoint).query)
+                d = qs.get("date", [date.today().isoformat()])[0]
+                return {"ok": True, "data": _load_log_local(d), "_offline": True}
+            
+            # POST /nutrition/log
+            if method == "POST" and body:
+                d = body.get("date", date.today().isoformat())
+                log = _load_log_local(d)
+                if body.get("meal"):
+                    m = body["meal"]
+                    m["id"] = f"meal_off_{int(datetime.now().timestamp())}"
+                    m["time"] = datetime.now().isoformat()
+                    log["meals"].append(m)
+                if body.get("delete_meal_id"):
+                    log["meals"] = [m for m in log["meals"] if m["id"] != body["delete_meal_id"]]
+                if "water_ml" in body:
+                    log["water_ml"] = body["water_ml"]
+                _save_log_local(log)
+                return {"ok": True, "data": log, "_offline": True}
+        
+        gum_log("error", f"API Fehler: {e}")
         raise SystemExit(1)
 
 def _parse_macros_with_gemini(description: str) -> dict:
@@ -187,8 +260,13 @@ def do_meal_log(description: str, kcal: float, protein: float, carbs: float, fat
         }
     }
 
-    _api_call("POST", "/nutrition/log", payload)
-    gum_log("info", f"{description} ({kcal} kcal) geloggt — {today}")
+    res = _api_call("POST", "/nutrition/log", payload)
+    
+    msg = f"{description} ({kcal} kcal) geloggt — {today}"
+    if res.get("_offline"):
+        gum_log("info", f"Offline: {msg}")
+    else:
+        gum_log("info", msg)
 
     if save_catalog:
         catalog_item = {
@@ -209,7 +287,11 @@ def do_today(day: str | None) -> None:
         console.print(f"[yellow]Keine Mahlzeiten geloggt am {today}[/yellow]")
         return
 
-    table = Table(title=f"Mahlzeiten — {today}", show_header=True, header_style="bold green")
+    title = f"Mahlzeiten — {today}"
+    if result.get("_offline"):
+        title += " (OFFLINE)"
+
+    table = Table(title=title, show_header=True, header_style="bold green")
     table.add_column("MAHLZEIT")
     table.add_column("KCAL", justify="right")
     table.add_column("P", justify="right")
