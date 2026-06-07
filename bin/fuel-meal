@@ -74,10 +74,33 @@ def _save_log_local(log: dict) -> None:
 
 def _load_catalog_local() -> dict:
     items = []
-    # 1. From individual meal files
+    # 1. From individual meal files (support both .yaml and .json)
     meals_dir = CATALOG_DIR / "meals"
     if meals_dir.exists():
+        # Prefer YAML if both exist for same ID
+        seen_ids = set()
+        
+        # Collect YAML files first
+        for f in meals_dir.glob("*.yaml"):
+            try:
+                import yaml
+                data = yaml.safe_load(f.read_text())
+                items.append(data)
+                seen_ids.add(f.stem)
+            except:
+                pass
+        for f in meals_dir.glob("*.yml"):
+            try:
+                if f.stem in seen_ids: continue
+                import yaml
+                data = yaml.safe_load(f.read_text())
+                items.append(data)
+                seen_ids.add(f.stem)
+            except:
+                pass
+        # Then JSON files (only if YAML doesn't exist)
         for f in meals_dir.glob("*.json"):
+            if f.stem in seen_ids: continue
             try:
                 items.append(json.loads(f.read_text()))
             except:

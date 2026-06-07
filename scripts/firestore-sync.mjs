@@ -5,6 +5,7 @@
 
 import admin from "firebase-admin";
 import Database from "better-sqlite3";
+import YAML from "yaml";
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from "node:fs";
 import { join, resolve, basename } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -150,14 +151,26 @@ async function push(uid = UID_DEFAULT) {
   console.log(`  → Processing Nutrition Catalog...`);
   let nutritionItems = [];
   
-  // A) Check individual meal files in catalogs/
+  // A) Check individual meal files in catalogs/ (support .yaml, .yml, .json)
   const mealsDir = join(ROOT, "catalogs", "nutrition", "meals");
   if (existsSync(mealsDir)) {
-    const mealFiles = readdirSync(mealsDir).filter(f => f.endsWith(".json"));
+    const mealFiles = readdirSync(mealsDir).filter(f => 
+      f.endsWith(".json") || f.endsWith(".yaml") || f.endsWith(".yml")
+    );
+    
+    const seenIds = new Set();
     for (const file of mealFiles) {
+      const ext = basename(file).split('.').pop();
+      const id = basename(file, `.${ext}`);
+      
+      // Prefer YAML if both exist
+      if (seenIds.has(id) && ext === "json") continue;
+      
       try {
-        const item = JSON.parse(readFileSync(join(mealsDir, file), "utf8"));
+        const raw = readFileSync(join(mealsDir, file), "utf8");
+        const item = (ext === "json") ? JSON.parse(raw) : YAML.parse(raw);
         nutritionItems.push(item);
+        seenIds.add(id);
       } catch (e) {
         console.error(`    ❌ Fehler in Meal-File ${file}:`, e.message);
       }
@@ -165,18 +178,24 @@ async function push(uid = UID_DEFAULT) {
     console.log(`    Found ${nutritionItems.length} individual meals in catalogs/`);
   }
 
-  // B) Fallback/Legacy: central catalog.json
-  const legacyCatalog = join(nutritionDir, "catalog.json");
-  if (existsSync(legacyCatalog)) {
-    try {
-      const data = JSON.parse(readFileSync(legacyCatalog, "utf8"));
-      const items = data.items || data;
-      if (Array.isArray(items)) {
-        nutritionItems = [...nutritionItems, ...items];
-        console.log(`    Added items from legacy catalog.json`);
+  // B) Fallback/Legacy: central catalog.json OR catalog.yaml
+  const legacyCatalogJson = join(nutritionDir, "catalog.json");
+  const legacyCatalogYaml = join(nutritionDir, "catalog.yaml");
+  
+  for (const legacyPath of [legacyCatalogYaml, legacyCatalogJson]) {
+    if (existsSync(legacyPath)) {
+      try {
+        const raw = readFileSync(legacyPath, "utf8");
+        const data = (legacyPath.endsWith(".json")) ? JSON.parse(raw) : YAML.parse(raw);
+        const items = data.items || data;
+        if (Array.isArray(items)) {
+          nutritionItems = [...nutritionItems, ...items];
+          console.log(`    Added items from legacy ${basename(legacyPath)}`);
+          break; // Stop if we found one
+        }
+      } catch (e) {
+        console.error(`    ❌ Fehler in legacy catalog:`, e.message);
       }
-    } catch (e) {
-      console.error(`    ❌ Fehler in legacy catalog.json:`, e.message);
     }
   }
 
@@ -190,12 +209,21 @@ async function push(uid = UID_DEFAULT) {
 
   // 4. Catalog (Supplements)
   const supplementsCatalogDir = join(DATA_DIR, "supplements");
-  const supplementsCatalog = join(supplementsCatalogDir, "catalog.json");
-  if (existsSync(supplementsCatalog)) {
-    const data = JSON.parse(readFileSync(supplementsCatalog, "utf8"));
-    console.log(`  → Supplements Catalog`);
+  const supplementsCatalogYaml = join(supplementsCatalogDir, "catalog.yaml");
+  const supplementsCatalogJson = join(supplementsCatalogDir, "catalog.json");
+  
+  let suppData = null;
+  if (existsSync(supplementsCatalogYaml)) {
+    suppData = YAML.parse(readFileSync(supplementsCatalogYaml, "utf8"));
+    console.log(`  → Supplements Catalog (YAML)`);
+  } else if (existsSync(supplementsCatalogJson)) {
+    suppData = JSON.parse(readFileSync(supplementsCatalogJson, "utf8"));
+    console.log(`  → Supplements Catalog (JSON)`);
+  }
+
+  if (suppData) {
     await db.collection("supplements").doc(uid).collection("meta").doc("catalog").set({
-      items: data.items || data,
+      items: suppData.items || suppData,
       updated_at: admin.firestore.FieldValue.serverTimestamp()
     });
   }

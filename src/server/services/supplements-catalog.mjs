@@ -1,4 +1,4 @@
-import { readJsonFile, writeJsonFile } from "../lib/file-io.mjs";
+import { readYamlFile, writeYamlFile } from "../lib/file-io.mjs";
 import { slugifyId } from "../../shared/utils/ids.mjs";
 import { SUPPLEMENTS_CATALOG_PATH } from "../config/paths.mjs";
 
@@ -9,14 +9,14 @@ const CATALOG_DEFAULTS = {
 };
 
 export function loadCatalog() {
-  const catalog = readJsonFile(SUPPLEMENTS_CATALOG_PATH, CATALOG_DEFAULTS);
+  const catalog = readYamlFile(SUPPLEMENTS_CATALOG_PATH, CATALOG_DEFAULTS);
   if (!catalog.items) catalog.items = [];
   return catalog;
 }
 
 export function saveCatalog(catalog) {
   catalog.updated_at = new Date().toISOString();
-  writeJsonFile(SUPPLEMENTS_CATALOG_PATH, catalog);
+  writeYamlFile(SUPPLEMENTS_CATALOG_PATH, catalog);
 }
 
 export function addOrUpdateSupplement(catalog, input) {

@@ -21,7 +21,7 @@ export const NUTRITION_MEALS_DIR = path.join(ROOT, "catalogs", "nutrition", "mea
 export const NUTRITION_DB_PATH = path.join(DATA_DIR, "nutrition", "nutrition.db"); // SQLite
 export const SUPPLEMENTS_DIR = path.join(DATA_DIR, "supplements");
 export const SUPPLEMENTS_LOG_DIR = path.join(SUPPLEMENTS_DIR, "logs");
-export const SUPPLEMENTS_CATALOG_PATH = path.join(ROOT, "catalogs", "supplements", "catalog.json"); // Repo-basiert
+export const SUPPLEMENTS_CATALOG_PATH = path.join(ROOT, "catalogs", "supplements", "catalog.yaml"); // Repo-basiert
 
 export function initializePaths() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });

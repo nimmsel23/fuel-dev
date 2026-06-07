@@ -56,8 +56,17 @@ def _api_call(method: str, endpoint: str, body: dict | None = None) -> dict:
         if endpoint == "/supplements/catalog" and method == "GET":
             items = []
             if CATALOG_PATH.exists():
-                data = json.loads(CATALOG_PATH.read_text())
-                items = data.get("items", [])
+                try:
+                    import yaml
+                    data = yaml.safe_load(CATALOG_PATH.read_text())
+                    items = data.get("items", [])
+                except:
+                    # Fallback to JSON if YAML parse fails
+                    try:
+                        data = json.loads(CATALOG_PATH.read_text())
+                        items = data.get("items", [])
+                    except:
+                        pass
             return {"ok": True, "items": items, "_offline": True}
         
         if endpoint.startswith("/supplements/log"):
@@ -96,7 +105,8 @@ class SupplementInput(BaseModel):
 # ── Pfade ──────────────────────────────────────────────────────────────────────
 
 FUEL_DIR      = Path(os.environ.get("AOS_FUEL_DIR", Path.home() / ".aos" / "fuel"))
-CATALOG_PATH  = FUEL_DIR / "supplements" / "catalog.json"
+REPO_DIR      = Path(__file__).resolve().parent.parent
+CATALOG_PATH  = REPO_DIR / "catalogs" / "supplements" / "catalog.yaml"
 LOGS_DIR      = FUEL_DIR / "supplements" / "logs"
 
 # ── gum ───────────────────────────────────────────────────────────────────────

@@ -13,15 +13,24 @@ import typer
 app = typer.Typer(help="Fuel Centre Smart CLI", no_args_is_help=False)
 
 # Resolve to actual fuel-dev directory
-FUEL_DIR = Path(__file__).resolve().parent
-CATALOG_PATH = Path(os.environ.get("AOS_FUEL_DIR", Path.home() / ".aos" / "fuel")) / "supplements" / "catalog.json"
+FUEL_REPO_DIR = Path(__file__).resolve().parent.parent
+CATALOG_PATH = FUEL_REPO_DIR / "catalogs" / "supplements" / "catalog.yaml"
 
 def load_supplement_ids():
     """Load supplement IDs from catalog for smart routing."""
     if not CATALOG_PATH.exists():
+        # Fallback to JSON for legacy
+        json_path = CATALOG_PATH.with_suffix(".json")
+        if json_path.exists():
+            try:
+                data = json.loads(json_path.read_text())
+                return {item["id"] for item in data.get("items", [])}
+            except:
+                return set()
         return set()
     try:
-        data = json.loads(CATALOG_PATH.read_text())
+        import yaml
+        data = yaml.safe_load(CATALOG_PATH.read_text())
         return {item["id"] for item in data.get("items", [])}
     except:
         return set()
@@ -29,19 +38,19 @@ def load_supplement_ids():
 def show_combined_today():
     """Execute 'today' for both meal and supplement scripts."""
     print("\n--- MEALS ---")
-    subprocess.run([str(FUEL_DIR / "fuel-meal"), "today"])
+    subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-meal"), "today"])
     print("\n--- SUPPLEMENTS ---")
-    subprocess.run([str(FUEL_DIR / "fuel-supplement"), "today"])
+    subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-supplement"), "today"])
 
 @app.command()
 def meal(ctx: typer.Context):
     """Route to fuel-meal."""
-    subprocess.run([str(FUEL_DIR / "fuel-meal")] + ctx.args)
+    subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-meal")] + ctx.args)
 
 @app.command()
 def supplement(ctx: typer.Context):
     """Route to fuel-supplement."""
-    subprocess.run([str(FUEL_DIR / "fuel-supplement")] + ctx.args)
+    subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-supplement")] + ctx.args)
 
 @app.command()
 def today():
@@ -51,7 +60,7 @@ def today():
 @app.command()
 def list():
     """List available supplements."""
-    subprocess.run([str(FUEL_DIR / "fuel-supplement"), "list"])
+    subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-supplement"), "list"])
 
 def main():
     # 1. Check for basic no-args case
@@ -74,11 +83,11 @@ def main():
     
     if first_arg in supp_ids:
         # Route to supplement shorthand
-        subprocess.run([str(FUEL_DIR / "fuel-supplement")] + sys.argv[1:])
+        subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-supplement")] + sys.argv[1:])
     else:
         # Route everything else to meal log
         # Ensure we're calling fuel-meal correctly from within the dispatcher
-        subprocess.run([str(FUEL_DIR / "fuel-meal"), "log"] + sys.argv[1:])
+        subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-meal"), "log"] + sys.argv[1:])
 
 if __name__ == "__main__":
     main()
