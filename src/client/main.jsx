@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { CalendarDays, Flame, Microscope, NotebookPen, Pill, Settings2, Sparkles, UtensilsCrossed } from "lucide-react";
 import { twMerge } from "tailwind-merge";
+import { motion, AnimatePresence } from "framer-motion";
 
 import "./styles.css";
 import FoodView from "./views/FoodView.jsx";
@@ -136,7 +137,8 @@ function App() {
 
           <nav className="flex flex-wrap gap-2">
             {TABS.filter(([key]) => (!isCloud && !isClientBuild) || key !== "v2_only").map(([key, label, Icon]) => (
-              <button
+              <motion.button
+                whileTap={{ scale: 0.96 }}
                 key={key}
                 onClick={() => setActiveTab(key)}
                 className={twMerge(
@@ -148,25 +150,37 @@ function App() {
               >
                 <Icon className="h-4 w-4" />
                 {label}
-              </button>
+              </motion.button>
             ))}
           </nav>
         </header>
 
-        {activeTab === "dashboard" && (
-          <DashboardView nutrition={nutrition} sup={sup} journal={journal} macroTrend={macroTrend} />
-        )}
-        {activeTab === "food" && <FoodView activeDate={activeDate} setActiveDate={setActiveDate} nutrition={nutrition} />}
-        {activeTab === "calendar" && <CalendarView date={activeDate} nutrition={nutrition} />}
+        <main>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.15, ease: "easeInOut" }}
+            >
+              {activeTab === "dashboard" && (
+                <DashboardView nutrition={nutrition} sup={sup} journal={journal} macroTrend={macroTrend} />
+              )}
+              {activeTab === "food" && <FoodView activeDate={activeDate} setActiveDate={setActiveDate} nutrition={nutrition} />}
+              {activeTab === "calendar" && <CalendarView date={activeDate} nutrition={nutrition} />}
 
-        {activeTab === "journal" && (
-          <JournalView date={activeDate} nutrition={nutrition} journal={journal || ""} />
-        )}
-        {activeTab === "supplements" && (
-          <SupplementsView date={activeDate} sup={sup} catalog={suppCatalog || []} suppLog={suppLog} />
-        )}
-        {activeTab === "micros" && <MicrosView />}
-        {activeTab === "settings" && <SettingsView />}
+              {activeTab === "journal" && (
+                <JournalView date={activeDate} nutrition={nutrition} journal={journal || ""} />
+              )}
+              {activeTab === "supplements" && (
+                <SupplementsView date={activeDate} sup={sup} catalog={suppCatalog || []} suppLog={suppLog} />
+              )}
+              {activeTab === "micros" && <MicrosView />}
+              {activeTab === "settings" && <SettingsView />}
+            </motion.div>
+          </AnimatePresence>
+        </main>
       </div>
     </div>
   );
