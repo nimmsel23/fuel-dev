@@ -22,11 +22,24 @@ import urllib.error
 import urllib.parse
 
 import typer
+from wasabi import Printer
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from rich.console import Console
 from rich.table import Table
 
 console = Console()
+msg = Printer()
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def gum_log(level: str, text: str):
+    """Wrapper for gum log."""
+    try:
+        subprocess.run(["gum", "log", f"--level={level}", text])
+    except:
+        if level == "info": msg.info(text)
+        elif level == "warn": msg.warn(text)
+        elif level == "error": msg.fail(text)
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
@@ -59,7 +72,7 @@ def _api_call(method: str, endpoint: str, body: dict | None = None) -> dict:
             with urllib.request.urlopen(req, timeout=2) as resp:
                 return json.loads(resp.read())
     except urllib.error.HTTPError as e:
-        gum_log("error", f"API Error {e.code}: {e.reason}")
+        msg.fail(f"API Error {e.code}: {e.reason}")
         raise SystemExit(1)
     except (urllib.error.URLError, TimeoutError):
         # Fallback Logic: Return special signal or handle directly
@@ -98,7 +111,7 @@ def _api_call(method: str, endpoint: str, body: dict | None = None) -> dict:
                 write_log(d, log_data)
                 return {"ok": True, "data": log_data, "_offline": True}
 
-        gum_log("error", "API Fehler und kein lokaler Fallback möglich.")
+        msg.fail("API Fehler und kein lokaler Fallback möglich.")
         raise SystemExit(1)
 
 # ── Validation (Pydantic) ──────────────────────────────────────────────────────
@@ -118,19 +131,6 @@ FUEL_DIR      = Path(os.environ.get("AOS_FUEL_DIR", Path.home() / ".aos" / "fuel
 REPO_DIR      = Path(__file__).resolve().parent.parent
 CATALOG_PATH  = REPO_DIR / "catalogs" / "supplements" / "catalog.yaml"
 LOGS_DIR      = FUEL_DIR / "supplements" / "logs"
-
-# ── gum ───────────────────────────────────────────────────────────────────────
-
-def _has_gum() -> bool:
-    return bool(shutil.which("gum"))
-
-def gum_log(level: str, msg: str) -> None:
-    if _has_gum():
-        subprocess.run(["gum", "log", f"--level={level}", msg])
-    else:
-        colors = {"info": "\033[1;32m", "warn": "\033[1;33m", "error": "\033[1;31m"}
-        dest = sys.stderr if level == "error" else sys.stdout
-        print(f"{colors.get(level, '')}{msg}\033[0m", file=dest)
 
 # ── Log I/O ────────────────────────────────────────────────────────────────────
 
@@ -157,7 +157,7 @@ def load_catalog() -> dict[str, dict]:
     res = _api_call("GET", "/supplements/catalog")
     items = res.get("items", [])
     if res.get("_offline"):
-        gum_log("warn", "Offline: Catalog lokal geladen")
+        msg.warn("Offline: Catalog lokal geladen")
     return {item["id"]: item for item in items}
 
 # ── Kern-Logik ─────────────────────────────────────────────────────────────────
@@ -170,7 +170,7 @@ def do_interactive() -> None:
     """Interactive supplement selection via fzf."""
     catalog = load_catalog()
     if not catalog:
-        gum_log("error", "Catalog ist leer")
+        msg.fail("Catalog ist leer")
         raise SystemExit(1)
 
     # Format items for fzf: "ID | Name | Default Dose"
@@ -181,7 +181,7 @@ def do_interactive() -> None:
 
     try:
         result = subprocess.run(
-            ["fzf", "--header", "SUPPLEMENT AUSWÄHLEN (ID | Name | Dosis)", "--height=15", "--layout=reverse"],
+            ["fzf", "--header", "SUPPLEMENT AUSWÄHLEN", "--height=15", "--layout=reverse"],
             input="\n".join(fzf_lines),
             capture_output=True,
             text=True,
@@ -199,14 +199,14 @@ def do_interactive() -> None:
         do_log(selected_id, None, None, None)
 
     except FileNotFoundError:
-        gum_log("error", "fzf nicht gefunden")
+        msg.fail("fzf nicht gefunden")
         raise SystemExit(1)
 
 
 def do_log(supplement_id: str, dose: float | None, time_of_day: str | None, day: str | None) -> None:
     catalog = load_catalog()
     if supplement_id not in catalog:
-        gum_log("error", f"Unbekannt: {supplement_id}")
+        msg.fail(f"Unbekannt: {supplement_id}")
         raise SystemExit(1)
 
     supp   = catalog[supplement_id]
@@ -218,7 +218,7 @@ def do_log(supplement_id: str, dose: float | None, time_of_day: str | None, day:
     try:
         SupplementInput(name=supp["name"], dose=dose, unit=unit, time_of_day=tod)
     except ValidationError as e:
-        gum_log("error", f"Validation error: {e.error_count()} Fehler")
+        msg.fail(f"Validation error: {e.error_count()} Fehler")
         raise SystemExit(1)
 
     payload = {
@@ -235,11 +235,11 @@ def do_log(supplement_id: str, dose: float | None, time_of_day: str | None, day:
 
     res = _api_call("POST", "/supplements/log", payload)
     
-    msg = f"{supp['name']} {dose}{unit} ({tod}) geloggt — {today}"
+    text = f"{supp['name']} {dose}{unit} ({tod}) geloggt — {today}"
     if res.get("_offline"):
-        gum_log("info", f"Offline: {msg}")
+        msg.info(f"Offline: {text}")
     else:
-        gum_log("info", msg)
+        msg.good(text)
 
 def do_today(day: str | None) -> None:
     today = day or date.today().isoformat()
@@ -250,11 +250,11 @@ def do_today(day: str | None) -> None:
         console.print(f"[yellow]Keine Supplements geloggt am {today}[/yellow]")
         return
 
-    st_title = f"Supplements — {today}"
+    title = f"Supplements — {today}"
     if res.get("_offline"):
-        st_title += " (OFFLINE)"
+        title += " (OFFLINE)"
 
-    st = Table(title=st_title, show_header=True, header_style="bold blue")
+    st = Table(title=title, show_header=True, header_style="bold blue")
     st.add_column("SUPPLEMENT", style="green")
     st.add_column("DOSIS",      style="cyan")
     st.add_column("ZEIT",       style="blue")
