@@ -1,5 +1,7 @@
 import { Activity, Leaf, NotebookPen, TrendingUp, UtensilsCrossed, Waves } from "lucide-react";
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Legend, ReferenceLine } from "recharts";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Card, GoalBar, MealRow, Empty } from "../components/ui.jsx";
 import { useSettings } from "../store.js";
 import { sumMetric, formatMetric } from "../../shared/utils/utils.js";
@@ -92,7 +94,13 @@ export default function DashboardView({ nutrition, sup, journal, macroTrend }) {
               streak {streak}d
             </span>
           </div>
-          <p className="text-sm leading-6 text-slate-300 whitespace-pre-wrap">{journal || "Kein Journaleintrag geladen."}</p>
+          <div className="prose prose-invert prose-sm max-w-none leading-6 text-slate-300">
+            {journal ? (
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{journal}</ReactMarkdown>
+            ) : (
+              <p>Kein Journaleintrag geladen.</p>
+            )}
+          </div>
         </section>
       </aside>
     </div>
