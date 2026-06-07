@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Sparkles, X } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { postJson } from "../lib/api.js";
 import { formatMetric } from "../../shared/utils/utils.js";
+import { Modal } from "./ui.jsx";
 
 export default function GeminiCatalogModal({ onClose, onSaved }) {
   const [description, setDescription] = useState("");
@@ -38,28 +39,17 @@ export default function GeminiCatalogModal({ onClose, onSaved }) {
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+    <Modal
+      open={true}
+      onOpenChange={(open) => !open && onClose()}
+      title="Supplement via Gemini"
+      description="Beschreibe das Supplement — Gemini schätzt Name, Dosis und Einheit."
     >
-      <div className="w-full max-w-md rounded-3xl border border-white/10 bg-slate-900 p-6 shadow-xl">
-        <div className="mb-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-violet-300" />
-            <h3 className="text-lg font-semibold">Supplement via Gemini</h3>
-          </div>
-          <button onClick={onClose} className="rounded-full p-1 text-slate-400 hover:text-slate-100">
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        <p className="mb-4 text-sm text-slate-400">
-          Beschreibe das Supplement — Gemini schätzt Name, Dosis und Einheit.
-        </p>
-
+      <div className="space-y-4">
         <textarea
           className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-violet-400"
           rows={3}
+          autoFocus
           placeholder="z.B. Magnesium Glycinat 400mg abends zur Entspannung"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
@@ -70,14 +60,14 @@ export default function GeminiCatalogModal({ onClose, onSaved }) {
           <button
             onClick={handleEstimate}
             disabled={loading || !description.trim()}
-            className="mt-3 w-full rounded-full bg-violet-400 py-3 font-medium text-slate-950 disabled:opacity-60"
+            className="w-full rounded-full bg-violet-400 py-3 font-medium text-slate-950 disabled:opacity-60 transition-transform active:scale-95"
           >
             {loading ? "Gemini schätzt…" : "Schätzen"}
           </button>
         )}
 
         {preview && (
-          <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/60 p-4 text-sm">
+          <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4 text-sm animate-in fade-in slide-in-from-top-2 duration-300">
             <div className="mb-2 flex items-center justify-between">
               <strong className="text-slate-100">{preview.name}</strong>
               <span className="text-xs uppercase tracking-[0.18em] text-slate-500">{preview.default_time_of_day}</span>
@@ -102,8 +92,8 @@ export default function GeminiCatalogModal({ onClose, onSaved }) {
           </div>
         )}
 
-        {error && <p className="mt-3 text-sm text-rose-300">{error}</p>}
+        {error && <p className="text-sm text-rose-300">{error}</p>}
       </div>
-    </div>
+    </Modal>
   );
 }
