@@ -10,6 +10,7 @@
     "ui:dev": "vite",
     "build": "VITE_APP_MODE=coach vite build",
     "build:client": "VITE_APP_MODE=client vite build",
+    "build:v3": "npm run build:client",
     "prod": "PORT=9000 HOST=0.0.0.0 node server.mjs",
     "sync:push": "node --env-file-if-exists=.env scripts/firestore-sync.mjs push",
     "sync:pull": "node --env-file-if-exists=.env scripts/firestore-sync.mjs pull",
