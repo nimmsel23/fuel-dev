@@ -21,15 +21,16 @@ VITALTRAINING (Der eine Gott — The Ultimate Authority)
    │     → Du machst dich NICHT um Technisches Gedanken
    │
    └─ fuel-dev (Der Tempel — Where It Happens)
-      ├─ V1 & V2 Frontends (Altäre — Zugänge)
-      ├─ Fastify API + SQLite + File-based Data
+      ├─ V1 (Classic), V2 (Studio), V3 (Firebase PWA — Altäre — Zugänge)
+      ├─ Fastify API + SQLite + File-based Data (lokal/coach)
+      ├─ Firebase/Firestore (V3 Cloud PWA — fuel-aos.web.app)
       └─ Komponenten
-         ├─ Meal Catalog (individuelle JSON-Files pro Gericht)
-         ├─ Supplements Catalog (catalog.json im Repo)
-         ├─ Food Search (Open Food Facts Proxy)
+         ├─ Meal Catalog (individuelle JSON-Files lokal / Firestore cloud)
+         ├─ Supplements Catalog (catalog.json im Repo / Firestore cloud)
+         ├─ Food Search (Open Food Facts Proxy lokal / Catalog-Suche cloud)
          ├─ Micros Tracking (DACH-Referenzwerte, Wochenheatmap)
          ├─ Journal (Freitext-Notizen)
-         └─ Gemini Integration (Makro- + Mikroschätzung)
+         └─ Gemini Integration (Makro- + Mikroschätzung, nur lokal)
 ```
 
 **The Model: Clear Separation of Concerns**
@@ -44,16 +45,24 @@ VITALTRAINING (Der eine Gott — The Ultimate Authority)
 
 ## Project Overview
 
-**Fuel Centre** (`fuelctx`) ist ein Nutrition-Tracking-PWA für Coaches. Fastify-Backend, dateibasiertes JSON für Logs, SQLite für Ingredient-Cache und Meal-Micros, individuelle JSON-Files pro Meal im Repo.
+**Fuel Centre** (`fuelctx`) ist ein Nutrition-Tracking-PWA für Coaches — mit zwei Deployment-Modi:
+
+| Modus | Stack | Deployment | Daten |
+|-------|-------|------------|-------|
+| **Lokal / Coach** | Fastify + SQLite + File-JSON | Port 9000 Dev / 7000 Prod | `~/.aos/fuel/` |
+| **Firebase V3 PWA** | Firebase Hosting + Firestore | [fuel-aos.web.app](https://fuel-aos.web.app) | Firestore (per User) |
 
 **Ports:**
-- Dev: 9000 (`server.mjs` → `src/app.mjs`)
+- Dev: 9000 (`server.mjs` → `src/server/app.mjs`)
 - Vite dev: 5173
-- Prod: 7000 (static)
+- Prod lokal: 7000 (static)
+- Firebase V3: `https://fuel-aos.web.app`
 
-**Data location:** `~/.aos/fuel/` (via `AOS_FUEL_DATA_DIR`)
-**Catalogs:** Im Repo unter `catalogs/` (git-tracked)
-**Build output:** `/opt/fuel` (via `FUEL_BUILD_DIR`)
+**Data location (lokal):** `~/.aos/fuel/` (via `AOS_FUEL_DATA_DIR`)
+**Data location (cloud):** Firestore — Collections `nutrition/{uid}/logs`, `supplements/{uid}/logs`, `users/{uid}/meta`
+**Catalogs:** Im Repo unter `catalogs/` (git-tracked, lokal); Firestore `nutrition/{uid}/meta/catalog` (cloud)
+**Build output lokal:** `/opt/fuel` (via `FUEL_BUILD_DIR`)
+**Build output V3:** `./dist-firebase/` → Firebase Hosting
 
 ---
 
@@ -61,11 +70,16 @@ VITALTRAINING (Der eine Gott — The Ultimate Authority)
 
 ```bash
 npm install
-npm run dev        # nodemon + vite dev
-npm run build      # Vite build → /opt/fuel
+npm run dev        # nodemon + vite dev (lokal, Port 9000 + 5173)
+npm run build      # Vite build → /opt/fuel (coach mode)
 npm run prod       # static server port 7000
 npm start          # bare server port 9000
-npm run ui:dev     # Vite dev only
+npm run ui:dev     # Vite dev only (kein Backend)
+
+# Firebase V3
+npm run build:v3   # Build → dist-firebase/ + deploy zu fuel-aos.web.app
+npm run sync:push  # lokale Katalog-Daten → Firestore pushen
+npm run sync:pull  # Firestore → lokale Dateien pullen
 ```
 
 ---
@@ -148,10 +162,20 @@ Wochenheatmap (Mikros-Tab) aggregiert meal_micros-Werte pro Woche vs. DACH.
 - SW: cache-first für Assets, network-first für API
 - Kein Offline-Write-Through
 
-**V2 / Fuel Studio** (`src/main.jsx` + Vite)
+**V2 / Fuel Studio** (`src/client/main.jsx` + Vite, `VITE_APP_MODE=coach`)
 - React 18, TailwindCSS 3, TanStack Query, FullCalendar, Recharts, Zod, Zustand
 - Tabs: **Dashboard · Food · Big Calendar · Journal · Supplements · Mikros · Setup**
 - `Mikros`-Tab: Wochenheatmap (letzte 8 KW, Zeilen = Mikronährstoffe, Farbe = % DACH)
+- Ruft direkt lokales Fastify-Backend an (Port 9000)
+
+**V3 / Firebase PWA** (`src/client/main.jsx` + Vite, `VITE_APP_MODE=client`)
+- Gleiche React-Codebase wie V2 — Deployment-Modus wird per `isCloud()` erkannt
+- `src/client/lib/api.js` — Cloud-Aware-Abstraction: leitet alle Reads/Writes je nach Hostname zu Fastify-Backend oder Firestore-SDK
+- `src/client/lib/firestore-db.js` — Firestore Data Layer (Multi-User, per UID)
+- `src/client/lib/firebase.js` — Firebase Init + Auth (Google Sign-In)
+- Firestore Collections: `nutrition/{uid}/logs`, `nutrition/{uid}/meta/catalog`, `nutrition/{uid}/journal`, `supplements/{uid}/logs`, `supplements/{uid}/meta/catalog`, `users/{uid}/meta/settings`
+- AI Logger (lokales Gemini-Backend) → nur lokal sichtbar (kein Backend in V3)
+- `dist-firebase/` → Firebase Hosting (fuel-aos.web.app)
 
 ### Gemini Scripts (Python)
 
@@ -176,13 +200,14 @@ API-Key: `~/.env/fuel.env` (`GEMINI_API_KEY`, `GEMINI_MODEL=gemini-2.5-flash`)
 
 ## Build & Deploy
 
+### Lokal (Fastify + SQLite)
 ```bash
 npm run dev   # nodemon + vite, watches src/ + server.mjs
-npm run build # Vite → /opt/fuel
+npm run build # Vite → /opt/fuel  (VITE_APP_MODE=coach)
 npm run prod  # PORT=7000 HOST=0.0.0.0 FUEL_STATIC_DIR=/opt/fuel
 ```
 
-**Environment Variables:**
+**Environment Variables (lokal):**
 - `PORT` (default 9000)
 - `HOST` (default 127.0.0.1)
 - `AOS_FUEL_DATA_DIR` (default `~/.aos/fuel`)
@@ -190,70 +215,111 @@ npm run prod  # PORT=7000 HOST=0.0.0.0 FUEL_STATIC_DIR=/opt/fuel
 - `FUEL_BUILD_DIR` (default `/opt/fuel`)
 - `FUEL_VITE_ORIGIN` (für Vite-Proxy in dev)
 
+### Firebase V3 (Cloud PWA)
+```bash
+npm run build:v3   # = build:firebase = build:client (VITE_APP_MODE=client → dist-firebase/)
+                   # Pre-commit-Hook deployed automatisch zu Firebase Hosting
+npm run sync:push  # Lokale Katalog-JSONs → Firestore pushen (scripts/firestore-sync.mjs)
+npm run sync:pull  # Firestore → lokale Dateien ziehen
+```
+
+**Firebase Config:** `src/client/lib/firebase.config.js` — Project: `fuel-aos`
+**Deployment:** `firebase deploy --only hosting` via pre-commit-Hook (automatisch bei `git commit` wenn V3-Dateien geändert)
+
 ---
 
 ## Code Structure
 
 ```
 fuel-dev/
-├── server.mjs                    Entrypoint → src/app.mjs
+├── server.mjs                    Entrypoint → src/server/app.mjs
 ├── src/
-│   ├── app.mjs                   Fastify setup, Plugin-Registration
-│   ├── config/
-│   │   ├── constants.mjs         PORT, HOST
-│   │   ├── dach.mjs              DACH Referenzwerte + getStatus()
-│   │   └── paths.mjs             Alle Pfad-Konstanten
-│   ├── routes/
-│   │   ├── nutrition/
-│   │   │   ├── index.mjs         Plugin-Wrapper für alle Nutrition-Routes
-│   │   │   ├── log.mjs           GET+POST /nutrition/log
-│   │   │   ├── catalog.mjs       GET+POST /nutrition/catalog
-│   │   │   ├── daily.mjs         GET /nutrition/search + /nutrition/daily/:date
-│   │   │   ├── weekly.mjs        GET /nutrition/weekly/:year/:week
-│   │   │   ├── journal.mjs       GET+POST /nutrition/journal
-│   │   │   └── compose.mjs       POST /nutrition/compose + /nutrition/estimate
-│   │   ├── supplements.mjs
-│   │   ├── fuel.mjs              legacy
-│   │   ├── health.mjs
-│   │   └── static.mjs
-│   ├── services/
-│   │   ├── nutrition-db.mjs      better-sqlite3: ingredients + meal_micros
-│   │   ├── nutrition-catalog.mjs Meal-Catalog (individuelle Files)
-│   │   ├── nutrition-micros.mjs  Wrapper: getMicrosForMeal / saveMicrosForMeal
-│   │   ├── nutrition-compose.mjs gemini-compose wrapper
-│   │   ├── nutrition-estimate.mjs gemini-estimate wrapper
-│   │   ├── nutrition-estimate-micros.mjs gemini-micros wrapper
-│   │   ├── nutrition-log.mjs
-│   │   ├── nutrition-journal.mjs
-│   │   ├── nutrition-search.mjs  Open Food Facts proxy
-│   │   ├── supplements-catalog.mjs
-│   │   ├── supplements-log.mjs
-│   │   └── wger-search.mjs
-│   ├── views/
-│   │   ├── FoodView.jsx
-│   │   └── MicrosView.jsx        Wochenheatmap DACH
-│   ├── components/
-│   │   ├── FoodSearch.jsx
-│   │   └── NutritionHeatmap.jsx  Wochennavigation (Header)
-│   ├── hooks/
-│   │   └── weekLogs.js
-│   ├── lib/
-│   │   ├── validation.mjs
-│   │   ├── file-io.mjs
-│   │   └── ids.mjs
-│   ├── main.jsx                  React entry, Tabs, Layout
-│   └── styles.css
+│   ├── client/                   ─── Frontend (React, Vite) ───────────────────
+│   │   ├── main.jsx              React entry, Tabs, Layout, Auth
+│   │   ├── store.js              Zustand: activeTab, activeDate
+│   │   ├── styles.css
+│   │   ├── views/
+│   │   │   ├── DashboardView.jsx  Makro-Summary, Trend-Charts
+│   │   │   ├── FoodView.jsx       Logging-Form, Food-Search, Katalog, Rezept-Builder
+│   │   │   ├── MicrosView.jsx     Wochenheatmap DACH
+│   │   │   ├── CalendarView.jsx   FullCalendar Monatsansicht
+│   │   │   ├── JournalView.jsx    Freitext-Notizen
+│   │   │   ├── SupplementsView.jsx
+│   │   │   └── SettingsView.jsx
+│   │   ├── components/
+│   │   │   ├── FoodSearch.jsx     Open Food Facts / Catalog-Suche
+│   │   │   ├── NutritionHeatmap.jsx Wochennavigation (Header)
+│   │   │   ├── GeminiCatalogModal.jsx
+│   │   │   └── ui.jsx             Shared MealRow etc.
+│   │   ├── hooks/
+│   │   │   ├── useNutrition.js    useNutritionData / useMacroTrend / useJournal
+│   │   │   ├── useSupplements.js
+│   │   │   └── weekLogs.js
+│   │   └── lib/
+│   │       ├── api.js             ⭐ Cloud-Aware Abstraction (lokal→Fastify / cloud→Firestore)
+│   │       ├── firebase.js        Firebase Init + Auth
+│   │       ├── firebase.config.js Firebase Project: fuel-aos
+│   │       └── firestore-db.js    Firestore Data Layer (Multi-User, per UID)
+│   ├── server/                   ─── Backend (Fastify, Node) ─────────────────
+│   │   ├── app.mjs               Fastify setup, Plugin-Registration
+│   │   ├── config/
+│   │   │   └── paths.mjs         Alle Server-Pfad-Konstanten
+│   │   ├── routes/
+│   │   │   ├── nutrition/
+│   │   │   │   ├── index.mjs     Plugin-Wrapper für alle Nutrition-Routes
+│   │   │   │   ├── log.mjs       GET+POST+PATCH /nutrition/log
+│   │   │   │   ├── catalog.mjs   GET+POST /nutrition/catalog
+│   │   │   │   ├── daily.mjs     GET /nutrition/search + /nutrition/daily/:date
+│   │   │   │   ├── weekly.mjs    GET /nutrition/weekly/:year/:week
+│   │   │   │   ├── journal.mjs   GET+POST /nutrition/journal
+│   │   │   │   ├── compose.mjs   POST /nutrition/compose + /nutrition/estimate
+│   │   │   │   ├── estimate.mjs  POST /nutrition/estimate (standalone)
+│   │   │   │   └── ai-log.mjs    POST /nutrition/ai-log (Gemini dispatcher)
+│   │   │   ├── supplements.mjs
+│   │   │   ├── supplement-estimate.mjs
+│   │   │   ├── fuel.mjs          legacy
+│   │   │   ├── health.mjs
+│   │   │   └── static.mjs
+│   │   ├── services/
+│   │   │   ├── nutrition-db.mjs  better-sqlite3: ingredients + meal_micros
+│   │   │   ├── nutrition-catalog.mjs Meal-Catalog (individuelle Files)
+│   │   │   ├── nutrition-micros.mjs  getMicrosForMeal / saveMicrosForMeal
+│   │   │   ├── nutrition-compose.mjs gemini-compose wrapper
+│   │   │   ├── nutrition-estimate.mjs gemini-estimate wrapper
+│   │   │   ├── nutrition-estimate-micros.mjs gemini-micros wrapper
+│   │   │   ├── nutrition-log.mjs
+│   │   │   ├── nutrition-journal.mjs
+│   │   │   ├── nutrition-search.mjs  Open Food Facts proxy
+│   │   │   ├── gemini.mjs        Gemini-SDK Wrapper
+│   │   │   ├── supplements-catalog.mjs
+│   │   │   ├── supplements-log.mjs
+│   │   │   └── wger-search.mjs
+│   │   └── lib/
+│   │       └── file-io.mjs
+│   └── shared/                  ─── Geteilter Code (client + server) ──────────
+│       ├── config/
+│       │   ├── constants.mjs    PORT, HOST
+│       │   └── dach.mjs         DACH Referenzwerte + getStatus()
+│       └── utils/
+│           ├── ids.mjs
+│           ├── validation.mjs
+│           └── utils.js
 ├── catalogs/
 │   ├── nutrition/
-│   │   └── meals/                {id}.json pro Gericht
+│   │   └── meals/               {id}.json pro Gericht (lokal git-tracked)
 │   └── supplements/
 │       └── catalog.json
-├── public/                       V1 vanilla PWA
-├── gemini-compose                Python script
-├── gemini-estimate               Python script
-├── gemini-micros                 Python script
-├── fuel                          Python/Typer CLI (Supplements)
-├── fuel-log.zsh                  Meal-Logger TUI
+├── public/                      V1 vanilla PWA
+├── bin/
+│   └── fuel-food-search         CLI food search
+├── gemini-compose               Python script (Makro-Schätzung via wger)
+├── gemini-estimate              Python script (freie Beschreibung → Makros)
+├── gemini-micros                Python script (Mahlzeit → Mikronährstoffprofil)
+├── fuel                         Python/Typer CLI (Supplements)
+├── dist-firebase/               V3 Build → Firebase Hosting (git-ignored)
+├── scripts/
+│   ├── dev-runner.mjs           Dev-Runner (nodemon wrapper)
+│   └── firestore-sync.mjs       Lokale Kataloge ↔ Firestore sync
 └── vite.config.js
 ```
 
@@ -307,7 +373,10 @@ See `~/.claude/agents/nutrition-agent.md` for full definition.
 
 ## Open / Planned
 
-- Offline write-through für POST-Queue (Vorbild: `~/core4-dev/public/offline-queue.js`)
-- CLI `fuel meal` → schreibt via `/nutrition/log` (statt nur Supplements)
-- Klienten-Auth für Multi-User (`/c/<id>/nutrition/…` vorbereitet)
-- Export-Endpoint (`GET /nutrition/export?from=&to=` → CSV)
+- **Tab-Modularisierung:** `main.jsx` ist zu groß — Tabs als eigene Lazy-geladene Module, Tab-Config als Array of `{ key, label, icon, component }`
+- **Chunk-Splitting:** Build-Warning "Some chunks are larger than 500 kB" — dynamische Imports für FullCalendar, Recharts, etc.
+- **Offline write-through V3:** POST-Queue via IndexedDB (Vorbild: `~/core4-dev/public/offline-queue.js`) für Firebase-Mode
+- **CLI `fuel meal`:** schreibt via `/nutrition/log` (statt nur Supplements)
+- **Export-Endpoint:** `GET /nutrition/export?from=&to=` → CSV (lokal)
+- **Firestore-Sicherheitsregeln:** Production-ready Rules für `nutrition/{uid}` und `supplements/{uid}`
+- **Klienten-Auth Multi-User (lokal):** `/c/<id>/nutrition/…` Route bereits vorbereitet
