@@ -6,7 +6,7 @@ import { twMerge } from "tailwind-merge";
 import { motion, AnimatePresence } from "framer-motion";
 
 import "./styles.css";
-import { TAB_CONFIG } from "./tabs.jsx";
+import { TAB_CONFIG } from "./tabs/index.jsx";
 import TabContent from "./components/TabContent.jsx";
 import NutritionHeatmap from "./components/NutritionHeatmap.jsx";
 import { useApp } from "./store.js";
