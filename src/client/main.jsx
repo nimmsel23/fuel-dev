@@ -10,8 +10,7 @@ import { TAB_CONFIG } from "./tabs/index.jsx";
 import TabContent from "./components/TabContent.jsx";
 import NutritionHeatmap from "./components/NutritionHeatmap.jsx";
 import { useApp } from "./store.js";
-import { useNutritionData, useMacroTrend, useJournal } from "./hooks/useNutrition.js";
-import { useSuppStats, useSuppCatalog, useSuppLog } from "./hooks/useSupplements.js";
+import { useAppData } from "./hooks/useAppData.js";
 import { sumMetric, formatMetric } from "../shared/utils/utils.js";
 import { watchAuth, signIn, signOut, getUid } from "./lib/firestore-db.js";
 
@@ -43,12 +42,7 @@ function App() {
 
   React.useEffect(() => watchAuth((u) => setUser(u)), []);
 
-  const { data: nutrition } = useNutritionData(activeDate);
-  const { data: sup } = useSuppStats(activeDate);
-  const { data: suppCatalog } = useSuppCatalog();
-  const { data: suppLog } = useSuppLog(activeDate);
-  const { data: journal } = useJournal(activeDate);
-  const { data: macroTrend } = useMacroTrend(activeDate);
+  const { nutrition, sup, suppCatalog, suppLog, journal, macroTrend } = useAppData(activeDate);
 
   const meals = nutrition?.meals || [];
   const totalKcal = sumMetric(meals, "kcal");

@@ -75,6 +75,7 @@ export default defineConfig(({ mode }) => {
           manualChunks: {
             "vendor-react": ["react", "react-dom"],
             "vendor-query": ["@tanstack/react-query"],
+            "vendor-firebase": ["firebase/app", "firebase/firestore", "firebase/auth"],
             "vendor-calendar": ["@fullcalendar/react", "@fullcalendar/daygrid", "@fullcalendar/timegrid", "@fullcalendar/interaction"],
             "vendor-charts": ["recharts"],
           },
