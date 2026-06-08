@@ -1,18 +1,13 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { CalendarDays, Flame, Microscope, NotebookPen, Pill, Settings2, Sparkles, UtensilsCrossed } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 import { motion, AnimatePresence } from "framer-motion";
 
 import "./styles.css";
-import FoodView from "./views/FoodView.jsx";
-import MicrosView from "./views/MicrosView.jsx";
-import DashboardView from "./views/DashboardView.jsx";
-import CalendarView from "./views/CalendarView.jsx";
-import JournalView from "./views/JournalView.jsx";
-import SupplementsView from "./views/SupplementsView.jsx";
-import SettingsView from "./views/SettingsView.jsx";
+import { TAB_CONFIG } from "./tabs.jsx";
+import TabContent from "./components/TabContent.jsx";
 import NutritionHeatmap from "./components/NutritionHeatmap.jsx";
 import { useApp } from "./store.js";
 import { useNutritionData, useMacroTrend, useJournal } from "./hooks/useNutrition.js";
@@ -24,7 +19,6 @@ import { useRegisterSW } from "virtual:pwa-register/react";
 
 const qc = new QueryClient();
 
-// Global Debug Object
 if (typeof window !== "undefined") {
   window.fuelDebug = {
     version: "3.0.0",
@@ -33,50 +27,21 @@ if (typeof window !== "undefined") {
   };
 }
 
-const TABS = [
-  ["dashboard", "Dashboard", Flame],
-  ["food", "Food", UtensilsCrossed],
-  ["calendar", "Big Calendar", CalendarDays],
-  ["journal", "Journal", NotebookPen],
-  ["supplements", "Supplements", Pill],
-  ["micros", "Mikros", Microscope],
-  ["settings", "Setup", Settings2],
-];
-
 function App() {
   const { activeTab, setActiveTab, activeDate, setActiveDate } = useApp();
   const [user, setUser] = React.useState(null);
 
-  // Service Worker Registration & Auto-Update Logic
-  const {
-    needRefresh: [needRefresh],
-    updateServiceWorker,
-  } = useRegisterSW({
+  const { needRefresh: [needRefresh], updateServiceWorker } = useRegisterSW({
     onRegistered(r) {
-      console.log("SW registered");
-      if (r) {
-        // Check for updates every hour
-        setInterval(() => {
-          r.update();
-        }, 60 * 60 * 1000);
-      }
+      if (r) setInterval(() => r.update(), 60 * 60 * 1000);
     },
-    onRegisterError(error) {
-      console.error("SW registration error", error);
-    }
   });
 
-  // Auto-refresh when a new version is available
   React.useEffect(() => {
-    if (needRefresh) {
-      console.log("New version available, updating...");
-      updateServiceWorker(true);
-    }
+    if (needRefresh) updateServiceWorker(true);
   }, [needRefresh, updateServiceWorker]);
 
-  React.useEffect(() => {
-    return watchAuth((u) => setUser(u));
-  }, []);
+  React.useEffect(() => watchAuth((u) => setUser(u)), []);
 
   const { data: nutrition } = useNutritionData(activeDate);
   const { data: sup } = useSuppStats(activeDate);
@@ -98,6 +63,8 @@ function App() {
     document.title = (isCloud || isClientBuild) ? "Fuel Centre V3 (Firebase PWA)" : "Fuel Centre V2 (Desktop Prod)";
   }, [isCloud, isClientBuild]);
 
+  const tabCtx = { nutrition, sup, suppCatalog, suppLog, journal, macroTrend, activeDate, setActiveDate };
+
   return (
     <div className="min-h-screen text-slate-100">
       <div className="mx-auto max-w-7xl px-4 py-6 lg:px-8">
@@ -111,9 +78,13 @@ function App() {
                 </p>
                 {isCloud && (
                   user ? (
-                    <button onClick={signOut} className="text-[10px] text-slate-500 hover:text-white uppercase tracking-widest">Logout ({user.displayName?.split(" ")[0]})</button>
+                    <button onClick={signOut} className="text-[10px] text-slate-500 hover:text-white uppercase tracking-widest">
+                      Logout ({user.displayName?.split(" ")[0]})
+                    </button>
                   ) : (
-                    <button onClick={signIn} className="text-[10px] text-orange-400 hover:text-orange-300 font-bold uppercase tracking-widest">Cloud Login</button>
+                    <button onClick={signIn} className="text-[10px] text-orange-400 hover:text-orange-300 font-bold uppercase tracking-widest">
+                      Cloud Login
+                    </button>
                   )
                 )}
               </div>
@@ -136,7 +107,7 @@ function App() {
           <NutritionHeatmap selectedDate={activeDate} onSelectDate={setActiveDate} />
 
           <nav className="flex flex-wrap gap-2">
-            {TABS.filter(([key]) => (!isCloud && !isClientBuild) || key !== "v2_only").map(([key, label, Icon]) => (
+            {TAB_CONFIG.map(({ key, label, Icon }) => (
               <motion.button
                 whileTap={{ scale: 0.96 }}
                 key={key}
@@ -164,20 +135,7 @@ function App() {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.15, ease: "easeInOut" }}
             >
-              {activeTab === "dashboard" && (
-                <DashboardView nutrition={nutrition} sup={sup} journal={journal} macroTrend={macroTrend} />
-              )}
-              {activeTab === "food" && <FoodView activeDate={activeDate} setActiveDate={setActiveDate} nutrition={nutrition} />}
-              {activeTab === "calendar" && <CalendarView date={activeDate} nutrition={nutrition} />}
-
-              {activeTab === "journal" && (
-                <JournalView date={activeDate} nutrition={nutrition} journal={journal || ""} />
-              )}
-              {activeTab === "supplements" && (
-                <SupplementsView date={activeDate} sup={sup} catalog={suppCatalog || []} suppLog={suppLog} />
-              )}
-              {activeTab === "micros" && <MicrosView />}
-              {activeTab === "settings" && <SettingsView />}
+              <TabContent activeTab={activeTab} ctx={tabCtx} />
             </motion.div>
           </AnimatePresence>
         </main>
