@@ -149,10 +149,11 @@ export async function postJson(path, body) {
     }
     if (normPath === "/nutrition/catalog") {
       const items = await firestore.getNutritionCatalog();
-      items.push(body.item);
+      const item = { ...body.item, id: body.item.id || `meal_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}` };
+      items.push(item);
       const ref = doc(firestore.db, "nutrition", firestore.getUid(), "meta", "catalog");
       await setDoc(ref, { items, updated_at: firestore.serverTimestamp() });
-      return { ok: true };
+      return { ok: true, item };
     }
     if (normPath === "/supplements/log") {
       // Wenn es ein delete_id gibt, löschen wir, sonst speichern wir
