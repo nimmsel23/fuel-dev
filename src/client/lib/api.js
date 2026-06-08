@@ -72,12 +72,75 @@ export async function fetchJson(path) {
   return res.json();
 }
 
+export async function patchJson(path, body) {
+  const normPath = normalizePath(path);
+
+  if (isCloud()) {
+    if (normPath === "/nutrition/log") {
+      const existing = await firestore.getNutritionLog(body.date);
+      const meals = [...(existing.meals || [])];
+      const idx = meals.findIndex((m) => m.id === body.meal_id);
+      if (idx !== -1) {
+        if (body.new_date && body.new_date !== body.date) {
+          const movedMeal = { ...meals[idx], ...body.meal, id: body.meal_id };
+          meals.splice(idx, 1);
+          await firestore.saveNutritionLog(body.date, { ...existing, meals });
+          const targetLog = await firestore.getNutritionLog(body.new_date);
+          targetLog.meals = [...(targetLog.meals || []), movedMeal];
+          await firestore.saveNutritionLog(body.new_date, targetLog);
+        } else {
+          meals[idx] = { ...meals[idx], ...body.meal };
+          await firestore.saveNutritionLog(body.date, { ...existing, meals });
+        }
+      }
+      return { ok: true };
+    }
+  }
+
+  const res = await fetch(path, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
 export async function postJson(path, body) {
   const normPath = normalizePath(path);
 
   if (isCloud()) {
     if (normPath === "/nutrition/log") {
-      await firestore.saveNutritionLog(body.date, body.meal ? { meals: [body.meal] } : body);
+      const existing = await firestore.getNutritionLog(body.date);
+      if (body.delete_meal_id) {
+        existing.meals = (existing.meals || []).filter((m) => m.id !== body.delete_meal_id);
+      } else if (body.catalog_item_id) {
+        const catalog = await firestore.getNutritionCatalog();
+        const item = catalog.find((i) => i.id === body.catalog_item_id);
+        if (item) {
+          const meal = {
+            id: `meal_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+            type: item.meal_type || item.type || "meal",
+            description: item.name || item.description,
+            notes: item.notes || "",
+            kcal: item.kcal || 0,
+            protein: item.protein || 0,
+            carbs: item.carbs || 0,
+            fat: item.fat || 0,
+            catalog_id: item.id,
+            logged_at: new Date().toISOString(),
+          };
+          existing.meals = [...(existing.meals || []), meal];
+        }
+      } else if (body.meal) {
+        const meal = {
+          ...body.meal,
+          id: body.meal.id || `meal_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+          logged_at: body.meal.logged_at || new Date().toISOString(),
+        };
+        existing.meals = [...(existing.meals || []), meal];
+      }
+      await firestore.saveNutritionLog(body.date, existing);
       return { ok: true };
     }
     if (normPath === "/nutrition/journal") {
