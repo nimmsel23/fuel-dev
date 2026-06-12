@@ -263,9 +263,55 @@ def do_today(day: str | None) -> None:
         st.add_row(i["name"], f"{i['dose']}{i['unit']}", i["time_of_day"])
     console.print(st)
 
+def do_unlog(day: str | None) -> None:
+    target_day = day or date.today().isoformat()
+    res = _api_call("GET", f"/supplements/log?date={target_day}")
+    intakes = res.get("data", {}).get("intakes", [])
+
+    if not intakes:
+        msg.warn(f"Keine Einträge am {target_day} zum Löschen.")
+        return
+
+    # If only one entry, maybe ask? Or just fzf always for safety
+    fzf_lines = []
+    for i in intakes:
+        line = f"{i['id']} | {i['name']} ({i['dose']}{i['unit']}) @ {i['time_of_day']}"
+        fzf_lines.append(line)
+
+    try:
+        result = subprocess.run(
+            ["fzf", "--header", f"EINTRAG LÖSCHEN ({target_day})", "--height=15", "--layout=reverse"],
+            input="\n".join(fzf_lines),
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            return
+
+        selected_line = result.stdout.strip()
+        if not selected_line:
+            return
+
+        delete_id = selected_line.split("|")[0].strip()
+        
+        payload = {"date": target_day, "delete_id": delete_id}
+        _api_call("POST", "/supplements/log", payload)
+        msg.good(f"Eintrag {delete_id} gelöscht.")
+
+    except FileNotFoundError:
+        msg.fail("fzf nicht gefunden")
+        raise SystemExit(1)
+
 # ── Typer App ──────────────────────────────────────────────────────────────────
 
 app = typer.Typer(help="Supplement Tracker CLI")
+
+@app.command(name="unlog")
+def unlog_command(
+    day: str | None = typer.Option(None, "--day", "-d", help="Datum YYYY-MM-DD")
+) -> None:
+    """Entferne einen Supplement-Eintrag interaktiv."""
+    do_unlog(day)
 
 @app.callback(invoke_without_command=True)
 def main(ctx: typer.Context) -> None:
@@ -283,7 +329,7 @@ def main(ctx: typer.Context) -> None:
 @app.command(name="log")
 def log_command(
     supplements: list[str]   = typer.Argument(..., help="Supplement-IDs"),
-    dose:       float | None = typer.Argument(None, help="Dosis für erstes Supplement"),
+    dose:       float | None = typer.Option(None, "--dose", "-v", help="Dosis für erstes Supplement"),
     time:       str | None   = typer.Option(None, "--time", "-t", help="morning/evening/night/any"),
     day:        str | None   = typer.Option(None, "--day", "-d", help="Datum YYYY-MM-DD"),
 ) -> None:

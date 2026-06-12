@@ -51,12 +51,12 @@ def show_combined_today():
     msg.divider("SUPPLEMENTS")
     subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-supplement"), "today"])
 
-@app.command()
+@app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
 def meal(ctx: typer.Context):
     """Route to fuel-meal."""
     subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-meal")] + ctx.args)
 
-@app.command()
+@app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
 def supplement(ctx: typer.Context):
     """Route to fuel-supplement."""
     subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-supplement")] + ctx.args)
@@ -71,6 +71,11 @@ def list():
     """List available supplements."""
     subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-supplement"), "list"])
 
+@app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
+def unlog(ctx: typer.Context):
+    """Route to fuel-supplement unlog."""
+    subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-supplement"), "unlog"] + ctx.args)
+
 def main():
     # 1. Check for basic no-args case
     if len(sys.argv) == 1:
@@ -81,7 +86,7 @@ def main():
     first_arg = sys.argv[1]
     
     # List of explicit commands that Typer should handle
-    KNOWN_COMMANDS = {"meal", "supplement", "today", "list", "--help", "-h"}
+    KNOWN_COMMANDS = {"meal", "supplement", "today", "list", "unlog", "--help", "-h"}
     
     if first_arg in KNOWN_COMMANDS:
         app()
