@@ -262,16 +262,23 @@ export default function FoodView({ activeDate, setActiveDate, nutrition }) {
       )}
 
       {/* Manuelles Log-Formular */}
-      <div className={twMerge(
-        "rounded-2xl border p-5 space-y-4 mb-6",
-        isEditing ? "border-orange-400/40 bg-orange-400/5" : "border-white/10 bg-slate-950/50"
+      <div id="edit-form" className={twMerge(
+        "rounded-2xl border p-5 space-y-4 mb-6 transition-all duration-300",
+        isEditing ? "border-orange-400 shadow-[0_0_20px_rgba(251,146,60,0.2)] bg-orange-400/5 ring-1 ring-orange-400/20" : "border-white/10 bg-slate-950/50"
       )}>
-        {isEditing && (
-          <div className="flex items-center justify-between">
-            <span className="text-xs uppercase tracking-widest text-orange-400">Eintrag bearbeiten</span>
-            <button onClick={cancelEdit} className="text-xs text-slate-500 hover:text-slate-300">Abbrechen</button>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {isEditing ? <Pencil className="h-4 w-4 text-orange-400" /> : <UtensilsCrossed className="h-4 w-4 text-slate-400" />}
+            <h3 className={twMerge("text-sm font-semibold uppercase tracking-widest", isEditing ? "text-orange-400" : "text-slate-400")}>
+              {isEditing ? "Eintrag bearbeiten" : "Mahlzeit loggen"}
+            </h3>
           </div>
-        )}
+          {isEditing && (
+            <button onClick={cancelEdit} className="text-xs font-medium text-slate-500 hover:text-slate-300 transition-colors bg-white/5 px-2 py-1 rounded-md">
+              Abbrechen
+            </button>
+          )}
+        </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Datum">
             <input type="date" className={inputCls} value={activeDate}
@@ -547,15 +554,22 @@ export default function FoodView({ activeDate, setActiveDate, nutrition }) {
                   <button type="button" onClick={() => saveCatalog.mutate(m)}
                     disabled={saveCatalog.isPending || !m.description}
                     title="Als Gericht speichern"
-                    className="rounded-lg border border-white/10 bg-white/5 p-2 text-slate-400 hover:text-orange-400 transition disabled:cursor-not-allowed disabled:opacity-50">
+                    className="rounded-lg border border-white/10 bg-white/5 p-2 text-slate-400 hover:text-orange-400 hover:bg-orange-400/10 transition disabled:cursor-not-allowed disabled:opacity-50">
                     <BookmarkPlus className="h-3.5 w-3.5" />
                   </button>
                   <button onClick={() => loadForEdit(m)}
-                    className="rounded-lg border border-white/10 bg-white/5 p-2 text-slate-400 hover:text-orange-400 transition">
+                    title="Eintrag bearbeiten"
+                    className={twMerge(
+                      "rounded-lg border p-2 transition",
+                      form.id === m.id 
+                        ? "border-orange-400 bg-orange-400 text-slate-950" 
+                        : "border-white/10 bg-white/5 text-slate-400 hover:text-orange-400 hover:bg-orange-400/10"
+                    )}>
                     <Pencil className="h-3.5 w-3.5" />
                   </button>
                   <button onClick={() => deleteMeal.mutate(m.id)}
-                    className="rounded-lg border border-white/10 bg-white/5 p-2 text-slate-400 hover:text-red-400 transition">
+                    title="Löschen"
+                    className="rounded-lg border border-white/10 bg-white/5 p-2 text-slate-400 hover:text-red-400 hover:bg-red-400/10 transition">
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
