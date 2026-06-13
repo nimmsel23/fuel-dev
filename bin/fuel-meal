@@ -335,9 +335,54 @@ def do_today(day: str | None) -> None:
     
     console.print(table)
 
+def do_unlog(day: str | None) -> None:
+    target_day = day or date.today().isoformat()
+    res = _api_call("GET", f"/nutrition/log?date={target_day}")
+    meals = res.get("data", {}).get("meals", [])
+
+    if not meals:
+        msg.warn(f"Keine Einträge am {target_day} zum Löschen.")
+        return
+
+    fzf_lines = []
+    for m in meals:
+        line = f"{m['id']} | {m['description']} ({m.get('kcal',0)} kcal)"
+        fzf_lines.append(line)
+
+    try:
+        result = subprocess.run(
+            ["fzf", "--header", f"MAHLZEIT LÖSCHEN ({target_day})", "--height=15", "--layout=reverse"],
+            input="\n".join(fzf_lines),
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            return
+
+        selected_line = result.stdout.strip()
+        if not selected_line:
+            return
+
+        delete_id = selected_line.split("|")[0].strip()
+        
+        payload = {"date": target_day, "delete_meal_id": delete_id}
+        _api_call("POST", "/nutrition/log", payload)
+        msg.good(f"Mahlzeit {delete_id} gelöscht.")
+
+    except FileNotFoundError:
+        msg.fail("fzf nicht gefunden")
+        raise SystemExit(1)
+
 # ── Typer App ──────────────────────────────────────────────────────────────────
 
 app = typer.Typer(help="Meal Logging CLI")
+
+@app.command(name="unlog")
+def unlog_command(
+    day: str | None = typer.Option(None, "--day", "-d", help="Datum YYYY-MM-DD")
+) -> None:
+    """Entferne einen Mahlzeiten-Eintrag interaktiv."""
+    do_unlog(day)
 
 @app.callback(invoke_without_command=True)
 def main(ctx: typer.Context) -> None:

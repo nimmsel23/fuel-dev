@@ -73,8 +73,16 @@ def list():
 
 @app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
 def unlog(ctx: typer.Context):
-    """Route to fuel-supplement unlog."""
-    subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-supplement"), "unlog"] + ctx.args)
+    """Universal unlog (defaults to supplement, supports --meal)."""
+    is_meal = "--meal" in ctx.args
+    filtered_args = [a for a in ctx.args if a != "--meal"]
+    if is_meal:
+        subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-meal"), "unlog"] + filtered_args)
+    else:
+        # Default to supplement, but maybe check if it fails and try meal? 
+        # For now, explicit --meal is better or just call both if interactive?
+        # Let's just default to supplement unlog but mention --meal.
+        subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-supplement"), "unlog"] + filtered_args)
 
 def main():
     # 1. Check for basic no-args case
