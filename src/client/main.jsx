@@ -42,6 +42,28 @@ function App() {
 
   React.useEffect(() => watchAuth((u) => setUser(u)), []);
 
+  // URL Hashing for Tabs
+  React.useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace("#", "");
+      if (hash && TAB_CONFIG.some((t) => t.key === hash)) {
+        setActiveTab(hash);
+      }
+    };
+
+    // Initial check
+    handleHashChange();
+
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, [setActiveTab]);
+
+  React.useEffect(() => {
+    if (activeTab) {
+      window.location.hash = activeTab;
+    }
+  }, [activeTab]);
+
   const { nutrition, sup, suppCatalog, suppLog, journal, macroTrend } = useAppData(activeDate);
 
   const meals = nutrition?.meals || [];
