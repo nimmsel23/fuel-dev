@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Flame, Pill, Settings2, Sparkles } from "lucide-react";
+import { Flame, Pill, Settings2, Sparkles, Minus } from "lucide-react";
 import GeminiCatalogModal from "../components/GeminiCatalogModal.jsx";
 import { Field, Input, Empty, inputClassName } from "../components/ui.jsx";
 import { postJson } from "../lib/api.js";
@@ -112,6 +112,14 @@ export default function SupplementsView({ date, sup, catalog, suppLog }) {
     });
   }
 
+  function quickUnlogSupplement(itemId) {
+    // Find the last intake of this supplement to delete it
+    const lastIntake = intakes.slice().reverse().find(i => i.supplement_id === itemId);
+    if (lastIntake) {
+      deleteSupplementMutation.mutate({ date, delete_id: lastIntake.id });
+    }
+  }
+
   return (
     <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
       <div className="grid gap-6">
@@ -132,24 +140,40 @@ export default function SupplementsView({ date, sup, catalog, suppLog }) {
             {quickCatalog.length ? quickCatalog.map((item) => {
               const count = intakeCountBySupplement[item.id] || 0;
               return (
-                <button
+                <div
                   key={item.id}
-                  type="button"
-                  onClick={() => quickLogSupplement(item)}
-                  disabled={createSupplementMutation.isPending}
-                  className="rounded-2xl border border-white/10 bg-slate-950/60 p-4 text-left transition hover:bg-slate-900 disabled:opacity-60"
+                  className="group relative rounded-2xl border border-white/10 bg-slate-950/60 p-4 transition hover:bg-slate-900"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <strong className="text-slate-100">{item.name}</strong>
-                    <span className="text-xs uppercase tracking-[0.18em] text-slate-500">{item.default_time_of_day}</span>
-                  </div>
-                  <div className="mt-2 text-sm text-slate-400">
-                    {formatMetric(item.default_dose ?? 0)} {normalizeSupplementUnit(item.unit)}
-                  </div>
-                  <div className="mt-3 text-xs uppercase tracking-[0.18em] text-orange-200">
-                    {count > 0 ? `${count}x heute im Stack` : "heute noch nicht im Stack"}
-                  </div>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => quickLogSupplement(item)}
+                    disabled={createSupplementMutation.isPending}
+                    className="w-full text-left disabled:opacity-60"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <strong className="text-slate-100">{item.name}</strong>
+                      <span className="text-xs uppercase tracking-[0.18em] text-slate-500">{item.default_time_of_day}</span>
+                    </div>
+                    <div className="mt-2 text-sm text-slate-400">
+                      {formatMetric(item.default_dose ?? 0)} {normalizeSupplementUnit(item.unit)}
+                    </div>
+                    <div className="mt-3 text-xs uppercase tracking-[0.18em] text-orange-200">
+                      {count > 0 ? `${count}x heute im Stack` : "heute noch nicht im Stack"}
+                    </div>
+                  </button>
+                  
+                  {count > 0 && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); quickUnlogSupplement(item.id); }}
+                      disabled={deleteSupplementMutation.isPending}
+                      className="absolute bottom-3 right-3 flex h-7 w-7 items-center justify-center rounded-full border border-rose-400/30 bg-rose-400/10 text-rose-300 transition hover:bg-rose-400/20 disabled:opacity-40"
+                      title="Letzten Eintrag entfernen"
+                    >
+                      <Minus className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
               );
             }) : <Empty text="Kein Quick-Log-Katalog verfuegbar." />}
           </div>
