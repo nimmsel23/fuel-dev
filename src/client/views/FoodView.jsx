@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { twMerge } from "tailwind-merge";
 import { BookmarkPlus, ChefHat, Pencil, Play, Sparkles, Trash2, UtensilsCrossed } from "lucide-react";
-import { fetchJson, postJson, patchJson } from "../lib/api.js";
+import { fetchJson, postJson, patchJson, deleteJson } from "../lib/api.js";
 import FoodSearch from "../components/FoodSearch.jsx";
 
 const MEAL_TYPES = [
@@ -215,6 +215,11 @@ export default function FoodView({ activeDate, setActiveDate, nutrition }) {
       qc.invalidateQueries({ queryKey: ["nutrition", activeDate] });
       qc.invalidateQueries({ queryKey: ["week-logs"] });
     },
+  });
+
+  const deleteCatalogItem = useMutation({
+    mutationFn: (id) => deleteJson(`/nutrition/catalog/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["nutrition-catalog"] }),
   });
 
   const deleteMeal = useMutation({
@@ -500,11 +505,18 @@ export default function FoodView({ activeDate, setActiveDate, nutrition }) {
                           </button>
                         </div>
                       )}
-                      <div className="mt-4 flex gap-2">
+                      <div className="mt-4 flex flex-wrap gap-2">
                         <button type="button" onClick={() => loadForCatalog(item)}
+                          title="In das Log-Formular übernehmen"
                           className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-200 hover:bg-white/10 transition">
-                          <Pencil className="h-3.5 w-3.5" />
+                          <Play className="h-3.5 w-3.5" />
                           Übernehmen
+                        </button>
+                        <button type="button" onClick={() => loadForEdit(item)}
+                          title="Katalog-Eintrag bearbeiten"
+                          className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-orange-400/30 bg-orange-400/10 px-3 py-2 text-sm text-orange-200 hover:bg-orange-400/20 transition">
+                          <Pencil className="h-3.5 w-3.5" />
+                          Edit
                         </button>
                         <button type="button"
                           onClick={() => logCatalogItem.mutate({
@@ -512,9 +524,15 @@ export default function FoodView({ activeDate, setActiveDate, nutrition }) {
                             addonIds: catalogAddonSelection[item.id] || item.default_addon_ids || [],
                           })}
                           disabled={logCatalogItem.isPending}
-                          className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-orange-400/30 bg-orange-400/10 px-3 py-2 text-sm text-orange-200 hover:bg-orange-400/15 transition disabled:cursor-not-allowed disabled:opacity-60">
-                          <Play className="h-3.5 w-3.5" />
+                          className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-sky-400/30 bg-sky-400/10 px-3 py-2 text-sm text-sky-200 hover:bg-sky-400/15 transition disabled:cursor-not-allowed disabled:opacity-60">
+                          <Sparkles className="h-3.5 w-3.5" />
                           Loggen
+                        </button>
+                        <button type="button"
+                          onClick={() => { if (window.confirm(`"${item.name}" wirklich aus dem Katalog löschen?`)) deleteCatalogItem.mutate(item.id); }}
+                          disabled={deleteCatalogItem.isPending}
+                          className="inline-flex items-center justify-center rounded-xl border border-rose-400/30 bg-rose-400/10 px-3 py-2 text-rose-300 hover:bg-rose-400/20 transition disabled:opacity-50">
+                          <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
                     </div>
