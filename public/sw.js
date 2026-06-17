@@ -1,4 +1,4 @@
-const CACHE = "fuel-v2";
+const CACHE = "fuel-v3";
 const BASE_PATH = new URL(self.registration.scope).pathname.replace(/\/$/, "");
 const withBase = (path) => `${BASE_PATH}${path}`;
 const STATIC_ASSETS = [withBase("/"), withBase("/index.html"), withBase("/manifest.json")];
@@ -15,6 +15,14 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
+});
+
+self.addEventListener("message", (e) => {
+  if (!e.data) return;
+  if (e.data.type === "SKIP_WAITING") self.skipWaiting();
+  if (e.data.type === "GET_VERSION" && e.source) {
+    e.source.postMessage({ type: "VERSION", version: CACHE });
+  }
 });
 
 self.addEventListener("fetch", (event) => {
