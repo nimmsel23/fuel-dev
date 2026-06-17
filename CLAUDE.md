@@ -21,9 +21,9 @@ VITALTRAINING (Der eine Gott — The Ultimate Authority)
    │     → Du machst dich NICHT um Technisches Gedanken
    │
    └─ fuel-dev (Der Tempel — Where It Happens)
-      ├─ V1 (Classic), V2 (Studio), V3 (Firebase PWA — Altäre — Zugänge)
-      ├─ Fastify API + SQLite + File-based Data (lokal/coach)
-      ├─ Firebase/Firestore (V3 Cloud PWA — fuel-aos.web.app)
+      ├─ Zwei Channels: **local** (Fastify, /opt/fuel) + **cloud** (Firebase PWA)
+      ├─ Fastify API + SQLite + File-based Data (local channel, VITE_APP_MODE=coach)
+      ├─ Firebase/Firestore (cloud channel, VITE_APP_MODE=client — fuel-aos.web.app)
       └─ Komponenten
          ├─ Meal Catalog (individuelle JSON-Files lokal / Firestore cloud)
          ├─ Supplements Catalog (catalog.json im Repo / Firestore cloud)
@@ -45,24 +45,26 @@ VITALTRAINING (Der eine Gott — The Ultimate Authority)
 
 ## Project Overview
 
-**Fuel Centre** (`fuelctx`) ist ein Nutrition-Tracking-PWA für Coaches — mit zwei Deployment-Modi:
+**Fuel Centre** (`fuelctx`) ist ein Nutrition-Tracking-PWA für Coaches — mit zwei Channels:
 
-| Modus | Stack | Deployment | Daten |
-|-------|-------|------------|-------|
-| **Lokal / Coach** | Fastify + SQLite + File-JSON | Port 9000 Dev / 7000 Prod | `~/.aos/fuel/` |
-| **Firebase V3 PWA** | Firebase Hosting + Firestore | [fuel-aos.web.app](https://fuel-aos.web.app) | Firestore (per User) |
+| Channel | Stack | Build-Mode | Deployment | Daten |
+|---------|-------|------------|------------|-------|
+| **local** | Fastify + SQLite + File-JSON | `VITE_APP_MODE=coach` | Port 9000 Dev / 7000 Prod (`/opt/fuel`) | `~/.aos/fuel/` |
+| **cloud** | Firebase Hosting + Firestore | `VITE_APP_MODE=client` | [fuel-aos.web.app](https://fuel-aos.web.app) | Firestore (per User) |
+
+Beide Channels teilen sich **dieselbe React-Codebase** in `src/client/` — Unterschied liegt nur im Build-Mode + Runtime-Detection via `isCloud()` in `src/client/lib/api.js`.
 
 **Ports:**
 - Dev: 9000 (`server.mjs` → `src/server/app.mjs`)
 - Vite dev: 5173
-- Prod lokal: 7000 (static)
-- Firebase V3: `https://fuel-aos.web.app`
+- local Prod: 7000 (static, `fuel-v2.service` — Unit-Name historisch, channel ist "local")
+- cloud: `https://fuel-aos.web.app`
 
-**Data location (lokal):** `~/.aos/fuel/` (via `AOS_FUEL_DATA_DIR`)
+**Data location (local):** `~/.aos/fuel/` (via `AOS_FUEL_DATA_DIR`)
 **Data location (cloud):** Firestore — Collections `nutrition/{uid}/logs`, `supplements/{uid}/logs`, `users/{uid}/meta`
-**Catalogs:** Im Repo unter `catalogs/` (git-tracked, lokal); Firestore `nutrition/{uid}/meta/catalog` (cloud)
-**Build output lokal:** `/opt/fuel` (via `FUEL_BUILD_DIR`)
-**Build output V3:** `./dist-firebase/` → Firebase Hosting
+**Catalogs:** Im Repo unter `catalogs/` (git-tracked, local); Firestore `nutrition/{uid}/meta/catalog` (cloud)
+**Build output local:** `/opt/fuel` (via `FUEL_BUILD_DIR`)
+**Build output cloud:** `./dist-firebase/` → Firebase Hosting
 
 ---
 
@@ -70,17 +72,24 @@ VITALTRAINING (Der eine Gott — The Ultimate Authority)
 
 ```bash
 npm install
-npm run dev        # nodemon + vite dev (lokal, Port 9000 + 5173)
-npm run build      # Vite build → /opt/fuel (coach mode)
-npm run prod       # static server port 7000
-npm start          # bare server port 9000
-npm run ui:dev     # Vite dev only (kein Backend)
+npm run dev          # nodemon + vite dev (Port 9000 + 5173)
+npm run build:local  # Vite build → coach mode (für /opt/fuel)
+npm run build:cloud  # Vite build → client mode → dist-firebase/
+npm run prod         # static server port 7000
+npm start            # bare server port 9000
+npm run ui:dev       # Vite dev only (kein Backend)
 
-# Firebase V3
-npm run build:v3   # Build → dist-firebase/ + deploy zu fuel-aos.web.app
-npm run sync:push  # lokale Katalog-Daten → Firestore pushen
-npm run sync:pull  # Firestore → lokale Dateien pullen
+# Deploy
+npm run deploy:local # ./deploy.sh — rsync + build + systemctl restart
+npm run deploy:cloud # build:cloud + firebase deploy --only hosting
+./deploy.sh          # direkt (= deploy:local)
+
+# Sync
+npm run sync:push    # lokale Katalog-Daten → Firestore
+npm run sync:pull    # Firestore → lokale Dateien
 ```
+
+Der `post-commit`-Hook triggert `build:cloud` + Firebase-Deploy automatisch, sobald Dateien unter `src/client/`, `src/shared/`, `index.html`, `vite.config.js` oder `package.json` geändert werden.
 
 ---
 
@@ -157,24 +166,24 @@ Wochenheatmap (Mikros-Tab) aggregiert meal_micros-Werte pro Woche vs. DACH.
 
 ### Frontend
 
-**V1 / Fuel Classic** (`public/index.html`)
+**Classic** (`public/index.html`) — Legacy, weiter mitserved
 - Vanilla HTML PWA, kein Build-Schritt
 - SW: cache-first für Assets, network-first für API
 - Kein Offline-Write-Through
 
-**V2 / Fuel Studio** (`src/client/main.jsx` + Vite, `VITE_APP_MODE=coach`)
+**local channel** (`src/client/main.jsx` + Vite, `VITE_APP_MODE=coach`)
 - React 18, TailwindCSS 3, TanStack Query, FullCalendar, Recharts, Zod, Zustand
 - Tabs: **Dashboard · Food · Big Calendar · Journal · Supplements · Mikros · Setup**
 - `Mikros`-Tab: Wochenheatmap (letzte 8 KW, Zeilen = Mikronährstoffe, Farbe = % DACH)
-- Ruft direkt lokales Fastify-Backend an (Port 9000)
+- Ruft direkt lokales Fastify-Backend an (Port 9000 dev / 7000 prod)
 
-**V3 / Firebase PWA** (`src/client/main.jsx` + Vite, `VITE_APP_MODE=client`)
-- Gleiche React-Codebase wie V2 — Deployment-Modus wird per `isCloud()` erkannt
+**cloud channel** (`src/client/main.jsx` + Vite, `VITE_APP_MODE=client`)
+- Gleiche React-Codebase wie local channel — Deployment-Modus wird per `isCloud()` erkannt
 - `src/client/lib/api.js` — Cloud-Aware-Abstraction: leitet alle Reads/Writes je nach Hostname zu Fastify-Backend oder Firestore-SDK
 - `src/client/lib/firestore-db.js` — Firestore Data Layer (Multi-User, per UID)
 - `src/client/lib/firebase.js` — Firebase Init + Auth (Google Sign-In)
 - Firestore Collections: `nutrition/{uid}/logs`, `nutrition/{uid}/meta/catalog`, `nutrition/{uid}/journal`, `supplements/{uid}/logs`, `supplements/{uid}/meta/catalog`, `users/{uid}/meta/settings`
-- AI Logger (lokales Gemini-Backend) → nur lokal sichtbar (kein Backend in V3)
+- AI Logger (lokales Gemini-Backend) → nur im local channel sichtbar (kein Backend in cloud)
 - `dist-firebase/` → Firebase Hosting (fuel-aos.web.app)
 
 ### Gemini Scripts (Python)
@@ -200,14 +209,19 @@ API-Key: `~/.env/fuel.env` (`GEMINI_API_KEY`, `GEMINI_MODEL=gemini-2.5-flash`)
 
 ## Build & Deploy
 
-### Lokal (Fastify + SQLite)
+### local channel (Fastify + SQLite → /opt/fuel)
 ```bash
-npm run dev   # nodemon + vite, watches src/ + server.mjs
-npm run build # Vite → /opt/fuel  (VITE_APP_MODE=coach)
-npm run prod  # PORT=7000 HOST=0.0.0.0 FUEL_STATIC_DIR=/opt/fuel
+npm run dev          # nodemon + vite, watches src/ + server.mjs
+npm run build:local  # Vite → ./opt-fuel target (VITE_APP_MODE=coach)
+npm run prod         # PORT=7000 HOST=0.0.0.0 FUEL_STATIC_DIR=/opt/fuel
+npm run deploy:local # = ./deploy.sh — versioned backup → rsync → build → systemctl restart
+./deploy.sh          # Bash deploy script (siehe unten)
+fuelctl local deploy # Python-Wrapper, ruft deploy.sh
 ```
 
-**Environment Variables (lokal):**
+**`deploy.sh`** macht: versionierten Backup nach `/opt/fuel_backups/fuel_<ts>`, rsync von Repo-Root nach `/opt/fuel`, `npm install + build`, `systemctl restart fuel-v2.service`. Excludes: `.git`, `node_modules`, `data`, `dist-firebase`, `.firebase`, `.claude`.
+
+**Environment Variables (local):**
 - `PORT` (default 9000)
 - `HOST` (default 127.0.0.1)
 - `AOS_FUEL_DATA_DIR` (default `~/.aos/fuel`)
@@ -215,16 +229,16 @@ npm run prod  # PORT=7000 HOST=0.0.0.0 FUEL_STATIC_DIR=/opt/fuel
 - `FUEL_BUILD_DIR` (default `/opt/fuel`)
 - `FUEL_VITE_ORIGIN` (für Vite-Proxy in dev)
 
-### Firebase V3 (Cloud PWA)
+### cloud channel (Firebase PWA)
 ```bash
-npm run build:v3   # = build:firebase = build:client (VITE_APP_MODE=client → dist-firebase/)
-                   # Pre-commit-Hook deployed automatisch zu Firebase Hosting
-npm run sync:push  # Lokale Katalog-JSONs → Firestore pushen (scripts/firestore-sync.mjs)
-npm run sync:pull  # Firestore → lokale Dateien ziehen
+npm run build:cloud  # VITE_APP_MODE=client → dist-firebase/
+npm run deploy:cloud # build:cloud + firebase deploy --only hosting
+npm run sync:push    # Lokale Katalog-JSONs → Firestore (scripts/firestore-sync.mjs)
+npm run sync:pull    # Firestore → lokale Dateien
 ```
 
 **Firebase Config:** `src/client/lib/firebase.config.js` — Project: `fuel-aos`
-**Deployment:** `firebase deploy --only hosting` via pre-commit-Hook (automatisch bei `git commit` wenn V3-Dateien geändert)
+**Auto-Deploy:** `post-commit`-Hook in `.git/hooks/post-commit` triggert `build:cloud` + `firebase deploy --only hosting --project fuel-aos`, wenn Dateien unter `src/client/`, `src/shared/`, `index.html`, `vite.config.js` oder `package.json` im Commit waren.
 
 ---
 
@@ -309,14 +323,15 @@ fuel-dev/
 │   │   └── meals/               {id}.json pro Gericht (lokal git-tracked)
 │   └── supplements/
 │       └── catalog.json
-├── public/                      V1 vanilla PWA
+├── public/                      Classic vanilla PWA (legacy)
 ├── bin/
 │   └── fuel-food-search         CLI food search
 ├── gemini-compose               Python script (Makro-Schätzung via wger)
 ├── gemini-estimate              Python script (freie Beschreibung → Makros)
 ├── gemini-micros                Python script (Mahlzeit → Mikronährstoffprofil)
 ├── fuel                         Python/Typer CLI (Supplements)
-├── dist-firebase/               V3 Build → Firebase Hosting (git-ignored)
+├── dist-firebase/               cloud channel Build → Firebase Hosting (git-ignored)
+├── deploy.sh                    local channel deploy → /opt/fuel
 ├── scripts/
 │   ├── dev-runner.mjs           Dev-Runner (nodemon wrapper)
 │   └── firestore-sync.mjs       Lokale Kataloge ↔ Firestore sync
@@ -375,7 +390,9 @@ See `~/.claude/agents/nutrition-agent.md` for full definition.
 
 - **Tab-Modularisierung:** `main.jsx` ist zu groß — Tabs als eigene Lazy-geladene Module, Tab-Config als Array of `{ key, label, icon, component }`
 - **Chunk-Splitting:** Build-Warning "Some chunks are larger than 500 kB" — dynamische Imports für FullCalendar, Recharts, etc.
-- **Offline write-through V3:** POST-Queue via IndexedDB (Vorbild: `~/core4-dev/public/offline-queue.js`) für Firebase-Mode
+- **Offline write-through (cloud):** POST-Queue via IndexedDB (Vorbild: `~/core4-dev/public/offline-queue.js`) für Firebase-Mode
+- **systemd-Unit umbenennen:** `fuel-v2.service` → `fuel-local.service` (sudo-Op, bisher nicht angefasst — Unit-Name historisch, funktional egal)
+- **`v2/` archiviert:** liegt in `~/.archive/fuel-dev-v2-2026-06-17/` für ggf. Referenz
 - **CLI `fuel meal`:** schreibt via `/nutrition/log` (statt nur Supplements)
 - **Export-Endpoint:** `GET /nutrition/export?from=&to=` → CSV (lokal)
 - **Firestore-Sicherheitsregeln:** Production-ready Rules für `nutrition/{uid}` und `supplements/{uid}`

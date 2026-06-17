@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 fuelctl — Universal System Control for Fuel Centre (Python Edition)
-Central control for Dev, Sync, and V2 Prod.
+Central control for Dev, Sync, and Local Prod (channel: local).
 """
 
 import os
@@ -19,20 +19,20 @@ app = typer.Typer(help="Fuel Centre Universal Control", no_args_is_help=True)
 # ── Config ────────────────────────────────────────────────────────────────────
 
 PORT = os.getenv("PORT", "9000")
-V2_PORT = os.getenv("V2_PORT", "7000")
+LOCAL_PORT = os.getenv("LOCAL_PORT", os.getenv("V2_PORT", "7000"))
 CATALOG_PORT = "9050"
 
 HEALTH_URL = f"http://127.0.0.1:{PORT}/health"
-V2_HEALTH_URL = f"http://127.0.0.1:{V2_PORT}/health"
+LOCAL_HEALTH_URL = f"http://127.0.0.1:{LOCAL_PORT}/health"
 
 WORKDIR = Path(__file__).resolve().parent.parent
 BIN_DEVCTL = WORKDIR / "bin" / "fuel-devctl"
 SYNC_SCRIPT = WORKDIR / "scripts" / "firestore-sync.mjs"
 CATALOG_SERVER_SCRIPT = WORKDIR / "fuel-catalog-server.py"
+DEPLOY_SCRIPT = WORKDIR / "deploy.sh"
 
-V2_PROD_DIR = Path("/opt/fuel")
-V2_SOURCE_DIR = WORKDIR / "v2"
-V2_BACKUP_DIR = Path("/opt/fuel_backups")
+LOCAL_PROD_DIR = Path("/opt/fuel")
+LOCAL_SERVICE = "fuel-v2.service"  # systemd unit (legacy name, channel is "local")
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -56,16 +56,16 @@ def check_url(url: str) -> bool:
 
 @app.command()
 def status():
-    """Check all systems (Dev, V2, Sync)."""
+    """Check all systems (Dev, Local Prod, Sync)."""
     # 1. Dev Stack
     subprocess.run([str(BIN_DEVCTL), "status"])
 
-    # 2. V2 Prod
-    msg.divider("Fuel Centre V2 (STABLE)")
-    if check_url(V2_HEALTH_URL):
-        msg.good(f"Fuel V2 is running on :{V2_PORT}")
+    # 2. Local Prod
+    msg.divider("Fuel Centre · local channel (Desktop Prod)")
+    if check_url(LOCAL_HEALTH_URL):
+        msg.good(f"Fuel local is running on :{LOCAL_PORT}")
     else:
-        msg.warn(f"Fuel V2 is NOT responding on :{V2_PORT}")
+        msg.warn(f"Fuel local is NOT responding on :{LOCAL_PORT}")
 
     # 3. Catalog Server
     msg.divider("Catalog Server")
@@ -102,52 +102,28 @@ def dev(action: str = typer.Argument("status", help="up, down, status, logs, bui
         msg.fail(f"Unknown dev action: {action}")
 
 @app.command()
-def v2(action: str = typer.Argument("status", help="deploy, status, logs")):
-    """Manage the V2 Production environment."""
+def local(action: str = typer.Argument("status", help="deploy, status, logs")):
+    """Manage the local channel (Desktop Prod, /opt/fuel)."""
     if action == "status":
         status()
     elif action == "logs":
-        subprocess.run(["sudo", "journalctl", "-u", "fuel-v2.service", "-f"])
+        subprocess.run(["sudo", "journalctl", "-u", LOCAL_SERVICE, "-f"])
     elif action == "deploy":
-        msg.divider("V2 Deployment (Desktop Prod)")
-        if not V2_SOURCE_DIR.exists():
-            msg.fail(f"Source directory {V2_SOURCE_DIR} not found.")
+        msg.divider("Local channel deployment → /opt/fuel")
+        if not DEPLOY_SCRIPT.exists():
+            msg.fail(f"deploy.sh not found at {DEPLOY_SCRIPT}")
             return
-
-        # 1. Backup
-        import datetime
-        ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_path = V2_BACKUP_DIR / f"fuel_v2_{ts}"
-
-        if V2_PROD_DIR.exists():
-            msg.info(f"Creating versioned backup: {backup_path}")
-            subprocess.run(["sudo", "mkdir", "-p", str(V2_BACKUP_DIR)])
-            subprocess.run(["sudo", "cp", "-a", str(V2_PROD_DIR), str(backup_path)])
-
-        # 2. Sync
-        msg.info(f"Syncing files from {V2_SOURCE_DIR} to {V2_PROD_DIR}")
-        subprocess.run([
-            "sudo", "rsync", "-av", "--delete",
-            "--exclude", ".git", "--exclude", "node_modules", "--exclude", "data",
-            "--exclude", ".claude", "--exclude", ".archiv", "--exclude", ".bak",
-            str(V2_SOURCE_DIR) + "/", str(V2_PROD_DIR) + "/"
-        ])
-
-        # 3. Finalize
-        msg.info("Finalizing production environment...")
-        subprocess.run(["sudo", "chown", "-R", "alpha:alpha", str(V2_PROD_DIR)])
-        
-        # Build
-        subprocess.run(["npm", "install", "--silent"], cwd=V2_PROD_DIR)
-        subprocess.run(["npm", "run", "build"], cwd=V2_PROD_DIR)
-
-        # 4. Restart
-        msg.info("Restarting Fuel V2 service...")
-        subprocess.run(["sudo", "systemctl", "restart", "fuel-v2.service"])
-        
-        msg.good(f"V2 Deployment complete. Running on Port {V2_PORT}")
+        subprocess.run(["bash", str(DEPLOY_SCRIPT)], cwd=WORKDIR)
     else:
-        msg.fail(f"Unknown v2 action: {action}")
+        msg.fail(f"Unknown local action: {action}")
+
+
+# Backwards-compat alias: `fuelctl v2 …` → `fuelctl local …`
+@app.command(name="v2", hidden=True)
+def v2_alias(action: str = typer.Argument("status")):
+    """Deprecated: use `fuelctl local` instead."""
+    msg.warn("`fuelctl v2` is deprecated. Use `fuelctl local` instead.")
+    local(action)
 
 @app.command()
 def sync(action: Optional[str] = typer.Argument(None, help="push, pull, watch")):
