@@ -2,11 +2,13 @@ import { Activity, Leaf, NotebookPen, TrendingUp, UtensilsCrossed, Waves } from 
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Legend, ReferenceLine } from "recharts";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, GoalBar, MealRow, Empty } from "../components/ui.jsx";
 import { useSettings } from "../store.js";
 import { sumMetric, formatMetric } from "../../shared/utils/utils.js";
+import { postJson } from "../lib/api.js";
 
-export default function DashboardView({ nutrition, sup, journal, macroTrend }) {
+export default function DashboardView({ nutrition, sup, journal, macroTrend, setActiveTab, activeDate }) {
   const meals = nutrition?.meals || [];
   const streak = sup?.stats?.[0]?.current_streak || 0;
   const totalKcal = sumMetric(meals, "kcal");

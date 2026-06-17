@@ -1,5 +1,5 @@
 import * as Dialog from "@radix-ui/react-dialog";
-import { X } from "lucide-react";
+import { X, Pencil, Trash2 } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 import { formatMetric } from "../../shared/utils/utils.js";
 
@@ -63,7 +63,7 @@ export function GoalBar({ label, value, goal, unit, color = "bg-orange-400" }) {
   );
 }
 
-export function MealRow({ meal }) {
+export function MealRow({ meal, onEdit, onDelete }) {
   const details = [
     meal.kcal ? `${formatMetric(meal.kcal)} kcal` : null,
     meal.protein ? `${formatMetric(meal.protein)}g P` : null,
@@ -72,13 +72,29 @@ export function MealRow({ meal }) {
   ].filter(Boolean);
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
-      <div className="flex items-center justify-between gap-3">
-        <strong>{meal.description || meal.speise || "Meal"}</strong>
-        <span className="text-xs uppercase tracking-[0.2em] text-orange-300">{meal.type || meal.mahlzeit}</span>
+    <div className="group flex items-center justify-between rounded-2xl border border-white/10 bg-slate-950/60 p-4 transition hover:bg-slate-900/80">
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-3">
+          <strong className="truncate text-slate-100">{meal.description || meal.speise || "Meal"}</strong>
+          <span className="shrink-0 text-xs uppercase tracking-[0.2em] text-orange-300">{meal.type || meal.mahlzeit}</span>
+        </div>
+        {details.length ? <div className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-500">{details.join(" · ")}</div> : null}
+        <div className="mt-2 text-sm text-slate-400">{meal.notes || meal.notizen || "No notes"}</div>
       </div>
-      {details.length ? <div className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-500">{details.join(" · ")}</div> : null}
-      <div className="mt-2 text-sm text-slate-400">{meal.notes || meal.notizen || "No notes"}</div>
+      {(onEdit || onDelete) && (
+        <div className="ml-4 flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+          {onEdit && (
+            <button onClick={() => onEdit(meal)} className="rounded-lg border border-white/10 bg-white/5 p-2 text-slate-400 hover:text-orange-400 hover:bg-orange-400/10">
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {onDelete && (
+            <button onClick={() => onDelete(meal.id)} className="rounded-lg border border-white/10 bg-white/5 p-2 text-slate-400 hover:text-red-400 hover:bg-red-400/10">
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

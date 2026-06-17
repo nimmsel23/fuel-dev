@@ -20,6 +20,29 @@ function normalizePath(path) {
   return path.startsWith("/api/") ? path.slice(4) : path;
 }
 
+async function searchOFF(query, limit) {
+  const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=${limit}`;
+  try {
+    const res = await fetch(url, { headers: { "Accept": "application/json" } });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.products || [])
+      .filter((p) => p.product_name && p.nutriments?.["energy-kcal_100g"] != null)
+      .map((p) => ({
+        name: p.product_name,
+        brand: p.brands || "",
+        kcal: Math.round((p.nutriments["energy-kcal_100g"] ?? 0) * 10) / 10,
+        kh: Math.round((p.nutriments.carbohydrates_100g ?? 0) * 10) / 10,
+        fett: Math.round((p.nutriments.fat_100g ?? 0) * 10) / 10,
+        ew: Math.round((p.nutriments.proteins_100g ?? 0) * 10) / 10,
+        _src: "off",
+      }));
+  } catch (err) {
+    console.error("OFF search error:", err);
+    return [];
+  }
+}
+
 export async function fetchJson(path) {
   const normPath = normalizePath(path);
 
@@ -50,7 +73,11 @@ export async function fetchJson(path) {
       const url = new URL(path, window.location.origin);
       const q = url.searchParams.get("q");
       const limit = parseInt(url.searchParams.get("limit") || "20");
-      const results = await firestore.searchNutritionCatalog(q, limit);
+      const [catalogResults, offResults] = await Promise.all([
+        firestore.searchNutritionCatalog(q, limit),
+        searchOFF(q, limit)
+      ]);
+      const results = [...catalogResults, ...offResults];
       return { ok: true, count: results.length, results };
     }
     if (normPath.startsWith("/nutrition/weekly")) {
@@ -68,6 +95,27 @@ export async function fetchJson(path) {
   }
 
   const res = await fetch(path);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+export async function deleteJson(path) {
+  const normPath = normalizePath(path);
+
+  if (isCloud()) {
+    if (normPath.startsWith("/nutrition/catalog/")) {
+      const id = normPath.split("/").pop();
+      const items = await firestore.getNutritionCatalog();
+      const filtered = items.filter((i) => i.id !== id);
+      const ref = doc(firestore.db, "nutrition", firestore.getUid(), "meta", "catalog");
+      await setDoc(ref, { items: filtered, updated_at: firestore.serverTimestamp() });
+      return { ok: true };
+    }
+  }
+
+  const res = await fetch(path, {
+    method: "DELETE",
+  });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }

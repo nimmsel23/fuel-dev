@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { loadCatalog, saveCatalog, addOrUpdateItem } from "../../services/nutrition-catalog.mjs";
+import { loadCatalog, saveCatalog, addOrUpdateItem, deleteMeal } from "../../services/nutrition-catalog.mjs";
 
 const catalogPostSchema = z.object({
   item: z.object({
@@ -33,6 +33,19 @@ export default async function catalogRoute(app) {
       }
       saveCatalog(catalog);
       return reply.send({ ok: true, item });
+    } catch (error) {
+      console.error(error);
+      return reply.status(500).send({ ok: false, error: "Internal server error" });
+    }
+  });
+
+  // DELETE /nutrition/catalog/:id
+  app.delete("/nutrition/catalog/:id", async (req, reply) => {
+    try {
+      const { id } = req.params;
+      if (!id) return reply.status(400).send({ ok: false, error: "ID required" });
+      deleteMeal(id);
+      return reply.send({ ok: true });
     } catch (error) {
       console.error(error);
       return reply.status(500).send({ ok: false, error: "Internal server error" });

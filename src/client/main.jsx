@@ -79,7 +79,7 @@ function App() {
     document.title = (isCloud || isClientBuild) ? "Fuel Centre V3 (Firebase PWA)" : "Fuel Centre V2 (Desktop Prod)";
   }, [isCloud, isClientBuild]);
 
-  const tabCtx = { nutrition, sup, suppCatalog, suppLog, journal, macroTrend, activeDate, setActiveDate };
+  const tabCtx = { nutrition, sup, suppCatalog, suppLog, journal, macroTrend, activeDate, setActiveDate, setActiveTab };
 
   return (
     <div className="min-h-screen text-slate-100">
