@@ -7,17 +7,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install Dependencies
-        run: cd pwa && npm ci
+        run: npm ci
       - name: Create firebase.config.js
         env:
           FIREBASE_CONFIG: ${{ secrets.FIREBASE_CONFIG_JS }}
-        run: |
-          echo "$FIREBASE_CONFIG" > pwa/src/firebase.config.js
+        run: echo "$FIREBASE_CONFIG" > src/firebase.config.js
       - name: Build
-        run: cd pwa && npm run build
+        run: npm run build:cloud
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_FUEL_AOS }}'
-          projectId: fuel-aos
-          entryPoint: pwa
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_FITNESS_AOS }}'
+          projectId: fitness-aos

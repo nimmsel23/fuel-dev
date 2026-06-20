@@ -1,33 +1,62 @@
 import fs from "fs";
 import path from "path";
+import os from "os";
 import { fileURLToPath } from "url";
+import { getClientInfo } from "../lib/client-manager.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, "../../..");
 
-export const DATA_DIR = process.env.AOS_FUEL_DATA_DIR
+export const GLOBAL_DATA_DIR = process.env.AOS_FUEL_DATA_DIR
   ? path.resolve(process.env.AOS_FUEL_DATA_DIR)
-  : path.join(process.env.HOME || process.env.USERPROFILE, ".aos", "fuel");
+  : path.join(os.homedir(), ".aos", "fuel");
 
-export const REPO_DATA_DIR = path.join(ROOT, "data"); // Kataloge im Repo
-export const PUBLIC_DIR = path.join(ROOT, "public"); // V1 vanilla HTML
-export const VITE_BUILD_DIR = process.env.FUEL_BUILD_DIR ? path.resolve(process.env.FUEL_BUILD_DIR) : path.join(ROOT, "dist"); // V2 React build output
+export const REPO_DATA_DIR = path.join(ROOT, "data");
+export const PUBLIC_DIR = path.join(ROOT, "public");
+export const VITE_BUILD_DIR = process.env.FUEL_BUILD_DIR ? path.resolve(process.env.FUEL_BUILD_DIR) : path.join(ROOT, "dist");
 export const STATIC_DIR = process.env.FUEL_STATIC_DIR ? path.resolve(process.env.FUEL_STATIC_DIR) : VITE_BUILD_DIR;
 
-export const FUEL_DIR = path.join(DATA_DIR, "fuel");
+export function getPaths(clientId = null) {
+  let baseDir = GLOBAL_DATA_DIR;
+  
+  if (clientId) {
+    const client = getClientInfo(clientId);
+    if (client) {
+      // If client has a UID, they might have data in .aos/fuel/users/<uid>
+      if (client.firebase_uid) {
+        baseDir = path.join(GLOBAL_DATA_DIR, "users", client.firebase_uid);
+      }
+    }
+  }
+
+  const paths = {
+    fuel: path.join(baseDir, "fuel"),
+    nutrition: path.join(baseDir, "nutrition"),
+    nutritionJournal: path.join(baseDir, "nutrition_journal"),
+    supplements: path.join(baseDir, "supplements"),
+    supplementsLog: path.join(baseDir, "supplements", "logs"),
+    nutritionDb: path.join(baseDir, "nutrition", "nutrition.db"),
+    // Repo-based catalogs
+    nutritionMealsRepo: path.join(ROOT, "catalogs", "nutrition", "meals"),
+    supplementsCatalogRepo: path.join(ROOT, "catalogs", "supplements", "catalog.yaml"),
+  };
+
+  // Ensure directories exist
+  if (!fs.existsSync(baseDir)) fs.mkdirSync(baseDir, { recursive: true });
+  for (const p of [paths.fuel, paths.nutrition, paths.nutritionJournal, paths.supplements, paths.supplementsLog]) {
+    if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true });
+  }
+
+  return paths;
+}
+
+// Backwards compatibility for single-user mode
+export const DATA_DIR = GLOBAL_DATA_DIR;
 export const NUTRITION_DIR = path.join(DATA_DIR, "nutrition");
 export const NUTRITION_JOURNAL_DIR = path.join(DATA_DIR, "nutrition_journal");
-export const NUTRITION_MEALS_DIR = path.join(ROOT, "catalogs", "nutrition", "meals"); // Individuelle Meal-Files
-export const NUTRITION_DB_PATH = path.join(DATA_DIR, "nutrition", "nutrition.db"); // SQLite
-export const SUPPLEMENTS_DIR = path.join(DATA_DIR, "supplements");
-export const SUPPLEMENTS_LOG_DIR = path.join(SUPPLEMENTS_DIR, "logs");
-export const SUPPLEMENTS_CATALOG_PATH = path.join(ROOT, "catalogs", "supplements", "catalog.yaml"); // Repo-basiert
+export const NUTRITION_DB_PATH = path.join(NUTRITION_DIR, "nutrition.db");
+export const SUPPLEMENTS_LOG_DIR = path.join(DATA_DIR, "supplements", "logs");
 
 export function initializePaths() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  if (!fs.existsSync(FUEL_DIR)) fs.mkdirSync(FUEL_DIR, { recursive: true });
-  if (!fs.existsSync(NUTRITION_DIR)) fs.mkdirSync(NUTRITION_DIR, { recursive: true });
-  if (!fs.existsSync(NUTRITION_JOURNAL_DIR)) fs.mkdirSync(NUTRITION_JOURNAL_DIR, { recursive: true });
-  if (!fs.existsSync(SUPPLEMENTS_DIR)) fs.mkdirSync(SUPPLEMENTS_DIR, { recursive: true });
-  if (!fs.existsSync(SUPPLEMENTS_LOG_DIR)) fs.mkdirSync(SUPPLEMENTS_LOG_DIR, { recursive: true });
+  getPaths(); // Initialize default paths
 }

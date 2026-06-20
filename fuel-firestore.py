@@ -1,32 +1,7 @@
 #!/usr/bin/env python3
 """
 fuel-firestore.py — Bidirektionaler Sync: fuel-dev (lokal) ↔ Firebase Firestore
-
-Use Case: Laptop offline → fuel-dev läuft als lokaler API-Server.
-Wenn Laptop wieder online: Sync mit Firestore, damit Mobile-PWA aktuell bleibt.
-
-Firestore-Struktur (pwa/src/db.js):
-  nutrition/default/logs/{date}    → {date, meals:[], water_ml:0}
-  nutrition/default/journal/{date} → {date, content:""}
-  supplements/default/logs/{date}  → {date, intakes:[]}
-
-Lokal (AOS_FUEL_DATA_DIR, default ~/.aos/fuel/):
-  nutrition/YYYY-MM-DD.json        → {date, meals:[...]}
-  nutrition_journal/YYYY-MM-DD.md  → markdown text
-  supplements/logs/YYYY-MM-DD.json → {date, intakes:[...]}
-
-Endpoints:
-  GET  /api/fuel-firestore/status          Verbindungsstatus
-  POST /api/fuel-firestore/ping            Sync heute (Event-Trigger aus fuel-dev)
-  POST /api/fuel-firestore/sync?date=      Bisync ein Datum
-  POST /api/fuel-firestore/push?date=      Lokal → Firestore
-  POST /api/fuel-firestore/pull?date=      Firestore → Lokal
-
-Bridge-Handler: register_routes(app) aufrufen.
-Standalone:     python fuel-firestore.py [--port 9011] [--host 127.0.0.1]
-
-Service Account: ~/.config/fuel-pwa/service-account.json
-                 (oder env FUEL_FIRESTORE_SA)
+MULTI-USER AWARE: Verwendet UID aus Header und speichert in ~/.aos/fuel/users/<uid>/
 """
 
 from __future__ import annotations
@@ -51,7 +26,7 @@ SA_PATH = Path(
     os.getenv("FUEL_FIRESTORE_SA", str(Path.home() / ".config" / "fuel-pwa" / "service-account.json"))
 ).expanduser()
 
-UID = "default"
+DEFAULT_UID = os.getenv("FUEL_CLOUD_UID", "default")
 PREFIX = "/api/fuel-firestore"
 
 # ── Firestore (lazy init) ─────────────────────────────────────────────────────
@@ -79,21 +54,33 @@ def _get_fs():
     return _fs
 
 
+def get_user_context(request: web.Request) -> tuple[str, Path]:
+    """Extrahiert UID aus Header und bestimmt lokales Datenverzeichnis."""
+    uid = request.headers.get("X-Fuel-UID", DEFAULT_UID)
+    if uid == "default":
+        return uid, FUEL_DATA_DIR
+    
+    user_dir = FUEL_DATA_DIR / "users" / uid
+    user_dir.mkdir(parents=True, exist_ok=True)
+    return uid, user_dir
+
+
 # ── Lokale Pfade ──────────────────────────────────────────────────────────────
 
-def _nutrition_path(d: str) -> Path:
-    return FUEL_DATA_DIR / "nutrition" / f"{d}.json"
+def _nutrition_path(d: str, data_dir: Path) -> Path:
+    return data_dir / "nutrition" / f"{d}.json"
 
 
-def _journal_path(d: str) -> Path:
-    return FUEL_DATA_DIR / "nutrition_journal" / f"{d}.md"
+def _journal_path(d: str, data_dir: Path) -> Path:
+    return data_dir / "nutrition_journal" / f"{d}.md"
 
 
-def _supplements_path(d: str) -> Path:
-    return FUEL_DATA_DIR / "supplements" / "logs" / f"{d}.json"
+def _supplements_path(d: str, data_dir: Path) -> Path:
+    return data_dir / "supplements" / "logs" / f"{d}.json"
 
-def _supplements_catalog_path() -> Path:
-    return FUEL_DATA_DIR / "supplements" / "catalog.json"
+
+def _supplements_catalog_path(data_dir: Path) -> Path:
+    return data_dir / "supplements" / "catalog.json"
 
 
 # ── Datei-Helfer ──────────────────────────────────────────────────────────────
@@ -135,12 +122,12 @@ def _merge_by_id(a: list[dict], b: list[dict]) -> list[dict]:
 
 # ── Sync: Nutrition ───────────────────────────────────────────────────────────
 
-def _sync_nutrition(d: str, direction: str) -> dict:
+def _sync_nutrition(d: str, direction: str, uid: str, data_dir: Path) -> dict:
     fs = _get_fs()
-    local_path = _nutrition_path(d)
+    local_path = _nutrition_path(d, data_dir)
     local = _read_json(local_path, {"date": d, "meals": [], "water_ml": 0})
 
-    doc_ref = fs.collection("nutrition").document(UID).collection("logs").document(d)
+    doc_ref = fs.collection("nutrition").document(uid).collection("logs").document(d)
     snap = doc_ref.get()
     remote = snap.to_dict() if snap.exists else {"date": d, "meals": [], "water_ml": 0}
 
@@ -154,7 +141,6 @@ def _sync_nutrition(d: str, direction: str) -> dict:
     else:
         merged_meals = _merge_by_id(local_meals, remote_meals)
 
-    # water_ml: Firestore gewinnt wenn vorhanden, sonst lokal
     water_ml = remote.get("water_ml") or local.get("water_ml", 0)
 
     result = {"date": d, "meals": merged_meals, "water_ml": water_ml}
@@ -166,12 +152,12 @@ def _sync_nutrition(d: str, direction: str) -> dict:
 
 # ── Sync: Supplements ─────────────────────────────────────────────────────────
 
-def _sync_supplements(d: str, direction: str) -> dict:
+def _sync_supplements(d: str, direction: str, uid: str, data_dir: Path) -> dict:
     fs = _get_fs()
-    local_path = _supplements_path(d)
+    local_path = _supplements_path(d, data_dir)
     local = _read_json(local_path, {"date": d, "intakes": []})
 
-    doc_ref = fs.collection("supplements").document(UID).collection("logs").document(d)
+    doc_ref = fs.collection("supplements").document(uid).collection("logs").document(d)
     snap = doc_ref.get()
     remote = snap.to_dict() if snap.exists else {"date": d, "intakes": []}
 
@@ -193,13 +179,13 @@ def _sync_supplements(d: str, direction: str) -> dict:
 
 # ── Sync: Journal ─────────────────────────────────────────────────────────────
 
-def _sync_journal(d: str, direction: str) -> dict:
+def _sync_journal(d: str, direction: str, uid: str, data_dir: Path) -> dict:
     fs = _get_fs()
-    local_path = _journal_path(d)
+    local_path = _journal_path(d, data_dir)
     local_content = local_path.read_text() if local_path.exists() else ""
     local_mtime = local_path.stat().st_mtime if local_path.exists() else 0.0
 
-    doc_ref = fs.collection("nutrition").document(UID).collection("journal").document(d)
+    doc_ref = fs.collection("nutrition").document(uid).collection("journal").document(d)
     snap = doc_ref.get()
     remote_content = snap.to_dict().get("content", "") if snap.exists else ""
 
@@ -208,7 +194,6 @@ def _sync_journal(d: str, direction: str) -> dict:
     elif direction == "pull":
         result_content = remote_content
     else:
-        # Bisync: neueres Timestamp gewinnt (remote updated_at vs lokale mtime)
         remote_ts = 0.0
         if snap.exists:
             updated_at = snap.to_dict().get("updated_at")
@@ -226,12 +211,12 @@ def _sync_journal(d: str, direction: str) -> dict:
 
 # ── Sync: Supplements Catalog ─────────────────────────────────────────────────
 
-def _sync_supplements_catalog(direction: str) -> dict:
+def _sync_supplements_catalog(direction: str, uid: str, data_dir: Path) -> dict:
     fs = _get_fs()
-    local_path = _supplements_catalog_path()
+    local_path = _supplements_catalog_path(data_dir)
     local_items = _read_json(local_path, {"items": []}).get("items", [])
 
-    doc_ref = fs.collection("supplements").document(UID).collection("meta").document("catalog")
+    doc_ref = fs.collection("supplements").document(uid).collection("meta").document("catalog")
     snap = doc_ref.get()
     remote_items = snap.to_dict().get("items", []) if snap.exists else []
 
@@ -239,13 +224,9 @@ def _sync_supplements_catalog(direction: str) -> dict:
         merged_items = _merge_by_id(local_items, remote_items)
     elif direction == "pull":
         merged_items = remote_items
-    else:  # bisync
-        # Für Kataloge nehmen wir an, dass die lokale Version die Master-Version ist,
-        # die vom Benutzer gepflegt wird, und Firestore nur ein Spiegel ist.
-        # Daher push-only bei bisync.
+    else:
         merged_items = _merge_by_id(local_items, remote_items)
 
-    # Schreiben der gemergten Daten lokal und in Firestore
     _write_json(local_path, {"items": merged_items})
     doc_ref.set({"items": merged_items}, merge=True)
 
@@ -255,7 +236,7 @@ def _sync_supplements_catalog(direction: str) -> dict:
 # ── Core sync ─────────────────────────────────────────────────────────────────
 
 
-def do_daily_sync(d: str, direction: str) -> dict:
+def do_daily_sync(d: str, direction: str, uid: str, data_dir: Path) -> dict:
     results: dict[str, Any] = {}
     for name, fn in [
         ("nutrition", _sync_nutrition),
@@ -263,21 +244,22 @@ def do_daily_sync(d: str, direction: str) -> dict:
         ("journal", _sync_journal),
     ]:
         try:
-            results[name] = fn(d, direction)
+            results[name] = fn(d, direction, uid, data_dir)
         except Exception as e:
-            logger.error(f"fuel-firestore: {name} sync fehlgeschlagen ({d}): {e}")
+            logger.error(f"fuel-firestore: {name} sync fehlgeschlagen ({d}, {uid}): {e}")
             results[name] = {"error": str(e)}
     return results
 
-def do_catalog_sync(direction: str) -> dict:
+
+def do_catalog_sync(direction: str, uid: str, data_dir: Path) -> dict:
     results: dict[str, Any] = {}
     for name, fn in [
         ("supplements_catalog", _sync_supplements_catalog),
     ]:
         try:
-            results[name] = fn(direction)
+            results[name] = fn(direction, uid, data_dir)
         except Exception as e:
-            logger.error(f"fuel-firestore: {name} sync fehlgeschlagen: {e}")
+            logger.error(f"fuel-firestore: {name} sync fehlgeschlagen ({uid}): {e}")
             results[name] = {"error": str(e)}
     return results
 
@@ -298,24 +280,26 @@ def _get_date(request: web.Request) -> str:
 async def handle_status(request: web.Request) -> web.Response:
     try:
         _get_fs()
+        uid, data_dir = get_user_context(request)
         return web.json_response({
             "ok": True,
             "firestore": "connected",
             "sa": str(SA_PATH),
-            "data_dir": str(FUEL_DATA_DIR),
+            "uid": uid,
+            "data_dir": str(data_dir),
         })
     except Exception as e:
         return web.json_response({"ok": False, "firestore": "disconnected", "error": str(e)}, status=503)
 
 
 async def handle_ping(request: web.Request) -> web.Response:
-    """Event-Trigger aus fuel-dev: sync heute nach jedem Write."""
     d = date.today().isoformat()
-    logger.info(f"fuel-firestore: ping → bisync {d}")
+    uid, data_dir = get_user_context(request)
+    logger.info(f"fuel-firestore: ping → bisync {d} (uid={uid})")
     try:
-        daily_results = do_daily_sync(d, "bisync")
-        catalog_results = do_catalog_sync("bisync") # Catalog always syncs on "bisync"
-        return web.json_response({"ok": True, "date": d, "direction": "bisync", **daily_results, **catalog_results})
+        daily_results = do_daily_sync(d, "bisync", uid, data_dir)
+        catalog_results = do_catalog_sync("bisync", uid, data_dir)
+        return web.json_response({"ok": True, "date": d, "uid": uid, "direction": "bisync", **daily_results, **catalog_results})
     except Exception as e:
         logger.error(f"fuel-firestore ping error: {e}")
         return web.json_response({"ok": False, "error": str(e)}, status=500)
@@ -323,33 +307,36 @@ async def handle_ping(request: web.Request) -> web.Response:
 
 async def handle_sync(request: web.Request) -> web.Response:
     d = _get_date(request)
-    logger.info(f"fuel-firestore: bisync {d}")
+    uid, data_dir = get_user_context(request)
+    logger.info(f"fuel-firestore: bisync {d} (uid={uid})")
     try:
-        daily_results = do_daily_sync(d, "bisync")
-        catalog_results = do_catalog_sync("bisync")
-        return web.json_response({"ok": True, "date": d, "direction": "bisync", **daily_results, **catalog_results})
+        daily_results = do_daily_sync(d, "bisync", uid, data_dir)
+        catalog_results = do_catalog_sync("bisync", uid, data_dir)
+        return web.json_response({"ok": True, "date": d, "uid": uid, "direction": "bisync", **daily_results, **catalog_results})
     except Exception as e:
         return web.json_response({"ok": False, "error": str(e)}, status=500)
 
 
 async def handle_push(request: web.Request) -> web.Response:
     d = _get_date(request)
-    logger.info(f"fuel-firestore: push {d} → Firestore")
+    uid, data_dir = get_user_context(request)
+    logger.info(f"fuel-firestore: push {d} → Firestore (uid={uid})")
     try:
-        daily_results = do_daily_sync(d, "push")
-        catalog_results = do_catalog_sync("push")
-        return web.json_response({"ok": True, "date": d, "direction": "push", **daily_results, **catalog_results})
+        daily_results = do_daily_sync(d, "push", uid, data_dir)
+        catalog_results = do_catalog_sync("push", uid, data_dir)
+        return web.json_response({"ok": True, "date": d, "uid": uid, "direction": "push", **daily_results, **catalog_results})
     except Exception as e:
         return web.json_response({"ok": False, "error": str(e)}, status=500)
 
 
 async def handle_pull(request: web.Request) -> web.Response:
     d = _get_date(request)
-    logger.info(f"fuel-firestore: pull {d} ← Firestore")
+    uid, data_dir = get_user_context(request)
+    logger.info(f"fuel-firestore: pull {d} ← Firestore (uid={uid})")
     try:
-        daily_results = do_daily_sync(d, "pull")
-        catalog_results = do_catalog_sync("pull")
-        return web.json_response({"ok": True, "date": d, "direction": "pull", **daily_results, **catalog_results})
+        daily_results = do_daily_sync(d, "pull", uid, data_dir)
+        catalog_results = do_catalog_sync("pull", uid, data_dir)
+        return web.json_response({"ok": True, "date": d, "uid": uid, "direction": "pull", **daily_results, **catalog_results})
     except Exception as e:
         return web.json_response({"ok": False, "error": str(e)}, status=500)
 
@@ -357,7 +344,6 @@ async def handle_pull(request: web.Request) -> web.Response:
 # ── Bridge-Handler ────────────────────────────────────────────────────────────
 
 def register_routes(app: web.Application) -> None:
-    """Bridge-Integration: in bridge.py importieren und register_routes(app) aufrufen."""
     app.router.add_get(f"{PREFIX}/status", handle_status)
     app.router.add_post(f"{PREFIX}/ping", handle_ping)
     app.router.add_post(f"{PREFIX}/sync", handle_sync)

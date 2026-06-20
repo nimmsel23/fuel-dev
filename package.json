@@ -12,7 +12,7 @@
     "build:local": "VITE_APP_MODE=coach vite build",
     "build:cloud": "VITE_APP_MODE=client vite build",
     "deploy:local": "./deploy.sh",
-    "deploy:cloud": "npm run build:cloud && firebase deploy --only hosting --project fuel-aos",
+    "deploy:cloud": "npm run build:cloud && firebase deploy --only hosting --project fitness-aos",
     "prod": "PORT=9000 HOST=0.0.0.0 node server.mjs",
     "sync:push": "node --env-file-if-exists=.env scripts/firestore-sync.mjs push",
     "sync:pull": "node --env-file-if-exists=.env scripts/firestore-sync.mjs pull",

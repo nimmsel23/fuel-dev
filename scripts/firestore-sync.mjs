@@ -14,7 +14,7 @@ import { dirname } from "node:path";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
 const DATA_DIR = join(ROOT, "data", "catalogs");
-const SA_PATH = join(process.env.HOME, ".config", "fuel-pwa", "service-account.json");
+const SA_PATH = join(process.env.HOME, ".env", "firebase-fitness.json");
 
 const UID_DEFAULT = "default";
 

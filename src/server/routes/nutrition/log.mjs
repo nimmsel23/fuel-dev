@@ -2,7 +2,6 @@ import { z } from "zod";
 import { isISODate, todayISO } from "../../../shared/utils/validation.mjs";
 import path from "path";
 import fs from "fs";
-import { NUTRITION_DIR } from "../../config/paths.mjs";
 import { loadCatalog } from "../../services/nutrition-catalog.mjs";
 
 const logPostSchema = z.object({
@@ -24,16 +23,16 @@ const logPostSchema = z.object({
   water_ml: z.coerce.number().optional(),
 });
 
-function loadLog(date) {
-  const filePath = path.join(NUTRITION_DIR, `${date}.json`);
+function loadLog(date, nutritionDir) {
+  const filePath = path.join(nutritionDir, `${date}.json`);
   if (fs.existsSync(filePath)) {
     try { return JSON.parse(fs.readFileSync(filePath, "utf-8")); } catch { /* fall through */ }
   }
   return { date, meals: [], water_ml: 0 };
 }
 
-function saveLog(log) {
-  fs.writeFileSync(path.join(NUTRITION_DIR, `${log.date}.json`), JSON.stringify(log, null, 2), "utf-8");
+function saveLog(log, nutritionDir) {
+  fs.writeFileSync(path.join(nutritionDir, `${log.date}.json`), JSON.stringify(log, null, 2), "utf-8");
 }
 
 function resolveCatalogItem(catalog, catalogItemId, addonIds = []) {
@@ -86,18 +85,19 @@ const logPatchSchema = z.object({
 
 const SYNC_PING_URL = process.env.FUEL_FIRESTORE_PING_URL || "http://127.0.0.1:9080/api/fuel-firestore/ping";
 
-function fireSyncPing() {
-  fetch(SYNC_PING_URL, { method: "POST", signal: AbortSignal.timeout(3000) })
+function fireSyncPing(uid) {
+  const headers = { "Content-Type": "application/json", "X-Fuel-UID": uid };
+  fetch(SYNC_PING_URL, { method: "POST", headers, signal: AbortSignal.timeout(3000) })
     .then((r) => r.json())
-    .then((body) => { if (!body.ok) console.warn("[fuel-firestore] sync warn:", body.error); })
-    .catch((e) => console.warn("[fuel-firestore] sync unreachable:", e.message));
+    .then((body) => { if (!body.ok) console.warn(`[fuel-firestore] sync warn (${uid}):`, body.error); })
+    .catch((e) => console.warn(`[fuel-firestore] sync unreachable (${uid}):`, e.message));
 }
 
 export default async function logRoute(app) {
   app.get("/nutrition/log", async (req, reply) => {
     const date = (req.query.date || todayISO()).toString();
     if (!isISODate(date)) return reply.status(400).send({ ok: false, error: "Invalid date" });
-    return reply.send({ ok: true, data: loadLog(date) });
+    return reply.send({ ok: true, data: loadLog(date, req.paths.nutrition) });
   });
 
   app.patch("/nutrition/log", async (req, reply) => {
@@ -110,7 +110,7 @@ export default async function logRoute(app) {
       if (!isISODate(date)) return reply.status(400).send({ ok: false, error: "Invalid date" });
       if (new_date && !isISODate(new_date)) return reply.status(400).send({ ok: false, error: "Invalid new_date" });
 
-      const sourceLog = loadLog(date);
+      const sourceLog = loadLog(date, req.paths.nutrition);
       const mealIndex = sourceLog.meals.findIndex((m) => m.id === meal_id);
       if (mealIndex === -1) return reply.status(404).send({ ok: false, error: "Meal not found" });
 
@@ -122,14 +122,16 @@ export default async function logRoute(app) {
 
       if (new_date && new_date !== date) {
         sourceLog.meals.splice(mealIndex, 1);
-        saveLog(sourceLog);
-        const targetLog = loadLog(new_date);
+        saveLog(sourceLog, req.paths.nutrition);
+        const targetLog = loadLog(new_date, req.paths.nutrition);
         targetLog.meals.push({ ...meal, id: `meal_${Date.now()}` });
-        saveLog(targetLog);
+        saveLog(targetLog, req.paths.nutrition);
+        fireSyncPing(req.uid);
         return reply.send({ ok: true, data: targetLog });
       } else {
         sourceLog.meals[mealIndex] = meal;
-        saveLog(sourceLog);
+        saveLog(sourceLog, req.paths.nutrition);
+        fireSyncPing(req.uid);
         return reply.send({ ok: true, data: sourceLog });
       }
     } catch (error) {
@@ -146,7 +148,7 @@ export default async function logRoute(app) {
       const date = (parsed.data.date || todayISO()).toString();
       if (!isISODate(date)) return reply.status(400).send({ ok: false, error: "Invalid date" });
 
-      const log = loadLog(date);
+      const log = loadLog(date, req.paths.nutrition);
 
       if (parsed.data.catalog_item_id) {
         const catalog = loadCatalog();
@@ -173,8 +175,8 @@ export default async function logRoute(app) {
         log.water_ml = parsed.data.water_ml;
       }
 
-      saveLog(log);
-      fireSyncPing();
+      saveLog(log, req.paths.nutrition);
+      fireSyncPing(req.uid);
       return reply.send({ ok: true, data: log });
     } catch (error) {
       console.error(error);

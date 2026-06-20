@@ -1,8 +1,9 @@
+// fuel-aos hosted under fitness-aos Firebase project (shared Firestore + Auth)
 export const firebaseConfig = {
-  apiKey: "AIzaSyAJ6W4U1ADbLA9J9SOxIF0hGTviEel7YVk",
-  authDomain: "fuel-aos.firebaseapp.com",
-  projectId: "fuel-aos",
-  storageBucket: "fuel-aos.firebasestorage.app",
-  messagingSenderId: "736687438114",
-  appId: "1:736687438114:web:ff1036a34d71ef84708d7b",
+  apiKey:            "AIzaSyD1hvp2UYrvizLOzoSqOX-bwRWcCpJVAlg",
+  authDomain:        "fitness-aos.firebaseapp.com",
+  projectId:         "fitness-aos",
+  storageBucket:     "fitness-aos.firebasestorage.app",
+  messagingSenderId: "842575255284",
+  appId:             "1:842575255284:web:65c4831683a893c110f0a1",
 };

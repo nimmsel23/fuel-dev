@@ -1,8 +1,9 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import { PORT, HOST } from "../shared/config/constants.mjs";
-import { initializePaths } from "./config/paths.mjs";
+import { initializePaths, getPaths } from "./config/paths.mjs";
 import { normalizeRoutedPath } from "../shared/utils/validation.mjs";
+import { getUidForClient } from "./lib/client-manager.mjs";
 
 // Import all route handlers
 import healthRoute from "./routes/health.mjs";
@@ -29,6 +30,8 @@ export function createApp() {
   // Path normalization hook (handles /c/<clientId>/ prefixes)
   app.addHook("preHandler", (req, _reply, done) => {
     req.routedPath = normalizeRoutedPath(req.url.split("?")[0], req);
+    req.paths = getPaths(req.clientId);
+    req.uid = getUidForClient(req.clientId);
     done();
   });
 
