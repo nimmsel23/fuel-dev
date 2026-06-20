@@ -23,7 +23,7 @@ FUEL_DATA_DIR = Path(
 ).expanduser()
 
 SA_PATH = Path(
-    os.getenv("FUEL_FIRESTORE_SA", str(Path.home() / ".config" / "fuel-pwa" / "service-account.json"))
+    os.getenv("FUEL_FIRESTORE_SA", str(Path.home() / ".env" / "firebase-fitness.json"))
 ).expanduser()
 
 DEFAULT_UID = os.getenv("FUEL_CLOUD_UID", "default")
@@ -352,18 +352,80 @@ def register_routes(app: web.Application) -> None:
     logger.info(f"fuel-firestore: routes registered auf {PREFIX}/*")
 
 
-# ── Standalone ────────────────────────────────────────────────────────────────
+# ── CLI (typer) ───────────────────────────────────────────────────────────────
+
+def _collect_dates(data_dir: Path) -> list[str]:
+    """Alle lokalen Datumsfiles aus nutrition/ + supplements/logs/."""
+    dates: set[str] = set()
+    for sub in (data_dir / "nutrition", data_dir / "supplements" / "logs"):
+        if sub.exists():
+            for f in sub.glob("????-??-??.json"):
+                dates.add(f.stem)
+    return sorted(dates)
+
+
+def cli_push(uid: str | None = None, data_dir: Path | None = None) -> None:
+    """Alle lokalen Fuel-Daten nach Firestore pushen."""
+    uid = uid or DEFAULT_UID
+    data_dir = data_dir or (FUEL_DATA_DIR / "users" / uid if uid != DEFAULT_UID else FUEL_DATA_DIR)
+    dates = _collect_dates(data_dir)
+    logger.info(f"fuel-firestore push: {len(dates)} Tage für uid={uid}")
+    for d in dates:
+        r = do_daily_sync(d, "push", uid, data_dir)
+        logger.info(f"  → {d}: {r}")
+    cat = do_catalog_sync("push", uid, data_dir)
+    logger.info(f"  → catalog: {cat}")
+    logger.success("fuel-firestore push abgeschlossen")
+
+
+def cli_pull(uid: str | None = None, data_dir: Path | None = None) -> None:
+    """Alle Fuel-Daten von Firestore lokal speichern."""
+    uid = uid or DEFAULT_UID
+    data_dir = data_dir or (FUEL_DATA_DIR / "users" / uid if uid != DEFAULT_UID else FUEL_DATA_DIR)
+    dates = _collect_dates(data_dir)
+    logger.info(f"fuel-firestore pull: {len(dates)} Tage für uid={uid}")
+    for d in dates:
+        r = do_daily_sync(d, "pull", uid, data_dir)
+        logger.info(f"  → {d}: {r}")
+    cat = do_catalog_sync("pull", uid, data_dir)
+    logger.info(f"  → catalog: {cat}")
+    logger.success("fuel-firestore pull abgeschlossen")
+
 
 if __name__ == "__main__":
-    import argparse
+    import typer
 
-    parser = argparse.ArgumentParser(description="fuel-firestore sync server (standalone)")
-    parser.add_argument("--host", default=os.getenv("FUEL_FIRESTORE_HOST", "127.0.0.1"))
-    parser.add_argument("--port", type=int, default=int(os.getenv("FUEL_FIRESTORE_PORT", "9011")))
-    args = parser.parse_args()
+    cli = typer.Typer(add_completion=False)
 
-    app = web.Application()
-    register_routes(app)
+    @cli.command("push")
+    def cmd_push(uid: str = typer.Option(DEFAULT_UID, "--uid")):
+        """Alle lokalen Fuel-Daten → Firestore."""
+        cli_push(uid)
 
-    logger.info(f"fuel-firestore standalone: http://{args.host}:{args.port}{PREFIX}/")
-    web.run_app(app, host=args.host, port=args.port, print=None)
+    @cli.command("pull")
+    def cmd_pull(uid: str = typer.Option(DEFAULT_UID, "--uid")):
+        """Firestore → lokale Fuel-Daten."""
+        cli_pull(uid)
+
+    @cli.command("status")
+    def cmd_status():
+        """Firestore-Verbindung prüfen."""
+        try:
+            _get_fs()
+            logger.success(f"Firestore verbunden — SA: {SA_PATH}")
+        except Exception as e:
+            logger.error(f"Verbindung fehlgeschlagen: {e}")
+            raise typer.Exit(1)
+
+    @cli.command("serve")
+    def cmd_serve(
+        host: str = typer.Option(os.getenv("FUEL_FIRESTORE_HOST", "127.0.0.1"), "--host"),
+        port: int = typer.Option(int(os.getenv("FUEL_FIRESTORE_PORT", "9011")), "--port"),
+    ):
+        """Als HTTP-Server starten (:9011)."""
+        app = web.Application()
+        register_routes(app)
+        logger.info(f"fuel-firestore standalone: http://{host}:{port}{PREFIX}/")
+        web.run_app(app, host=host, port=port, print=None)
+
+    cli()
