@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { TAB_CONFIG } from "../tabs/index.jsx";
+import { TAB_CONFIG } from "../routes.js";
 
 export default function TabContent({ activeTab, ctx }) {
   const tab = TAB_CONFIG.find((t) => t.key === activeTab);
