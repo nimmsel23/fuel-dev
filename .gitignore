@@ -11,3 +11,4 @@ data/
 
 # Keep catalogs (versioniert)
 !catalogs/
+__pycache__/

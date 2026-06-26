@@ -1,88 +1,145 @@
 #!/usr/bin/env python3
 """
 fuel — Typer-powered smart logging dispatcher.
+
+Routing:
+  fuel                               → kombiniertes Today (meal + supplement)
+  fuel <supp_id> [opts]              → fuel-supplement <supp_id>
+  fuel "<description>" [opts]        → fuel-meal log "<description>" mit Gemini-Makros
+  fuel meal|supplement <subcmd>      → pass-through
+  fuel today|list|unlog|sync ...     → eigene Sub-Commands
+
+Top-Level Datums-Flags (--gestern, --vorgestern, --tag, -d/--day) werden
+für today/Smart-Routing erkannt und an Sub-CLIs durchgereicht.
 """
 
+from __future__ import annotations
+
 import json
-import os
 import subprocess
 import sys
 from pathlib import Path
+
 import typer
 
-# Try to import wasabi for stylish output
 try:
     from wasabi import Printer
     msg = Printer()
 except ImportError:
-    class SimplePrinter:
-        def divider(self, text): print(f"\n--- {text} ---\n")
-    msg = SimplePrinter()
+    class _P:
+        def divider(self, t): print(f"\n--- {t} ---\n")
+        def warn(self, t): print(f"[warn] {t}", file=sys.stderr)
+        def fail(self, t): print(f"[fail] {t}", file=sys.stderr)
+    msg = _P()
+
+FUEL_REPO_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(FUEL_REPO_DIR))
+
+from fuel_cli.catalog import load_supplement_ids
+from fuel_cli.dates import resolve as _resolve_date  # noqa: F401 — re-exposed for tests
+from fuel_cli.gemini import estimate_macros_only
 
 app = typer.Typer(help="Fuel Centre Smart CLI", no_args_is_help=False)
 
-# Resolve to actual fuel-dev directory
-FUEL_REPO_DIR = Path(__file__).resolve().parent.parent
-CATALOG_PATH = FUEL_REPO_DIR / "catalogs" / "supplements" / "catalog.yaml"
+DATE_FLAGS = {"--gestern", "-g", "--vorgestern", "--tag", "--day", "-d"}
+DATE_FLAGS_WITH_VALUE = {"--tag", "--day", "-d"}
 
-def load_supplement_ids():
-    """Load supplement IDs from catalog for smart routing."""
-    if not CATALOG_PATH.exists():
-        # Fallback to JSON for legacy
-        json_path = CATALOG_PATH.with_suffix(".json")
-        if json_path.exists():
-            try:
-                data = json.loads(json_path.read_text())
-                return {item["id"] for item in data.get("items", [])}
-            except:
-                return set()
-        return set()
-    try:
-        import yaml
-        data = yaml.safe_load(CATALOG_PATH.read_text())
-        return {item["id"] for item in data.get("items", [])}
-    except:
-        return set()
 
-def show_combined_today():
-    """Execute 'today' for both meal and supplement scripts."""
+def _split_date_flags(args: list[str]) -> tuple[list[str], list[str]]:
+    """Pull date-related flags out of args. Returns (date_flags, remaining)."""
+    date_flags: list[str] = []
+    rest: list[str] = []
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if a in DATE_FLAGS_WITH_VALUE and i + 1 < len(args):
+            date_flags.extend([a, args[i + 1]])
+            i += 2
+        elif a in DATE_FLAGS:
+            date_flags.append(a)
+            i += 1
+        else:
+            rest.append(a)
+            i += 1
+    return date_flags, rest
+
+
+def _first_non_flag(args: list[str]) -> str | None:
+    for a in args:
+        if not a.startswith("-"):
+            return a
+    return None
+
+
+def show_combined_today(extra_args: list[str] | None = None) -> None:
+    extra_args = extra_args or []
     msg.divider("MEALS")
-    subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-meal"), "today"])
+    subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-meal"), "today", *extra_args])
     msg.divider("SUPPLEMENTS")
-    subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-supplement"), "today"])
+    subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-supplement"), "today", *extra_args])
+
+
+def _gemini_meal_log(description: str, extra_args: list[str]) -> int:
+    """Estimate macros via Gemini, then call fuel-meal log with --kcal/--protein/etc."""
+    macros = estimate_macros_only(description)
+    if macros.get("_error"):
+        msg.warn(f"Gemini-Schätzung fehlgeschlagen: {macros['_error']} — logge ohne Makros")
+        kcal = protein = carbs = fat = 0
+    else:
+        kcal = macros.get("kcal", 0)
+        protein = macros.get("protein", 0)
+        carbs = macros.get("carbs", 0)
+        fat = macros.get("fat", 0)
+        print(f"⚡ Gemini: {kcal} kcal · {protein}P · {carbs}C · {fat}F")
+
+    cmd = [
+        str(FUEL_REPO_DIR / "bin" / "fuel-meal"),
+        "log", description,
+        "--kcal", str(kcal),
+        "--protein", str(protein),
+        "--carbs", str(carbs),
+        "--fat", str(fat),
+        *extra_args,
+    ]
+    return subprocess.run(cmd).returncode
+
+
+# ── Typer commands (explicit pass-through) ───────────────────────────────────
 
 @app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
 def meal(ctx: typer.Context):
     """Route to fuel-meal."""
-    subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-meal")] + ctx.args)
+    subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-meal"), *ctx.args])
+
 
 @app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
 def supplement(ctx: typer.Context):
     """Route to fuel-supplement."""
-    subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-supplement")] + ctx.args)
+    subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-supplement"), *ctx.args])
 
-@app.command()
-def today():
-    """Show combined status for today."""
-    show_combined_today()
+
+@app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
+def today(ctx: typer.Context):
+    """Combined today (meals + supplements). Akzeptiert --gestern/--vorgestern/--tag."""
+    show_combined_today(ctx.args)
+
 
 @app.command()
 def list():
     """List available supplements."""
     subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-supplement"), "list"])
 
+
 @app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
 def unlog(ctx: typer.Context):
-    """Universal unlog (defaults to supplement, supports --meal)."""
-    is_meal = "--meal" in ctx.args
-    filtered_args = [a for a in ctx.args if a != "--meal"]
-    if is_meal:
-        subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-meal"), "unlog"] + filtered_args)
+    """Unlog. Default: supplement. Mit --meal: Meal-unlog."""
+    args = list(ctx.args)
+    if "--meal" in args:
+        args.remove("--meal")
+        subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-meal"), "unlog", *args])
     else:
-        # Default to supplement, but maybe check if it fails and try meal? 
-        # For now, explicit --meal is better or just call both if interactive?
-        # Let's just default to supplement unlog but mention --meal.
-        subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-supplement"), "unlog"] + filtered_args)
+        subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-supplement"), "unlog", *args])
+
 
 @app.command()
 def sync(
@@ -90,8 +147,7 @@ def sync(
     uid: str = typer.Option(None, "--uid", help="Firebase UID (default: aktiver User)"),
 ):
     """Fuel-Daten ↔ Firestore synchronisieren (via fitness-dev/firestore)."""
-    import sys as _sys
-    _sys.path.insert(0, str(FUEL_REPO_DIR.parent / "fitness-dev"))
+    sys.path.insert(0, str(FUEL_REPO_DIR.parent / "fitness-dev"))
     try:
         from firestore.fuel import push_fuel, pull_fuel
         from firestore._db import UID as DEFAULT_UID
@@ -113,32 +169,50 @@ def sync(
         raise typer.Exit(1)
 
 
-def main():
-    # 1. Check for basic no-args case
-    if len(sys.argv) == 1:
+# Known Typer-Subcommands aus der App ableiten — kein hardcoded set mehr.
+def _known_commands() -> set[str]:
+    names = set()
+    for c in app.registered_commands:
+        names.add(c.name or (c.callback.__name__ if c.callback else None))
+    names.discard(None)
+    return names | {"--help", "-h"}
+
+
+def main() -> None:
+    argv = sys.argv[1:]
+
+    if not argv:
         show_combined_today()
         return
 
-    # 2. Extract first argument to check if it's a known command or a shorthand
-    first_arg = sys.argv[1]
+    known = _known_commands()
+    first_token = _first_non_flag(argv)
 
-    # List of explicit commands that Typer should handle
-    KNOWN_COMMANDS = {"meal", "supplement", "today", "list", "unlog", "sync", "--help", "-h"}
-    
-    if first_arg in KNOWN_COMMANDS:
+    if first_token in known:
         app()
         return
 
-    # 3. Smart Routing for Shorthands
+    # Smart-Routing: Datums-Flags rausziehen, dann erstes Non-Flag klassifizieren
+    date_flags, rest = _split_date_flags(argv)
+    target = _first_non_flag(rest)
+
+    if not target:
+        # Nur Flags, kein Item — als Today interpretieren
+        show_combined_today(date_flags)
+        return
+
     supp_ids = load_supplement_ids()
-    
-    if first_arg in supp_ids:
-        # Route to supplement shorthand
-        subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-supplement")] + sys.argv[1:])
-    else:
-        # Route everything else to meal log
-        # Ensure we're calling fuel-meal correctly from within the dispatcher
-        subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-meal"), "log"] + sys.argv[1:])
+    if target in supp_ids:
+        # Erstes Item ist Supplement → fuel-supplement log <items> <flags>
+        supps = [a for a in rest if a in supp_ids]
+        other = [a for a in rest if a not in supp_ids]
+        subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-supplement"), "log", *supps, *other, *date_flags])
+        return
+
+    # NL-Mahlzeitbeschreibung → Gemini-Makros → fuel-meal log
+    description = " ".join(rest)
+    sys.exit(_gemini_meal_log(description, date_flags))
+
 
 if __name__ == "__main__":
     main()

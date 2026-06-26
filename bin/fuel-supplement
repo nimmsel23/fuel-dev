@@ -27,6 +27,9 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from rich.console import Console
 from rich.table import Table
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from fuel_cli.dates import resolve_flags as _resolve_date
+
 console = Console()
 msg = Printer()
 
@@ -308,10 +311,17 @@ app = typer.Typer(help="Supplement Tracker CLI")
 
 @app.command(name="unlog")
 def unlog_command(
-    day: str | None = typer.Option(None, "--day", "-d", help="Datum YYYY-MM-DD")
+    tag:        str | None = typer.Option(None, "--tag", help="Datum: heute|gestern|vorgestern|-N|Mo|YYYY-MM-DD"),
+    gestern:    bool       = typer.Option(False, "--gestern", "-g", help="= gestern"),
+    vorgestern: bool       = typer.Option(False, "--vorgestern", help="= vorgestern"),
+    day:        str | None = typer.Option(None, "--day", "-d", help="(legacy) Datum YYYY-MM-DD"),
 ) -> None:
     """Entferne einen Supplement-Eintrag interaktiv."""
-    do_unlog(day)
+    try:
+        target = _resolve_date(tag=tag, gestern=gestern, vorgestern=vorgestern, day_legacy=day)
+    except ValueError as e:
+        msg.fail(str(e)); raise typer.Exit(1)
+    do_unlog(target)
 
 @app.callback(invoke_without_command=True)
 def main(ctx: typer.Context) -> None:
@@ -331,11 +341,18 @@ def log_command(
     supplements: list[str]   = typer.Argument(..., help="Supplement-IDs"),
     dose:       float | None = typer.Option(None, "--dose", "-v", help="Dosis für erstes Supplement"),
     time:       str | None   = typer.Option(None, "--time", "-t", help="morning/evening/night/any"),
-    day:        str | None   = typer.Option(None, "--day", "-d", help="Datum YYYY-MM-DD"),
+    tag:        str | None   = typer.Option(None, "--tag", help="Datum: heute|gestern|vorgestern|-N|Mo|YYYY-MM-DD"),
+    gestern:    bool         = typer.Option(False, "--gestern", "-g", help="= gestern"),
+    vorgestern: bool         = typer.Option(False, "--vorgestern", help="= vorgestern"),
+    day:        str | None   = typer.Option(None, "--day", "-d", help="(legacy) Datum YYYY-MM-DD"),
 ) -> None:
+    try:
+        target = _resolve_date(tag=tag, gestern=gestern, vorgestern=vorgestern, day_legacy=day)
+    except ValueError as e:
+        msg.fail(str(e)); raise typer.Exit(1)
     for i, supp in enumerate(supplements):
         d = dose if i == 0 else None
-        do_log(supp, d, time, day)
+        do_log(supp, d, time, target)
 
 @app.command(name="list")
 def list_supplements() -> None:
@@ -351,8 +368,17 @@ def list_supplements() -> None:
     console.print(table)
 
 @app.command()
-def today(day: str | None = typer.Option(None, "--day", "-d")):
-    do_today(day)
+def today(
+    tag:        str | None = typer.Option(None, "--tag", help="Datum: heute|gestern|vorgestern|-N|Mo|YYYY-MM-DD"),
+    gestern:    bool       = typer.Option(False, "--gestern", "-g", help="= gestern"),
+    vorgestern: bool       = typer.Option(False, "--vorgestern", help="= vorgestern"),
+    day:        str | None = typer.Option(None, "--day", "-d", help="(legacy) Datum YYYY-MM-DD"),
+):
+    try:
+        target = _resolve_date(tag=tag, gestern=gestern, vorgestern=vorgestern, day_legacy=day)
+    except ValueError as e:
+        msg.fail(str(e)); raise typer.Exit(1)
+    do_today(target)
 
 if __name__ == "__main__":
     app()

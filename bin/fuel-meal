@@ -29,6 +29,23 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from rich.console import Console
 from rich.table import Table
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from fuel_cli.dates import resolve_flags as _resolve_date
+from fuel_cli.narrative import parse as _parse_narrative, spread_times as _spread_times
+from fuel_cli.gemini import estimate_macros_only as _gemini_macros, discover_item as _gemini_discover
+from fuel_cli.catalog_lookup import find_meal as _catalog_find, extract_macros as _catalog_macros
+
+
+def _clean_catalog_name(text: str, max_len: int = 80) -> str:
+    """Macht aus items_text einen sauberen Catalog-Namen ohne Gemini-Call."""
+    import re as _re
+    # Prefix-Müll: "Mahlzeit:", "Insgesamt:", etc.
+    cleaned = _re.sub(r"^\s*(mahlzeit|insgesamt|gericht|essen)\s*:?\s*", "", text, flags=_re.IGNORECASE).strip()
+    cleaned = _re.sub(r"\s+", " ", cleaned)
+    if len(cleaned) > max_len:
+        cleaned = cleaned[: max_len - 1].rsplit(",", 1)[0].rstrip() + "…"
+    return cleaned or text
+
 console = Console()
 msg = Printer()
 
@@ -265,14 +282,23 @@ def do_meal_interactive() -> None:
 
 # ── Meal Logging ───────────────────────────────────────────────────────────────
 
-def do_meal_log(description: str, kcal: float, protein: float, carbs: float, fat: float, notes: str, day: str | None, save_catalog: bool, qty: int = 1) -> None:
+def do_meal_log(description: str, kcal: float, protein: float, carbs: float, fat: float, notes: str, day: str | None, save_catalog: bool, qty: int = 1, catalog_id: str | None = None) -> None:
     today = day or date.today().isoformat()
     qty = max(1, int(qty))
 
     if kcal == 0 and protein == 0 and carbs == 0 and fat == 0:
-        msg.info(f"Gemini schätzt Makros für '{description}'...")
-        macros = _parse_macros_with_gemini(description)
-        kcal, protein, carbs, fat = macros.get("kcal", 0), macros.get("protein", 0), macros.get("carbs", 0), macros.get("fat", 0)
+        # Lookup-first: Catalog-Hit spart Gemini-Call komplett
+        if not catalog_id:
+            hit = _catalog_find(description)
+            if hit:
+                m = _catalog_macros(hit)
+                kcal, protein, carbs, fat = m["kcal"], m["protein"], m["carbs"], m["fat"]
+                catalog_id = hit.get("id")
+                msg.good(f"Catalog-Hit: {hit['name']} ({kcal:.0f} kcal/Stück) — kein Gemini-Call")
+        if kcal == 0:
+            msg.info(f"Gemini schätzt Makros für '{description}'...")
+            macros = _parse_macros_with_gemini(description)
+            kcal, protein, carbs, fat = macros.get("kcal", 0), macros.get("protein", 0), macros.get("carbs", 0), macros.get("fat", 0)
 
     if qty > 1:
         kcal, protein, carbs, fat = kcal * qty, protein * qty, carbs * qty, fat * qty
@@ -283,14 +309,15 @@ def do_meal_log(description: str, kcal: float, protein: float, carbs: float, fat
         msg.fail(f"Validation error: {e.error_count()} Fehler")
         raise SystemExit(1)
 
-    payload = {
-        "date": today,
-        "meal": {
-            "meal_type": "lunch",
-            "description": f"{qty}x {description}" if qty > 1 else description,
-            "kcal": kcal, "protein": protein, "carbs": carbs, "fat": fat, "notes": notes,
-        }
+    meal_payload = {
+        "meal_type": "lunch",
+        "description": f"{qty}x {description}" if qty > 1 else description,
+        "kcal": kcal, "protein": protein, "carbs": carbs, "fat": fat, "notes": notes,
     }
+    if catalog_id:
+        meal_payload["catalog_id"] = catalog_id
+
+    payload = {"date": today, "meal": meal_payload}
 
     res = _api_call("POST", "/nutrition/log", payload)
     
@@ -379,10 +406,17 @@ app = typer.Typer(help="Meal Logging CLI")
 
 @app.command(name="unlog")
 def unlog_command(
-    day: str | None = typer.Option(None, "--day", "-d", help="Datum YYYY-MM-DD")
+    tag:        str | None = typer.Option(None, "--tag", help="Datum: heute|gestern|vorgestern|-N|Mo|YYYY-MM-DD"),
+    gestern:    bool       = typer.Option(False, "--gestern", "-g"),
+    vorgestern: bool       = typer.Option(False, "--vorgestern"),
+    day:        str | None = typer.Option(None, "--day", "-d", help="(legacy) Datum YYYY-MM-DD"),
 ) -> None:
     """Entferne einen Mahlzeiten-Eintrag interaktiv."""
-    do_unlog(day)
+    try:
+        target = _resolve_date(tag=tag, gestern=gestern, vorgestern=vorgestern, day_legacy=day)
+    except ValueError as e:
+        msg.fail(str(e)); raise typer.Exit(1)
+    do_unlog(target)
 
 @app.callback(invoke_without_command=True)
 def main(ctx: typer.Context) -> None:
@@ -397,11 +431,108 @@ def log_command(
     carbs: float = typer.Option(0, "--carbs"),
     fat: float = typer.Option(0, "--fat"),
     notes: str = typer.Option("", "--notes", "-n"),
-    day: str = typer.Option(None, "--day", "-d"),
+    tag:        str | None = typer.Option(None, "--tag", help="Datum: heute|gestern|vorgestern|-N|Mo|YYYY-MM-DD"),
+    gestern:    bool       = typer.Option(False, "--gestern", "-g"),
+    vorgestern: bool       = typer.Option(False, "--vorgestern"),
+    day: str = typer.Option(None, "--day", "-d", help="(legacy) Datum YYYY-MM-DD"),
     save_catalog: bool = typer.Option(False, "--save-catalog", "-s"),
     qty: int = typer.Option(1, "--qty", "-q"),
 ) -> None:
-    do_meal_log(description, kcal, protein, carbs, fat, notes, day, save_catalog, qty)
+    try:
+        target = _resolve_date(tag=tag, gestern=gestern, vorgestern=vorgestern, day_legacy=day)
+    except ValueError as e:
+        msg.fail(str(e)); raise typer.Exit(1)
+    do_meal_log(description, kcal, protein, carbs, fat, notes, target, save_catalog, qty)
+
+@app.command(name="narrative")
+def narrative_command(
+    text: str = typer.Argument(..., help="Erzählung, z.B. '4 Teller Nachmittag bis Abend: 250g Reis, …'"),
+    tag:        str | None = typer.Option(None, "--tag"),
+    gestern:    bool       = typer.Option(False, "--gestern", "-g"),
+    vorgestern: bool       = typer.Option(False, "--vorgestern"),
+    day:        str | None = typer.Option(None, "--day", "-d"),
+    save_catalog: bool     = typer.Option(False, "--save-catalog", "-s"),
+    dry_run:    bool       = typer.Option(False, "--dry-run", "-n", help="Nur anzeigen, nicht loggen"),
+) -> None:
+    """Parse Mahlzeit-Narrative, schätze Gesamt-Makros via Gemini, splitte in N Einträge."""
+    try:
+        target = _resolve_date(tag=tag, gestern=gestern, vorgestern=vorgestern, day_legacy=day)
+    except ValueError as e:
+        msg.fail(str(e)); raise typer.Exit(1)
+
+    parsed = _parse_narrative(text)
+    if not parsed.items_text:
+        msg.fail("Keine Items in der Beschreibung erkannt"); raise typer.Exit(1)
+
+    msg.info(f"Erkannt: {parsed.count} Teller · Fenster {parsed.time_window or 'kein'} · Items: {parsed.items_text}")
+
+    # Lookup-first: Catalog-Match → stored per-unit macros, null Gemini
+    catalog_hit = _catalog_find(parsed.items_text)
+    catalog_id: str | None = None
+    catalog_name = _clean_catalog_name(parsed.items_text)
+
+    if catalog_hit:
+        m = _catalog_macros(catalog_hit)
+        per_kcal, per_protein, per_carbs, per_fat = m["kcal"], m["protein"], m["carbs"], m["fat"]
+        catalog_id = catalog_hit.get("id")
+        catalog_name = catalog_hit.get("name") or catalog_name
+        msg.good(f"Catalog-Hit: {catalog_name} ({per_kcal:.0f} kcal/Teller) — kein Gemini-Call")
+    else:
+        macros = _gemini_macros(parsed.items_text)
+        if macros.get("_error"):
+            msg.fail(f"Gemini-Fehler: {macros['_error']}"); raise typer.Exit(1)
+        per_kcal    = macros["kcal"]    / parsed.count
+        per_protein = macros["protein"] / parsed.count
+        per_carbs   = macros["carbs"]   / parsed.count
+        per_fat     = macros["fat"]     / parsed.count
+        console.print(f"[bold]Gesamt:[/bold] {macros['kcal']:.0f} kcal · {macros['protein']:.1f}P · {macros['carbs']:.1f}C · {macros['fat']:.1f}F")
+
+    times = _spread_times(parsed.count, parsed.time_window)
+    console.print(f"[bold]Pro Teller:[/bold] {per_kcal:.0f} kcal · {per_protein:.1f}P · {per_carbs:.1f}C · {per_fat:.1f}F")
+
+    # Catalog-Enhancement: bei Miss + --save-catalog → 1× discover + POST → catalog_id
+    if save_catalog and not dry_run and not catalog_id:
+        msg.info("Gemini: kanonischer Catalog-Name...")
+        disc = _gemini_discover(parsed.items_text)
+        if disc.get("error"):
+            msg.warn(f"discover: {disc['error']} — fallback lokaler Name")
+        else:
+            entry = disc.get("catalog_entry") or {}
+            name = (entry.get("name") or "").strip()
+            if disc.get("type") == "meal" and name:
+                catalog_name = name
+        catalog_item = {
+            "item": {
+                "name": catalog_name,
+                "kcal": per_kcal, "protein": per_protein,
+                "carbs": per_carbs, "fat": per_fat,
+            }
+        }
+        cat_res = _api_call("POST", "/nutrition/catalog", catalog_item)
+        catalog_id = (cat_res.get("item") or {}).get("id") or cat_res.get("id")
+        if catalog_id:
+            msg.good(f"Catalog: '{catalog_name}' (id={catalog_id})")
+        else:
+            msg.warn(f"Catalog POST ohne id-Response: {cat_res}")
+
+    for i, t in enumerate(times, 1):
+        slot = f" ~{t}" if t else ""
+        # Saubere Description: Catalog-Name + Instance-Suffix (oder items_text wenn kein Catalog)
+        base = catalog_name if catalog_id else parsed.items_text
+        desc = f"{base} (Teller {i}/{parsed.count}{slot})"
+        note = f"Teller {i}/{parsed.count}{slot}"
+        if dry_run:
+            console.print(f"  [dim]would log:[/dim] {desc}  →  {per_kcal:.0f}kcal/{per_protein:.1f}P/{per_carbs:.1f}C/{per_fat:.1f}F")
+            continue
+        do_meal_log(
+            description=desc,
+            kcal=per_kcal, protein=per_protein, carbs=per_carbs, fat=per_fat,
+            notes=note, day=target,
+            save_catalog=False,  # Catalog wurde 1× oben angelegt
+            qty=1,
+            catalog_id=catalog_id,
+        )
+
 
 @app.command()
 def list() -> None:
@@ -415,8 +546,17 @@ def list() -> None:
     console.print(table)
 
 @app.command()
-def today(day: str = typer.Option(None, "--day", "-d")):
-    do_today(day)
+def today(
+    tag:        str | None = typer.Option(None, "--tag", help="Datum: heute|gestern|vorgestern|-N|Mo|YYYY-MM-DD"),
+    gestern:    bool       = typer.Option(False, "--gestern", "-g"),
+    vorgestern: bool       = typer.Option(False, "--vorgestern"),
+    day: str = typer.Option(None, "--day", "-d", help="(legacy) Datum YYYY-MM-DD"),
+):
+    try:
+        target = _resolve_date(tag=tag, gestern=gestern, vorgestern=vorgestern, day_legacy=day)
+    except ValueError as e:
+        msg.fail(str(e)); raise typer.Exit(1)
+    do_today(target)
 
 if __name__ == "__main__":
     app()
