@@ -23,10 +23,10 @@ VITALTRAINING (Der eine Gott — The Ultimate Authority)
    └─ fuel-dev (Der Tempel — Where It Happens)
       ├─ Zwei Channels: **local** (Fastify, /opt/fuel) + **cloud** (Firebase PWA)
       ├─ Fastify API + SQLite + File-based Data (local channel, VITE_APP_MODE=coach)
-      ├─ Firebase/Firestore (cloud channel, VITE_APP_MODE=client — fuel-aos.web.app)
+      ├─ Firebase/Firestore (cloud channel, VITE_APP_MODE=client — fuel-vos.web.app)
       └─ Komponenten
          ├─ Meal Catalog (individuelle JSON-Files lokal / Firestore cloud)
-         ├─ Supplements Catalog (catalog.json im Repo / Firestore cloud)
+         ├─ Supplements Catalog (catalog.yaml im Repo / Firestore cloud)
          ├─ Food Search (Open Food Facts Proxy lokal / Catalog-Suche cloud)
          ├─ Micros Tracking (DACH-Referenzwerte, Wochenheatmap)
          ├─ Journal (Freitext-Notizen)
@@ -50,7 +50,7 @@ VITALTRAINING (Der eine Gott — The Ultimate Authority)
 | Channel | Stack | Build-Mode | Deployment | Daten |
 |---------|-------|------------|------------|-------|
 | **local** | Fastify + SQLite + File-JSON | `VITE_APP_MODE=coach` | Port 9000 Dev / 7000 Prod (`/opt/fuel`) | `~/.aos/fuel/` |
-| **cloud** | Firebase Hosting + Firestore | `VITE_APP_MODE=client` | [fuel-aos.web.app](https://fuel-aos.web.app) | Firestore (per User) |
+| **cloud** | Firebase Hosting + Firestore | `VITE_APP_MODE=client` | [fuel-vos.web.app](https://fuel-vos.web.app) | Firestore (per User) |
 
 Beide Channels teilen sich **dieselbe React-Codebase** in `src/client/` — Unterschied liegt nur im Build-Mode + Runtime-Detection via `isCloud()` in `src/client/lib/api.js`.
 
@@ -58,7 +58,7 @@ Beide Channels teilen sich **dieselbe React-Codebase** in `src/client/` — Unte
 - Dev: 9000 (`server.mjs` → `src/server/app.mjs`)
 - Vite dev: 5173
 - local Prod: 7000 (static, `fuel-v2.service` — Unit-Name historisch, channel ist "local")
-- cloud: `https://fuel-aos.web.app`
+- cloud: `https://fuel-vos.web.app`
 
 **Data location (local):** `~/.aos/fuel/` (via `AOS_FUEL_DATA_DIR`)
 **Data location (cloud):** Firestore — Collections `nutrition/{uid}/logs`, `supplements/{uid}/logs`, `users/{uid}/meta`
@@ -142,7 +142,7 @@ catalogs/
 │   └── meals/
 │       └── {id}.json       ein File pro Gericht
 └── supplements/
-    └── catalog.json
+    └── catalog.yaml
 ```
 
 ### SQLite (`nutrition.db`)
@@ -184,7 +184,7 @@ Wochenheatmap (Mikros-Tab) aggregiert meal_micros-Werte pro Woche vs. DACH.
 - `src/client/lib/firebase.js` — Firebase Init + Auth (Google Sign-In)
 - Firestore Collections: `nutrition/{uid}/logs`, `nutrition/{uid}/meta/catalog`, `nutrition/{uid}/journal`, `supplements/{uid}/logs`, `supplements/{uid}/meta/catalog`, `users/{uid}/meta/settings`
 - AI Logger (lokales Gemini-Backend) → nur im local channel sichtbar (kein Backend in cloud)
-- `dist-firebase/` → Firebase Hosting (fuel-aos.web.app)
+- `dist-firebase/` → Firebase Hosting (fuel-vos.web.app)
 
 ### Gemini Scripts (Python)
 
@@ -201,7 +201,7 @@ API-Key: `~/.env/fuel.env` (`GEMINI_API_KEY`, `GEMINI_MODEL=gemini-2.5-flash`)
 **`./fuel`** (Python/Typer)
 - `fuel log melatonin`, `fuel today`, `fuel week`
 - Supplement-Logs nach `~/.aos/fuel/supplements/logs/YYYY-MM-DD.json`
-- Supplement-Catalog: `catalogs/supplements/catalog.json`
+- Supplement-Catalog: `catalogs/supplements/catalog.yaml`
 
 **`./fuel-log.zsh`** — Quick TUI für Meal-Eingabe
 
@@ -322,7 +322,7 @@ fuel-dev/
 │   ├── nutrition/
 │   │   └── meals/               {id}.json pro Gericht (lokal git-tracked)
 │   └── supplements/
-│       └── catalog.json
+│       └── catalog.yaml
 ├── public/                      Classic vanilla PWA (legacy)
 ├── bin/
 │   └── fuel-food-search         CLI food search
@@ -397,3 +397,18 @@ See `~/.claude/agents/nutrition-agent.md` for full definition.
 - **Export-Endpoint:** `GET /nutrition/export?from=&to=` → CSV (lokal)
 - **Firestore-Sicherheitsregeln:** Production-ready Rules für `nutrition/{uid}` und `supplements/{uid}`
 - **Klienten-Auth Multi-User (lokal):** `/c/<id>/nutrition/…` Route bereits vorbereitet
+
+---
+
+## Dispatcher
+
+Jedes neue Skript/Tool in diesem Repo gehört als Option in den zentralen Dispatcher — nicht als loses Standalone-Script.
+Bei Bash vs. Python: Python bevorzugen. Deps: `typer` + `loguru` + `gum`-Fallback für TUI.
+Referenz-Implementierung: `~/aos-dev/bin/bridge-devctl menu`
+
+| Dispatcher | Typ | Funktion |
+|---|---|---|
+| `bin/fuel-devctl` | python3 | Fuel Stack-Controller (aiohttp + Service-Control) — **bevorzugter Einstieg** |
+| `bin/fuelctl` | bash | Legacy-Controller (Nutrition-Logging CLI) |
+
+`bin/fuel-devctl` ist bereits Python — neue Optionen hier rein, nicht als separate Scripts.
