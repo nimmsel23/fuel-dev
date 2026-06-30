@@ -1,0 +1,86 @@
+// ================================================================
+// FIRESTORE REST — Fuel Micros Enricher GAS
+// ================================================================
+// Auth via ScriptApp.getOAuthToken() (same Google account as Firebase project)
+
+function fsBase_() {
+  const project = getProp_(PROP.FIREBASE_PROJECT);
+  return 'https://firestore.googleapis.com/v1/projects/' + project + '/databases/(default)/documents';
+}
+
+function fsHeaders_() {
+  return {
+    'Authorization': 'Bearer ' + ScriptApp.getOAuthToken(),
+    'Content-Type': 'application/json',
+  };
+}
+
+function fsGet_(path) {
+  const res = UrlFetchApp.fetch(fsBase_() + '/' + path, {
+    method: 'get',
+    headers: fsHeaders_(),
+    muteHttpExceptions: true,
+  });
+  const code = res.getResponseCode();
+  if (code === 404) return null;
+  if (code !== 200) throw new Error('Firestore GET ' + path + ' → ' + code + ': ' + res.getContentText());
+  return JSON.parse(res.getContentText());
+}
+
+function fsList_(collectionPath) {
+  const docs = [];
+  let pageToken = null;
+  do {
+    let url = fsBase_() + '/' + collectionPath + '?pageSize=300';
+    if (pageToken) url += '&pageToken=' + encodeURIComponent(pageToken);
+    const res = UrlFetchApp.fetch(url, { method: 'get', headers: fsHeaders_(), muteHttpExceptions: true });
+    const code = res.getResponseCode();
+    if (code !== 200) break;
+    const data = JSON.parse(res.getContentText());
+    if (data.documents) docs.push(...data.documents);
+    pageToken = data.nextPageToken || null;
+  } while (pageToken);
+  return docs;
+}
+
+function fsPatch_(path, fields) {
+  const body = { fields: fields };
+  const res = UrlFetchApp.fetch(fsBase_() + '/' + path, {
+    method: 'patch',
+    headers: fsHeaders_(),
+    payload: JSON.stringify(body),
+    muteHttpExceptions: true,
+  });
+  const code = res.getResponseCode();
+  if (code !== 200) throw new Error('Firestore PATCH ' + path + ' → ' + code + ': ' + res.getContentText());
+  return JSON.parse(res.getContentText());
+}
+
+// ── Value helpers (Firestore wire format) ──────────────────────────────────────
+
+function fsVal_(v) {
+  if (v === null || v === undefined) return { nullValue: null };
+  if (typeof v === 'boolean') return { booleanValue: v };
+  if (typeof v === 'number') return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
+  if (typeof v === 'string') return { stringValue: v };
+  if (Array.isArray(v)) return { arrayValue: { values: v.map(fsVal_) } };
+  if (typeof v === 'object') return { mapValue: { fields: Object.fromEntries(Object.entries(v).map(([k, val]) => [k, fsVal_(val)])) } };
+  return { stringValue: String(v) };
+}
+
+function fsRead_(field) {
+  if (field == null) return null;
+  if ('nullValue' in field) return null;
+  if ('booleanValue' in field) return field.booleanValue;
+  if ('integerValue' in field) return Number(field.integerValue);
+  if ('doubleValue' in field) return field.doubleValue;
+  if ('stringValue' in field) return field.stringValue;
+  if ('arrayValue' in field) return (field.arrayValue.values || []).map(fsRead_);
+  if ('mapValue' in field) return Object.fromEntries(Object.entries(field.mapValue.fields || {}).map(([k, v]) => [k, fsRead_(v)]));
+  return null;
+}
+
+function fsReadDoc_(doc) {
+  if (!doc || !doc.fields) return null;
+  return Object.fromEntries(Object.entries(doc.fields).map(([k, v]) => [k, fsRead_(v)]));
+}

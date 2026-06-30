@@ -402,7 +402,7 @@ def do_unlog(day: str | None) -> None:
 
 # ── Typer App ──────────────────────────────────────────────────────────────────
 
-app = typer.Typer(help="Meal Logging CLI")
+app = typer.Typer(help="Meal Logging CLI — ohne Subcommand: interaktiver Catalog-Browser (fzf)")
 
 @app.command(name="unlog")
 def unlog_command(
@@ -425,18 +425,18 @@ def main(ctx: typer.Context) -> None:
 
 @app.command(name="log")
 def log_command(
-    description: str = typer.Argument(..., help="Beschreibung"),
-    kcal: float = typer.Option(0, "--kcal"),
-    protein: float = typer.Option(0, "--protein"),
-    carbs: float = typer.Option(0, "--carbs"),
-    fat: float = typer.Option(0, "--fat"),
-    notes: str = typer.Option("", "--notes", "-n"),
+    description: str = typer.Argument(..., help="Mahlzeit-Beschreibung — ohne Makros: Gemini schätzt automatisch"),
+    kcal: float = typer.Option(0, "--kcal", help="Kalorien (kcal)"),
+    protein: float = typer.Option(0, "--protein", help="Protein (g)"),
+    carbs: float = typer.Option(0, "--carbs", help="Kohlenhydrate (g)"),
+    fat: float = typer.Option(0, "--fat", help="Fett (g)"),
+    notes: str = typer.Option("", "--notes", "-n", help="Optionale Notiz"),
     tag:        str | None = typer.Option(None, "--tag", help="Datum: heute|gestern|vorgestern|-N|Mo|YYYY-MM-DD"),
     gestern:    bool       = typer.Option(False, "--gestern", "-g"),
     vorgestern: bool       = typer.Option(False, "--vorgestern"),
-    day: str = typer.Option(None, "--day", "-d", help="(legacy) Datum YYYY-MM-DD"),
-    save_catalog: bool = typer.Option(False, "--save-catalog", "-s"),
-    qty: int = typer.Option(1, "--qty", "-q"),
+    day: str = typer.Option(None, "--day", "-d", hidden=True),
+    save_catalog: bool = typer.Option(False, "--save-catalog", "-s", help="Im Catalog speichern für spätere Wiederverwendung"),
+    qty: int = typer.Option(1, "--qty", "-q", help="Portionen-Multiplikator — Makros × N"),
 ) -> None:
     try:
         target = _resolve_date(tag=tag, gestern=gestern, vorgestern=vorgestern, day_legacy=day)
@@ -446,15 +446,15 @@ def log_command(
 
 @app.command(name="narrative")
 def narrative_command(
-    text: str = typer.Argument(..., help="Erzählung, z.B. '4 Teller Nachmittag bis Abend: 250g Reis, …'"),
-    tag:        str | None = typer.Option(None, "--tag"),
+    text: str = typer.Argument(..., help="Freitext: '4 Teller Nachmittag bis Abend: 250g Reis, Gemüse, Chicken'"),
+    tag:        str | None = typer.Option(None, "--tag", help="Datum: heute|gestern|vorgestern|-N|Mo|YYYY-MM-DD"),
     gestern:    bool       = typer.Option(False, "--gestern", "-g"),
     vorgestern: bool       = typer.Option(False, "--vorgestern"),
-    day:        str | None = typer.Option(None, "--day", "-d"),
-    save_catalog: bool     = typer.Option(False, "--save-catalog", "-s"),
-    dry_run:    bool       = typer.Option(False, "--dry-run", "-n", help="Nur anzeigen, nicht loggen"),
+    day:        str | None = typer.Option(None, "--day", "-d", hidden=True),
+    save_catalog: bool     = typer.Option(False, "--save-catalog", "-s", help="Gericht als Catalog-Eintrag speichern"),
+    dry_run:    bool       = typer.Option(False, "--dry-run", "-n", help="Vorschau — nichts loggen"),
 ) -> None:
-    """Parse Mahlzeit-Narrative, schätze Gesamt-Makros via Gemini, splitte in N Einträge."""
+    """Freitext → mehrere Mahlzeit-Einträge. Gemini schätzt Gesamt-Makros und teilt auf N Teller/Portionen auf."""
     try:
         target = _resolve_date(tag=tag, gestern=gestern, vorgestern=vorgestern, day_legacy=day)
     except ValueError as e:
@@ -536,6 +536,7 @@ def narrative_command(
 
 @app.command()
 def list() -> None:
+    """Alle gespeicherten Mahlzeiten im Catalog anzeigen."""
     result = _api_call("GET", "/nutrition/catalog")
     items = result.get("items", [])
     table = Table(title="Meal Catalog", show_header=True, header_style="bold magenta")
@@ -550,8 +551,9 @@ def today(
     tag:        str | None = typer.Option(None, "--tag", help="Datum: heute|gestern|vorgestern|-N|Mo|YYYY-MM-DD"),
     gestern:    bool       = typer.Option(False, "--gestern", "-g"),
     vorgestern: bool       = typer.Option(False, "--vorgestern"),
-    day: str = typer.Option(None, "--day", "-d", help="(legacy) Datum YYYY-MM-DD"),
+    day: str = typer.Option(None, "--day", "-d", hidden=True),
 ):
+    """Gebuchte Mahlzeiten für heute (oder ein anderes Datum) anzeigen."""
     try:
         target = _resolve_date(tag=tag, gestern=gestern, vorgestern=vorgestern, day_legacy=day)
     except ValueError as e:
