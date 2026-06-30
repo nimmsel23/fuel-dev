@@ -408,7 +408,23 @@ Referenz-Implementierung: `~/aos-dev/bin/bridge-devctl menu`
 
 | Dispatcher | Typ | Funktion |
 |---|---|---|
-| `bin/fuel-devctl` | python3 | Fuel Stack-Controller (aiohttp + Service-Control) — **bevorzugter Einstieg** |
-| `bin/fuelctl` | bash | Legacy-Controller (Nutrition-Logging CLI) |
+| `bin/fuel` | python3 | **Domain CLI** — direkter File-Zugriff auf `~/.aos/fuel/`, HTTP-Fallback via `fuel_cli/http.py` |
+| `bin/fuel-devctl` | python3 | **Stack-Controller** (start/stop/status/logs/build) — Node-Server `:9000` |
+| `bin/fuelctl` | python3 | **Universal-Controller** (dev/local/sync/catalog) — wraps fuel-devctl |
 
-`bin/fuel-devctl` ist bereits Python — neue Optionen hier rein, nicht als separate Scripts.
+`bin/fuel` = Day-to-day Logging + Abfragen — liest direkt aus `~/.aos/fuel/nutrition/` und `~/.aos/fuel/supplements/logs/`. Kein laufender Server nötig.
+`bin/fuel-devctl` = reiner Service-Controller. Neues Server-Tool → hierher.
+`bin/fuelctl` = höherer Wrapper (deploy, sync, catalog-server).
+
+### HTTP-Fallback-Modul
+
+`fuel_cli/http.py` — sauberes Python-Modul (`import fuel_cli.http as _http`).
+Wird von `bin/fuel` via `_try_http()` aufgerufen wenn direkte File-Lese fehlschlägt.
+Ziel: Fastify-Server `:9000` (env: `PORT`).
+
+```python
+from fuel_cli import http as _http
+_http.nutrition_log(date)       # GET /nutrition/log?date=YYYY-MM-DD
+_http.supplements_log(date)     # GET /supplements/log?date=YYYY-MM-DD
+_http.daily(date)               # GET /nutrition/daily/<date>
+```
