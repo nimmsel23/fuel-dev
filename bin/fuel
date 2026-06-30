@@ -16,8 +16,10 @@ für today/Smart-Routing erkannt und an Sub-CLIs durchgereicht.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
+from datetime import date, timedelta
 from pathlib import Path
 
 import typer
@@ -30,6 +32,8 @@ except ImportError:
         def divider(self, t): print(f"\n--- {t} ---\n")
         def warn(self, t): print(f"[warn] {t}", file=sys.stderr)
         def fail(self, t): print(f"[fail] {t}", file=sys.stderr)
+        def info(self, t): print(f"[info] {t}")
+        def good(self, t): print(f"[ok] {t}")
     msg = _P()
 
 FUEL_REPO_DIR = Path(__file__).resolve().parent.parent
@@ -38,6 +42,82 @@ sys.path.insert(0, str(FUEL_REPO_DIR))
 from fuel_cli.catalog import load_supplement_ids
 from fuel_cli.dates import resolve as _resolve_date  # noqa: F401 — re-exposed for tests
 from fuel_cli.gemini import estimate_macros_only
+
+# ── Direkte File-Zugriffe ─────────────────────────────────────────────────────
+
+def _data_dir() -> Path:
+    return Path(os.environ.get("AOS_FUEL_DATA_DIR", "~/.aos/fuel")).expanduser()
+
+def _nutrition_dir() -> Path:
+    return _data_dir() / "nutrition"
+
+def _supplements_log_dir() -> Path:
+    return _data_dir() / "supplements" / "logs"
+
+def _read_nutrition(date_str: str) -> dict | None:
+    f = _nutrition_dir() / f"{date_str}.json"
+    return json.loads(f.read_text()) if f.exists() else None
+
+def _read_supplements(date_str: str) -> dict | None:
+    f = _supplements_log_dir() / f"{date_str}.json"
+    return json.loads(f.read_text()) if f.exists() else None
+
+def _try_http(fn_name: str, *args, **kwargs):
+    import fuel_cli.http as _http
+    return getattr(_http, fn_name)(*args, **kwargs)
+
+def _print_nutrition(data: dict) -> None:
+    meals = data.get("meals", [])
+    if not meals:
+        print("  (keine Mahlzeiten)")
+        return
+    total_kcal = total_p = total_c = total_f = 0.0
+    for m in meals:
+        kcal = m.get("kcal", 0) or 0
+        p = m.get("protein", 0) or 0
+        c = m.get("carbs", 0) or 0
+        f = m.get("fat", 0) or 0
+        desc = m.get("description", "—")
+        print(f"  {desc:<36} {kcal:>5.0f} kcal  {p:.0f}P {c:.0f}C {f:.0f}F")
+        total_kcal += kcal; total_p += p; total_c += c; total_f += f
+    print(f"  {'─'*60}")
+    print(f"  {'Total':<36} {total_kcal:>5.0f} kcal  {total_p:.0f}P {total_c:.0f}C {total_f:.0f}F")
+    water = data.get("water_ml")
+    if water:
+        print(f"  Wasser: {water} ml")
+
+def _print_supplements(data: dict) -> None:
+    intakes = data.get("intakes", [])
+    if not intakes:
+        print("  (keine Supplements)")
+        return
+    for s in intakes:
+        name = s.get("name") or s.get("supplement_id", "—")
+        dose = s.get("dose", "")
+        unit = s.get("unit", "")
+        tod = s.get("time_of_day", "")
+        print(f"  {name:<24} {dose}{unit}  {tod}")
+
+def _show_day(date_str: str) -> None:
+    nutr = _read_nutrition(date_str)
+    supps = _read_supplements(date_str)
+    if nutr is None and supps is None:
+        try:
+            nutr = _try_http("nutrition_log", date_str)
+            supps = _try_http("supplements_log", date_str)
+        except Exception:
+            msg.warn(f"Keine Daten für {date_str} (lokal + HTTP)")
+            return
+    msg.divider(f"MEALS  [{date_str}]")
+    if nutr:
+        _print_nutrition(nutr)
+    else:
+        print("  (keine Mahlzeiten)")
+    msg.divider(f"SUPPLEMENTS  [{date_str}]")
+    if supps:
+        _print_supplements(supps)
+    else:
+        print("  (keine Supplements)")
 
 app = typer.Typer(help="Fuel Centre Smart CLI", no_args_is_help=False)
 
@@ -73,10 +153,14 @@ def _first_non_flag(args: list[str]) -> str | None:
 
 def show_combined_today(extra_args: list[str] | None = None) -> None:
     extra_args = extra_args or []
-    msg.divider("MEALS")
-    subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-meal"), "today", *extra_args])
-    msg.divider("SUPPLEMENTS")
-    subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-supplement"), "today", *extra_args])
+    if not extra_args:
+        _show_day(str(date.today()))
+    else:
+        # Datums-Flags an Sub-CLIs weitergeben (z.B. --gestern)
+        msg.divider("MEALS")
+        subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-meal"), "today", *extra_args])
+        msg.divider("SUPPLEMENTS")
+        subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-supplement"), "today", *extra_args])
 
 
 def _gemini_meal_log(description: str, extra_args: list[str]) -> int:
@@ -167,6 +251,41 @@ def sync(
     else:
         typer.echo(f"❌ Unbekannte Richtung: {direction} (push | pull)", err=True)
         raise typer.Exit(1)
+
+
+@app.command()
+def get(day: str = typer.Argument(..., help="Datum (YYYY-MM-DD)")):
+    """Tages-Log für ein bestimmtes Datum (direkt aus Dateien)."""
+    _show_day(day)
+
+
+@app.command()
+def stats(days: int = typer.Option(7, "-d", "--days", help="Anzahl Tage")):
+    """Aggregierte Makros der letzten N Tage (direkt aus Dateien)."""
+    today_date = date.today()
+    total_kcal = total_p = total_c = total_f = 0.0
+    count = 0
+    for i in range(days):
+        d = today_date - timedelta(days=i)
+        data = _read_nutrition(str(d))
+        if not data:
+            continue
+        count += 1
+        for m in data.get("meals", []):
+            total_kcal += m.get("kcal", 0) or 0
+            total_p += m.get("protein", 0) or 0
+            total_c += m.get("carbs", 0) or 0
+            total_f += m.get("fat", 0) or 0
+    if count == 0:
+        msg.warn(f"Keine Nutrition-Logs in den letzten {days} Tagen gefunden")
+        return
+    avg_kcal = total_kcal / count
+    avg_p = total_p / count
+    avg_c = total_c / count
+    avg_f = total_f / count
+    print(f"  Letzte {days} Tage: {count} Logs")
+    print(f"  Total: {total_kcal:.0f} kcal  {total_p:.0f}P {total_c:.0f}C {total_f:.0f}F")
+    print(f"  Schnitt: {avg_kcal:.0f} kcal  {avg_p:.0f}P {avg_c:.0f}C {avg_f:.0f}F")
 
 
 # Known Typer-Subcommands aus der App ableiten — kein hardcoded set mehr.
