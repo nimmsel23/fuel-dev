@@ -16,6 +16,11 @@ module.exports = defineConfig(({ mode }) => {
     define: {
       "import.meta.env.VITE_APP_MODE": JSON.stringify(appMode),
     },
+    resolve: {
+      alias: {
+        "@api": require("path").resolve(__dirname, appMode === "client" ? "src/client/lib/api.cloud.js" : "src/client/lib/api.local.js"),
+      },
+    },
     plugins: [
       react(),
       VitePWA({
