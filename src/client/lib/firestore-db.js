@@ -17,10 +17,10 @@ import {
   arrayRemove,
   serverTimestamp,
 } from "firebase/firestore";
-import { 
-  signInWithPopup, 
+import {
+  signInWithPopup,
   onAuthStateChanged,
-  signOut as fbSignOut 
+  signOut as fbSignOut
 } from "firebase/auth";
 import { db, auth, googleProvider } from "./firebase.js";
 
@@ -141,13 +141,12 @@ export async function saveNutritionLog(date, data) {
 }
 
 export async function getNutritionLogsInRange(dates) {
-  const q = query(
-    collection(db, "nutrition", getUid(), "logs"),
-    where("date", "in", dates)
-  );
-  const snap = await getDocs(q);
+  const uid = getUid();
   const map = {};
-  snap.forEach(d => { map[d.id] = d.data(); });
+  await Promise.all(dates.map(async (date) => {
+    const snap = await getDoc(doc(db, "nutrition", uid, "logs", date));
+    if (snap.exists()) map[date] = snap.data();
+  }));
   return map;
 }
 

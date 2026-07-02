@@ -53,7 +53,7 @@ Die App in der Cloud benötigt keinen laufenden Node-Server, da sie via `src/lib
 
 ## Authentication
 
-In der Cloud-Version (`fuel-aos.web.app`) ist ein **Google Login** integriert.
+In der Cloud-Version (`fuel-vos.web.app`) ist ein **Google Login** integriert.
 -   Nur authentifizierte User können ihre eigenen Daten in Firestore lesen/schreiben.
 -   Der Login-Status wird in den "Setup"-Einstellungen angezeigt.
 -   Nicht eingeloggte User sehen leere Kataloge/Logs, bis sie sich anmelden.

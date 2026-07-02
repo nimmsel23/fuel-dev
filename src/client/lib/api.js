@@ -86,7 +86,7 @@ export async function fetchJson(path) {
       const week = parseInt(parts[parts.length - 1]);
       return await firestore.getWeeklyMicros(year, week);
     }
-    if (normPath === "/api/fuel-firestore/status") {
+    if (normPath === "/fuel-firestore/status") {
       return { ok: true, firestore: "connected", mode: "native-cloud" };
     }
     if (normPath === "/health") {
@@ -158,6 +158,9 @@ export async function postJson(path, body) {
   const normPath = normalizePath(path);
 
   if (isCloud()) {
+    if (normPath === "/fuel-firestore/ping") {
+      return { ok: true };
+    }
     if (normPath === "/nutrition/log") {
       const existing = await firestore.getNutritionLog(body.date);
       if (body.delete_meal_id) {

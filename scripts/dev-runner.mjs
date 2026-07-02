@@ -47,4 +47,4 @@ process.on("SIGINT", () => {
 });
 
 start("api", "node", ["server.mjs"]);
-start("ui", "node_modules/.bin/vite", ["--host", "0.0.0.0", "--port", "9001"]);
+start("ui", "node_modules/.bin/vite", ["--host", "127.0.0.1", "--port", "9001"]);

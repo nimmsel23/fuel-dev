@@ -2,44 +2,46 @@
   "date": "2026-05-17",
   "intakes": [
     {
+      "name": "kollagen",
+      "unit": "g",
+      "time": "2026-05-17T21:15:21.747Z",
+      "notes": "",
       "id": "supp_a9xr83c6rh1x",
       "supplement_id": "kollagen",
-      "name": "kollagen",
-      "dose": 10,
-      "unit": "g",
       "time_of_day": "morning",
-      "notes": "",
-      "time": "2026-05-17T21:15:21.747Z"
+      "dose": 10
     },
     {
+      "name": "glycin",
+      "unit": "g",
+      "time": "2026-05-18T11:49:09.944Z",
+      "notes": "",
       "id": "supp_b55h2wnp363b",
       "supplement_id": "glycin",
-      "name": "glycin",
-      "dose": 3,
-      "unit": "g",
       "time_of_day": "night",
-      "notes": "",
-      "time": "2026-05-18T11:49:09.944Z"
+      "dose": 3
     },
     {
+      "name": "magnesium",
+      "unit": "mg",
+      "time": "2026-05-19T13:54:03.256Z",
+      "notes": "",
       "id": "supp_cp1xmg9wm6gl",
       "supplement_id": "magnesium",
-      "name": "magnesium",
-      "dose": 200,
-      "unit": "mg",
       "time_of_day": "evening",
-      "notes": "",
-      "time": "2026-05-19T13:54:03.256Z"
+      "dose": 200
     },
     {
+      "name": "melatonin",
+      "unit": "mg",
+      "time": "2026-05-19T13:54:08.779Z",
+      "notes": "",
       "id": "supp_cp21vvy9yjbq",
       "supplement_id": "melatonin",
-      "name": "melatonin",
-      "dose": 2,
-      "unit": "mg",
       "time_of_day": "night",
-      "notes": "",
-      "time": "2026-05-19T13:54:08.779Z"
+      "dose": 2
     }
-  ]
+  ],
+  "_local_mtime": 1779198848779.2092,
+  "saved_at": "2026-06-25T00:30:06.085433"
 }

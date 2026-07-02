@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Activity, Flame, LogIn, LogOut, RefreshCw, Settings2, Sparkles } from "lucide-react";
 import { useSettings } from "../store.js";
 import { signIn, signOut, watchAuth } from "../lib/firestore-db.js";
+import { auth } from "../lib/firebase.js";
 import { fetchJson, postJson } from "../lib/api.js";
 
 const sectionCls = "rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur grid gap-4";
@@ -13,7 +14,7 @@ export default function SettingsView() {
   const [syncStatus, setSyncStatus] = useState(null);
   const [syncing, setSyncing] = useState(false);
   const [health, setHealth] = useState(null);
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => auth.currentUser);
   const [swVersion, setSwVersion] = useState(null);
   const [swUpdateAvailable, setSwUpdateAvailable] = useState(false);
   const [swChecking, setSwChecking] = useState(false);
@@ -68,8 +69,6 @@ export default function SettingsView() {
       setSyncing(false);
     }
   }
-
-  const isCloud = window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com");
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">

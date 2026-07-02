@@ -12,6 +12,10 @@ export const GLOBAL_DATA_DIR = process.env.AOS_FUEL_DATA_DIR
   : path.join(os.homedir(), ".aos", "fuel");
 
 export const REPO_DATA_DIR = path.join(ROOT, "data");
+export const FUEL_DIR = path.join(GLOBAL_DATA_DIR, "fuel");
+export const NUTRITION_DIR_REPO = path.join(ROOT, "catalogs", "nutrition");
+export const NUTRITION_MEALS_DIR = path.join(NUTRITION_DIR_REPO, "meals");
+export const SUPPLEMENTS_CATALOG_PATH = path.join(ROOT, "catalogs", "supplements", "catalog.yaml");
 export const PUBLIC_DIR = path.join(ROOT, "public");
 export const VITE_BUILD_DIR = process.env.FUEL_BUILD_DIR ? path.resolve(process.env.FUEL_BUILD_DIR) : path.join(ROOT, "dist");
 export const STATIC_DIR = process.env.FUEL_STATIC_DIR ? path.resolve(process.env.FUEL_STATIC_DIR) : VITE_BUILD_DIR;
@@ -37,8 +41,8 @@ export function getPaths(clientId = null) {
     supplementsLog: path.join(baseDir, "supplements", "logs"),
     nutritionDb: path.join(baseDir, "nutrition", "nutrition.db"),
     // Repo-based catalogs
-    nutritionMealsRepo: path.join(ROOT, "catalogs", "nutrition", "meals"),
-    supplementsCatalogRepo: path.join(ROOT, "catalogs", "supplements", "catalog.yaml"),
+    nutritionMealsRepo: NUTRITION_MEALS_DIR,
+    supplementsCatalogRepo: SUPPLEMENTS_CATALOG_PATH,
   };
 
   // Ensure directories exist

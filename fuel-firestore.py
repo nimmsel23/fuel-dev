@@ -28,6 +28,38 @@ SA_PATH = Path(
 
 DEFAULT_UID = os.getenv("FUEL_CLOUD_UID", "default")
 PREFIX = "/api/fuel-firestore"
+BATCH_LIMIT = 400  # Firestore: 500 ops/batch hard limit
+
+
+def _discover_uids() -> list[str]:
+    """Findet alle UID-Verzeichnisse unter ~/.aos/fuel/users/."""
+    users_dir = FUEL_DATA_DIR / "users"
+    if not users_dir.exists():
+        return []
+    return sorted([p.name for p in users_dir.iterdir() if p.is_dir() and p.name != "default"])
+
+
+def _data_dir_for(uid: str) -> Path:
+    """Liefert das lokale Verzeichnis für eine UID (legacy 'default' → flat)."""
+    if uid == "default":
+        return FUEL_DATA_DIR
+    d = FUEL_DATA_DIR / "users" / uid
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _mtime_ms(p: Path) -> int:
+    try:
+        return int(p.stat().st_mtime * 1000)
+    except FileNotFoundError:
+        return 0
+
+
+def _simple_hash(obj: Any) -> str:
+    import hashlib
+    return hashlib.sha1(
+        json.dumps(obj, sort_keys=True, ensure_ascii=False).encode()
+    ).hexdigest()[:12]
 
 # ── Firestore (lazy init) ─────────────────────────────────────────────────────
 
@@ -364,32 +396,131 @@ def _collect_dates(data_dir: Path) -> list[str]:
     return sorted(dates)
 
 
-def cli_push(uid: str | None = None, data_dir: Path | None = None) -> None:
-    """Alle lokalen Fuel-Daten nach Firestore pushen."""
-    uid = uid or DEFAULT_UID
-    data_dir = data_dir or (FUEL_DATA_DIR / "users" / uid if uid != DEFAULT_UID else FUEL_DATA_DIR)
+def _push_uid_batched(uid: str, data_dir: Path) -> dict:
+    """Push aller lokalen Daten für eine UID — batched + idempotent (mtime/hash skip)."""
+    from firebase_admin import firestore as fb_firestore
+
+    fs = _get_fs()
+    batch = fs.batch()
+    ops = 0
+    stats = {"written": 0, "skipped": 0}
+
+    def commit_if_full():
+        nonlocal batch, ops
+        if ops >= BATCH_LIMIT:
+            batch.commit()
+            batch = fs.batch()
+            ops = 0
+
+    def batch_set(ref, payload):
+        nonlocal ops
+        batch.set(ref, payload, merge=True)
+        ops += 1
+        stats["written"] += 1
+        commit_if_full()
+
+    def remote_meta(ref) -> dict:
+        snap = ref.get()
+        return snap.to_dict() if snap.exists else {}
+
+    server_ts = fb_firestore.SERVER_TIMESTAMP
+
     dates = _collect_dates(data_dir)
-    logger.info(f"fuel-firestore push: {len(dates)} Tage für uid={uid}")
     for d in dates:
-        r = do_daily_sync(d, "push", uid, data_dir)
-        logger.info(f"  → {d}: {r}")
-    cat = do_catalog_sync("push", uid, data_dir)
-    logger.info(f"  → catalog: {cat}")
-    logger.success("fuel-firestore push abgeschlossen")
+        # Nutrition
+        np = _nutrition_path(d, data_dir)
+        if np.exists():
+            mtime = _mtime_ms(np)
+            ref = fs.collection("nutrition").document(uid).collection("logs").document(d)
+            meta = remote_meta(ref)
+            if meta.get("_local_mtime", 0) >= mtime:
+                stats["skipped"] += 1
+            else:
+                data = _read_json(np, {"date": d, "meals": [], "water_ml": 0})
+                batch_set(ref, {**data, "_local_mtime": mtime, "updated_at": server_ts})
+
+        # Supplements
+        sp = _supplements_path(d, data_dir)
+        if sp.exists():
+            mtime = _mtime_ms(sp)
+            ref = fs.collection("supplements").document(uid).collection("logs").document(d)
+            meta = remote_meta(ref)
+            if meta.get("_local_mtime", 0) >= mtime:
+                stats["skipped"] += 1
+            else:
+                data = _read_json(sp, {"date": d, "intakes": []})
+                batch_set(ref, {**data, "_local_mtime": mtime, "updated_at": server_ts})
+
+        # Journal
+        jp = _journal_path(d, data_dir)
+        if jp.exists():
+            mtime = _mtime_ms(jp)
+            ref = fs.collection("nutrition").document(uid).collection("journal").document(d)
+            meta = remote_meta(ref)
+            if meta.get("_local_mtime", 0) >= mtime:
+                stats["skipped"] += 1
+            else:
+                content = jp.read_text()
+                batch_set(ref, {"date": d, "content": content, "_local_mtime": mtime, "updated_at": server_ts})
+
+    # Supplements Catalog (Hash-Idempotenz)
+    cat_path = _supplements_catalog_path(data_dir)
+    if cat_path.exists():
+        items = _read_json(cat_path, {"items": []}).get("items", [])
+        ref = fs.collection("supplements").document(uid).collection("meta").document("catalog")
+        meta = remote_meta(ref)
+        new_hash = _simple_hash(items)
+        if meta.get("_content_hash") == new_hash:
+            stats["skipped"] += 1
+        else:
+            batch_set(ref, {"items": items, "_content_hash": new_hash, "updated_at": server_ts})
+
+    if ops > 0:
+        batch.commit()
+    return stats
+
+
+def cli_push(uid: str | None = None, data_dir: Path | None = None) -> None:
+    """Push: wenn uid=None → alle entdeckten UIDs aus ~/.aos/fuel/users/."""
+    if uid:
+        uids = [uid]
+    else:
+        uids = _discover_uids()
+        if not uids:
+            logger.warning(f"Keine UID-Verzeichnisse unter {FUEL_DATA_DIR / 'users'} gefunden.")
+            return
+        logger.info(f"Auto-Discovery: {len(uids)} UID(s) gefunden → {uids}")
+
+    for u in uids:
+        dd = data_dir or _data_dir_for(u)
+        logger.info(f"🚀 push uid={u} (dir={dd})")
+        try:
+            stats = _push_uid_batched(u, dd)
+            logger.success(f"  ✓ uid={u}: {stats['written']} writes, {stats['skipped']} skipped")
+        except Exception as e:
+            logger.error(f"  ✗ uid={u}: {e}")
 
 
 def cli_pull(uid: str | None = None, data_dir: Path | None = None) -> None:
-    """Alle Fuel-Daten von Firestore lokal speichern."""
-    uid = uid or DEFAULT_UID
-    data_dir = data_dir or (FUEL_DATA_DIR / "users" / uid if uid != DEFAULT_UID else FUEL_DATA_DIR)
-    dates = _collect_dates(data_dir)
-    logger.info(f"fuel-firestore pull: {len(dates)} Tage für uid={uid}")
-    for d in dates:
-        r = do_daily_sync(d, "pull", uid, data_dir)
-        logger.info(f"  → {d}: {r}")
-    cat = do_catalog_sync("pull", uid, data_dir)
-    logger.info(f"  → catalog: {cat}")
-    logger.success("fuel-firestore pull abgeschlossen")
+    """Pull: wenn uid=None → alle entdeckten UIDs."""
+    if uid:
+        uids = [uid]
+    else:
+        uids = _discover_uids()
+        if not uids:
+            logger.warning("Keine UIDs lokal gefunden.")
+            return
+
+    for u in uids:
+        dd = data_dir or _data_dir_for(u)
+        dates = _collect_dates(dd)
+        logger.info(f"📥 pull uid={u}: {len(dates)} Tage")
+        for d in dates:
+            r = do_daily_sync(d, "pull", u, dd)
+            logger.info(f"  → {d}: {r}")
+        cat = do_catalog_sync("pull", u, dd)
+        logger.info(f"  → catalog: {cat}")
+        logger.success(f"  ✓ pull uid={u} abgeschlossen")
 
 
 if __name__ == "__main__":
@@ -398,14 +529,26 @@ if __name__ == "__main__":
     cli = typer.Typer(add_completion=False)
 
     @cli.command("push")
-    def cmd_push(uid: str = typer.Option(DEFAULT_UID, "--uid")):
-        """Alle lokalen Fuel-Daten → Firestore."""
+    def cmd_push(uid: str = typer.Option(None, "--uid", help="UID; ohne → alle in ~/.aos/fuel/users/")):
+        """Push aller lokalen UIDs → Firestore (batched + idempotent)."""
         cli_push(uid)
 
     @cli.command("pull")
-    def cmd_pull(uid: str = typer.Option(DEFAULT_UID, "--uid")):
-        """Firestore → lokale Fuel-Daten."""
+    def cmd_pull(uid: str = typer.Option(None, "--uid", help="UID; ohne → alle lokal vorhandenen")):
+        """Pull: Firestore → lokale Fuel-Daten."""
         cli_pull(uid)
+
+    @cli.command("discover")
+    def cmd_discover():
+        """Listet alle lokal vorhandenen UIDs auf."""
+        uids = _discover_uids()
+        if not uids:
+            logger.warning(f"Keine UIDs unter {FUEL_DATA_DIR / 'users'}")
+            return
+        for u in uids:
+            dd = _data_dir_for(u)
+            dates = _collect_dates(dd)
+            logger.info(f"  {u}  ({len(dates)} Tage, {dd})")
 
     @cli.command("status")
     def cmd_status():

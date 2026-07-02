@@ -1,0 +1,11 @@
+{
+  "hosting": {
+    "site": "fuel-vos",
+    "public": "dist-federation",
+    "ignore": ["firebase.remote.json", "**/.*", "**/node_modules/**"],
+    "headers": [
+      { "source": "/remoteEntry.js", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] },
+      { "source": "**/*.@(js|css)", "headers": [{ "key": "Cache-Control", "value": "max-age=31536000, immutable" }] }
+    ]
+  }
+}

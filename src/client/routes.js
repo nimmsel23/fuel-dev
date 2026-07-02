@@ -24,10 +24,10 @@ export const TAB_CONFIG = [
     getProps: (ctx) => ({ date: ctx.activeDate, nutrition: ctx.nutrition }),
   },
   {
-    key: "journal",
-    label: "Journal",
+    key: "log",
+    label: "Log",
     Icon: NotebookPen,
-    View: lazy(() => import("./views/JournalView.jsx")),
+    View: lazy(() => import("./views/LogView.jsx")),
     getProps: (ctx) => ({ date: ctx.activeDate, nutrition: ctx.nutrition, journal: ctx.journal || "" }),
   },
   {
