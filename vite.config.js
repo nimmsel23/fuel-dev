@@ -23,6 +23,7 @@ export default defineConfig(({ mode }) => {
     resolve: {
       preserveSymlinks: true,
       alias: {
+        "@api":     resolve(__dirname, appMode === "client" ? "src/client/lib/api.cloud.js" : "src/client/lib/api.local.js"),
         "@habits":  resolve(__dirname, "../habits-dev/src"),
         "@journal": resolve(__dirname, "../journal-dev/src"),
       },

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { NotebookPen, UtensilsCrossed, Pencil, Trash2, Sparkles } from "lucide-react";
 import { twMerge } from "tailwind-merge";
-import { postJson, patchJson } from "../lib/api.js";
+import { postJson, patchJson } from "@api";
 import FoodSearch from "../components/FoodSearch.jsx";
 
 const MEAL_TYPES = [

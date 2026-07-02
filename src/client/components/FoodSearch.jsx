@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { twMerge } from "tailwind-merge";
-import { fetchJson } from "../lib/api.js";
+import { fetchJson } from "@api";
 
 export const PORTIONS = [
   { key: "s",  label: "S",  g: 100 },

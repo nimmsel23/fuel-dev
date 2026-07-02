@@ -3,7 +3,7 @@ import { Activity, Flame, LogIn, LogOut, RefreshCw, Settings2, Sparkles } from "
 import { useSettings } from "../store.js";
 import { signIn, signOut, watchAuth } from "../lib/firestore-db.js";
 import { auth } from "../lib/firebase.js";
-import { fetchJson, postJson } from "../lib/api.js";
+import { fetchJson, postJson } from "@api";
 
 const sectionCls = "rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur grid gap-4";
 const labelCls = "text-xs uppercase tracking-[0.18em] text-slate-500 mb-1 block";

@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Flame, Pill, Settings2, Sparkles, Minus } from "lucide-react";
 import GeminiCatalogModal from "../components/GeminiCatalogModal.jsx";
 import { Field, Input, Empty, inputClassName } from "../components/ui.jsx";
-import { postJson } from "../lib/api.js";
+import { postJson } from "@api";
 import { formatMetric, normalizeSupplementUnit } from "../../shared/utils/utils.js";
 
 const supplementSchema = z.object({

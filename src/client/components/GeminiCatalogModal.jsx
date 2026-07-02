@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Sparkles } from "lucide-react";
-import { postJson } from "../lib/api.js";
+import { postJson } from "@api";
 import { formatMetric } from "../../shared/utils/utils.js";
 import { Modal } from "./ui.jsx";
 

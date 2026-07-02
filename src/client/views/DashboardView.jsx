@@ -6,7 +6,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, GoalBar, MealRow, Empty } from "../components/ui.jsx";
 import { useSettings } from "../store.js";
 import { sumMetric, formatMetric } from "../../shared/utils/utils.js";
-import { postJson } from "../lib/api.js";
+import { postJson } from "@api";
 
 export default function DashboardView({ nutrition, sup, journal, macroTrend, setActiveTab, activeDate }) {
   const meals = nutrition?.meals || [];
