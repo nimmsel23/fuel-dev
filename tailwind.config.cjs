@@ -1,6 +1,11 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: ["./index.html", "./src/**/*.{js,jsx}"],
+  content: [
+    "./index.html",
+    "./src/**/*.{js,jsx}",
+    "/home/alpha/vitalos/habits-dev/src/**/*.{js,jsx}",
+    "/home/alpha/vitalos/journal-dev/src/**/*.{js,jsx}",
+  ],
   theme: {
     extend: {
       boxShadow: {

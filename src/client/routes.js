@@ -1,5 +1,5 @@
 import { lazy } from "react";
-import { Flame, UtensilsCrossed, CalendarDays, NotebookPen, Pill, Microscope, Settings2 } from "lucide-react";
+import { Flame, UtensilsCrossed, NotebookPen, CheckSquare, BookOpen, Pill, Microscope, Settings2 } from "lucide-react";
 
 export const TAB_CONFIG = [
   {
@@ -17,17 +17,24 @@ export const TAB_CONFIG = [
     getProps: (ctx) => ({ activeDate: ctx.activeDate, setActiveDate: ctx.setActiveDate, nutrition: ctx.nutrition }),
   },
   {
-    key: "calendar",
-    label: "Big Calendar",
-    Icon: CalendarDays,
-    View: lazy(() => import("./views/CalendarView.jsx")),
-    getProps: (ctx) => ({ date: ctx.activeDate, nutrition: ctx.nutrition }),
-  },
-  {
     key: "journal",
     label: "Journal",
+    Icon: BookOpen,
+    View: lazy(() => import("./views/JournalVosView.jsx")),
+    getProps: (ctx) => ({ date: ctx.activeDate }),
+  },
+  {
+    key: "habits",
+    label: "Habits",
+    Icon: CheckSquare,
+    View: lazy(() => import("./views/HabitVosView.jsx")),
+    getProps: (ctx) => ({ date: ctx.activeDate }),
+  },
+  {
+    key: "log",
+    label: "Log",
     Icon: NotebookPen,
-    View: lazy(() => import("./views/JournalView.jsx")),
+    View: lazy(() => import("./views/LogView.jsx")),
     getProps: (ctx) => ({ date: ctx.activeDate, nutrition: ctx.nutrition, journal: ctx.journal || "" }),
   },
   {
