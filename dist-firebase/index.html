@@ -9,13 +9,35 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
     <title>Fuel Centre</title>
-    <script type="module" crossorigin src="/assets/index-BxK0iO5x.js"></script>
+    <script type="module" crossorigin src="/assets/index-1eOkJVPo.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/vendor-query-d2QCAZXe.js">
     <link rel="modulepreload" crossorigin href="/assets/vendor-charts-CodmTPgx.js">
-    <link rel="modulepreload" crossorigin href="/assets/vendor-firebase-BAHKlEQu.js">
-    <link rel="stylesheet" crossorigin href="/assets/index-B4Q04aIR.css">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-firebase-BqYhgCtb.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-6yg-vVW5.css">
   <link rel="manifest" href="/manifest.webmanifest"></head>
   <body class="bg-slate-950 text-slate-100">
     <div id="root"></div>
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').then(reg => {
+          window.__swRegistration = reg
+          const notify = () => window.dispatchEvent(new CustomEvent('sw-update-available'))
+          if (reg.waiting) notify()
+          reg.addEventListener('updatefound', () => {
+            const nw = reg.installing
+            if (!nw) return
+            nw.addEventListener('statechange', () => {
+              if (nw.state === 'installed' && navigator.serviceWorker.controller) notify()
+            })
+          })
+        }).catch(() => {})
+        let reloading = false
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (reloading) return
+          reloading = true
+          window.location.reload()
+        })
+      }
+    </script>
   </body>
 </html>

@@ -1,6 +1,6 @@
 import React from "react";
 import { useQueries } from "@tanstack/react-query";
-import { fetchJson } from "../lib/api.js";
+import { fetchJson } from "@api";
 
 const NUTRIENTS = [
   // Fettlöslich

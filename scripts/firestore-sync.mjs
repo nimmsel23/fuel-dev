@@ -6,7 +6,7 @@
 import admin from "firebase-admin";
 import Database from "better-sqlite3";
 import YAML from "yaml";
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync } from "node:fs";
 import { join, resolve, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
@@ -14,9 +14,55 @@ import { dirname } from "node:path";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
 const DATA_DIR = join(ROOT, "data", "catalogs");
-const SA_PATH = join(process.env.HOME, ".env", "firebase-fitness.json");
+const SA_PATH = process.env.FUEL_FIRESTORE_SA
+  ? resolve(process.env.FUEL_FIRESTORE_SA)
+  : join(process.env.HOME, ".env", "firebase-fitness.json");
 
 const UID_DEFAULT = "default";
+const BATCH_LIMIT = 400; // Firestore hard limit: 500 ops/batch — leave headroom
+
+// ── Batched-Write Helper (mit Idempotenz via _local_mtime) ────────────────────
+
+function createBatcher(db) {
+  let batch = db.batch();
+  let ops = 0;
+  let total = 0;
+  let skipped = 0;
+  return {
+    async set(ref, data, opts) {
+      batch.set(ref, data, opts || {});
+      ops++;
+      total++;
+      if (ops >= BATCH_LIMIT) {
+        await batch.commit();
+        batch = db.batch();
+        ops = 0;
+      }
+    },
+    skip() { skipped++; },
+    async flush() {
+      if (ops > 0) await batch.commit();
+      return { written: total, skipped };
+    }
+  };
+}
+
+function simpleHash(obj) {
+  const str = JSON.stringify(obj);
+  let h = 0;
+  for (let i = 0; i < str.length; i++) {
+    h = ((h << 5) - h) + str.charCodeAt(i);
+    h |= 0;
+  }
+  return h.toString(36);
+}
+
+async function shouldSkip(docRef, localMtimeMs) {
+  const snap = await docRef.get();
+  if (!snap.exists) return false;
+  const remoteMtime = snap.data()?._local_mtime || 0;
+  return remoteMtime >= localMtimeMs;
+}
 
 // ── Gemini Logic ──────────────────────────────────────────────────────────────
 
@@ -67,6 +113,97 @@ const db = admin.firestore();
 
 // ── Sync Logic ────────────────────────────────────────────────────────────────
 
+async function saveMealMicrosToFirestore(mealName, micros) {
+  const ref = db.collection("nutrition").doc("public").collection("meta").doc("micros");
+  
+  await db.runTransaction(async (transaction) => {
+    const docSnap = await transaction.get(ref);
+    let items = [];
+    if (docSnap.exists) {
+      items = docSnap.data().items || [];
+    }
+    
+    // Remove existing entry for the same meal name (case-insensitive)
+    const lowerName = mealName.toLowerCase();
+    items = items.filter(item => item.meal_name.toLowerCase() !== lowerName);
+    
+    // Add new entry
+    items.push({
+      meal_name: mealName,
+      ...micros,
+      updated_at: new Date().toISOString()
+    });
+    
+    // Recalculate hash
+    const newHash = simpleHash(items);
+    
+    transaction.set(ref, {
+      items: items,
+      _content_hash: newHash,
+      updated_at: admin.firestore.FieldValue.serverTimestamp()
+    });
+  });
+}
+
+function saveMealMicrosToLocalSqlite(mealName, micros) {
+  const dbPaths = [];
+  
+  // 1. Repo catalog database
+  const repoDb = join(ROOT, "data", "catalogs", "nutrition", "nutrition.db");
+  if (existsSync(repoDb)) dbPaths.push(repoDb);
+  
+  // 2. Active user databases
+  const globalDataDir = process.env.AOS_FUEL_DATA_DIR || join(process.env.HOME, ".aos", "fuel");
+  const usersDir = join(globalDataDir, "users");
+  if (existsSync(usersDir)) {
+    try {
+      const dirs = readdirSync(usersDir);
+      for (const d of dirs) {
+        const userDb = join(usersDir, d, "nutrition", "nutrition.db");
+        if (existsSync(userDb)) {
+          dbPaths.push(userDb);
+        }
+      }
+    } catch (e) {
+      console.error("Fehler beim Suchen von User-DBs:", e.message);
+    }
+  }
+  
+  // Also check single-user mode active db
+  const singleUserDb = join(globalDataDir, "nutrition", "nutrition.db");
+  if (existsSync(singleUserDb)) dbPaths.push(singleUserDb);
+  
+  const MICRO_COLS = [
+    "vitamin_a_ug", "vitamin_d_ug", "vitamin_e_mg", "vitamin_k_ug",
+    "vitamin_c_mg", "vitamin_b1_mg", "vitamin_b2_mg", "vitamin_b3_mg",
+    "vitamin_b5_mg", "vitamin_b6_mg", "vitamin_b7_ug", "folate_ug", "vitamin_b12_ug",
+    "calcium_mg", "phosphorus_mg", "magnesium_mg", "iron_mg", "zinc_mg",
+    "selenium_ug", "iodine_ug", "potassium_mg", "sodium_mg",
+    "omega3_mg"
+  ];
+  
+  for (const dbPath of dbPaths) {
+    try {
+      const dbSqlite = new Database(dbPath);
+      
+      const vals = MICRO_COLS.map((c) => micros[c] ?? 0);
+      const sets = MICRO_COLS.map((c) => `${c} = excluded.${c}`).join(", ");
+      
+      dbSqlite.prepare(`
+        INSERT INTO meal_micros (meal_name, ${MICRO_COLS.join(", ")}, source)
+        VALUES (?, ${MICRO_COLS.map(() => "?").join(", ")}, ?)
+        ON CONFLICT(meal_name) DO UPDATE SET
+          ${sets}, source = excluded.source, updated_at = CURRENT_TIMESTAMP
+      `).run(mealName, ...vals, "gemini");
+      
+      dbSqlite.close();
+      console.log(`  💾 SQLite DB aktualisiert: ${dbPath}`);
+    } catch (e) {
+      console.error(`  ❌ Fehler beim Schreiben in SQLite (${dbPath}):`, e.message);
+    }
+  }
+}
+
 async function watchTasks() {
   console.log("👀 Watcher aktiv: Warte auf Knowledge-Tasks in Firestore...");
   
@@ -86,6 +223,12 @@ async function watchTasks() {
             if (task.type === "enrich_meal") {
               const prompt = `Schätze Makros und Mikronährstoffe für: "${task.description}". Antworte NUR mit JSON: {"kcal": 0, "protein": 0, "carbs": 0, "fat": 0, "micros": {"vitamin_c_mg": 0, ...}}`;
               result = await callGemini(prompt);
+              
+              if (result && result.micros) {
+                console.log(`  Updating Firestore catalog and local SQLite with micros for "${task.description}"...`);
+                await saveMealMicrosToFirestore(task.description, result.micros);
+                saveMealMicrosToLocalSqlite(task.description, result.micros);
+              }
             } else if (task.type === "enrich_supplement") {
               const prompt = `Beschreibe die physiologische Wirkung und Dosierung von "${task.id}". Antworte NUR mit JSON: {"mechanism": "", "dosage_info": "", "physiological_impact": ""}`;
               result = await callGemini(prompt);
@@ -112,20 +255,27 @@ async function watchTasks() {
     });
 }
 
-async function push(uid = UID_DEFAULT) {
+async function push(uid) {
+  if (!uid || uid === UID_DEFAULT) {
+    throw new Error(`UID required. Usage: node firestore-sync.mjs push <uid>  (no fallback to "default")`);
+  }
   console.log(`🚀 Starte Push für User: ${uid}`);
-  
+  const batcher = createBatcher(db);
+
   // 1. Nutrition Logs
   const nutritionDir = join(DATA_DIR, "nutrition");
   if (existsSync(nutritionDir)) {
     const files = readdirSync(nutritionDir).filter(f => f.match(/^\d{4}-\d{2}-\d{2}\.json$/));
     for (const file of files) {
       const date = file.replace(".json", "");
-      const localData = JSON.parse(readFileSync(join(nutritionDir, file), "utf8"));
-      
-      console.log(`  → Nutrition ${date}`);
-      await db.collection("nutrition").doc(uid).collection("logs").doc(date).set({
+      const fullPath = join(nutritionDir, file);
+      const mtime = statSync(fullPath).mtimeMs;
+      const ref = db.collection("nutrition").doc(uid).collection("logs").doc(date);
+      if (await shouldSkip(ref, mtime)) { batcher.skip(); continue; }
+      const localData = JSON.parse(readFileSync(fullPath, "utf8"));
+      await batcher.set(ref, {
         ...localData,
+        _local_mtime: mtime,
         updated_at: admin.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
     }
@@ -137,11 +287,14 @@ async function push(uid = UID_DEFAULT) {
     const files = readdirSync(suppLogsDir).filter(f => f.match(/^\d{4}-\d{2}-\d{2}\.json$/));
     for (const file of files) {
       const date = file.replace(".json", "");
-      const localData = JSON.parse(readFileSync(join(suppLogsDir, file), "utf8"));
-      
-      console.log(`  → Supplements ${date}`);
-      await db.collection("supplements").doc(uid).collection("logs").doc(date).set({
+      const fullPath = join(suppLogsDir, file);
+      const mtime = statSync(fullPath).mtimeMs;
+      const ref = db.collection("supplements").doc(uid).collection("logs").doc(date);
+      if (await shouldSkip(ref, mtime)) { batcher.skip(); continue; }
+      const localData = JSON.parse(readFileSync(fullPath, "utf8"));
+      await batcher.set(ref, {
         ...localData,
+        _local_mtime: mtime,
         updated_at: admin.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
     }
@@ -200,93 +353,133 @@ async function push(uid = UID_DEFAULT) {
   }
 
   if (nutritionItems.length > 0) {
-    console.log(`    Pushing ${nutritionItems.length} nutrition items to Firestore`);
-    await db.collection("nutrition").doc(uid).collection("meta").doc("catalog").set({
-      items: nutritionItems,
-      updated_at: admin.firestore.FieldValue.serverTimestamp()
-    });
+    // Idempotenz: hash der items prüfen (mtime hier nicht praktikabel — mehrere Source-Files)
+    const ref = db.collection("nutrition").doc(uid).collection("meta").doc("catalog");
+    const snap = await ref.get();
+    const newHash = simpleHash(nutritionItems);
+    if (snap.exists && snap.data()?._content_hash === newHash) {
+      batcher.skip();
+      console.log(`    ⏭️  Nutrition Catalog unverändert (hash match)`);
+    } else {
+      console.log(`    Pushing ${nutritionItems.length} nutrition items to Firestore`);
+      await batcher.set(ref, {
+        items: nutritionItems,
+        _content_hash: newHash,
+        updated_at: admin.firestore.FieldValue.serverTimestamp()
+      });
+    }
   }
 
   // 4. Catalog (Supplements)
-  const supplementsCatalogDir = join(DATA_DIR, "supplements");
-  const supplementsCatalogYaml = join(supplementsCatalogDir, "catalog.yaml");
-  const supplementsCatalogJson = join(supplementsCatalogDir, "catalog.json");
-  
+  const supplementsCatalogCandidates = [
+    join(ROOT, "catalogs", "supplements", "catalog.yaml"),
+    join(ROOT, "catalogs", "supplements", "catalog.json"),
+    join(ROOT, "data", "supplements", "catalog.json"),
+    join(DATA_DIR, "supplements", "catalog.yaml"),
+    join(DATA_DIR, "supplements", "catalog.json"),
+  ];
   let suppData = null;
-  if (existsSync(supplementsCatalogYaml)) {
-    suppData = YAML.parse(readFileSync(supplementsCatalogYaml, "utf8"));
-    console.log(`  → Supplements Catalog (YAML)`);
-  } else if (existsSync(supplementsCatalogJson)) {
-    suppData = JSON.parse(readFileSync(supplementsCatalogJson, "utf8"));
-    console.log(`  → Supplements Catalog (JSON)`);
+  for (const catalogPath of supplementsCatalogCandidates) {
+    if (!existsSync(catalogPath)) continue;
+    const raw = readFileSync(catalogPath, "utf8");
+    suppData = catalogPath.endsWith(".json") ? JSON.parse(raw) : YAML.parse(raw);
+    console.log(`  → Supplements Catalog (${catalogPath.endsWith(".json") ? "JSON" : "YAML"})`);
+    break;
   }
 
   if (suppData) {
-    await db.collection("supplements").doc(uid).collection("meta").doc("catalog").set({
-      items: suppData.items || suppData,
-      updated_at: admin.firestore.FieldValue.serverTimestamp()
-    });
+    const items = suppData.items || suppData;
+    const ref = db.collection("supplements").doc(uid).collection("meta").doc("catalog");
+    const snap = await ref.get();
+    const newHash = simpleHash(items);
+    if (snap.exists && snap.data()?._content_hash === newHash) {
+      batcher.skip();
+      console.log(`  ⏭️  Supplements Catalog unverändert`);
+    } else {
+      await batcher.set(ref, {
+        items,
+        _content_hash: newHash,
+        updated_at: admin.firestore.FieldValue.serverTimestamp()
+      });
+    }
   }
 
   // 5. Micros Catalog (Global Shared from SQLite)
   const dbPath = join(DATA_DIR, "nutrition", "nutrition.db");
   if (existsSync(dbPath)) {
-      const dbSqlite = new Database(dbPath);
-      const micros = dbSqlite.prepare("SELECT * FROM meal_micros").all();
-      if (micros.length > 0) {
-        // Push to shared public path
-        await db.collection("nutrition").doc("public").collection("meta").doc("micros").set({
-            items: micros,
-            updated_at: admin.firestore.FieldValue.serverTimestamp()
+    const dbSqlite = new Database(dbPath);
+    const micros = dbSqlite.prepare("SELECT * FROM meal_micros LIMIT 5000").all();
+    dbSqlite.close();
+    if (micros.length > 0) {
+      const ref = db.collection("nutrition").doc("public").collection("meta").doc("micros");
+      const snap = await ref.get();
+      const newHash = simpleHash(micros);
+      if (snap.exists && snap.data()?._content_hash === newHash) {
+        batcher.skip();
+        console.log(`  ⏭️  Micros Catalog unverändert (${micros.length} items)`);
+      } else {
+        await batcher.set(ref, {
+          items: micros,
+          _content_hash: newHash,
+          updated_at: admin.firestore.FieldValue.serverTimestamp()
         });
         console.log(`  ✅ fuel.micros.catalog[${micros.length} items] -> firebase shared`);
-      dbSqlite.close();
+      }
+    }
   }
-  }
-  console.log("✅ Push abgeschlossen.");
+
+  const stats = await batcher.flush();
+  console.log(`✅ Push abgeschlossen. ${stats.written} writes, ${stats.skipped} skipped.`);
 }
 
-async function pushRelax(uid = UID_DEFAULT) {
+async function pushRelax(uid) {
+  if (!uid || uid === UID_DEFAULT) throw new Error("UID required for relax push");
   const relaxDir = resolve(ROOT, "..", "relax-dev", "data");
   if (!existsSync(relaxDir)) {
     console.log("ℹ️ relax-dev Verzeichnis nicht gefunden, überspringe.");
     return;
   }
-  
   console.log(`🚀 Starte Relax-Push für User: ${uid}`);
-  
-  // 1. Relax Sessions
+  const batcher = createBatcher(db);
+
   const sessionsDir = join(relaxDir, "sessions");
   if (existsSync(sessionsDir)) {
     const files = readdirSync(sessionsDir).filter(f => f.match(/^\d{4}-\d{2}-\d{2}\.json$/));
     for (const file of files) {
       const date = file.replace(".json", "");
-      const localData = JSON.parse(readFileSync(join(sessionsDir, file), "utf8"));
-      console.log(`  → Relax Session ${date}`);
-      await db.collection("relax").doc(uid).collection("sessions").doc(date).set({
+      const fullPath = join(sessionsDir, file);
+      const mtime = statSync(fullPath).mtimeMs;
+      const ref = db.collection("relax").doc(uid).collection("sessions").doc(date);
+      if (await shouldSkip(ref, mtime)) { batcher.skip(); continue; }
+      const localData = JSON.parse(readFileSync(fullPath, "utf8"));
+      await batcher.set(ref, {
         ...localData,
+        _local_mtime: mtime,
         updated_at: admin.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
     }
   }
 
-  // 2. Relax Journal
   const journalDir = join(relaxDir, "journal");
   if (existsSync(journalDir)) {
     const files = readdirSync(journalDir).filter(f => f.endsWith(".md"));
     for (const file of files) {
       const date = file.replace(".md", "");
-      const content = readFileSync(join(journalDir, file), "utf8");
-      console.log(`  → Relax Journal ${date}`);
-      await db.collection("relax").doc(uid).collection("journal").doc(date).set({
-        date,
-        content,
+      const fullPath = join(journalDir, file);
+      const mtime = statSync(fullPath).mtimeMs;
+      const ref = db.collection("relax").doc(uid).collection("journal").doc(date);
+      if (await shouldSkip(ref, mtime)) { batcher.skip(); continue; }
+      const content = readFileSync(fullPath, "utf8");
+      await batcher.set(ref, {
+        date, content,
+        _local_mtime: mtime,
         updated_at: admin.firestore.FieldValue.serverTimestamp()
       });
     }
   }
-  
-  console.log("✅ Relax-Push abgeschlossen.");
+
+  const stats = await batcher.flush();
+  console.log(`✅ Relax-Push abgeschlossen. ${stats.written} writes, ${stats.skipped} skipped.`);
 }
 
 async function pull(uid = UID_DEFAULT) {
@@ -321,16 +514,28 @@ async function pull(uid = UID_DEFAULT) {
 
 const [,, cmd, uidArg] = process.argv;
 
+const effectiveUid = uidArg || process.env.FUEL_FIRESTORE_UID;
+
 if (cmd === "push") {
-  push(uidArg)
-    .then(() => pushRelax(uidArg))
+  if (!effectiveUid || effectiveUid === UID_DEFAULT) {
+    console.error("❌ UID required. Usage: node scripts/firestore-sync.mjs push <uid>");
+    console.error("   Or set FUEL_FIRESTORE_UID env var. Fallback to 'default' is disabled.");
+    process.exit(2);
+  }
+  push(effectiveUid)
+    .then(() => pushRelax(effectiveUid))
     .then(() => process.exit(0))
     .catch(e => { console.error(e); process.exit(1); });
 } else if (cmd === "pull") {
-  pull(uidArg).then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
+  if (!effectiveUid || effectiveUid === UID_DEFAULT) {
+    console.error("❌ UID required for pull.");
+    process.exit(2);
+  }
+  pull(effectiveUid).then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
 } else if (cmd === "watch") {
   watchTasks();
 } else {
-  console.log("Usage: node scripts/firestore-sync.mjs [push|pull|watch] [uid]");
+  console.log("Usage: node scripts/firestore-sync.mjs [push|pull|watch] <uid>");
+  console.log("  uid: Firebase Auth UID (required, no default fallback).");
   process.exit(1);
 }

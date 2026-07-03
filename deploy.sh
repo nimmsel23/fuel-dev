@@ -33,13 +33,17 @@ fi
 msg "📦 Syncing files from $SOURCE → $DEST"
 sudo rsync -av --delete \
   --exclude ".git" \
+  --exclude ".env" \
+  --exclude ".env.*" \
   --exclude "node_modules" \
   --exclude "data" \
-  --exclude "dist-firebase" \
+  --exclude "dist" \
+  --exclude "dev-dist" \
   --exclude ".firebase" \
   --exclude ".archiv" \
   --exclude "*.bak" \
   --exclude ".claude" \
+  --exclude "*.log" \
   "$SOURCE/" "$DEST/"
 
 # 3. Finalize Prod Environment
@@ -47,7 +51,7 @@ msg "📦 Installing dependencies and building UI"
 sudo chown -R "$(id -u):$(id -g)" "$DEST"
 (
   cd "$DEST"
-  npm install --silent
+  npm ci --silent --include=dev
   npm run build > /dev/null
 )
 

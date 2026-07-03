@@ -4,10 +4,14 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Flame, Pill, Settings2, Sparkles, Minus } from "lucide-react";
-import GeminiCatalogModal from "../components/GeminiCatalogModal.jsx";
+import { lazy, Suspense } from "react";
 import { Field, Input, Empty, inputClassName } from "../components/ui.jsx";
-import { postJson } from "../lib/api.js";
+import { postJson } from "@api";
 import { formatMetric, normalizeSupplementUnit } from "../../shared/utils/utils.js";
+
+const GeminiCatalogModal = import.meta.env.VITE_APP_MODE === "client"
+  ? () => null
+  : lazy(() => import("../components/GeminiCatalogModal.jsx"));
 
 const supplementSchema = z.object({
   date: z.string().min(1),
@@ -291,13 +295,15 @@ export default function SupplementsView({ date, sup, catalog, suppLog }) {
               <Settings2 className="h-5 w-5 text-slate-300" />
               <h3 className="text-lg font-semibold">Catalog</h3>
             </div>
-            <button
-              onClick={() => setGeminiOpen(true)}
-              className="inline-flex items-center gap-2 rounded-full border border-violet-400/30 bg-violet-400/10 px-3 py-1.5 text-xs text-violet-200 transition hover:bg-violet-400/20"
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              Gemini
-            </button>
+            {import.meta.env.VITE_APP_MODE !== "client" && (
+              <button
+                onClick={() => setGeminiOpen(true)}
+                className="inline-flex items-center gap-2 rounded-full border border-violet-400/30 bg-violet-400/10 px-3 py-1.5 text-xs text-violet-200 transition hover:bg-violet-400/20"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Gemini
+              </button>
+            )}
           </div>
           <div className="grid gap-3">
             {catalog.length ? catalog.map((item) => (
@@ -314,7 +320,11 @@ export default function SupplementsView({ date, sup, catalog, suppLog }) {
           </div>
         </section>
 
-        {geminiOpen && <GeminiCatalogModal onClose={() => setGeminiOpen(false)} onSaved={() => { setGeminiOpen(false); queryClient.invalidateQueries({ queryKey: ["supp-catalog"] }); }} />}
+        {geminiOpen && import.meta.env.VITE_APP_MODE !== "client" && (
+          <Suspense fallback={null}>
+            <GeminiCatalogModal onClose={() => setGeminiOpen(false)} onSaved={() => { setGeminiOpen(false); queryClient.invalidateQueries({ queryKey: ["supp-catalog"] }); }} />
+          </Suspense>
+        )}
       </div>
     </section>
   );
