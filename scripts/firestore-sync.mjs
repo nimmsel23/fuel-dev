@@ -113,7 +113,7 @@ const db = admin.firestore();
 
 // ── Sync Logic ────────────────────────────────────────────────────────────────
 
-async function saveMealMicrosToFirestore(mealName, micros) {
+async function saveMealMicrosToFirestore(mealName, kcal, micros) {
   const ref = db.collection("nutrition").doc("public").collection("meta").doc("micros");
   
   await db.runTransaction(async (transaction) => {
@@ -130,6 +130,7 @@ async function saveMealMicrosToFirestore(mealName, micros) {
     // Add new entry
     items.push({
       meal_name: mealName,
+      kcal: kcal,
       ...micros,
       updated_at: new Date().toISOString()
     });
@@ -145,7 +146,7 @@ async function saveMealMicrosToFirestore(mealName, micros) {
   });
 }
 
-function saveMealMicrosToLocalSqlite(mealName, micros) {
+function saveMealMicrosToLocalSqlite(mealName, kcal, micros) {
   const dbPaths = [];
   
   // 1. Repo catalog database
@@ -186,15 +187,22 @@ function saveMealMicrosToLocalSqlite(mealName, micros) {
     try {
       const dbSqlite = new Database(dbPath);
       
+      // Auto-migrate schema if needed
+      try {
+        dbSqlite.exec("ALTER TABLE meal_micros ADD COLUMN kcal REAL");
+      } catch (e) {
+        // Ignoriere wenn Spalte schon existiert
+      }
+      
       const vals = MICRO_COLS.map((c) => micros[c] ?? 0);
       const sets = MICRO_COLS.map((c) => `${c} = excluded.${c}`).join(", ");
       
       dbSqlite.prepare(`
-        INSERT INTO meal_micros (meal_name, ${MICRO_COLS.join(", ")}, source)
-        VALUES (?, ${MICRO_COLS.map(() => "?").join(", ")}, ?)
+        INSERT INTO meal_micros (meal_name, kcal, ${MICRO_COLS.join(", ")}, source)
+        VALUES (?, ?, ${MICRO_COLS.map(() => "?").join(", ")}, ?)
         ON CONFLICT(meal_name) DO UPDATE SET
-          ${sets}, source = excluded.source, updated_at = CURRENT_TIMESTAMP
-      `).run(mealName, ...vals, "gemini");
+          kcal = excluded.kcal, ${sets}, source = excluded.source, updated_at = CURRENT_TIMESTAMP
+      `).run(mealName, kcal, ...vals, "gemini");
       
       dbSqlite.close();
       console.log(`  💾 SQLite DB aktualisiert: ${dbPath}`);
@@ -226,8 +234,8 @@ async function watchTasks() {
               
               if (result && result.micros) {
                 console.log(`  Updating Firestore catalog and local SQLite with micros for "${task.description}"...`);
-                await saveMealMicrosToFirestore(task.description, result.micros);
-                saveMealMicrosToLocalSqlite(task.description, result.micros);
+                await saveMealMicrosToFirestore(task.description, result.kcal || 0, result.micros);
+                saveMealMicrosToLocalSqlite(task.description, result.kcal || 0, result.micros);
               }
             } else if (task.type === "enrich_supplement") {
               const prompt = `Beschreibe die physiologische Wirkung und Dosierung von "${task.id}". Antworte NUR mit JSON: {"mechanism": "", "dosage_info": "", "physiological_impact": ""}`;

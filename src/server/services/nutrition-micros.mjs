@@ -20,8 +20,8 @@ export function getMicrosForMeal(mealName) {
 }
 
 // Save Gemini-estimated micros for a meal
-export function saveMicrosForMeal(mealName, micros, source = "gemini") {
-  upsertMealMicros(mealName, micros, source);
+export function saveMicrosForMeal(mealName, kcal, micros, source = "gemini") {
+  upsertMealMicros(mealName, kcal, micros, source);
 }
 
 export function listAllMealMicros() {

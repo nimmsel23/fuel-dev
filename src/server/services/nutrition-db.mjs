@@ -66,6 +66,7 @@ function initDb() {
 
   // Migrate existing DBs: add new columns if they don't exist yet
   const newCols = [
+    "kcal REAL",
     "vitamin_a_ug REAL DEFAULT 0",  "vitamin_k_ug REAL DEFAULT 0",
     "vitamin_c_mg REAL DEFAULT 0",  "vitamin_b1_mg REAL DEFAULT 0",
     "vitamin_b2_mg REAL DEFAULT 0", "vitamin_b3_mg REAL DEFAULT 0",
@@ -114,17 +115,17 @@ const MICRO_COLS = [
   "omega3_mg",
 ];
 
-export function upsertMealMicros(mealName, micros, source = "gemini") {
+export function upsertMealMicros(mealName, kcal, micros, source = "gemini") {
   const db = getDb();
   const vals = MICRO_COLS.map((c) => micros[c] ?? 0);
   const sets = MICRO_COLS.map((c) => `${c} = excluded.${c}`).join(", ");
 
   db.prepare(`
-    INSERT INTO meal_micros (meal_name, ${MICRO_COLS.join(", ")}, source)
-    VALUES (?, ${MICRO_COLS.map(() => "?").join(", ")}, ?)
+    INSERT INTO meal_micros (meal_name, kcal, ${MICRO_COLS.join(", ")}, source)
+    VALUES (?, ?, ${MICRO_COLS.map(() => "?").join(", ")}, ?)
     ON CONFLICT(meal_name) DO UPDATE SET
-      ${sets}, source = excluded.source, updated_at = CURRENT_TIMESTAMP
-  `).run(mealName, ...vals, source);
+      kcal = excluded.kcal, ${sets}, source = excluded.source, updated_at = CURRENT_TIMESTAMP
+  `).run(mealName, kcal, ...vals, source);
 }
 
 export function getMealMicros(mealName) {

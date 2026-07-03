@@ -187,8 +187,13 @@ export async function getWeeklyMicros(year, week) {
       const micros = microsMap[lookupName];
 
       if (micros) {
+        let factor = 1;
+        if (meal.kcal && micros.kcal) {
+          factor = meal.kcal / micros.kcal;
+        }
+
         for (const k of MICRO_KEYS) {
-          dayTotals[k] = Math.round((dayTotals[k] + (micros[k] || 0)) * 10) / 10;
+          dayTotals[k] = Math.round((dayTotals[k] + ((micros[k] || 0) * factor)) * 10) / 10;
         }
       } else {
         missingMeals.add(lookupName);
@@ -199,9 +204,14 @@ export async function getWeeklyMicros(year, week) {
     for (const intake of suppLog.intakes || []) {
       const entry = suppCatalogMap[intake.supplement_id];
       if (entry?.micros) {
+        let factor = 1;
+        if (intake.dose != null && entry.default_dose != null && entry.default_dose > 0) {
+          factor = intake.dose / entry.default_dose;
+        }
+
         for (const k of MICRO_KEYS) {
           if (entry.micros[k]) {
-            dayTotals[k] = Math.round((dayTotals[k] + entry.micros[k]) * 10) / 10;
+            dayTotals[k] = Math.round((dayTotals[k] + (entry.micros[k] * factor)) * 10) / 10;
           }
         }
       }

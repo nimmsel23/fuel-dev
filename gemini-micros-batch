@@ -52,11 +52,16 @@ MICRO_KEYS = [
 def get_existing(db: sqlite3.Connection) -> set[str]:
     return {r[0].lower() for r in db.execute("SELECT meal_name FROM meal_micros").fetchall()}
 
-def upsert(db: sqlite3.Connection, meal_name: str, micros: dict) -> None:
-    cols = ", ".join(MICRO_KEYS)
-    placeholders = ", ".join("?" * len(MICRO_KEYS))
-    sets = ", ".join(f"{k} = excluded.{k}" for k in MICRO_KEYS)
-    vals = [micros.get(k, 0) for k in MICRO_KEYS]
+def upsert(db: sqlite3.Connection, meal_name: str, kcal: float, micros: dict) -> None:
+    try:
+        db.execute("ALTER TABLE meal_micros ADD COLUMN kcal REAL")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+        
+    cols = "kcal, " + ", ".join(MICRO_KEYS)
+    placeholders = "?, " + ", ".join("?" * len(MICRO_KEYS))
+    sets = "kcal = excluded.kcal, " + ", ".join(f"{k} = excluded.{k}" for k in MICRO_KEYS)
+    vals = [kcal] + [micros.get(k, 0) for k in MICRO_KEYS]
     db.execute(f"""
         INSERT INTO meal_micros (meal_name, {cols}, source)
         VALUES (?, {placeholders}, 'gemini')
@@ -75,11 +80,12 @@ def call_gemini(description: str) -> dict | None:
         print("  ✗ GEMINI_API_KEY fehlt", file=sys.stderr)
         return None
 
-    prompt = f"""Schätze die Mikronährstoffe für diese Mahlzeit:
+    prompt = f"""Schätze die Kalorien (kcal) und Mikronährstoffe für diese Mahlzeit:
 "{description}"
 
 Antworte NUR mit JSON (keine Erklärungen):
 {{
+  "kcal": <Wert>,
   "vitamin_a_ug": <Wert>, "vitamin_d_ug": <Wert>, "vitamin_e_mg": <Wert>, "vitamin_k_ug": <Wert>,
   "vitamin_c_mg": <Wert>, "vitamin_b1_mg": <Wert>, "vitamin_b2_mg": <Wert>, "vitamin_b3_mg": <Wert>,
   "vitamin_b5_mg": <Wert>, "vitamin_b6_mg": <Wert>, "vitamin_b7_ug": <Wert>, "folate_ug": <Wert>,
@@ -155,7 +161,8 @@ def main() -> None:
         print(f"[{i}/{len(to_process)}] {meal}")
         micros = call_gemini(meal)
         if micros:
-            upsert(db, meal, micros)
+            kcal = micros.pop("kcal", 0)
+            upsert(db, meal, kcal, micros)
             print(f"  ✓ gespeichert")
         else:
             print(f"  ✗ übersprungen")
