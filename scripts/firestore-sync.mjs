@@ -113,6 +113,97 @@ const db = admin.firestore();
 
 // ── Sync Logic ────────────────────────────────────────────────────────────────
 
+async function saveMealMicrosToFirestore(mealName, micros) {
+  const ref = db.collection("nutrition").doc("public").collection("meta").doc("micros");
+  
+  await db.runTransaction(async (transaction) => {
+    const docSnap = await transaction.get(ref);
+    let items = [];
+    if (docSnap.exists) {
+      items = docSnap.data().items || [];
+    }
+    
+    // Remove existing entry for the same meal name (case-insensitive)
+    const lowerName = mealName.toLowerCase();
+    items = items.filter(item => item.meal_name.toLowerCase() !== lowerName);
+    
+    // Add new entry
+    items.push({
+      meal_name: mealName,
+      ...micros,
+      updated_at: new Date().toISOString()
+    });
+    
+    // Recalculate hash
+    const newHash = simpleHash(items);
+    
+    transaction.set(ref, {
+      items: items,
+      _content_hash: newHash,
+      updated_at: admin.firestore.FieldValue.serverTimestamp()
+    });
+  });
+}
+
+function saveMealMicrosToLocalSqlite(mealName, micros) {
+  const dbPaths = [];
+  
+  // 1. Repo catalog database
+  const repoDb = join(ROOT, "data", "catalogs", "nutrition", "nutrition.db");
+  if (existsSync(repoDb)) dbPaths.push(repoDb);
+  
+  // 2. Active user databases
+  const globalDataDir = process.env.AOS_FUEL_DATA_DIR || join(process.env.HOME, ".aos", "fuel");
+  const usersDir = join(globalDataDir, "users");
+  if (existsSync(usersDir)) {
+    try {
+      const dirs = readdirSync(usersDir);
+      for (const d of dirs) {
+        const userDb = join(usersDir, d, "nutrition", "nutrition.db");
+        if (existsSync(userDb)) {
+          dbPaths.push(userDb);
+        }
+      }
+    } catch (e) {
+      console.error("Fehler beim Suchen von User-DBs:", e.message);
+    }
+  }
+  
+  // Also check single-user mode active db
+  const singleUserDb = join(globalDataDir, "nutrition", "nutrition.db");
+  if (existsSync(singleUserDb)) dbPaths.push(singleUserDb);
+  
+  const MICRO_COLS = [
+    "vitamin_a_ug", "vitamin_d_ug", "vitamin_e_mg", "vitamin_k_ug",
+    "vitamin_c_mg", "vitamin_b1_mg", "vitamin_b2_mg", "vitamin_b3_mg",
+    "vitamin_b5_mg", "vitamin_b6_mg", "vitamin_b7_ug", "folate_ug", "vitamin_b12_ug",
+    "calcium_mg", "phosphorus_mg", "magnesium_mg", "iron_mg", "zinc_mg",
+    "selenium_ug", "iodine_ug", "potassium_mg", "sodium_mg",
+    "omega3_mg"
+  ];
+  
+  for (const dbPath of dbPaths) {
+    try {
+      const dbSqlite = new Database(dbPath);
+      
+      const vals = MICRO_COLS.map((c) => micros[c] ?? 0);
+      const sets = MICRO_COLS.map((c) => `${c} = excluded.${c}`).join(", ");
+      
+      dbSqlite.prepare(`
+        INSERT INTO meal_micros (meal_name, ${MICRO_COLS.join(", ")}, source)
+        VALUES (?, ${MICRO_COLS.map(() => "?").join(", ")}, ?)
+        ON CONFLICT(meal_name) DO UPDATE SET
+          ${sets}, source = excluded.source, updated_at = CURRENT_TIMESTAMP
+      `).run(mealName, ...vals, "gemini");
+      
+      dbSqlite.close();
+      console.log(`  💾 SQLite DB aktualisiert: ${dbPath}`);
+    } catch (e) {
+      console.error(`  ❌ Fehler beim Schreiben in SQLite (${dbPath}):`, e.message);
+    }
+  }
+}
+
 async function watchTasks() {
   console.log("👀 Watcher aktiv: Warte auf Knowledge-Tasks in Firestore...");
   
@@ -132,6 +223,12 @@ async function watchTasks() {
             if (task.type === "enrich_meal") {
               const prompt = `Schätze Makros und Mikronährstoffe für: "${task.description}". Antworte NUR mit JSON: {"kcal": 0, "protein": 0, "carbs": 0, "fat": 0, "micros": {"vitamin_c_mg": 0, ...}}`;
               result = await callGemini(prompt);
+              
+              if (result && result.micros) {
+                console.log(`  Updating Firestore catalog and local SQLite with micros for "${task.description}"...`);
+                await saveMealMicrosToFirestore(task.description, result.micros);
+                saveMealMicrosToLocalSqlite(task.description, result.micros);
+              }
             } else if (task.type === "enrich_supplement") {
               const prompt = `Beschreibe die physiologische Wirkung und Dosierung von "${task.id}". Antworte NUR mit JSON: {"mechanism": "", "dosage_info": "", "physiological_impact": ""}`;
               result = await callGemini(prompt);

@@ -188,6 +188,17 @@ export async function getWeeklyMicros(year, week) {
         for (const k of MICRO_KEYS) {
           dayTotals[k] = Math.round((dayTotals[k] + (micros[k] || 0)) * 10) / 10;
         }
+      } else {
+        // Deterministic safe ID
+        const taskId = `enrich_${btoa(unescape(encodeURIComponent(lookupName))).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_")}`;
+        const taskRef = doc(db, "knowledge_tasks", taskId);
+        setDoc(taskRef, {
+          id: lookupName,
+          type: "enrich_meal",
+          description: lookupName,
+          status: "pending",
+          created_at: serverTimestamp()
+        }, { merge: true }).catch(err => console.error("Failed to create knowledge task:", err));
       }
     }
 
