@@ -16,6 +16,7 @@ import {
   arrayUnion,
   arrayRemove,
   serverTimestamp,
+  writeBatch,
 } from "firebase/firestore";
 import {
   signInWithPopup,
@@ -174,6 +175,7 @@ export async function getWeeklyMicros(year, week) {
 
   const weekTotals = zeroMicros();
   const dayBreakdown = {};
+  const missingMeals = new Set();
 
   for (const date of dates) {
     const log = logsMap[date] || { meals: [] };
@@ -189,16 +191,7 @@ export async function getWeeklyMicros(year, week) {
           dayTotals[k] = Math.round((dayTotals[k] + (micros[k] || 0)) * 10) / 10;
         }
       } else {
-        // Deterministic safe ID
-        const taskId = `enrich_${btoa(unescape(encodeURIComponent(lookupName))).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_")}`;
-        const taskRef = doc(db, "knowledge_tasks", taskId);
-        setDoc(taskRef, {
-          id: lookupName,
-          type: "enrich_meal",
-          description: lookupName,
-          status: "pending",
-          created_at: serverTimestamp()
-        }, { merge: true }).catch(err => console.error("Failed to create knowledge task:", err));
+        missingMeals.add(lookupName);
       }
     }
 
@@ -218,6 +211,23 @@ export async function getWeeklyMicros(year, week) {
     for (const k of MICRO_KEYS) {
       weekTotals[k] = Math.round((weekTotals[k] + dayTotals[k]) * 10) / 10;
     }
+  }
+
+  // Batch write all missing meals as knowledge tasks
+  if (missingMeals.size > 0) {
+    const batch = writeBatch(db);
+    for (const lookupName of missingMeals) {
+      const taskId = `enrich_${btoa(unescape(encodeURIComponent(lookupName))).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_")}`;
+      const taskRef = doc(db, "knowledge_tasks", taskId);
+      batch.set(taskRef, {
+        id: lookupName,
+        type: "enrich_meal",
+        description: lookupName,
+        status: "pending",
+        created_at: serverTimestamp()
+      }, { merge: true });
+    }
+    await batch.commit().catch(err => console.error("Failed to commit knowledge tasks batch:", err));
   }
 
   // Comparison logic is handled by the caller or we can import it, but shared/config/dach.mjs is ESM
