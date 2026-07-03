@@ -36,9 +36,15 @@ function addSupplementMicros(dayTotals, date, supplementCatalogMap) {
   for (const intake of suppLog.intakes || []) {
     const entry = supplementCatalogMap[intake.supplement_id];
     if (!entry?.micros) continue;
+
+    let factor = 1;
+    if (intake.dose != null && entry.default_dose != null && entry.default_dose > 0) {
+      factor = intake.dose / entry.default_dose;
+    }
+
     for (const k of MICRO_KEYS) {
       if (entry.micros[k]) {
-        dayTotals[k] = Math.round((dayTotals[k] + entry.micros[k]) * 10) / 10;
+        dayTotals[k] = Math.round((dayTotals[k] + (entry.micros[k] * factor)) * 10) / 10;
       }
     }
   }
@@ -89,7 +95,11 @@ export default async function weeklyRoute(app) {
           }
 
           for (const k of MICRO_KEYS) {
-            dayTotals[k] = Math.round((dayTotals[k] + (micros[k] || 0)) * 10) / 10;
+            let factor = 1;
+            if (meal.kcal && micros.kcal) {
+              factor = meal.kcal / micros.kcal;
+            }
+            dayTotals[k] = Math.round((dayTotals[k] + ((micros[k] || 0) * factor)) * 10) / 10;
           }
         }
 
