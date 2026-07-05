@@ -167,6 +167,25 @@ export async function getMealsHistory(limitCount = 30) {
     .filter(log => (log.meals || []).length > 0);
 }
 
+export async function getSupplementsHistory(limitCount = 30) {
+  const q = query(
+    collection(db, "supplements", getUid(), "logs"),
+    orderBy(documentId(), "desc"),
+    limit(limitCount)
+  );
+  const snap = await getDocs(q);
+  return snap.docs
+    .map(d => ({ date: d.id, ...d.data() }))
+    .filter(log => (log.intakes || []).length > 0);
+}
+
+export async function deleteMealFromLog(date, mealId) {
+  const log = await getNutritionLog(date);
+  if (!log.meals) return;
+  const filtered = log.meals.filter(m => m.id !== mealId);
+  await saveNutritionLog(date, { ...log, meals: filtered });
+}
+
 export async function searchNutritionCatalog(q, limit = 20) {
   const items = await getNutritionCatalog();
   const lowerQ = q.toLowerCase();
