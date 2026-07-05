@@ -1,0 +1,57 @@
+name: Deploy Fuel PWA
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'index.html'
+      - 'package.json'
+      - 'vite.config.cjs'
+      - '.github/workflows/deploy-pwa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Firebase config schreiben
+        run: echo "$FIREBASE_CONFIG" > src/firebase.config.js
+        env:
+          FIREBASE_CONFIG: ${{ secrets.FIREBASE_CONFIG }}
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build:firebase
+
+      - name: Deploy to Firebase Hosting
+        run: |
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > /tmp/sa.json
+          GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json \
+            npx firebase-tools@latest deploy --only hosting \
+            --project fitness-aos --non-interactive
+
+      - name: Create Issue on Failure
+        if: failure()
+        run: |
+          gh issue create \
+            --title "❌ Deployment Failed on master" \
+            --body $'### ❌ Deployment Failed\n\nA push to the `master` branch failed to deploy.\n\n**Details:**\n* **Workflow Run:** [View Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})\n* **Commit:** `${{ github.sha }}` by @${{ github.actor }}\n* **Branch:** `${{ github.ref_name }}`\n\nPlease inspect the runner logs for details.' \
+            --label "bug"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

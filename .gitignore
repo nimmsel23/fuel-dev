@@ -1,6 +1,7 @@
 node_modules/
 dist/
 /opt/
+dist-firebase/
 .DS_Store
 *.log
 *.bak
