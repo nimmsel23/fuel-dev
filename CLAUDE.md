@@ -75,21 +75,23 @@ npm install
 npm run dev          # nodemon + vite dev (Port 9000 + 5173)
 npm run build:local  # Vite build → coach mode (für /opt/fuel)
 npm run build:cloud  # Vite build → client mode → dist-firebase/
-npm run prod         # static server port 7000
+npm run prod         # node server.mjs auf 0.0.0.0:9000 (das Prod-:7000 served fuel-v2.service aus /opt/fuel)
 npm start            # bare server port 9000
 npm run ui:dev       # Vite dev only (kein Backend)
 
 # Deploy
-npm run deploy:local # ./deploy.sh — rsync + build + systemctl restart
-npm run deploy:cloud # build:cloud + firebase deploy --only hosting
-./deploy.sh          # direkt (= deploy:local)
+npm run deploy:local   # ./deploy.sh — rsync + build + systemctl restart
+npm run deploy:cloud   # build:cloud + firebase deploy --only hosting (LIVE auf fuel-vos.web.app)
+npm run deploy:preview # build:cloud + 24h-Preview-Channel + Telegram-Link (scripts/deploy-preview.mjs)
+./deploy.sh            # direkt (= deploy:local)
 
 # Sync
 npm run sync:push    # lokale Katalog-Daten → Firestore
 npm run sync:pull    # Firestore → lokale Dateien
+npm run sync:watch   # firestore-sync.mjs im Watch-Modus
 ```
 
-Der `post-commit`-Hook triggert `build:cloud` + Firebase-Deploy automatisch, sobald Dateien unter `src/client/`, `src/shared/`, `index.html`, `vite.config.js` oder `package.json` geändert werden.
+**Kein Auto-Deploy mehr:** Der früher dokumentierte `post-commit`-Hook (build:cloud + Firebase-Deploy bei Client-Änderungen) existiert nicht mehr — alle Deploys sind explizit (`deploy:cloud` / `deploy:preview`).
 
 ---
 
@@ -235,10 +237,13 @@ npm run build:cloud  # VITE_APP_MODE=client → dist-firebase/
 npm run deploy:cloud # build:cloud + firebase deploy --only hosting
 npm run sync:push    # Lokale Katalog-JSONs → Firestore (scripts/firestore-sync.mjs)
 npm run sync:pull    # Firestore → lokale Dateien
+npm run deploy:preview # 24h-Preview-Channel + Telegram-Link
 ```
 
-**Firebase Config:** `src/client/lib/firebase.config.js` — Project: `fuel-aos`
-**Auto-Deploy:** `post-commit`-Hook in `.git/hooks/post-commit` triggert `build:cloud` + `firebase deploy --only hosting --project fuel-aos`, wenn Dateien unter `src/client/`, `src/shared/`, `index.html`, `vite.config.js` oder `package.json` im Commit waren.
+**Firebase Config:** `src/client/lib/firebase.config.js` — Project: `fitness-aos` (Hosting-Site: `fuel-vos` → fuel-vos.web.app). Das frühere Projekt `fuel-aos` ist abgelöst — alle VitalOS-Apps deployen ins gemeinsame Projekt `fitness-aos`, unterschieden per Hosting-Site.
+**Auto-Deploy:** entfernt (kein `post-commit`-Hook mehr) — Deploys nur explizit via `deploy:cloud` / `deploy:preview`.
+
+**24h-Preview (`deploy:preview`):** `scripts/deploy-preview.mjs` deployt einen Preview-Channel (24h gültig) und schickt den Link per Telegram (`@aos_fitness_bot`, Creds aus `~/.env/fitness.env`). Läuft bewusst **lokal statt als GitHub Action**: die Crossover-Aliase in `vite.config.cjs` (`@db`/`@utils` → `~/fitness-dev`, `@habits` → `~/habits-dev`) zeigen absolut auf Nachbar-Repos, die auf einem CI-Runner nicht existieren. Deaktivierte CI-Workflows liegen in `.github/workflows.disabled/`.
 
 ---
 
@@ -272,7 +277,7 @@ fuel-dev/
 │   │   └── lib/
 │   │       ├── api.js             ⭐ Cloud-Aware Abstraction (lokal→Fastify / cloud→Firestore)
 │   │       ├── firebase.js        Firebase Init + Auth
-│   │       ├── firebase.config.js Firebase Project: fuel-aos
+│   │       ├── firebase.config.js Firebase Project: fitness-aos (Site: fuel-vos)
 │   │       └── firestore-db.js    Firestore Data Layer (Multi-User, per UID)
 │   ├── server/                   ─── Backend (Fastify, Node) ─────────────────
 │   │   ├── app.mjs               Fastify setup, Plugin-Registration
@@ -397,6 +402,54 @@ See `~/.claude/agents/nutrition-agent.md` for full definition.
 - **Export-Endpoint:** `GET /nutrition/export?from=&to=` → CSV (lokal)
 - **Firestore-Sicherheitsregeln:** Production-ready Rules für `nutrition/{uid}` und `supplements/{uid}`
 - **Klienten-Auth Multi-User (lokal):** `/c/<id>/nutrition/…` Route bereits vorbereitet
+
+---
+
+## Architektur-Richtung: fuel_agent/ (Stand 2026-07-02)
+
+### Dual-Channel = zwei verschiedene Apps, eine gemeinsame UI
+
+**Coach (local)** und **Client (cloud)** sind konzeptuell zwei getrennte Produkte:
+
+| | Coach (local) | Client (cloud) |
+|---|---|---|
+| User | Du (Coach, Desktop) | Klienten (Mobile PWA) |
+| Backend | Python `fuel_agent/` → Fastify (→ ablösen) | Firebase/Firestore |
+| Data | `~/.aos/fuel/` (SQLite + JSON) | Firestore Collections |
+| AI | Gemini (lokal, Python) | — |
+| Auth | keins (single-user) | Google Sign-In |
+| Build | `VITE_APP_MODE=coach` → `@api` → `api.local.js` | `VITE_APP_MODE=client` → `@api` → `api.cloud.js` |
+
+Gemeinsam ist nur `src/client/` UI (Views, Hooks, Components) — kein Backend-Code, kein Firebase-SDK im Coach-Build, kein Fastify-Code im Cloud-Build.
+
+### fuel_cli/ → fuel_agent/ (Referenz: fitness-dev)
+
+`fitness-dev` hat denselben Weg bereits abgeschlossen:
+- `fitness_cli/` + standalone Scripts → `fitness_agent/` Python-Package
+- Node.js `server.mjs` → `fitness_agent/server.py` (FastAPI + static serving)
+- Catalog-Pipeline, Gemini, wger — alles in `fitness_agent/`
+
+**fuel-dev ist auf demselben Pfad, aber noch nicht am Ziel:**
+
+| Was existiert | Ziel |
+|---|---|
+| `fuel_cli/` (catalog, gemini, compose, log, http) | → `fuel_agent/` umbenennen |
+| `fuel-catalog-server.py` (aiohttp) | → `fuel_agent/server.py` |
+| `bin/gemini-*` Standalone-Scripts | → in `fuel_agent/gemini.py` integrieren |
+| Fastify `server.mjs` | → organisch schrumpfen während Python wächst |
+| `fuel_routes.yaml` | bleibt als SSOT für Endpoints |
+
+**Prinzip: kein Doppel-Code.** Jede Catalog-Logik, jede Gemini-Integration, jede Datei-Op gehört einmal in `fuel_agent/`. Der Fastify-Server proxied oder ruft `fuel_agent/` auf — er dupliziert keine Logik.
+
+### @api Alias-Split (bereits umgesetzt)
+
+```
+src/client/lib/
+├── api.local.js   ← Coach: reines fetch() zu Fastify, kein Firebase-Import
+└── api.cloud.js   ← Client: reines Firestore, kein Fastify-Import
+```
+
+`vite.config.js` + `vite.config.cjs` wählen per `appMode` welche Datei gebündelt wird. Firebase-SDK kommt nie in den Coach-Build.
 
 ---
 

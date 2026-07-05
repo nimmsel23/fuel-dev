@@ -3,8 +3,8 @@ module.exports = {
   content: [
     "./index.html",
     "./src/**/*.{js,jsx}",
-    "/home/alpha/vitalos/habits-dev/src/**/*.{js,jsx}",
-    "/home/alpha/vitalos/journal-dev/src/**/*.{js,jsx}",
+    "/home/alpha/habits-dev/src/**/*.{js,jsx}",
+    "/home/alpha/journal-dev/src/**/*.{js,jsx}",
   ],
   theme: {
     extend: {
