@@ -13,6 +13,7 @@ import {
   getDocs,
   orderBy,
   limit,
+  documentId,
   arrayUnion,
   arrayRemove,
   serverTimestamp,
@@ -149,6 +150,21 @@ export async function getNutritionLogsInRange(dates) {
     if (snap.exists()) map[date] = snap.data();
   }));
   return map;
+}
+
+// Kanonisch für Cross-Tempel-Konsumenten (z.B. der Journal-Aggregator in
+// journal-dev/vitalos). Dokument-IDs sind YYYY-MM-DD, also lexikographisch
+// = chronologisch sortierbar.
+export async function getMealsHistory(limitCount = 30) {
+  const q = query(
+    collection(db, "nutrition", getUid(), "logs"),
+    orderBy(documentId(), "desc"),
+    limit(limitCount)
+  );
+  const snap = await getDocs(q);
+  return snap.docs
+    .map(d => ({ date: d.id, ...d.data() }))
+    .filter(log => (log.meals || []).length > 0);
 }
 
 export async function searchNutritionCatalog(q, limit = 20) {
