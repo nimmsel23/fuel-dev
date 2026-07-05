@@ -2,56 +2,56 @@
   "date": "2026-05-15",
   "intakes": [
     {
-      "name": "Kreatin",
-      "unit": "g",
       "time": "2026-05-15T08:00:00+00:00",
-      "notes": "",
+      "time_of_day": "any",
+      "unit": "g",
       "id": "supp_test001",
+      "name": "Kreatin",
+      "dose": 5,
       "supplement_id": "kreatin",
-      "time_of_day": "any",
-      "dose": 5
+      "notes": ""
     },
     {
-      "name": "Kollagen",
-      "unit": "g",
       "time": "2026-05-15T09:00:00+00:00",
-      "notes": "",
-      "id": "supp_test002",
-      "supplement_id": "kollagen",
       "time_of_day": "morning",
-      "dose": 10
-    },
-    {
-      "name": "Melatonin",
-      "unit": "mg",
-      "time": "2026-05-15T22:00:00+00:00",
-      "notes": "",
-      "id": "supp_test003",
-      "supplement_id": "melatonin",
-      "time_of_day": "night",
-      "dose": 1
-    },
-    {
-      "name": "Glycin",
       "unit": "g",
-      "time": "2026-05-15T22:30:00+00:00",
-      "notes": "",
-      "id": "supp_test004",
-      "supplement_id": "glycin",
-      "time_of_day": "night",
-      "dose": 3
+      "id": "supp_test002",
+      "name": "Kollagen",
+      "dose": 10,
+      "supplement_id": "kollagen",
+      "notes": ""
     },
     {
-      "name": "Zink",
+      "time": "2026-05-15T22:00:00+00:00",
+      "time_of_day": "night",
       "unit": "mg",
+      "id": "supp_test003",
+      "name": "Melatonin",
+      "dose": 1,
+      "supplement_id": "melatonin",
+      "notes": ""
+    },
+    {
+      "time": "2026-05-15T22:30:00+00:00",
+      "time_of_day": "night",
+      "unit": "g",
+      "id": "supp_test004",
+      "name": "Glycin",
+      "dose": 3,
+      "supplement_id": "glycin",
+      "notes": ""
+    },
+    {
       "time": "2026-05-16T16:02:26.147558+00:00",
-      "notes": "",
-      "id": "supp_bf9cd4cf832e",
-      "supplement_id": "zink",
       "time_of_day": "any",
-      "dose": 25
+      "unit": "mg",
+      "id": "supp_bf9cd4cf832e",
+      "name": "Zink",
+      "dose": 25,
+      "supplement_id": "zink",
+      "notes": ""
     }
   ],
-  "_local_mtime": 1779100675503.1843,
-  "saved_at": "2026-06-25T00:30:05.098531"
+  "saved_at": "2026-06-25T00:30:05.098531",
+  "_local_mtime": 1782476616078.7244
 }

@@ -2,46 +2,46 @@
   "date": "2026-05-12",
   "intakes": [
     {
-      "name": "Kreatin",
-      "unit": "g",
       "time": "2026-05-12T08:00:00+00:00",
-      "notes": "",
-      "id": "supp_1778878688001",
-      "supplement_id": "kreatin",
       "time_of_day": "any",
-      "dose": 5
+      "unit": "g",
+      "id": "supp_1778878688001",
+      "name": "Kreatin",
+      "dose": 5,
+      "supplement_id": "kreatin",
+      "notes": ""
     },
     {
-      "name": "Kollagen",
-      "unit": "g",
       "time": "2026-05-12T09:00:00+00:00",
-      "notes": "",
-      "id": "supp_1778878688002",
-      "supplement_id": "kollagen",
       "time_of_day": "morning",
-      "dose": 10
-    },
-    {
-      "name": "Melatonin",
-      "unit": "mg",
-      "time": "2026-05-12T22:00:00+00:00",
-      "notes": "",
-      "id": "supp_1778878688003",
-      "supplement_id": "melatonin",
-      "time_of_day": "night",
-      "dose": 1
-    },
-    {
-      "name": "Glycin",
       "unit": "g",
-      "time": "2026-05-12T22:30:00+00:00",
-      "notes": "",
-      "id": "supp_1778878688004",
-      "supplement_id": "glycin",
+      "id": "supp_1778878688002",
+      "name": "Kollagen",
+      "dose": 10,
+      "supplement_id": "kollagen",
+      "notes": ""
+    },
+    {
+      "time": "2026-05-12T22:00:00+00:00",
       "time_of_day": "night",
-      "dose": 3
+      "unit": "mg",
+      "id": "supp_1778878688003",
+      "name": "Melatonin",
+      "dose": 1,
+      "supplement_id": "melatonin",
+      "notes": ""
+    },
+    {
+      "time": "2026-05-12T22:30:00+00:00",
+      "time_of_day": "night",
+      "unit": "g",
+      "id": "supp_1778878688004",
+      "name": "Glycin",
+      "dose": 3,
+      "supplement_id": "glycin",
+      "notes": ""
     }
   ],
-  "_local_mtime": 1779100675503.1843,
-  "saved_at": "2026-06-25T00:30:04.123379"
+  "saved_at": "2026-06-25T00:30:04.123379",
+  "_local_mtime": 1782476616076.1118
 }
