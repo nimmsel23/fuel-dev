@@ -100,6 +100,23 @@ export default async function logRoute(app) {
     return reply.send({ ok: true, data: loadLog(date, req.paths.nutrition) });
   });
 
+  app.get("/nutrition/history", async (req, reply) => {
+    const limitCount = parseInt(req.query.limit || "30");
+    const nutritionDir = req.paths.nutrition;
+    const files = fs.readdirSync(nutritionDir)
+      .filter((f) => f.match(/^\d{4}-\d{2}-\d{2}\.json$/))
+      .sort()
+      .reverse()
+      .slice(0, limitCount);
+
+    const history = files.map((f) => {
+      const data = JSON.parse(fs.readFileSync(path.join(nutritionDir, f), "utf-8"));
+      return { date: f.replace(".json", ""), ...data };
+    }).filter((log) => (log.meals || []).length > 0);
+
+    return reply.send({ ok: true, history });
+  });
+
   app.patch("/nutrition/log", async (req, reply) => {
     try {
       const parsed = logPatchSchema.safeParse(req.body || {});

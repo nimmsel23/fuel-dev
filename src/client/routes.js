@@ -1,5 +1,5 @@
 import { lazy } from "react";
-import { Flame, UtensilsCrossed, NotebookPen, CheckSquare, BookOpen, Pill, Microscope, Settings2 } from "lucide-react";
+import { Flame, UtensilsCrossed, NotebookPen, CheckSquare, BookOpen, Pill, Microscope, Settings2, History } from "lucide-react";
 
 export const TAB_CONFIG = [
   {
@@ -15,6 +15,13 @@ export const TAB_CONFIG = [
     Icon: UtensilsCrossed,
     View: lazy(() => import("./views/FoodView.jsx")),
     getProps: (ctx) => ({ activeDate: ctx.activeDate, setActiveDate: ctx.setActiveDate, nutrition: ctx.nutrition }),
+  },
+  {
+    key: "history",
+    label: "Historie",
+    Icon: History,
+    View: lazy(() => import("./views/HistoryView.jsx")),
+    getProps: (ctx) => ({ setActiveDate: ctx.setActiveDate, setActiveTab: ctx.setActiveTab }),
   },
   {
     key: "journal",

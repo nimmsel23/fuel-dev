@@ -53,6 +53,11 @@ export async function fetchJson(path) {
       const date = url.searchParams.get("date");
       return { data: await firestore.getNutritionLog(date) };
     }
+    if (normPath.startsWith("/nutrition/history")) {
+      const url = new URL(path, window.location.origin);
+      const limit = parseInt(url.searchParams.get("limit") || "30");
+      return { ok: true, history: await firestore.getMealsHistory(limit) };
+    }
     if (normPath === "/nutrition/catalog") {
       return { items: await firestore.getNutritionCatalog() };
     }
