@@ -57,8 +57,6 @@ NOISE_PATTERNS = [
     r"\binsgesamt\b",
     r"\bbis jetzt\b",
     r"\bjetzt am\b",
-    r"\bheute\b",
-    r"\bgestern\b",
     r"\bvon\s+(?:morgens?|vormittags?|mittags?|nachmittags?|abends?|nachts?|früh|frueh|spätabend|spaetabend)\s+bis\s+(?:morgens?|vormittags?|mittags?|nachmittags?|abends?|nachts?|früh|frueh|spätabend|spaetabend)\b",
     r"\b(?:morgens?|vormittags?|mittags?|nachmittags?|abends?|nachts?|früh|frueh|spätabend|spaetabend)\s+bis\s+(?:morgens?|vormittags?|mittags?|nachmittags?|abends?|nachts?|früh|frueh|spätabend|spaetabend)\b",
     r"\b(?:morgens?|vormittags?|mittags?|nachmittags?|abends?|nachts?|früh|frueh|spätabend|spaetabend)\b",

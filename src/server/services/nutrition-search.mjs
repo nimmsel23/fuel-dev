@@ -64,7 +64,48 @@ async function searchOFF(query, limit) {
   });
 }
 
+async function searchByBarcode(barcode) {
+  return new Promise((resolve) => {
+    const url = `${OFF_API_URL}/product/${encodeURIComponent(barcode)}.json`;
+    const req = https.get(url, { headers: { "User-Agent": "fuel-dev/2.0" } }, (r) => {
+      let raw = "";
+      r.on("data", (c) => (raw += c));
+      r.on("end", () => {
+        try {
+          const data = JSON.parse(raw);
+          if (data.status === 1 && data.product) {
+            const p = data.product;
+            if (p.product_name && p.nutriments?.["energy-kcal_100g"] != null) {
+              resolve([{
+                name: p.product_name,
+                brand: p.brands || "",
+                kcal: Math.round((p.nutriments["energy-kcal_100g"] ?? 0) * 10) / 10,
+                kh: Math.round((p.nutriments.carbohydrates_100g ?? 0) * 10) / 10,
+                fett: Math.round((p.nutriments.fat_100g ?? 0) * 10) / 10,
+                ew: Math.round((p.nutriments.proteins_100g ?? 0) * 10) / 10,
+                barcode: p.code,
+                _src: "off_barcode",
+              }]);
+            }
+          }
+          resolve([]);
+        } catch {
+          resolve([]);
+        }
+      });
+    });
+    req.on("error", () => resolve([]));
+    req.setTimeout(8000, () => { req.destroy(); resolve([]); });
+  });
+}
+
 export async function searchNutrition(query, limit = 20) {
+  // Check if query looks like a barcode (13 or 12 digits)
+  if (/^\d{12,13}$/.test(query)) {
+    const barcodeResults = await searchByBarcode(query);
+    if (barcodeResults.length > 0) return barcodeResults;
+  }
+
   // Try wger first, fall back to OFF if not enough results
   const wgerResults = await searchWger(query, limit);
   if (wgerResults.length >= WGER_MIN_RESULTS) {

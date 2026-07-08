@@ -30,7 +30,7 @@ from rich.console import Console
 from rich.table import Table
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from fuel_cli.dates import resolve_flags as _resolve_date
+from fuel_cli.dates import resolve_flags as _resolve_date, extract_date_hint as _extract_date_hint
 from fuel_cli.narrative import parse as _parse_narrative, spread_times as _spread_times
 from fuel_cli.gemini import estimate_macros_only as _gemini_macros, discover_item as _gemini_discover
 from fuel_cli.catalog_lookup import find_meal as _catalog_find, extract_macros as _catalog_macros
@@ -442,6 +442,18 @@ def log_command(
         target = _resolve_date(tag=tag, gestern=gestern, vorgestern=vorgestern, day_legacy=day)
     except ValueError as e:
         msg.fail(str(e)); raise typer.Exit(1)
+
+    # Explizite Flags haben immer Vorrang. Nur wenn KEIN Datums-Flag gesetzt
+    # wurde, nach einem Datumswort im Freitext suchen ("gestern hab ich X
+    # gegessen") — sonst landet ein "gestern" in der Beschreibung fälschlich
+    # auf dem heutigen Datum, weil es sonst nirgends ausgewertet wird.
+    if not (tag or gestern or vorgestern or day):
+        hint_date, cleaned = _extract_date_hint(description)
+        if hint_date:
+            target = hint_date
+            description = cleaned
+            msg.info(f"Datumswort erkannt: Log-Datum → {target}")
+
     do_meal_log(description, kcal, protein, carbs, fat, notes, target, save_catalog, qty)
 
 @app.command(name="narrative")
@@ -459,6 +471,13 @@ def narrative_command(
         target = _resolve_date(tag=tag, gestern=gestern, vorgestern=vorgestern, day_legacy=day)
     except ValueError as e:
         msg.fail(str(e)); raise typer.Exit(1)
+
+    if not (tag or gestern or vorgestern or day):
+        hint_date, cleaned = _extract_date_hint(text)
+        if hint_date:
+            target = hint_date
+            text = cleaned
+            msg.info(f"Datumswort erkannt: Log-Datum → {target}")
 
     parsed = _parse_narrative(text)
     if not parsed.items_text:

@@ -173,8 +173,8 @@ def _call_one_credential(cred: dict, prompt: str, *, retries: int, timeout: int,
                 result = json.loads(resp.read())
         except urllib.error.HTTPError as e:
             last_err = f"HTTP {e.code}"
-            # 429 (quota) / 403 (key invalid) → sofort anderen Key probieren, kein Retry
-            if e.code in (429, 403):
+            # 400/429/403 (bad request / quota / key invalid) → sofort anderen Key probieren
+            if e.code in (400, 403, 429):
                 logger.warning(f"{log_label} [{cred['source']}/{cred['model']}] {last_err} — switching key")
                 return {"ok": False, "error": last_err, "retry_other": True}
             # 503/500 (server busy) → backoff

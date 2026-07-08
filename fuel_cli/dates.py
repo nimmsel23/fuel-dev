@@ -12,6 +12,7 @@ Accepts:
 
 from __future__ import annotations
 
+import re
 from datetime import date, timedelta
 
 WEEKDAYS = {
@@ -71,6 +72,29 @@ def resolve(value: str | None, *, today: date | None = None) -> str:
             pass
 
     raise ValueError(f"Datum nicht erkannt: {value!r}")
+
+
+_DATE_HINT_RE = re.compile(
+    r"\b(heute|gestern|vorgestern)\b", re.IGNORECASE
+)
+
+
+def extract_date_hint(text: str, *, today: date | None = None) -> tuple[str | None, str]:
+    """Findet ein Datumswort ('heute'/'gestern'/'vorgestern') im Freitext.
+
+    Gibt (ISO-Datum-oder-None, text_ohne_datumswort) zurück. Erkennt nur das
+    erste Vorkommen — bei mehreren widersprüchlichen Datumswörtern im selben
+    Text gewinnt das erste (Rest bleibt im Text stehen und fällt beim Gemini-
+    Call als Rauschen auf, was besser ist als ihn stillschweigend zu verwerfen).
+    """
+    m = _DATE_HINT_RE.search(text)
+    if not m:
+        return None, text
+    word = m.group(1).lower()
+    resolved = resolve(word, today=today)
+    cleaned = (text[: m.start()] + text[m.end():]).strip()
+    cleaned = re.sub(r"\s+", " ", cleaned)
+    return resolved, cleaned
 
 
 def resolve_flags(
