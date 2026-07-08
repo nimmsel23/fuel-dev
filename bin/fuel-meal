@@ -282,7 +282,7 @@ def do_meal_interactive() -> None:
 
 # ── Meal Logging ───────────────────────────────────────────────────────────────
 
-def do_meal_log(description: str, kcal: float, protein: float, carbs: float, fat: float, notes: str, day: str | None, save_catalog: bool, qty: int = 1, catalog_id: str | None = None) -> None:
+def do_meal_log(description: str, kcal: float, protein: float, carbs: float, fat: float, notes: str, day: str | None, save_catalog: bool, qty: int = 1, catalog_id: str | None = None, meal_type: str = "lunch") -> None:
     today = day or date.today().isoformat()
     qty = max(1, int(qty))
 
@@ -310,7 +310,7 @@ def do_meal_log(description: str, kcal: float, protein: float, carbs: float, fat
         raise SystemExit(1)
 
     meal_payload = {
-        "meal_type": "lunch",
+        "type": meal_type,
         "description": f"{qty}x {description}" if qty > 1 else description,
         "kcal": kcal, "protein": protein, "carbs": carbs, "fat": fat, "notes": notes,
     }
@@ -437,7 +437,15 @@ def log_command(
     day: str = typer.Option(None, "--day", "-d", hidden=True),
     save_catalog: bool = typer.Option(False, "--save-catalog", "-s", help="Im Catalog speichern für spätere Wiederverwendung"),
     qty: int = typer.Option(1, "--qty", "-q", help="Portionen-Multiplikator — Makros × N"),
+    meal_type: str = typer.Option("lunch", "--meal-type", "-m", help="breakfast|lunch|dinner|snack"),
 ) -> None:
+    """Einzelne Mahlzeit loggen. Reihenfolge: --kcal (falls gesetzt) → Catalog-Hit → Gemini-Schätzung.
+
+    Beispiele:
+      fuel-meal log "Käsekrainer 330g"
+      fuel-meal log "Nussschnecke" --kcal 250 --protein 4
+      fuel-meal log "Toast mit Ei" --gestern --meal-type breakfast --save-catalog
+    """
     try:
         target = _resolve_date(tag=tag, gestern=gestern, vorgestern=vorgestern, day_legacy=day)
     except ValueError as e:
@@ -454,7 +462,7 @@ def log_command(
             description = cleaned
             msg.info(f"Datumswort erkannt: Log-Datum → {target}")
 
-    do_meal_log(description, kcal, protein, carbs, fat, notes, target, save_catalog, qty)
+    do_meal_log(description, kcal, protein, carbs, fat, notes, target, save_catalog, qty, meal_type=meal_type)
 
 @app.command(name="narrative")
 def narrative_command(

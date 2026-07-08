@@ -5,18 +5,41 @@ fuel — Typer-powered smart logging dispatcher.
 Routing:
   fuel                               → kombiniertes Today (meal + supplement)
   fuel <supp_id> [opts]              → fuel-supplement <supp_id>
-  fuel "<description>" [opts]        → fuel-meal log "<description>" mit Gemini-Makros
+  fuel "<description>" [opts]        → fuel-meal log "<description>"
+                                        (Catalog-Hit zuerst, Gemini nur bei Miss)
+  fuel "<item1>" "<item2>" [opts]    → EIN Meal-Log, EIN Gemini-Call über
+                                        beide Items (Gemini summiert selbst)
   fuel meal|supplement <subcmd>      → pass-through
   fuel today|list|unlog|sync ...     → eigene Sub-Commands
 
-Top-Level Datums-Flags (--gestern, --vorgestern, --tag, -d/--day) werden
-für today/Smart-Routing erkannt und an Sub-CLIs durchgereicht.
+Datums-Flags (überall erkannt, auch gemischt mit anderen Flags):
+  --gestern / -g          gestern
+  --vorgestern            vorgestern
+  --tag <wort|datum>      heute|gestern|vorgestern|-N|Mo|YYYY-MM-DD
+  --day/-d <YYYY-MM-DD>   (legacy) explizites Datum
+  -Nd                     Kurzform: N Tage zurück, z.B. -1d, -2d, -3d
+  Datumswort im Freitext  "gestern hab ich X gegessen" — wird erkannt UND
+                          aus der Beschreibung entfernt, wenn kein Flag
+                          gesetzt ist (Fallback, kein Ersatz für Flags)
+
+Tageszeit-Shortcuts (setzen meal_type für fuel-meal log):
+  -morgen, -vormittag     → breakfast
+  -mittag                 → lunch (= Standard)
+  -nachmittag, -nacht     → snack
+  -abend                  → dinner
+
+Beispiele:
+  fuel "Käsekrainer 330g"
+  fuel "Käsekrainer 330g" "250g Reis" --gestern
+  fuel "Toast mit Ei" -abend -1d
+  fuel magnesium --abend
 """
 
 from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 from datetime import date, timedelta
@@ -41,7 +64,6 @@ sys.path.insert(0, str(FUEL_REPO_DIR))
 
 from fuel_cli.catalog import load_supplement_ids
 from fuel_cli.dates import resolve as _resolve_date  # noqa: F401 — re-exposed for tests
-from fuel_cli.gemini import estimate_macros_only
 
 # ── Direkte File-Zugriffe ─────────────────────────────────────────────────────
 
@@ -119,10 +141,38 @@ def _show_day(date_str: str) -> None:
     else:
         print("  (keine Supplements)")
 
-app = typer.Typer(help="Fuel Centre Smart CLI", no_args_is_help=False)
+app = typer.Typer(
+    help=(
+        "Fuel Centre Smart CLI.\n\n"
+        "Meist NICHT über einen Subcommand aufgerufen, sondern direkt:\n\n"
+        "  fuel \"Käsekrainer 330g\"                  → Meal loggen (Catalog-Hit "
+        "oder Gemini-Schätzung)\n"
+        "  fuel \"Item1\" \"Item2\" --gestern           → mehrere Items, ein Log, "
+        "ein Gemini-Call\n"
+        "  fuel magnesium                            → Supplement loggen "
+        "(erkannt an bekannter ID)\n"
+        "  fuel                                       → heutiges Log (Meals + "
+        "Supplements)\n\n"
+        "Datums-Flags: --gestern/-g, --vorgestern, --tag <wort>, --day/-d "
+        "YYYY-MM-DD, -Nd (z.B. -1d, -2d)\n"
+        "Tageszeit-Shortcuts: -morgen, -vormittag, -mittag, -nachmittag, "
+        "-abend, -nacht (setzen meal_type)\n\n"
+        "Subcommands unten sind für Spezialfälle (Catalog-Browser, Sync, "
+        "Stats) — für den täglichen Log-Fall einfach 'fuel \"...\"' benutzen."
+    ),
+    no_args_is_help=False,
+)
 
 DATE_FLAGS = {"--gestern", "-g", "--vorgestern", "--tag", "--day", "-d"}
 DATE_FLAGS_WITH_VALUE = {"--tag", "--day", "-d"}
+
+TIME_OF_DAY_SHORTCUTS = {
+    "-morgen": "breakfast", "-vormittag": "breakfast",
+    "-mittag": "lunch",
+    "-nachmittag": "snack", "-nacht": "snack",
+    "-abend": "dinner",
+}
+_RELATIVE_DAY_RE = re.compile(r"^-(\d+)d$")
 
 
 def _split_date_flags(args: list[str]) -> tuple[list[str], list[str]]:
@@ -144,6 +194,26 @@ def _split_date_flags(args: list[str]) -> tuple[list[str], list[str]]:
     return date_flags, rest
 
 
+def _split_shortcut_flags(args: list[str]) -> tuple[str | None, list[str], list[str]]:
+    """Erkennt -abend/-morgen/... (meal_type) und -Nd (Tage zurück).
+
+    Returns (meal_type_or_None, date_flags_from_shortcuts, rest_ohne_shortcuts).
+    """
+    meal_type: str | None = None
+    shortcut_date_flags: list[str] = []
+    rest: list[str] = []
+    for a in args:
+        if a in TIME_OF_DAY_SHORTCUTS:
+            meal_type = TIME_OF_DAY_SHORTCUTS[a]
+            continue
+        m = _RELATIVE_DAY_RE.match(a)
+        if m:
+            shortcut_date_flags = ["--tag", f"-{m.group(1)}"]
+            continue
+        rest.append(a)
+    return meal_type, shortcut_date_flags, rest
+
+
 def _first_non_flag(args: list[str]) -> str | None:
     for a in args:
         if not a.startswith("-"):
@@ -163,42 +233,37 @@ def show_combined_today(extra_args: list[str] | None = None) -> None:
         subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-supplement"), "today", *extra_args])
 
 
-def _gemini_meal_log(description: str, extra_args: list[str]) -> int:
-    """Estimate macros via Gemini, then call fuel-meal log with --kcal/--protein/etc."""
-    macros = estimate_macros_only(description)
-    if macros.get("_error"):
-        msg.warn(f"Gemini-Schätzung fehlgeschlagen: {macros['_error']} — logge ohne Makros")
-        kcal = protein = carbs = fat = 0
-    else:
-        kcal = macros.get("kcal", 0)
-        protein = macros.get("protein", 0)
-        carbs = macros.get("carbs", 0)
-        fat = macros.get("fat", 0)
-        print(f"⚡ Gemini: {kcal} kcal · {protein}P · {carbs}C · {fat}F")
+def _meal_log(description: str, extra_args: list[str], meal_type: str | None) -> int:
+    """Delegiert an `fuel-meal log` OHNE vorab Gemini zu rufen.
 
-    cmd = [
-        str(FUEL_REPO_DIR / "bin" / "fuel-meal"),
-        "log", description,
-        "--kcal", str(kcal),
-        "--protein", str(protein),
-        "--carbs", str(carbs),
-        "--fat", str(fat),
-        *extra_args,
-    ]
+    do_meal_log() in fuel-meal macht bereits Catalog-first → Gemini-Fallback
+    (siehe fuel_cli/catalog_lookup.py). Würde man hier schon --kcal mitgeben,
+    triggert das den kcal==0-Branch dort nie — der Catalog-Check würde tot
+    sein. Deshalb: nur die Beschreibung + Flags durchreichen, kein Makro-Call.
+    --save-catalog default an, damit neu von Gemini geschätzte Items beim
+    nächsten Mal ein Catalog-Hit sind (kein Gemini-Call mehr nötig).
+    """
+    cmd = [str(FUEL_REPO_DIR / "bin" / "fuel-meal"), "log", description, "--save-catalog"]
+    if meal_type:
+        cmd += ["--meal-type", meal_type]
+    cmd += extra_args
     return subprocess.run(cmd).returncode
 
 
 # ── Typer commands (explicit pass-through) ───────────────────────────────────
 
-@app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
+_PASSTHROUGH_CTX = {"allow_extra_args": True, "ignore_unknown_options": True, "help_option_names": []}
+
+
+@app.command(context_settings=_PASSTHROUGH_CTX)
 def meal(ctx: typer.Context):
-    """Route to fuel-meal."""
+    """Route to fuel-meal. '--help' geht an fuel-meal selbst (eigene Subcommands: log/narrative/list/today/unlog)."""
     subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-meal"), *ctx.args])
 
 
-@app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
+@app.command(context_settings=_PASSTHROUGH_CTX)
 def supplement(ctx: typer.Context):
-    """Route to fuel-supplement."""
+    """Route to fuel-supplement. '--help' geht an fuel-supplement selbst (eigene Subcommands: log/list/unlog)."""
     subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-supplement"), *ctx.args])
 
 
@@ -214,9 +279,9 @@ def list():
     subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-supplement"), "list"])
 
 
-@app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
+@app.command(context_settings=_PASSTHROUGH_CTX)
 def unlog(ctx: typer.Context):
-    """Unlog. Default: supplement. Mit --meal: Meal-unlog."""
+    """Unlog. Default: supplement. Mit --meal: Meal-unlog. '--help' geht an die jeweilige Sub-CLI."""
     args = list(ctx.args)
     if "--meal" in args:
         args.remove("--meal")
@@ -304,6 +369,14 @@ def main() -> None:
         show_combined_today()
         return
 
+    # --help/-h MUSS immer Typer erreichen — sonst greift weiter unten das
+    # Smart-Routing (Datums-Flags rausziehen, Rest als Item behandeln), das
+    # "--help" als reines Flag ignoriert und mangels Item einfach "today"
+    # zeigt. Damit war --help faktisch nie erreichbar.
+    if "--help" in argv or "-h" in argv:
+        app()
+        return
+
     known = _known_commands()
     first_token = _first_non_flag(argv)
 
@@ -311,8 +384,13 @@ def main() -> None:
         app()
         return
 
-    # Smart-Routing: Datums-Flags rausziehen, dann erstes Non-Flag klassifizieren
+    # Smart-Routing: Datums-Flags + Shortcuts (-abend, -1d, ...) rausziehen,
+    # dann erstes Non-Flag klassifizieren.
     date_flags, rest = _split_date_flags(argv)
+    meal_type, shortcut_date_flags, rest = _split_shortcut_flags(rest)
+    # Explizite --tag/--gestern/etc. haben Vorrang vor -Nd-Shortcuts.
+    if not date_flags and shortcut_date_flags:
+        date_flags = shortcut_date_flags
     target = _first_non_flag(rest)
 
     if not target:
@@ -328,9 +406,11 @@ def main() -> None:
         subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-supplement"), "log", *supps, *other, *date_flags])
         return
 
-    # NL-Mahlzeitbeschreibung → Gemini-Makros → fuel-meal log
+    # NL-Mahlzeitbeschreibung(en) → EIN Meal-Log. Mehrere Quoted-Args werden
+    # zu einem Text zusammengefügt — Gemini summiert Komponenten selbst
+    # (siehe PROMPT_TEMPLATE Punkt 3 in fuel_cli/gemini.py).
     description = " ".join(rest)
-    sys.exit(_gemini_meal_log(description, date_flags))
+    sys.exit(_meal_log(description, date_flags, meal_type))
 
 
 if __name__ == "__main__":
