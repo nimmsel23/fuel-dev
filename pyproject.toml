@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fuel"
+version = "0.1.0"
+description = "Fuel Centre — Nutrition-Tracking CLI (Catalog-first, Gemini-Fallback)"
+requires-python = ">=3.11"
+dependencies = [
+  "typer>=0.9.0",
+  "loguru>=0.7.0",
+  "pydantic>=2.0.0",
+  "rich>=13.0.0",
+  "wasabi>=1.1.0",
+  "PyYAML>=6.0",
+  "watchdog>=3.0.0",
+]
+
+[project.scripts]
+fuel              = "fuel.dispatch:main"
+fuel-meal         = "fuel.meal:main"
+fuel-supplement   = "fuel.supplement:main"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["fuel*"]
