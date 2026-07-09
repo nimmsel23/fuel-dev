@@ -20,8 +20,8 @@ module.exports = defineConfig(({ mode }) => {
       preserveSymlinks: true,
       alias: {
         "@api":    require("path").resolve(__dirname, appMode === "client" ? "src/client/lib/api.cloud.js" : "src/client/lib/api.local.js"),
-        "@db":     require("path").resolve("/home/alpha/fitness-dev/src/db.firestore.js"),
-        "@utils":  require("path").resolve("/home/alpha/fitness-dev/src/db.firestore.js"),
+        "@db":     require("path").resolve("/home/alpha/fitness-dev/src/lib/db/index.firestore.js"),
+        "@utils":  require("path").resolve("/home/alpha/fitness-dev/src/lib/db/index.firestore.js"),
         "@habits": require("path").resolve("/home/alpha/habits-dev/src"),
         "@journal": require("path").resolve("/home/alpha/journal-dev/src"),
         "@fitness/constants": require("path").resolve("/home/alpha/fitness-dev/src/constants"),
