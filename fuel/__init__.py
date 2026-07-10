@@ -1,4 +1,4 @@
-"""fuel_cli — Shared Python package for fuel-dev CLI tools.
+"""fuel — Shared Python package for fuel-dev CLI tools.
 
 Modules:
   env       — .env-Loader für ~/.env/*.env Files

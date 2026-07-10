@@ -10,9 +10,7 @@ import json
 import os
 import re
 import unicodedata
-import urllib.error
-import urllib.parse
-import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -22,8 +20,14 @@ from . import log as _log
 
 _log.setup()
 
-API_BASE = os.environ.get("FUEL_API_URL", "http://127.0.0.1:9000")
 REPO_CATALOG_DIR = Path(__file__).resolve().parent.parent / "catalogs" / "nutrition" / "meals"
+# Legacy zentrale Catalog-Datei (vor der Umstellung auf ein YAML-File pro
+# Meal) — enthält weiterhin echte, git-unabhängige Einträge (z.B. Restaurant-
+# Kombos). Wird mitgelesen, damit sie für find_meal() nicht unsichtbar sind.
+_LEGACY_CATALOG_FILE = (
+    Path(os.environ.get("AOS_FUEL_DATA_DIR", Path.home() / ".aos" / "fuel")).expanduser()
+    / "nutrition" / "catalog.json"
+)
 
 # Wörter, die in Catalog-Namen typisch für "schlechte" Einträge mit Mengen sind
 _QUANTITY_NOISE = re.compile(r"\d+\s*(g|gr|gramm|ml|stk|stück|x)\b", re.IGNORECASE)
@@ -57,17 +61,6 @@ def _normalize_singular(s: str) -> str:
     return " ".join(_singularize(t) for t in _normalize(s).split())
 
 
-def _load_catalog_from_api(timeout: int = 2) -> list[dict] | None:
-    try:
-        url = f"{API_BASE}/nutrition/catalog"
-        with urllib.request.urlopen(url, timeout=timeout) as resp:
-            data = json.loads(resp.read())
-        return data.get("items") or []
-    except Exception as e:
-        logger.debug(f"catalog API unreachable ({e}) — fallback to repo files")
-        return None
-
-
 def _load_catalog_from_repo() -> list[dict]:
     items: list[dict] = []
     if not REPO_CATALOG_DIR.exists():
@@ -90,15 +83,28 @@ def _load_catalog_from_repo() -> list[dict]:
             items.append(json.loads(f.read_text()))
         except Exception as e:
             logger.warning(f"catalog json parse failed for {f.name}: {e}")
+
+    if _LEGACY_CATALOG_FILE.exists():
+        try:
+            data = json.loads(_LEGACY_CATALOG_FILE.read_text())
+            for it in data.get("items", []):
+                if it.get("id") not in seen_ids:
+                    items.append(it)
+        except Exception as e:
+            logger.warning(f"legacy catalog.json parse failed: {e}")
+
     return items
 
 
 def load_meals() -> list[dict]:
-    """Lädt Meal-Catalog (API first, repo fallback)."""
-    items = _load_catalog_from_api()
-    if items is None:
-        items = _load_catalog_from_repo()
-    return items
+    """Lädt Meal-Catalog direkt aus dem Repo + legacy zentraler catalog.json.
+
+    Kein API-Call mehr: save_meal() schreibt in dasselbe Verzeichnis, aus
+    dem hier gelesen wird. Ein laufender Node-Server kann in einem völlig
+    anderen Arbeitsverzeichnis laufen (z.B. /opt/fuel bei Prod) — über die
+    API zu lesen hätte frisch gespeicherte Einträge dort nie gefunden.
+    """
+    return _load_catalog_from_repo()
 
 
 def _score_match(query_norm: str, item: dict) -> float:
@@ -170,6 +176,59 @@ def find_meal(query: str, *, min_score: float = 40.0) -> dict | None:
     best_score, best = scored[0]
     logger.info(f"catalog hit: {best.get('name')!r} (score={best_score:.1f}, query={query!r})")
     return best
+
+
+def _slugify(name: str) -> str:
+    s = _normalize(name).replace(" ", "_")
+    return re.sub(r"_+", "_", s).strip("_")[:60] or "meal"
+
+
+def save_meal(name: str, macros: dict[str, float], *, source: str = "gemini") -> str:
+    """Schreibt einen neuen Meal-Catalog-Eintrag direkt als YAML-Datei.
+
+    Kein HTTP-Call an den Node-Server — das Python-CLI-Tool schreibt direkt
+    in dasselbe Repo-Verzeichnis, aus dem find_meal()/load_meals() auch lesen
+    (REPO_CATALOG_DIR). Damit landen neu von Gemini identifizierte Produkte
+    garantiert im git-Repo statt in einem laufenden Server-Prozess, dessen
+    Arbeitsverzeichnis auch der Deploy-Zielordner (/opt/fuel) sein kann.
+    """
+    import yaml
+
+    REPO_CATALOG_DIR.mkdir(parents=True, exist_ok=True)
+    base_id = f"meal_{_slugify(name)}"
+    item_id = base_id
+    n = 2
+    while (REPO_CATALOG_DIR / f"{item_id}.yaml").exists():
+        item_id = f"{base_id}_{n}"
+        n += 1
+
+    now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    entry = {
+        "id": item_id,
+        "kind": "meal",
+        "category": "meal",
+        "name": name,
+        "alias": None,
+        "meal_type": "meal",
+        "description": name,
+        "notes": "",
+        "kcal": round(float(macros.get("kcal", 0)), 1),
+        "protein": round(float(macros.get("protein", 0)), 1),
+        "carbs": round(float(macros.get("carbs", 0)), 1),
+        "fat": round(float(macros.get("fat", 0)), 1),
+        "yield_g": None,
+        "components": [],
+        "addons": [],
+        "default_addon_ids": [],
+        "source": source,
+        "created_at": now,
+        "updated_at": now,
+    }
+    (REPO_CATALOG_DIR / f"{item_id}.yaml").write_text(
+        yaml.dump(entry, allow_unicode=True, sort_keys=False, default_flow_style=False)
+    )
+    logger.info(f"catalog gespeichert: {item_id} ({name})")
+    return item_id
 
 
 def extract_macros(item: dict) -> dict[str, float]:

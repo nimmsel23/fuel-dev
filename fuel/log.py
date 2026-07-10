@@ -1,4 +1,4 @@
-"""Centralized loguru setup for fuel_cli modules.
+"""Centralized loguru setup for fuel modules.
 
 Logs to stderr (stdout bleibt clean für JSON-Output von gemini-nutrition).
 Level via env: AOS_FUEL_LOG_LEVEL=DEBUG|INFO|WARNING|ERROR  (default WARNING).

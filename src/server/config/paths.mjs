@@ -11,7 +11,6 @@ export const GLOBAL_DATA_DIR = process.env.AOS_FUEL_DATA_DIR
   ? path.resolve(process.env.AOS_FUEL_DATA_DIR)
   : path.join(os.homedir(), ".aos", "fuel");
 
-export const REPO_DATA_DIR = path.join(ROOT, "data");
 export const FUEL_DIR = path.join(GLOBAL_DATA_DIR, "fuel");
 export const NUTRITION_DIR_REPO = path.join(ROOT, "catalogs", "nutrition");
 export const NUTRITION_MEALS_DIR = path.join(NUTRITION_DIR_REPO, "meals");

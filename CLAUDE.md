@@ -245,6 +245,17 @@ npm run deploy:preview # 24h-Preview-Channel + Telegram-Link
 
 **24h-Preview (`deploy:preview`):** `scripts/deploy-preview.mjs` deployt einen Preview-Channel (24h gültig) und schickt den Link per Telegram (`@aos_fitness_bot`, Creds aus `~/.env/fitness.env`). Läuft bewusst **lokal statt als GitHub Action**: die Crossover-Aliase in `vite.config.cjs` (`@db`/`@utils` → `~/fitness-dev`, `@habits` → `~/habits-dev`) zeigen absolut auf Nachbar-Repos, die auf einem CI-Runner nicht existieren. Deaktivierte CI-Workflows liegen in `.github/workflows.disabled/`.
 
+### Branch-Modell (dev / master)
+
+`~/fuel-dev` und `~/vitalos/fuel-dev` sind **dasselbe Git-Repo** (geteilte Git-DB unter `~/vitalos/.git/modules/fuel-dev`):
+
+| Checkout | Branch | Rolle |
+|---|---|---|
+| `~/fuel-dev` (home, Worktree) | `dev` | Entwicklung — hier wird committet |
+| `~/vitalos/fuel-dev` (Submodule des vitalos-Superprojekts) | `master` | Produktions-Stand |
+
+Flow: auf `dev` entwickeln → `npm run deploy:preview` (24h-Link testen) → wenn OK, Merge `dev` → `master` → `npm run deploy:cloud`. Beide Branches liegen auf GitHub (`dev` seit 2026-07-05 gepusht — davor existierte er nur lokal, daher der Eindruck „kein dev-Zweig").
+
 ---
 
 ## Code Structure

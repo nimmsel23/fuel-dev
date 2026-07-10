@@ -20,7 +20,7 @@ FUEL_REPO_DIR = Path(__file__).resolve().parent
 if str(FUEL_REPO_DIR) not in sys.path:
     sys.path.insert(0, str(FUEL_REPO_DIR))
 
-from fuel_cli.firestore import (
+from fuel.firestore import (
     get_fs,
     data_dir_for,
     DEFAULT_UID,

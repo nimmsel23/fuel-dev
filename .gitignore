@@ -6,10 +6,14 @@ dist-firebase/
 *.log
 *.bak
 .claude/TICKETS/
+*.egg-info/
+.venv/
 
 # Runtime data (daily logs, journals, user sessions)
 data/
 
-# Keep catalogs (versioniert)
-!catalogs/
+# Keep catalogs (versioniert) — Root-Anker (!) wichtig, sonst matched das
+# Pattern auch data/catalogs/ (das sind tägliche Logs, kein Katalog) und
+# hebt die data/-Ignorierung dort ungewollt auf.
+!/catalogs/
 __pycache__/

@@ -1,4 +1,4 @@
-"""fuel_cli.http — HTTP-Fallback für den fuel-Dispatcher."""
+"""fuel.http — HTTP-Fallback für den fuel-Dispatcher."""
 
 import json
 import os
