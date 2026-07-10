@@ -24,8 +24,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from rich.console import Console
 from rich.table import Table
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from fuel_cli.dates import resolve_flags as _resolve_date
+from .dates import resolve_flags as _resolve_date
 
 console = Console()
 msg = Printer()
@@ -266,7 +265,7 @@ def unlog_command(
     do_unlog(target)
 
 @app.callback(invoke_without_command=True)
-def main(ctx: typer.Context) -> None:
+def _app_callback(ctx: typer.Context) -> None:
     if ctx.invoked_subcommand is None:
         if len(sys.argv) == 1:
             do_interactive()
@@ -322,5 +321,9 @@ def today(
         msg.fail(str(e)); raise typer.Exit(1)
     do_today(target)
 
-if __name__ == "__main__":
+def main() -> None:
     app()
+
+
+if __name__ == "__main__":
+    main()

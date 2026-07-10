@@ -19,7 +19,11 @@
     "sync:pull": "node --env-file-if-exists=.env scripts/firestore-sync.mjs pull",
     "sync:watch": "node --env-file-if-exists=.env scripts/firestore-sync.mjs watch",
     "bump:sw": "node scripts/bump-sw.mjs",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy:preview": "npm run build:cloud && node scripts/deploy-preview.mjs",
+    "deploy:prev": "npm run deploy:preview",
+    "build:preview": "npm run deploy:preview",
+    "build:prev": "npm run deploy:preview"
   },
   "dependencies": {
     "@fastify/cors": "^9.0.1",

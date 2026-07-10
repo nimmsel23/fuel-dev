@@ -60,10 +60,9 @@ except ImportError:
     msg = _P()
 
 FUEL_REPO_DIR = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(FUEL_REPO_DIR))
 
-from fuel_cli.catalog import load_supplement_ids
-from fuel_cli.dates import resolve as _resolve_date  # noqa: F401 — re-exposed for tests
+from .catalog import load_supplement_ids
+from .dates import resolve as _resolve_date  # noqa: F401 — re-exposed for tests
 
 # ── Direkte File-Zugriffe ─────────────────────────────────────────────────────
 
@@ -85,7 +84,7 @@ def _read_supplements(date_str: str) -> dict | None:
     return json.loads(f.read_text()) if f.exists() else None
 
 def _try_http(fn_name: str, *args, **kwargs):
-    import fuel_cli.http as _http
+    from . import http as _http
     return getattr(_http, fn_name)(*args, **kwargs)
 
 def _print_nutrition(data: dict) -> None:
@@ -237,7 +236,7 @@ def _meal_log(description: str, extra_args: list[str], meal_type: str | None) ->
     """Delegiert an `fuel-meal log` OHNE vorab Gemini zu rufen.
 
     do_meal_log() in fuel-meal macht bereits Catalog-first → Gemini-Fallback
-    (siehe fuel_cli/catalog_lookup.py). Würde man hier schon --kcal mitgeben,
+    (siehe fuel/catalog_lookup.py). Würde man hier schon --kcal mitgeben,
     triggert das den kcal==0-Branch dort nie — der Catalog-Check würde tot
     sein. Deshalb: nur die Beschreibung + Flags durchreichen, kein Makro-Call.
     --save-catalog default an, damit neu von Gemini geschätzte Items beim
@@ -408,7 +407,7 @@ def main() -> None:
 
     # NL-Mahlzeitbeschreibung(en) → EIN Meal-Log. Mehrere Quoted-Args werden
     # zu einem Text zusammengefügt — Gemini summiert Komponenten selbst
-    # (siehe PROMPT_TEMPLATE Punkt 3 in fuel_cli/gemini.py).
+    # (siehe PROMPT_TEMPLATE Punkt 3 in fuel/gemini.py).
     description = " ".join(rest)
     sys.exit(_meal_log(description, date_flags, meal_type))
 

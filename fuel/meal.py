@@ -14,14 +14,10 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 import subprocess
 import sys
 from datetime import date, datetime, timezone
 from pathlib import Path
-import urllib.request
-import urllib.error
-import urllib.parse
 
 import typer
 from wasabi import Printer
@@ -29,11 +25,10 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from rich.console import Console
 from rich.table import Table
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from fuel_cli.dates import resolve_flags as _resolve_date, extract_date_hint as _extract_date_hint
-from fuel_cli.narrative import parse as _parse_narrative, spread_times as _spread_times
-from fuel_cli.gemini import estimate_macros_only as _gemini_macros, discover_item as _gemini_discover
-from fuel_cli.catalog_lookup import find_meal as _catalog_find, extract_macros as _catalog_macros
+from .dates import resolve_flags as _resolve_date, extract_date_hint as _extract_date_hint
+from .narrative import parse as _parse_narrative, spread_times as _spread_times
+from .gemini import estimate_macros_only as _gemini_macros, discover_item as _gemini_discover
+from .catalog_lookup import find_meal as _catalog_find, extract_macros as _catalog_macros, save_meal as _catalog_save, load_meals as _catalog_load_meals
 
 
 def _clean_catalog_name(text: str, max_len: int = 80) -> str:
@@ -62,8 +57,6 @@ def gum_log(level: str, text: str):
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-API_BASE = os.environ.get("FUEL_API_URL", "http://127.0.0.1:9000")
-
 def _load_env():
     env_path = Path(__file__).resolve().parent.parent / ".env"
     if env_path.exists():
@@ -73,14 +66,11 @@ def _load_env():
                 os.environ[k.strip()] = v.strip()
 
 _load_env()
-UID = os.environ.get("FUEL_CLOUD_UID", "default")
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 
 DATA_DIR = Path(os.environ.get("AOS_FUEL_DATA_DIR", Path.home() / ".aos" / "fuel")).expanduser()
 NUTRITION_DIR = DATA_DIR / "nutrition"
-CATALOG_DIR = Path(__file__).resolve().parent.parent / "catalogs" / "nutrition"
-LOCAL_CATALOG_FILE = DATA_DIR / "nutrition" / "catalog.json"
 
 # ── Local I/O ──────────────────────────────────────────────────────────────────
 
@@ -98,51 +88,6 @@ def _save_log_local(log: dict) -> None:
     p = NUTRITION_DIR / f"{log['date']}.json"
     p.write_text(json.dumps(log, indent=2, ensure_ascii=False) + "\n")
 
-def _load_catalog_local() -> dict:
-    items = []
-    # 1. From individual meal files (support both .yaml and .json)
-    meals_dir = CATALOG_DIR / "meals"
-    if meals_dir.exists():
-        # Prefer YAML if both exist for same ID
-        seen_ids = set()
-        
-        # Collect YAML files first
-        for f in meals_dir.glob("*.yaml"):
-            try:
-                import yaml
-                data = yaml.safe_load(f.read_text())
-                items.append(data)
-                seen_ids.add(f.stem)
-            except:
-                pass
-        for f in meals_dir.glob("*.yml"):
-            try:
-                if f.stem in seen_ids: continue
-                import yaml
-                data = yaml.safe_load(f.read_text())
-                items.append(data)
-                seen_ids.add(f.stem)
-            except:
-                pass
-        # Then JSON files (only if YAML doesn't exist)
-        for f in meals_dir.glob("*.json"):
-            if f.stem in seen_ids: continue
-            try:
-                items.append(json.loads(f.read_text()))
-            except:
-                pass
-    
-    # 2. From central catalog.json
-    if LOCAL_CATALOG_FILE.exists():
-        try:
-            data = json.loads(LOCAL_CATALOG_FILE.read_text())
-            c_items = data.get("items", data)
-            if isinstance(c_items, list):
-                items.extend(c_items)
-        except:
-            pass
-    return {"ok": True, "items": items}
-
 # ── Validation ─────────────────────────────────────────────────────────────────
 
 class MealInput(BaseModel):
@@ -154,89 +99,29 @@ class MealInput(BaseModel):
     fat: float = Field(0, ge=0)
     notes: str = Field("")
 
-# ── API ────────────────────────────────────────────────────────────────────────
-
-def _api_call(method: str, endpoint: str, body: dict | None = None) -> dict:
-    url = f"{API_BASE}{endpoint}"
-    headers = {"Content-Type": "application/json", "X-Fuel-UID": UID}
-    try:
-        if method == "GET":
-            req = urllib.request.Request(url, headers=headers)
-            with urllib.request.urlopen(req, timeout=2) as resp:
-                return json.loads(resp.read())
-        elif method == "POST":
-            data = json.dumps(body, ensure_ascii=False).encode('utf-8')
-            req = urllib.request.Request(url, data=data, headers=headers, method="POST")
-            with urllib.request.urlopen(req, timeout=2) as resp:
-                return json.loads(resp.read())
-    except urllib.error.HTTPError as e:
-        msg.fail(f"API Error {e.code}: {e.reason}")
-        raise SystemExit(1)
-    except (urllib.error.URLError, TimeoutError) as e:
-        # Fallback to local mode
-        if endpoint == "/nutrition/catalog":
-            return _load_catalog_local()
-        if endpoint.startswith("/nutrition/log"):
-            # GET /nutrition/log?date=...
-            if method == "GET":
-                qs = urllib.parse.parse_qs(urllib.parse.urlparse(endpoint).query)
-                d = qs.get("date", [date.today().isoformat()])[0]
-                return {"ok": True, "data": _load_log_local(d), "_offline": True}
-            
-            # POST /nutrition/log
-            if method == "POST" and body:
-                d = body.get("date", date.today().isoformat())
-                log = _load_log_local(d)
-                if body.get("meal"):
-                    m = body["meal"]
-                    m["id"] = f"meal_off_{int(datetime.now().timestamp())}"
-                    m["time"] = datetime.now().isoformat()
-                    log["meals"].append(m)
-                if body.get("delete_meal_id"):
-                    log["meals"] = [m for m in log["meals"] if m["id"] != body["delete_meal_id"]]
-                if "water_ml" in body:
-                    log["water_ml"] = body["water_ml"]
-                _save_log_local(log)
-                return {"ok": True, "data": log, "_offline": True}
-        
-        msg.fail(f"API Fehler: {e}")
-        raise SystemExit(1)
-
 def _parse_macros_with_gemini(description: str) -> dict:
-    """Auto-estimate macros via standalone gemini-estimate script."""
-    try:
-        fuel_dir = Path(__file__).resolve().parent
-        script_path = fuel_dir / "gemini-estimate"
-        
-        result = subprocess.run(
-            [str(script_path), description],
-            capture_output=True,
-            text=True,
-            timeout=15,
-        )
-        if result.returncode == 0:
-            macros = json.loads(result.stdout.strip())
-            kcal = macros.get("kcal", 0)
-            if kcal > 0:
-                msg.info(f"Gemini: {kcal} kcal geschätzt")
-            return macros
-    except json.JSONDecodeError:
-        msg.warn("Gemini: JSON parse error")
-    except subprocess.TimeoutExpired:
-        msg.warn("Gemini: Timeout")
-    except Exception as e:
-        msg.warn(f"Gemini: {e}")
-    return {"kcal": 0, "protein": 0, "carbs": 0, "fat": 0}
+    """Schätzt Makros direkt über fuel.gemini (kein Subprocess mehr).
+
+    War vorher ein subprocess.run() auf ein externes bin/gemini-estimate
+    Script — unnötiger Umweg, da _gemini_macros (fuel.gemini.
+    estimate_macros_only) exakt dasselbe tut, inklusive Multi-Key-Rotation
+    bei HTTP 400/403/429. Der Subprocess-Pfad war zudem seit dem Umzug von
+    fuel-meal nach fuel/meal.py kaputt (relativer Pfad zeigte auf das
+    falsche Verzeichnis).
+    """
+    macros = _gemini_macros(description)
+    kcal = macros.get("kcal", 0)
+    if macros.get("_error"):
+        msg.warn(f"Gemini: {macros['_error']}")
+    elif kcal > 0:
+        msg.info(f"Gemini: {kcal} kcal geschätzt")
+    return macros
 
 # ── Interactive Mode ───────────────────────────────────────────────────────────
 
 def do_meal_interactive() -> None:
     """Interactive fzf catalog browser."""
-    try:
-        result = _api_call("GET", "/nutrition/catalog")
-        items = result.get("items", [])
-    except SystemExit:
-        raise SystemExit(1)
+    items = _catalog_load_meals()
 
     if not items:
         msg.warn("Catalog ist leer")
@@ -309,48 +194,38 @@ def do_meal_log(description: str, kcal: float, protein: float, carbs: float, fat
         msg.fail(f"Validation error: {e.error_count()} Fehler")
         raise SystemExit(1)
 
-    meal_payload = {
+    meal_entry = {
+        "id": f"meal_{int(datetime.now().timestamp() * 1000)}",
+        "catalog_id": catalog_id,
         "type": meal_type,
         "description": f"{qty}x {description}" if qty > 1 else description,
-        "kcal": kcal, "protein": protein, "carbs": carbs, "fat": fat, "notes": notes,
+        "notes": notes,
+        "kcal": kcal, "protein": protein, "carbs": carbs, "fat": fat,
+        "time": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
     }
-    if catalog_id:
-        meal_payload["catalog_id"] = catalog_id
 
-    payload = {"date": today, "meal": meal_payload}
-
-    res = _api_call("POST", "/nutrition/log", payload)
-    
-    text = f"{description} ({kcal:.0f} kcal) geloggt — {today}"
-    if res.get("_offline"):
-        msg.info(f"Offline: {text}")
-    else:
-        msg.good(text)
+    # Direkter Dateizugriff — kein Node-Server als Dependency für das Python
+    # CLI-Tool. War vorher _api_call("POST", "/nutrition/log", ...) über HTTP;
+    # das koppelte den Log-Schreibpfad an einen laufenden Server-Prozess
+    # (und dessen Arbeitsverzeichnis — /opt/fuel bei Prod statt Repo-Checkout).
+    log = _load_log_local(today)
+    log["meals"].append(meal_entry)
+    _save_log_local(log)
+    msg.good(f"{description} ({kcal:.0f} kcal) geloggt — {today}")
 
     if save_catalog:
-        catalog_item = {
-            "item": { "name": description, "kcal": kcal/qty, "protein": protein/qty, "carbs": carbs/qty, "fat": fat/qty }
-        }
-        _api_call("POST", "/nutrition/catalog", catalog_item)
-        msg.info(f"Zum Catalog hinzugefügt: {description}")
+        new_id = _catalog_save(description, {"kcal": kcal/qty, "protein": protein/qty, "carbs": carbs/qty, "fat": fat/qty})
+        msg.info(f"Zum Catalog hinzugefügt: {description} (id={new_id})")
 
 def do_today(day: str | None) -> None:
     today = day or date.today().isoformat()
-    try:
-        result = _api_call("GET", f"/nutrition/log?date={today}")
-        meals = result.get("data", {}).get("meals", [])
-    except SystemExit:
-        return
+    meals = _load_log_local(today).get("meals", [])
 
     if not meals:
         console.print(f"[yellow]Keine Mahlzeiten geloggt am {today}[/yellow]")
         return
 
-    title = f"Mahlzeiten — {today}"
-    if result.get("_offline"):
-        title += " (OFFLINE)"
-
-    table = Table(title=title, show_header=True, header_style="bold green")
+    table = Table(title=f"Mahlzeiten — {today}", show_header=True, header_style="bold green")
     table.add_column("MAHLZEIT")
     table.add_column("KCAL", justify="right")
     table.add_column("P", justify="right")
@@ -364,8 +239,7 @@ def do_today(day: str | None) -> None:
 
 def do_unlog(day: str | None) -> None:
     target_day = day or date.today().isoformat()
-    res = _api_call("GET", f"/nutrition/log?date={target_day}")
-    meals = res.get("data", {}).get("meals", [])
+    meals = _load_log_local(target_day).get("meals", [])
 
     if not meals:
         msg.warn(f"Keine Einträge am {target_day} zum Löschen.")
@@ -391,9 +265,10 @@ def do_unlog(day: str | None) -> None:
             return
 
         delete_id = selected_line.split("|")[0].strip()
-        
-        payload = {"date": target_day, "delete_meal_id": delete_id}
-        _api_call("POST", "/nutrition/log", payload)
+
+        log = _load_log_local(target_day)
+        log["meals"] = [m for m in log["meals"] if m["id"] != delete_id]
+        _save_log_local(log)
         msg.good(f"Mahlzeit {delete_id} gelöscht.")
 
     except FileNotFoundError:
@@ -419,7 +294,7 @@ def unlog_command(
     do_unlog(target)
 
 @app.callback(invoke_without_command=True)
-def main(ctx: typer.Context) -> None:
+def _app_callback(ctx: typer.Context) -> None:
     if ctx.invoked_subcommand is None:
         do_meal_interactive()
 
@@ -528,19 +403,10 @@ def narrative_command(
             name = (entry.get("name") or "").strip()
             if disc.get("type") == "meal" and name:
                 catalog_name = name
-        catalog_item = {
-            "item": {
-                "name": catalog_name,
-                "kcal": per_kcal, "protein": per_protein,
-                "carbs": per_carbs, "fat": per_fat,
-            }
-        }
-        cat_res = _api_call("POST", "/nutrition/catalog", catalog_item)
-        catalog_id = (cat_res.get("item") or {}).get("id") or cat_res.get("id")
-        if catalog_id:
-            msg.good(f"Catalog: '{catalog_name}' (id={catalog_id})")
-        else:
-            msg.warn(f"Catalog POST ohne id-Response: {cat_res}")
+        catalog_id = _catalog_save(catalog_name, {
+            "kcal": per_kcal, "protein": per_protein, "carbs": per_carbs, "fat": per_fat,
+        })
+        msg.good(f"Catalog: '{catalog_name}' (id={catalog_id})")
 
     for i, t in enumerate(times, 1):
         slot = f" ~{t}" if t else ""
@@ -564,8 +430,7 @@ def narrative_command(
 @app.command()
 def list() -> None:
     """Alle gespeicherten Mahlzeiten im Catalog anzeigen."""
-    result = _api_call("GET", "/nutrition/catalog")
-    items = result.get("items", [])
+    items = _catalog_load_meals()
     table = Table(title="Meal Catalog", show_header=True, header_style="bold magenta")
     table.add_column("NAME")
     table.add_column("KCAL", justify="right")
@@ -587,5 +452,10 @@ def today(
         msg.fail(str(e)); raise typer.Exit(1)
     do_today(target)
 
-if __name__ == "__main__":
+
+def main() -> None:
     app()
+
+
+if __name__ == "__main__":
+    main()
