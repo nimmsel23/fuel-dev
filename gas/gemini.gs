@@ -4,7 +4,7 @@
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/';
 
-const MICROS_PROMPT = `Schätze die Mikronährstoffe für folgende Mahlzeit/Beschreibung:
+const MICROS_PROMPT = `Schätze die Kalorien (kcal) und Mikronährstoffe für folgende Mahlzeit/Beschreibung:
 "{description}"
 
 WICHTIGE REGELN:
@@ -15,6 +15,7 @@ WICHTIGE REGELN:
 
 Antworte NUR mit JSON (keine Erklärungen, keine Markdown-Codeblöcke):
 {
+  "kcal": 0,
   "vitamin_a_ug": 0, "vitamin_d_ug": 0, "vitamin_e_mg": 0, "vitamin_k_ug": 0,
   "vitamin_c_mg": 0, "vitamin_b1_mg": 0, "vitamin_b2_mg": 0, "vitamin_b3_mg": 0,
   "vitamin_b5_mg": 0, "vitamin_b6_mg": 0, "vitamin_b7_ug": 0, "folate_ug": 0,
@@ -55,7 +56,9 @@ function callGemini_(mealName) {
   try {
     const parsed = JSON.parse(json);
     // Alle keys normalisieren auf float
-    const micros = {};
+    const micros = {
+      kcal: parseFloat(parsed.kcal || 0) || 0
+    };
     for (const k of MICRO_KEYS) {
       micros[k] = parseFloat(parsed[k] || 0) || 0;
     }

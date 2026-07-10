@@ -1,5 +1,5 @@
 import { NotebookPen } from "lucide-react";
-import Journal from "@journal/views/Journal/index.jsx";
+import Journal from "@journal/views/JournalVosView.jsx";
 
 export default function JournalVosView(props) {
   return (

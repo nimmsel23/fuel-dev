@@ -416,22 +416,53 @@ async function push(uid) {
   const dbPath = join(DATA_DIR, "nutrition", "nutrition.db");
   if (existsSync(dbPath)) {
     const dbSqlite = new Database(dbPath);
-    const micros = dbSqlite.prepare("SELECT * FROM meal_micros LIMIT 5000").all();
+    const localMicros = dbSqlite.prepare("SELECT * FROM meal_micros LIMIT 5000").all();
     dbSqlite.close();
-    if (micros.length > 0) {
+
+    if (localMicros.length > 0) {
       const ref = db.collection("nutrition").doc("public").collection("meta").doc("micros");
       const snap = await ref.get();
-      const newHash = simpleHash(micros);
+      let remoteItems = [];
+      if (snap.exists) {
+        remoteItems = snap.data().items || [];
+      }
+
+      // Merge-Logik: Remote und Lokal kombinieren (Name-basiert)
+      const mergedMap = new Map();
+
+      // Zuerst Remote-Daten (Cloud) laden
+      remoteItems.forEach(item => {
+        if (item.meal_name) mergedMap.set(item.meal_name.toLowerCase(), item);
+      });
+
+      // Dann Lokale-Daten (SQLite) mergen
+      localMicros.forEach(item => {
+        if (item.meal_name) {
+          const key = item.meal_name.toLowerCase();
+          const existing = mergedMap.get(key);
+
+          // Wir überschreiben nur, wenn lokal neuer ist oder noch nichts existiert
+          if (!existing || (item.updated_at || "") >= (existing.updated_at || "")) {
+            // Bereinigen (SQLite-interne Felder entfernen)
+            const { id, created_at, ...cleanItem } = item;
+            mergedMap.set(key, cleanItem);
+          }
+        }
+      });
+
+      const mergedMicros = Array.from(mergedMap.values());
+      const newHash = simpleHash(mergedMicros);
+
       if (snap.exists && snap.data()?._content_hash === newHash) {
         batcher.skip();
-        console.log(`  ⏭️  Micros Catalog unverändert (${micros.length} items)`);
+        console.log(`  ⏭️  Micros Catalog unverändert (${mergedMicros.length} items nach Merge)`);
       } else {
+        console.log(`  ✅ Pushing merged Micros Catalog (${mergedMicros.length} items) -> firebase shared`);
         await batcher.set(ref, {
-          items: micros,
+          items: mergedMicros,
           _content_hash: newHash,
           updated_at: admin.firestore.FieldValue.serverTimestamp()
         });
-        console.log(`  ✅ fuel.micros.catalog[${micros.length} items] -> firebase shared`);
       }
     }
   }

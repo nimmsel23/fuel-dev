@@ -77,17 +77,24 @@ function collectMealNames_(uid) {
   cutoff.setDate(cutoff.getDate() - LOOKBACK_DAYS);
   const cutoffStr = cutoff.toISOString().slice(0, 10);
 
+  // 1. Katalog laden für ID -> Name Mapping
+  const catalogDoc = fsGet_('nutrition/' + uid + '/meta/catalog');
+  const catalogItems = catalogDoc ? (fsRead_(catalogDoc.fields?.items) || []) : [];
+  const catalogMap = {};
+  catalogItems.forEach(i => { if (i.id && i.name) catalogMap[i.id] = i.name; });
+
+  // 2. Logs abrufen
   const logDocs = fsList_('nutrition/' + uid + '/logs');
   const names = new Set();
 
   for (const doc of logDocs) {
-    // Dokument-ID = Datum (z.B. "2026-06-30")
     const docId = doc.name.split('/').pop();
     if (docId < cutoffStr) continue;
 
     const data = fsReadDoc_(doc);
     for (const meal of (data?.meals || [])) {
-      const name = (meal.description || '').trim();
+      // PWA Logic: catalogEntry.name || meal.description
+      const name = (meal.catalog_id ? catalogMap[meal.catalog_id] : null) || (meal.description || '').trim();
       if (name && name.length > 2) names.add(name);
     }
   }
