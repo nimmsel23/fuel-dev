@@ -1,0 +1,57 @@
+#!/bin/bash
+# pre-push hook: build + deploy to Firebase when relevant frontend files are
+# part of the push to master (sw-cache-bump + manifest-version-bump happen
+# inside `npm run build:firebase` via scripts/bump-sw.mjs).
+#
+# Runs once per push (not per ref), reads pushed refs from stdin.
+
+cd "$(git rev-parse --show-toplevel)"
+
+# public/sw.js + public/manifest.json + dist-firebase/ sind Build-Output des
+# vorherigen Laufs (bump-sw.mjs, vite build) — nie selbst ein Deploy-Grund,
+# sonst triggert der Hook sich bei jedem Push auf sich selbst (endlose
+# Bump-Spirale ohne echten Inhalt).
+SKIP='\.(md|bak)$|^public/sw\.js$|^public/manifest\.json$|^dist-firebase/'
+TRIGGER='^(src/|public/|index.html$|vite.config|package.json$|firebase.json$|firestore.rules$)'
+
+should_deploy=false
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ -z "$local_ref" ] && continue
+  branch="${local_ref#refs/heads/}"
+  [ "$branch" != "master" ] && continue
+
+  if [ "$remote_sha" = "0000000000000000000000000000000000000000" ]; then
+    range="$local_sha"
+    changed=$(git diff-tree --no-commit-id --name-only -r "$range")
+  else
+    changed=$(git diff --name-only "$remote_sha" "$local_sha")
+  fi
+
+  relevant=$(echo "$changed" | grep -Ev "$SKIP" || true)
+  if echo "$relevant" | grep -Eq "$TRIGGER"; then
+    should_deploy=true
+  fi
+done
+
+if [ "$should_deploy" != true ]; then
+  exit 0
+fi
+
+if command -v gum >/dev/null 2>&1; then
+  gum log --level info "fuel-dev: relevante Änderungen im Push zu master — baue + deploye zu Firebase…"
+else
+  echo "🔍 fuel-dev: relevante Änderungen im Push zu master — baue + deploye zu Firebase…"
+fi
+
+npm run firebase
+status=$?
+
+if [ $status -ne 0 ]; then
+  echo "❌ npm run firebase fehlgeschlagen — Push wird abgebrochen (kein halb-deployter Stand)." >&2
+  echo "   Mit 'git push --no-verify' kannst du den Hook überspringen, falls das Absicht ist." >&2
+  exit 1
+fi
+
+echo "✅ Deploy abgeschlossen. sw.js/manifest.json wurden ggf. gebumpt — nicht vergessen zu committen."
+exit 0
