@@ -30,6 +30,15 @@ relevante Dateien enthält (`src/`, `public/`, `index.html`, `vite.config*`,
   `public/sw.js` Cache-Version + `public/manifest.json` `version`-Feld via
   `scripts/bump-sw.mjs`, dann `build:cloud`) gefolgt von `deploy:firebase`
   (`firebase deploy --only hosting --project fitness-aos`)
+  - ⚠️ **Anders als fitness-dev:** fuel-dev nutzt `vite-plugin-pwa` im
+    `generateSW`-Modus (`vite.config.cjs`). Der Service Worker wird beim
+    Build komplett automatisch von Workbox generiert und überschreibt
+    `public/sw.js` vollständig — der manuell gebumpte `CACHE`-String landet
+    nie im Deploy. Der `bump:sw`-Schritt läuft trotzdem mit (harmlos, kostet
+    nur den `manifest.json` `version`-Bump, der tatsächlich greift), ist für
+    das SW-Caching selbst aber wirkungslos. fitness-dev managt `public/sw.js`
+    dagegen manuell als statisches Asset (kein `vite-plugin-pwa`) — dort
+    bumpt der Wert wirklich das ausgelieferte Cache-Verhalten.
 - Schlägt der Build/Deploy fehl, wird der Push abgebrochen (kein halb-deployter
   Stand) — Override mit `git push --no-verify`
 - sw.js/manifest.json-Bump passiert lokal nach dem Push und ist **nicht**
