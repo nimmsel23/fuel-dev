@@ -22,9 +22,9 @@ module.exports = defineConfig(({ mode }) => {
         "@api":    require("path").resolve(__dirname, appMode === "client" ? "src/client/lib/api.cloud.js" : "src/client/lib/api.local.js"),
         "@db":     require("path").resolve(__dirname, "src/client/lib/db/index.js"),
         "@utils":  require("path").resolve(__dirname, "src/client/lib/db/index.js"),
-        "@habits": require("path").resolve("/home/alpha/habits-dev/src"),
-        "@journal": require("path").resolve("/home/alpha/journal-dev/src"),
-        "@fitness/constants": require("path").resolve("/home/alpha/fitness-dev/src/constants"),
+        "@habits": require("path").resolve(__dirname, "../habits-dev/src"),
+        "@journal": require("path").resolve(__dirname, "../journal-dev/src"),
+        "@fitness/constants": require("path").resolve(__dirname, "../fitness-dev/src/constants"),
       },
     },
     plugins: [
