@@ -45,3 +45,10 @@ export function addOrUpdateSupplement(catalog, input) {
 
   return item;
 }
+
+export function deleteSupplement(catalog, id) {
+  const idx = catalog.items.findIndex((i) => i.id === id);
+  if (idx < 0) return false;
+  catalog.items.splice(idx, 1);
+  return true;
+}

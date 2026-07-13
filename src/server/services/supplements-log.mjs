@@ -47,6 +47,22 @@ export function addIntake(log, intakeInput) {
   return intake;
 }
 
+export function updateIntake(log, intakeId, updates) {
+  const idx = log.intakes.findIndex((i) => i.id === intakeId);
+  if (idx < 0) return null;
+
+  const current = log.intakes[idx];
+  const merged = { ...current };
+  if (updates.dose !== undefined) merged.dose = updates.dose == null ? null : Number(updates.dose);
+  if (updates.unit !== undefined) merged.unit = (updates.unit || current.unit).toString().trim();
+  if (updates.time_of_day !== undefined) merged.time_of_day = (updates.time_of_day || current.time_of_day).toString().trim();
+  if (updates.notes !== undefined) merged.notes = (updates.notes || "").toString().trim();
+  if (updates.name !== undefined) merged.name = (updates.name || current.name).toString().trim();
+
+  log.intakes[idx] = merged;
+  return merged;
+}
+
 export function deleteIntake(log, intakeId) {
   const idx = log.intakes.findIndex((i) => i.id === intakeId);
   if (idx >= 0) {

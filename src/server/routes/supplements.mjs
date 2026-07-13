@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { loadCatalog, saveCatalog, addOrUpdateSupplement } from "../services/supplements-catalog.mjs";
-import { loadLog, saveLog, addIntake, deleteIntake } from "../services/supplements-log.mjs";
+import { loadCatalog, saveCatalog, addOrUpdateSupplement, deleteSupplement } from "../services/supplements-catalog.mjs";
+import { loadLog, saveLog, addIntake, updateIntake, deleteIntake } from "../services/supplements-log.mjs";
 import { isISODate, todayISO } from "../../shared/utils/validation.mjs";
 import { SUPPLEMENTS_LOG_DIR } from "../config/paths.mjs";
 import fs from "fs";
@@ -34,6 +34,18 @@ const logPostSchema = z.object({
   delete_id: z.string().optional(),
 });
 
+const logPatchSchema = z.object({
+  date: z.string().optional(),
+  intake_id: z.string().min(1),
+  updates: z.object({
+    name: z.string().optional(),
+    dose: z.coerce.number().optional(),
+    unit: z.string().optional(),
+    time_of_day: z.string().optional(),
+    notes: z.string().optional(),
+  }),
+});
+
 const statsQuerySchema = z.object({
   days: z.coerce.number().int().min(1).max(365).default(30),
   anchor: z.string().optional(),
@@ -63,6 +75,24 @@ export default async function supplementsRoute(app) {
 
       saveCatalog(catalog);
       return reply.send({ ok: true, item });
+    } catch (error) {
+      console.error(error);
+      return reply.status(500).send({ ok: false, error: "Internal server error" });
+    }
+  });
+
+  // DELETE /supplements/catalog/:id
+  app.delete("/supplements/catalog/:id", async (req, reply) => {
+    try {
+      const { id } = req.params;
+      if (!id) return reply.status(400).send({ ok: false, error: "ID required" });
+
+      const catalog = loadCatalog();
+      const removed = deleteSupplement(catalog, id);
+      if (!removed) return reply.status(404).send({ ok: false, error: "Supplement not found" });
+
+      saveCatalog(catalog);
+      return reply.send({ ok: true });
     } catch (error) {
       console.error(error);
       return reply.status(500).send({ ok: false, error: "Internal server error" });
@@ -103,6 +133,34 @@ export default async function supplementsRoute(app) {
 
       if (parsed.data.delete_id) {
         deleteIntake(log, parsed.data.delete_id);
+      }
+
+      saveLog(log);
+      fireSyncPing();
+      return reply.send({ ok: true, data: log });
+    } catch (error) {
+      console.error(error);
+      return reply.status(500).send({ ok: false, error: "Internal server error" });
+    }
+  });
+
+  // PATCH /supplements/log
+  app.patch("/supplements/log", async (req, reply) => {
+    try {
+      const parsed = logPatchSchema.safeParse(req.body || {});
+      if (!parsed.success) {
+        return reply.status(400).send({ ok: false, error: "Invalid data" });
+      }
+
+      const date = (parsed.data.date || todayISO()).toString();
+      if (!isISODate(date)) {
+        return reply.status(400).send({ ok: false, error: "Invalid date" });
+      }
+
+      const log = loadLog(date);
+      const updated = updateIntake(log, parsed.data.intake_id, parsed.data.updates);
+      if (!updated) {
+        return reply.status(404).send({ ok: false, error: "Intake not found" });
       }
 
       saveLog(log);

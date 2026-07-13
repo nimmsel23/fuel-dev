@@ -3,10 +3,10 @@
  */
 
 import {
-  doc, getDoc, collection, query, getDocs, orderBy, limit, documentId,
+  doc, getDoc, setDoc, collection, query, getDocs, orderBy, limit, documentId,
 } from "firebase/firestore";
 import { db } from "../../firebase.js";
-import { getUid } from "./core.js";
+import { getUid, serverTimestamp } from "./core.js";
 import { todayISO } from "./utils.js";
 
 export async function getSupplementsCatalog() {
@@ -15,9 +15,34 @@ export async function getSupplementsCatalog() {
   return snap.exists() ? (snap.data().items || []) : [];
 }
 
+export async function deleteSupplementFromCatalog(id) {
+  const items = await getSupplementsCatalog();
+  const filtered = items.filter((i) => i.id !== id);
+  const ref = doc(db, "supplements", getUid(), "meta", "catalog");
+  await setDoc(ref, { items: filtered, updated_at: serverTimestamp() });
+  return filtered;
+}
+
 export async function getSupplementLog(date = todayISO()) {
   const snap = await getDoc(doc(db, "supplements", getUid(), "logs", date));
   return snap.exists() ? snap.data() : { date, intakes: [] };
+}
+
+export async function saveSupplementLog(date, data) {
+  await setDoc(doc(db, "supplements", getUid(), "logs", date), {
+    ...data,
+    updated_at: serverTimestamp(),
+  }, { merge: true });
+}
+
+export async function updateIntakeInLog(date, intakeId, updates) {
+  const log = await getSupplementLog(date);
+  const intakes = [...(log.intakes || [])];
+  const idx = intakes.findIndex((i) => i.id === intakeId);
+  if (idx === -1) return null;
+  intakes[idx] = { ...intakes[idx], ...updates };
+  await saveSupplementLog(date, { ...log, intakes });
+  return intakes[idx];
 }
 
 export async function getSupplementsHistory(limitCount = 30) {

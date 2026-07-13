@@ -67,7 +67,6 @@ items:
   unit: mg
   default_dose: 600
   default_time_of_day: morning
-  notes: geplant — nächste Sunday Natural Bestellung
 - id: tongkat_ali
   name: Tongkat Ali Elixier
   unit: ml

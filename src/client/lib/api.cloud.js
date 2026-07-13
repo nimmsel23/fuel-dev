@@ -140,6 +140,16 @@ export async function postJson(path, body) {
     return { ok: true };
   }
 
+  if (normPath === "/supplements/catalog") {
+    const items = await firestore.getSupplementsCatalog();
+    const item = { ...body, id: body.id || `supp_${Date.now().toString(36)}` };
+    const idx = items.findIndex((i) => i.id === item.id);
+    if (idx >= 0) items[idx] = item; else items.push(item);
+    const ref = doc(firestore.db, "supplements", firestore.getUid(), "meta", "catalog");
+    await setDoc(ref, { items, updated_at: firestore.serverTimestamp() });
+    return { ok: true, item };
+  }
+
   throw new Error(`postJson: unmapped cloud path: ${path}`);
 }
 
@@ -166,6 +176,12 @@ export async function patchJson(path, body) {
     return { ok: true };
   }
 
+  if (normPath === "/supplements/log") {
+    const updated = await firestore.updateIntakeInLog(body.date, body.intake_id, body.updates || {});
+    if (!updated) throw new Error("Intake not found");
+    return { ok: true };
+  }
+
   throw new Error(`patchJson: unmapped cloud path: ${path}`);
 }
 
@@ -178,6 +194,12 @@ export async function deleteJson(path) {
     const filtered = items.filter((i) => i.id !== id);
     const ref = doc(firestore.db, "nutrition", firestore.getUid(), "meta", "catalog");
     await setDoc(ref, { items: filtered, updated_at: firestore.serverTimestamp() });
+    return { ok: true };
+  }
+
+  if (normPath.startsWith("/supplements/catalog/")) {
+    const id = normPath.split("/").pop();
+    await firestore.deleteSupplementFromCatalog(id);
     return { ok: true };
   }
 
