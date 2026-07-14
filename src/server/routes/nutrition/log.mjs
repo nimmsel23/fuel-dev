@@ -3,6 +3,8 @@ import { isISODate, todayISO } from "../../../shared/utils/validation.mjs";
 import path from "path";
 import fs from "fs";
 import { loadCatalog } from "../../services/nutrition-catalog.mjs";
+import { estimateMicros } from "../../services/nutrition-estimate-micros.mjs";
+import { getMicrosForMeal, saveMicrosForMeal } from "../../services/nutrition-micros.mjs";
 
 const logPostSchema = z.object({
   date: z.string().optional(),
@@ -84,6 +86,17 @@ const logPatchSchema = z.object({
 });
 
 const SYNC_PING_URL = process.env.FUEL_FIRESTORE_PING_URL || "http://127.0.0.1:9080/api/fuel-firestore/ping";
+
+function fireMicrosEstimate(description, kcal) {
+  if (!description || getMicrosForMeal(description)) return;
+  estimateMicros(description)
+    .then((micros) => {
+      if (Object.keys(micros).length > 0) {
+        saveMicrosForMeal(description, kcal, micros, "gemini-log");
+      }
+    })
+    .catch((e) => console.warn(`[micros] estimate failed for "${description}":`, e.message));
+}
 
 function fireSyncPing(uid) {
   const headers = { "Content-Type": "application/json", "X-Fuel-UID": uid };
@@ -172,6 +185,7 @@ export default async function logRoute(app) {
         const resolved = resolveCatalogItem(catalog, parsed.data.catalog_item_id, parsed.data.catalog_addon_ids);
         if (!resolved) return reply.status(404).send({ ok: false, error: "Catalog item not found" });
         log.meals.push({ id: `meal_${Date.now()}`, ...resolved, time: new Date().toISOString() });
+        fireMicrosEstimate(resolved.description, resolved.kcal);
       } else if (parsed.data.meal) {
         const m = parsed.data.meal;
         log.meals.push({
@@ -183,6 +197,7 @@ export default async function logRoute(app) {
           kcal: m.kcal || 0, protein: m.protein || 0, carbs: m.carbs || 0, fat: m.fat || 0,
           time: new Date().toISOString(),
         });
+        fireMicrosEstimate(m.description, m.kcal || 0);
       }
 
       if (parsed.data.delete_meal_id) {

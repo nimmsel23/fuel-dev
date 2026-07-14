@@ -4,15 +4,14 @@
 
 // Entry Point — wird via Time-Trigger täglich aufgerufen
 function enrichMicros() {
+  const uid = getProp_(PROP.FUEL_UID);
   const startTime = Date.now();
   const MAX_MS = 5 * 60 * 1000; // 5 min Safety-Margin (GAS limit = 6min)
 
   Logger.log('=== Fuel Micros Enricher ===');
+  Logger.log('UID: ' + uid);
 
-  const uids = listFuelUids_();
-  Logger.log('User: ' + uids.length + ' (' + uids.join(', ') + ')');
-
-  // 1. Bestehenden Micros-Katalog aus Firestore laden (shared/public, nicht pro User)
+  // 1. Bestehenden Micros-Katalog aus Firestore laden
   const catalogDoc = fsGet_('nutrition/public/meta/micros');
   const existingItems = catalogDoc ? (fsRead_(catalogDoc.fields?.items) || []) : [];
   const existingMap = {};
@@ -21,11 +20,9 @@ function enrichMicros() {
   }
   Logger.log('Bestehende Micros-Einträge: ' + existingItems.length);
 
-  // 2. Mahlzeiten der letzten LOOKBACK_DAYS Tage über ALLE User sammeln
-  const mealNameSet = new Set();
-  uids.forEach((uid) => collectMealNames_(uid).forEach((n) => mealNameSet.add(n)));
-  const mealNames = [...mealNameSet];
-  Logger.log('Unique Mahlzeiten in den letzten ' + LOOKBACK_DAYS + ' Tagen (alle User): ' + mealNames.length);
+  // 2. Mahlzeiten der letzten LOOKBACK_DAYS Tage sammeln
+  const mealNames = collectMealNames_(uid);
+  Logger.log('Unique Mahlzeiten in den letzten ' + LOOKBACK_DAYS + ' Tagen: ' + mealNames.length);
 
   // 3. Nur neue Mahlzeiten filtern
   const newMeals = mealNames.filter(name => !existingMap[name.toLowerCase()]);
@@ -70,45 +67,27 @@ function enrichMicros() {
     };
     fsPatch_('nutrition/public/meta/micros', fields);
     Logger.log('Firestore aktualisiert: ' + newItems.length + ' Einträge total.');
-
-    saveSnapshotToDrive_(newItems);
   }
 }
 
 // ── Hilfsfunktionen ────────────────────────────────────────────────────────────
-
-// Alle User-UIDs mit Fuel-Nutrition-Daten. Fallback auf FUEL_UID Script Property
-// falls die Collection-Auflistung nichts findet (z.B. Security Rules blocken List).
-function listFuelUids_() {
-  const ids = fsListIds_('nutrition');
-  if (ids.length > 0) return ids;
-  const fallback = getProp_(PROP.FUEL_UID);
-  return fallback ? [fallback] : [];
-}
 
 function collectMealNames_(uid) {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - LOOKBACK_DAYS);
   const cutoffStr = cutoff.toISOString().slice(0, 10);
 
-  // 1. Katalog laden für ID -> Name Mapping
-  const catalogDoc = fsGet_('nutrition/' + uid + '/meta/catalog');
-  const catalogItems = catalogDoc ? (fsRead_(catalogDoc.fields?.items) || []) : [];
-  const catalogMap = {};
-  catalogItems.forEach(i => { if (i.id && i.name) catalogMap[i.id] = i.name; });
-
-  // 2. Logs abrufen
   const logDocs = fsList_('nutrition/' + uid + '/logs');
   const names = new Set();
 
   for (const doc of logDocs) {
+    // Dokument-ID = Datum (z.B. "2026-06-30")
     const docId = doc.name.split('/').pop();
     if (docId < cutoffStr) continue;
 
     const data = fsReadDoc_(doc);
     for (const meal of (data?.meals || [])) {
-      // PWA Logic: catalogEntry.name || meal.description
-      const name = (meal.catalog_id ? catalogMap[meal.catalog_id] : null) || (meal.description || '').trim();
+      const name = (meal.description || '').trim();
       if (name && name.length > 2) names.add(name);
     }
   }
@@ -134,14 +113,13 @@ function showCatalogStats() {
 }
 
 function showNewMeals() {
-  const uids = listFuelUids_();
-  const nameSet = new Set();
-  uids.forEach((uid) => collectMealNames_(uid).forEach((n) => nameSet.add(n)));
+  const uid = getProp_(PROP.FUEL_UID);
+  const names = collectMealNames_(uid);
   const doc = fsGet_('nutrition/public/meta/micros');
   const existing = doc ? (fsRead_(doc.fields?.items) || []) : [];
   const existingMap = {};
   existing.forEach(i => { existingMap[i.meal_name.toLowerCase()] = true; });
-  const missing = [...nameSet].filter(n => !existingMap[n.toLowerCase()]);
-  Logger.log('Mahlzeiten ohne Micros (' + missing.length + ', ' + uids.length + ' User):');
+  const missing = names.filter(n => !existingMap[n.toLowerCase()]);
+  Logger.log('Mahlzeiten ohne Micros (' + missing.length + '):');
   missing.forEach(n => Logger.log('  • ' + n));
 }

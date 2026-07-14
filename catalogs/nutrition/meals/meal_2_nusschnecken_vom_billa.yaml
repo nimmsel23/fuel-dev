@@ -1,0 +1,19 @@
+id: meal_2_nusschnecken_vom_billa
+kind: meal
+category: meal
+name: 2 Nusschnecken vom Billa
+alias: null
+meal_type: meal
+description: 2 Nusschnecken vom Billa
+notes: ''
+kcal: 880.0
+protein: 16.0
+carbs: 92.0
+fat: 50.0
+yield_g: null
+components: []
+addons: []
+default_addon_ids: []
+source: gemini
+created_at: '2026-07-14T15:15:40.345834Z'
+updated_at: '2026-07-14T15:15:40.345834Z'

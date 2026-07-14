@@ -22,7 +22,7 @@ const supplementSchema = z.object({
   notes: z.string().optional().default(""),
 });
 
-const QUICK_LOG_IDS = ["melatonin", "glycin", "magnesium", "kollagen", "vitamin_d3", "omega3", "zink", "kreatin"];
+const QUICK_LOG_LIMIT = 8;
 
 export default function SupplementsView({ date, sup, catalog, suppLog }) {
   const queryClient = useQueryClient();
@@ -33,7 +33,15 @@ export default function SupplementsView({ date, sup, catalog, suppLog }) {
     map[intake.supplement_id] = (map[intake.supplement_id] || 0) + 1;
     return map;
   }, {});
-  const quickCatalog = catalog.filter((item) => QUICK_LOG_IDS.includes(item.id));
+  const daysTakenBySupplement = stats.reduce((map, row) => {
+    map[row.supplement.id] = row.days_taken;
+    return map;
+  }, {});
+  // Quick log = die 8 meistgenutzten Supplements der letzten 30 Tage (Stack-Routine
+  // ändert sich mit der Zeit — keine hart codierte ID-Liste mehr).
+  const quickCatalog = [...catalog]
+    .sort((a, b) => (daysTakenBySupplement[b.id] || 0) - (daysTakenBySupplement[a.id] || 0))
+    .slice(0, QUICK_LOG_LIMIT);
 
   const supplementForm = useForm({
     resolver: zodResolver(supplementSchema),
@@ -134,7 +142,7 @@ export default function SupplementsView({ date, sup, catalog, suppLog }) {
                 <Flame className="h-5 w-5 text-orange-300" />
                 <h3 className="text-lg font-semibold">Quick log</h3>
               </div>
-              <p className="text-sm text-slate-400">Ein Tap mit den Katalog-Defaults. Gut fuer die Standard-Stack-Routine.</p>
+              <p className="text-sm text-slate-400">Die meistgenutzten Supplements der letzten 30 Tage, ein Tap mit den Katalog-Defaults.</p>
             </div>
             <span className="rounded-full border border-white/10 bg-slate-950/60 px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-400">
               {date}

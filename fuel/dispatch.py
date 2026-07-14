@@ -63,6 +63,7 @@ FUEL_REPO_DIR = Path(__file__).resolve().parent.parent
 
 from .catalog import load_supplement_ids
 from .dates import resolve as _resolve_date  # noqa: F401 — re-exposed for tests
+from . import tui
 
 # ── Direkte File-Zugriffe ─────────────────────────────────────────────────────
 
@@ -350,6 +351,20 @@ def stats(days: int = typer.Option(7, "-d", "--days", help="Anzahl Tage")):
     print(f"  Letzte {days} Tage: {count} Logs")
     print(f"  Total: {total_kcal:.0f} kcal  {total_p:.0f}P {total_c:.0f}C {total_f:.0f}F")
     print(f"  Schnitt: {avg_kcal:.0f} kcal  {avg_p:.0f}P {avg_c:.0f}C {avg_f:.0f}F")
+
+
+@app.command()
+def edit(
+    mode: str = typer.Option(None, "--mode", "-m", help="catalog | log (default: ncurses für heute)"),
+    date_arg: str = typer.Option(None, "--date", "-d", help="Datum für Log-Edit (YYYY-MM-DD)"),
+):
+    """Interactive Nutrition Editor.
+
+    Default (keine Argumente): ncurses TUI mit allen Einträgen von heute (schnelle Batch-Edit)
+    --mode catalog: gum-Menü zum Catalog editieren
+    --mode log [--date]: gum-Menü zum Log editieren (default: heute)
+    """
+    tui.edit(mode=mode, target_date=date_arg)
 
 
 # Known Typer-Subcommands aus der App ableiten — kein hardcoded set mehr.

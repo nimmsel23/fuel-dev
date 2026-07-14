@@ -43,25 +43,6 @@ function fsList_(collectionPath) {
   return docs;
 }
 
-// Listet Dokument-IDs einer Top-Level-Collection, inkl. "missing" Docs
-// (Docs die nur als Parent von Subcollections existieren, z.B. nutrition/{uid}
-// ohne eigene Felder). Nötig um alle User-UIDs zu finden, nicht nur einen.
-function fsListIds_(collectionPath) {
-  const ids = [];
-  let pageToken = null;
-  do {
-    let url = fsBase_() + '/' + collectionPath + '?pageSize=300&showMissing=true&mask.fieldPaths=_none_';
-    if (pageToken) url += '&pageToken=' + encodeURIComponent(pageToken);
-    const res = UrlFetchApp.fetch(url, { method: 'get', headers: fsHeaders_(), muteHttpExceptions: true });
-    const code = res.getResponseCode();
-    if (code !== 200) break;
-    const data = JSON.parse(res.getContentText());
-    (data.documents || []).forEach((d) => ids.push(d.name.split('/').pop()));
-    pageToken = data.nextPageToken || null;
-  } while (pageToken);
-  return ids;
-}
-
 function fsPatch_(path, fields) {
   const body = { fields: fields };
   const res = UrlFetchApp.fetch(fsBase_() + '/' + path, {

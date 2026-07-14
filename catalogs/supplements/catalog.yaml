@@ -43,12 +43,14 @@ items:
     omega3_mg: 500
 - id: zink
   name: Zink
+  product: Sunday Natural Zink Komplex (mehrere Zink-Verbindungen) + Vitamin C
   unit: mg
   default_dose: 25
   default_time_of_day: any
   notes: selten — nur bei bekanntem Mangel
   micros:
     zinc_mg: 25
+    vitamin_c_mg: 100
 - id: kreatin
   name: Kreatin
   unit: g

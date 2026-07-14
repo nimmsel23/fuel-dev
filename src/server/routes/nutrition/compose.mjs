@@ -46,7 +46,7 @@ export default async function composeRoute(app) {
         // Gemini estimates micronutrient profile for the whole meal as eaten → SQLite
         const micros = await estimateMicros(description);
         if (Object.keys(micros).length > 0) {
-          saveMicrosForMeal(description, micros);
+          saveMicrosForMeal(description, composed.kcal, micros, "gemini-compose");
         }
 
         return reply.send({ ok: true, description, ...composed, saved: true, micros });

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; color: #1a1a1a; }
+    h1 { font-size: 1.3rem; }
+    .meta { color: #666; font-size: 0.85rem; margin-bottom: 1.5rem; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 2rem; }
+    th, td { text-align: left; padding: 0.4rem 0.7rem; border-bottom: 1px solid #eee; font-size: 0.9rem; }
+    th { background: #fafafa; position: sticky; top: 0; }
+    tr:hover { background: #f7f7f7; }
+    .src { font-size: 0.75rem; color: #888; }
+    .count { font-weight: 600; }
+    .snapshots li { font-size: 0.85rem; margin-bottom: 0.2rem; }
+  </style>
+</head>
+<body>
+  <h1>Fuel Micros Katalog</h1>
+  <div class="meta">
+    <span class="count"><?= items.length ?></span> Einträge · generiert <?= generatedAt ?>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>Mahlzeit</th><th>kcal</th><th>Quelle</th></tr>
+    </thead>
+    <tbody>
+      <? for (var i = 0; i < items.length; i++) { ?>
+        <tr>
+          <td><?= items[i].meal_name ?></td>
+          <td><?= items[i].kcal || '—' ?></td>
+          <td class="src"><?= items[i].source || '—' ?></td>
+        </tr>
+      <? } ?>
+    </tbody>
+  </table>
+
+  <h2>Drive-Snapshots (Verlauf)</h2>
+  <ul class="snapshots">
+    <? for (var j = 0; j < snapshots.length; j++) { ?>
+      <li><?= snapshots[j].name ?> — <?= snapshots[j].created ?></li>
+    <? } ?>
+  </ul>
+</body>
+</html>
