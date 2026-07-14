@@ -236,6 +236,9 @@ class MealEditor:
                         meal[field] = new_val
                     self.modified = True
 
+            elif ch == ord('g') or ch == ord('G'):  # G for Gemini revision
+                self.gemini_revise(stdscr, meal)
+
     def lookup_meal(self, stdscr, idx):
         """Lookup nutrition for a meal from wger/OFF."""
         meal = self.meals[idx]
@@ -290,6 +293,47 @@ class MealEditor:
             if self.selected_idx >= len(self.meals) and self.selected_idx > 0:
                 self.selected_idx -= 1
             self.modified = True
+
+    def gemini_revise(self, stdscr, meal):
+        """Use Gemini to review meal macros."""
+        from .revise import revise_catalog_entry, apply_revision
+
+        height, width = stdscr.getmaxyx()
+        stdscr.addstr(height - 1, 0, "Gemini revision... ", curses.color_pair(2))
+        stdscr.refresh()
+
+        revision = revise_catalog_entry(meal)
+        if not revision:
+            stdscr.addstr(height - 1, 0, "No significant differences found.", curses.color_pair(3))
+            stdscr.refresh()
+            stdscr.getch()
+            return
+
+        # Show revision and ask to confirm
+        stdscr.clear()
+        stdscr.addstr(0, 0, "Gemini Revision Suggested", curses.A_BOLD)
+        y = 2
+        stdscr.addstr(y, 0, revision.get("reason", ""))
+        y += 2
+        stdscr.addstr(y, 0, "Current:")
+        y += 1
+        stdscr.addstr(y, 0, f"  kcal: {meal.get('kcal')} → {revision['suggested_kcal']}")
+        y += 1
+        stdscr.addstr(y, 0, f"  protein: {meal.get('protein')} → {revision['suggested_protein']}")
+        y += 1
+        stdscr.addstr(y, 0, f"  carbs: {meal.get('carbs')} → {revision['suggested_carbs']}")
+        y += 1
+        stdscr.addstr(y, 0, f"  fat: {meal.get('fat')} → {revision['suggested_fat']}")
+        y += 2
+        stdscr.addstr(y, 0, "Accept? (Y)es / (N)o", curses.color_pair(2))
+        stdscr.refresh()
+
+        if stdscr.getch() == ord('y'):
+            apply_revision(meal, revision)
+            self.modified = True
+            stdscr.addstr(y + 2, 0, "Applied!", curses.color_pair(3))
+            stdscr.refresh()
+            stdscr.getch()
 
 
 def edit_daily(target_date: str | None = None) -> None:
