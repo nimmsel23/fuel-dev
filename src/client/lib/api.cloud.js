@@ -40,6 +40,11 @@ export async function fetchJson(path) {
   if (normPath === "/nutrition/catalog") {
     return { items: await firestore.getNutritionCatalog() };
   }
+  if (normPath.startsWith("/nutrition/history")) {
+    const url = new URL(path, window.location.origin);
+    const limitCount = parseInt(url.searchParams.get("limit") || "30");
+    return { ok: true, history: await firestore.getMealsHistory(limitCount) };
+  }
   if (normPath.startsWith("/nutrition/journal")) {
     const url = new URL(path, window.location.origin);
     const date = url.searchParams.get("date");
