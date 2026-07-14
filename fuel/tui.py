@@ -78,13 +78,21 @@ def _gum_choose(options: list[str], placeholder: str = "") -> str | None:
     try:
         result = subprocess.run(
             ["gum", "choose"] + options,
-            capture_output=True, text=True
+            capture_output=True, text=True, timeout=5
         )
-        if result.returncode == 0:
+        if result.returncode == 0 and result.stdout.strip():
             return result.stdout.strip()
-    except Exception:
-        pass
-    return None
+        elif result.returncode != 0:
+            # gum failed, log stderr for debugging
+            if result.stderr:
+                msg.warn(f"gum error: {result.stderr.strip()[:100]}")
+    except subprocess.TimeoutExpired:
+        msg.warn("gum timeout")
+    except Exception as e:
+        msg.warn(f"gum exception: {e}")
+
+    # Fallback if gum fails (no TTY, etc.)
+    return _numbered_menu(options, placeholder)
 
 
 def _gum_input(prompt: str, initial: str = "") -> str | None:
@@ -126,17 +134,27 @@ def _gum_confirm(message: str) -> bool:
 
 def _numbered_menu(options: list[str], prompt: str = "Wähle eine Option") -> str | None:
     """Fallback: numbered menu in terminal."""
+    if not options:
+        return None
+
     print(f"\n{prompt}:")
     for i, opt in enumerate(options, 1):
         print(f"  {i}) {opt}")
-    try:
-        choice = input("Eingabe (Nummer): ").strip()
-        idx = int(choice) - 1
-        if 0 <= idx < len(options):
-            return options[idx]
-    except (ValueError, IndexError, EOFError, KeyboardInterrupt):
-        pass
-    return None
+
+    while True:
+        try:
+            choice = input("Eingabe (Nummer oder 'q' zum Abbrechen): ").strip()
+            if choice.lower() == 'q':
+                return None
+            idx = int(choice) - 1
+            if 0 <= idx < len(options):
+                return options[idx]
+            else:
+                print(f"  ✗ Bitte Nummer zwischen 1 und {len(options)} eingeben")
+        except (ValueError, IndexError):
+            print(f"  ✗ Ungültige Eingabe")
+        except (EOFError, KeyboardInterrupt):
+            return None
 
 
 def _load_meal_file(meal_file: Path) -> dict | None:
@@ -198,7 +216,7 @@ def edit_catalog() -> None:
     # Select meal
     selected = _gum_choose(meal_options, "Wähle eine Mahlzeit zum Editieren")
     if not selected:
-        msg.warn("Abgebrochen")
+        msg.fail("Abgebrochen oder keine Auswahl möglich")
         return
 
     meal_file = meal_map[selected]
@@ -299,7 +317,7 @@ def edit_logs(target_date: str | None = None) -> None:
     # Select meal
     selected = _gum_choose(meal_options, "Wähle eine Mahlzeit zum Editieren")
     if not selected:
-        msg.warn("Abgebrochen")
+        msg.fail("Abgebrochen oder keine Auswahl möglich")
         return
 
     meal_idx = meal_map[selected]
