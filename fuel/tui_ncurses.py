@@ -60,6 +60,108 @@ class MealEditor:
         self.modified = False
         self.load_data()
 
+    def run_simple(self):
+        """Simple CLI mode (fallback if ncurses unavailable)."""
+        while True:
+            self._show_simple_list()
+            try:
+                choice = input("\n[Nummer=Edit] (G)emini-all (L)ookup (D)elete (S)ave (Q)uit: ").strip().lower()
+                if choice == 'q':
+                    if self.modified and input("Unsaved changes! Save? (y/n): ").lower() == 'y':
+                        self.save_data()
+                    break
+                elif choice == 's':
+                    self.save_data()
+                    msg.good("Saved!")
+                elif choice == 'g':
+                    self._simple_gemini_all()
+                elif choice == 'l':
+                    idx = int(input("Meal number for lookup: ")) - 1
+                    if 0 <= idx < len(self.meals):
+                        self._simple_lookup(idx)
+                elif choice == 'd':
+                    idx = int(input("Meal number to delete: ")) - 1
+                    if 0 <= idx < len(self.meals):
+                        self.meals.pop(idx)
+                        self.modified = True
+                elif choice.isdigit():
+                    idx = int(choice) - 1
+                    if 0 <= idx < len(self.meals):
+                        self._simple_edit(idx)
+            except (ValueError, IndexError, EOFError, KeyboardInterrupt):
+                pass
+
+    def _show_simple_list(self):
+        """Show meals list in simple format."""
+        print("\n" + "=" * 80)
+        print(f"Nutrition Log — {self.target_date}" + (" [MODIFIED]" if self.modified else ""))
+        print("=" * 80)
+        for i, meal in enumerate(self.meals):
+            desc = meal.get("description", "unnamed")[:40]
+            time_str = meal.get("time", "").split("T")[1][:5] if "T" in meal.get("time", "") else "?"
+            kcal = meal.get("kcal", 0)
+            print(f"{i+1:2d}. {time_str} │ {desc:<40} │ {kcal:>5.0f} kcal")
+
+        total_kcal = sum(m.get("kcal", 0) or 0 for m in self.meals)
+        total_p = sum(m.get("protein", 0) or 0 for m in self.meals)
+        total_c = sum(m.get("carbs", 0) or 0 for m in self.meals)
+        total_f = sum(m.get("fat", 0) or 0 for m in self.meals)
+        print("-" * 80)
+        print(f"Total: {total_kcal:.0f} kcal │ {total_p:.0f}P {total_c:.0f}C {total_f:.0f}F")
+
+    def _simple_edit(self, idx):
+        """Simple CLI edit for a meal."""
+        meal = self.meals[idx]
+        print(f"\nEdit Meal #{idx+1}: {meal.get('description')}")
+        for field in ["description", "kcal", "protein", "carbs", "fat", "notes"]:
+            if field in meal:
+                current = meal[field]
+                new_val = input(f"  {field} [{current}]: ").strip()
+                if new_val:
+                    if field in ("kcal", "protein", "carbs", "fat"):
+                        try:
+                            meal[field] = float(new_val)
+                        except ValueError:
+                            pass
+                    else:
+                        meal[field] = new_val
+                    self.modified = True
+
+    def _simple_lookup(self, idx):
+        """Simple CLI lookup for a meal."""
+        meal = self.meals[idx]
+        nutrition = _lookup_nutrition(meal.get("description", ""))
+        if nutrition:
+            print(f"\n✓ Found: {nutrition['name']}")
+            print(f"  kcal={nutrition['energy_kcal']}, protein={nutrition['protein']}, carbs={nutrition['carbs']}, fat={nutrition['fat']}")
+            if input("Accept? (y/n): ").lower() == 'y':
+                meal["kcal"] = nutrition["energy_kcal"]
+                meal["protein"] = nutrition["protein"]
+                meal["carbs"] = nutrition["carbs"]
+                meal["fat"] = nutrition["fat"]
+                self.modified = True
+                msg.good("Applied!")
+        else:
+            msg.warn("No nutrition data found")
+
+    def _simple_gemini_all(self):
+        """Simple CLI Gemini revision for all meals."""
+        from .revise import revise_catalog_entry, apply_revision
+
+        revised_count = 0
+        for i, meal in enumerate(self.meals):
+            revision = revise_catalog_entry(meal)
+            if revision:
+                print(f"\nMeal #{i+1}: {meal.get('description')}")
+                print(f"  {revision.get('reason')}")
+                if input("  Accept revision? (y/n): ").lower() == 'y':
+                    apply_revision(meal, revision)
+                    self.modified = True
+                    revised_count += 1
+
+        if revised_count > 0:
+            msg.good(f"{revised_count} meals revised!")
+
     def load_data(self):
         """Load log file for target date."""
         if not self.log_file.exists():
@@ -337,10 +439,15 @@ class MealEditor:
 
 
 def edit_daily(target_date: str | None = None) -> None:
-    """Open ncurses TUI for daily meal editing."""
+    """Open ncurses TUI for daily meal editing (with fallback to simple CLI)."""
     try:
         editor = MealEditor(target_date)
-        curses.wrapper(editor.run)
+        try:
+            curses.wrapper(editor.run)
+        except Exception as ncurses_error:
+            msg.warn(f"ncurses failed: {ncurses_error}")
+            msg.info("Falling back to simple CLI mode...")
+            editor.run_simple()
         msg.good("Done!")
     except FileNotFoundError as e:
         msg.fail(str(e))
