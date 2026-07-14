@@ -158,40 +158,67 @@ def edit_catalog() -> None:
     msg.divider(f"Editiere: {data.get('name', meal_file.stem)}")
     print(f"File: {meal_file.name}\n")
 
-    # Option: Lookup nutrition from wger/OFF
-    if _confirm("Nährwerte aus wger/OFF laden?"):
-        search_term = data.get("description") or data.get("name")
-        msg.info(f"Suche: {search_term}...")
-        nutrition = _lookup_nutrition(search_term)
-        if nutrition:
-            if _confirm(f"Werte übernehmen? ({nutrition['energy_kcal']} kcal, {nutrition['protein']}P, {nutrition['carbs']}C, {nutrition['fat']}F)"):
-                data["kcal"] = nutrition["energy_kcal"]
-                data["protein"] = nutrition["protein"]
-                data["carbs"] = nutrition["carbs"]
-                data["fat"] = nutrition["fat"]
-                if "name" not in data or data["name"] == data.get("description"):
-                    data["name"] = nutrition["name"]
-                msg.good("Nährwerte übernommen")
-        else:
-            msg.warn("Keine Nährwertdaten gefunden")
-
-    # Manual edits
     editable_fields = ["name", "description", "kcal", "protein", "carbs", "fat", "notes", "meal_type", "category"]
+    edit_mode = True
 
-    print("\nManuelle Änderungen (Enter = überspringen):")
-    for field in editable_fields:
-        if field in data:
-            current = str(data[field])
-            new_val = _input_field(f"{field}", current)
-            if new_val is not None and new_val != current:
-                # Try to convert to number for numeric fields
-                if field in ("kcal", "protein", "carbs", "fat"):
-                    try:
-                        data[field] = float(new_val)
-                    except ValueError:
-                        data[field] = new_val
-                else:
-                    data[field] = new_val
+    while edit_mode:
+        print("\nOptionen:")
+        print("  (W) wger/OFF Lookup")
+        print("  (G) Gemini Revision")
+        print("  (E) Edit Felder manuell")
+        print("  (S) Speichern")
+        print("  (Q) Abbrechen")
+        choice = input("\nWahl: ").strip().lower()
+
+        if choice == 'w':
+            search_term = data.get("description") or data.get("name")
+            msg.info(f"Suche: {search_term}...")
+            nutrition = _lookup_nutrition(search_term)
+            if nutrition:
+                if _confirm(f"Werte übernehmen? ({nutrition['energy_kcal']} kcal, {nutrition['protein']}P, {nutrition['carbs']}C, {nutrition['fat']}F)"):
+                    data["kcal"] = nutrition["energy_kcal"]
+                    data["protein"] = nutrition["protein"]
+                    data["carbs"] = nutrition["carbs"]
+                    data["fat"] = nutrition["fat"]
+                    if "name" not in data or data["name"] == data.get("description"):
+                        data["name"] = nutrition["name"]
+                    msg.good("Nährwerte übernommen")
+            else:
+                msg.warn("Keine Nährwertdaten gefunden")
+
+        elif choice == 'g':
+            from .revise import revise_catalog_entry, apply_revision
+            msg.info(f"Gemini revision für: {data.get('description')}")
+            revision = revise_catalog_entry(data)
+            if revision:
+                print(f"  {revision.get('reason')}")
+                if _confirm("Revisionen übernehmen?"):
+                    apply_revision(data, revision)
+                    msg.good("Revisionen übernommen")
+            else:
+                msg.info("Keine signifikanten Unterschiede gefunden")
+
+        elif choice == 'e':
+            print("\nEdit Felder (Enter = überspringen):")
+            for field in editable_fields:
+                if field in data:
+                    current = str(data[field])
+                    new_val = _input_field(f"{field}", current)
+                    if new_val is not None and new_val != current:
+                        if field in ("kcal", "protein", "carbs", "fat"):
+                            try:
+                                data[field] = float(new_val)
+                            except ValueError:
+                                data[field] = new_val
+                        else:
+                            data[field] = new_val
+
+        elif choice == 's':
+            edit_mode = False
+
+        elif choice == 'q':
+            msg.warn("Abgebrochen")
+            return
 
     # Show changes and confirm
     print("\nFinale Werte:")
@@ -257,37 +284,65 @@ def edit_logs(target_date: str | None = None) -> None:
     msg.divider(f"Editiere Mahlzeit #{meal_idx+1}")
     print(f"Datum: {target_date}\n")
 
-    # Option: Lookup nutrition from wger/OFF
-    if _confirm("Nährwerte aus wger/OFF laden?"):
-        search_term = meal.get("description")
-        msg.info(f"Suche: {search_term}...")
-        nutrition = _lookup_nutrition(search_term)
-        if nutrition:
-            if _confirm(f"Werte übernehmen? ({nutrition['energy_kcal']} kcal, {nutrition['protein']}P, {nutrition['carbs']}C, {nutrition['fat']}F)"):
-                meal["kcal"] = nutrition["energy_kcal"]
-                meal["protein"] = nutrition["protein"]
-                meal["carbs"] = nutrition["carbs"]
-                meal["fat"] = nutrition["fat"]
-                msg.good("Nährwerte übernommen")
-        else:
-            msg.warn("Keine Nährwertdaten gefunden")
-
     editable_fields = ["description", "kcal", "protein", "carbs", "fat", "notes", "meal_type", "type"]
+    edit_mode = True
 
-    print("\nManuelle Änderungen (Enter = überspringen):")
-    for field in editable_fields:
-        if field in meal:
-            current = str(meal[field])
-            new_val = _input_field(f"{field}", current)
-            if new_val is not None and new_val != current:
-                # Try to convert to number for numeric fields
-                if field in ("kcal", "protein", "carbs", "fat"):
-                    try:
-                        meal[field] = float(new_val)
-                    except ValueError:
-                        meal[field] = new_val
-                else:
-                    meal[field] = new_val
+    while edit_mode:
+        print("\nOptionen:")
+        print("  (W) wger/OFF Lookup")
+        print("  (G) Gemini Revision")
+        print("  (E) Edit Felder manuell")
+        print("  (S) Speichern")
+        print("  (Q) Abbrechen")
+        choice = input("\nWahl: ").strip().lower()
+
+        if choice == 'w':
+            search_term = meal.get("description")
+            msg.info(f"Suche: {search_term}...")
+            nutrition = _lookup_nutrition(search_term)
+            if nutrition:
+                if _confirm(f"Werte übernehmen? ({nutrition['energy_kcal']} kcal, {nutrition['protein']}P, {nutrition['carbs']}C, {nutrition['fat']}F)"):
+                    meal["kcal"] = nutrition["energy_kcal"]
+                    meal["protein"] = nutrition["protein"]
+                    meal["carbs"] = nutrition["carbs"]
+                    meal["fat"] = nutrition["fat"]
+                    msg.good("Nährwerte übernommen")
+            else:
+                msg.warn("Keine Nährwertdaten gefunden")
+
+        elif choice == 'g':
+            from .revise import revise_catalog_entry, apply_revision
+            msg.info(f"Gemini revision für: {meal.get('description')}")
+            revision = revise_catalog_entry(meal)
+            if revision:
+                print(f"  {revision.get('reason')}")
+                if _confirm("Revisionen übernehmen?"):
+                    apply_revision(meal, revision)
+                    msg.good("Revisionen übernommen")
+            else:
+                msg.info("Keine signifikanten Unterschiede gefunden")
+
+        elif choice == 'e':
+            print("\nEdit Felder (Enter = überspringen):")
+            for field in editable_fields:
+                if field in meal:
+                    current = str(meal[field])
+                    new_val = _input_field(f"{field}", current)
+                    if new_val is not None and new_val != current:
+                        if field in ("kcal", "protein", "carbs", "fat"):
+                            try:
+                                meal[field] = float(new_val)
+                            except ValueError:
+                                meal[field] = new_val
+                        else:
+                            meal[field] = new_val
+
+        elif choice == 's':
+            edit_mode = False
+
+        elif choice == 'q':
+            msg.warn("Abgebrochen")
+            return
 
     # Show changes and confirm
     print("\nFinale Werte:")
