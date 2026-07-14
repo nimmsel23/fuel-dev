@@ -12,6 +12,8 @@ try:
 except ImportError:
     yaml = None
 
+from .menu import select_from_menu
+
 try:
     from wasabi import Printer
     msg = Printer()
@@ -25,9 +27,6 @@ except ImportError:
     msg = _P()
 
 
-def have_gum() -> bool:
-    """Check if gum is available."""
-    return subprocess.run(["which", "gum"], capture_output=True).returncode == 0
 
 
 def _data_dir() -> Path:
@@ -70,91 +69,22 @@ def _lookup_nutrition(name: str) -> dict | None:
     return None
 
 
-def _gum_choose(options: list[str], placeholder: str = "") -> str | None:
-    """Use gum choose or fallback to numbered menu."""
-    if not have_gum():
-        return _numbered_menu(options, placeholder)
-
+def _input_field(prompt: str, initial: str = "") -> str | None:
+    """Simple input for a field."""
     try:
-        result = subprocess.run(
-            ["gum", "choose"] + options,
-            capture_output=True, text=True, timeout=5
-        )
-        if result.returncode == 0 and result.stdout.strip():
-            return result.stdout.strip()
-        elif result.returncode != 0:
-            # gum failed, log stderr for debugging
-            if result.stderr:
-                msg.warn(f"gum error: {result.stderr.strip()[:100]}")
-    except subprocess.TimeoutExpired:
-        msg.warn("gum timeout")
-    except Exception as e:
-        msg.warn(f"gum exception: {e}")
-
-    # Fallback if gum fails (no TTY, etc.)
-    return _numbered_menu(options, placeholder)
-
-
-def _gum_input(prompt: str, initial: str = "") -> str | None:
-    """Use gum input or fallback to raw input."""
-    if not have_gum():
-        try:
-            display = f"{prompt}: [{initial}] " if initial else f"{prompt}: "
-            val = input(display).strip()
-            return val or initial
-        except (EOFError, KeyboardInterrupt):
-            return None
-
-    try:
-        cmd = ["gum", "input", "--prompt", f"{prompt}: "]
-        if initial:
-            cmd.extend(["--value", initial])
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        if result.returncode == 0:
-            return result.stdout.strip()
-    except Exception:
-        pass
-    return None
-
-
-def _gum_confirm(message: str) -> bool:
-    """Use gum confirm or fallback to y/n prompt."""
-    if not have_gum():
-        try:
-            return input(f"{message} [y/N]: ").lower() in ("y", "yes")
-        except (EOFError, KeyboardInterrupt):
-            return False
-
-    try:
-        result = subprocess.run(["gum", "confirm", message], capture_output=True)
-        return result.returncode == 0
-    except Exception:
-        return False
-
-
-def _numbered_menu(options: list[str], prompt: str = "Wähle eine Option") -> str | None:
-    """Fallback: numbered menu in terminal."""
-    if not options:
+        display = f"{prompt}: [{initial}] " if initial else f"{prompt}: "
+        val = input(display).strip()
+        return val or initial
+    except (EOFError, KeyboardInterrupt):
         return None
 
-    print(f"\n{prompt}:")
-    for i, opt in enumerate(options, 1):
-        print(f"  {i}) {opt}")
 
-    while True:
-        try:
-            choice = input("Eingabe (Nummer oder 'q' zum Abbrechen): ").strip()
-            if choice.lower() == 'q':
-                return None
-            idx = int(choice) - 1
-            if 0 <= idx < len(options):
-                return options[idx]
-            else:
-                print(f"  ✗ Bitte Nummer zwischen 1 und {len(options)} eingeben")
-        except (ValueError, IndexError):
-            print(f"  ✗ Ungültige Eingabe")
-        except (EOFError, KeyboardInterrupt):
-            return None
+def _confirm(message: str) -> bool:
+    """Simple y/n confirmation."""
+    try:
+        return input(f"{message} [y/N]: ").lower() in ("y", "yes")
+    except (EOFError, KeyboardInterrupt):
+        return False
 
 
 def _load_meal_file(meal_file: Path) -> dict | None:
@@ -214,7 +144,7 @@ def edit_catalog() -> None:
         return
 
     # Select meal
-    selected = _gum_choose(meal_options, "Wähle eine Mahlzeit zum Editieren")
+    selected = select_from_menu(meal_options, "Wähle eine Mahlzeit zum Editieren")
     if not selected:
         msg.fail("Abgebrochen oder keine Auswahl möglich")
         return
@@ -229,12 +159,12 @@ def edit_catalog() -> None:
     print(f"File: {meal_file.name}\n")
 
     # Option: Lookup nutrition from wger/OFF
-    if _gum_confirm("Nährwerte aus wger/OFF laden?"):
+    if _confirm("Nährwerte aus wger/OFF laden?"):
         search_term = data.get("description") or data.get("name")
         msg.info(f"Suche: {search_term}...")
         nutrition = _lookup_nutrition(search_term)
         if nutrition:
-            if _gum_confirm(f"Werte übernehmen? ({nutrition['energy_kcal']} kcal, {nutrition['protein']}P, {nutrition['carbs']}C, {nutrition['fat']}F)"):
+            if _confirm(f"Werte übernehmen? ({nutrition['energy_kcal']} kcal, {nutrition['protein']}P, {nutrition['carbs']}C, {nutrition['fat']}F)"):
                 data["kcal"] = nutrition["energy_kcal"]
                 data["protein"] = nutrition["protein"]
                 data["carbs"] = nutrition["carbs"]
@@ -252,7 +182,7 @@ def edit_catalog() -> None:
     for field in editable_fields:
         if field in data:
             current = str(data[field])
-            new_val = _gum_input(f"{field}", current)
+            new_val = _input_field(f"{field}", current)
             if new_val is not None and new_val != current:
                 # Try to convert to number for numeric fields
                 if field in ("kcal", "protein", "carbs", "fat"):
@@ -269,7 +199,7 @@ def edit_catalog() -> None:
         if field in data:
             print(f"  {field}: {data[field]}")
 
-    if _gum_confirm("Speichern?"):
+    if _confirm("Speichern?"):
         _save_meal_file(meal_file, data)
         msg.good(f"Gespeichert: {meal_file.name}")
     else:
@@ -282,7 +212,7 @@ def edit_logs(target_date: str | None = None) -> None:
 
     # Get target date
     if not target_date:
-        target_date = _gum_input("Datum (YYYY-MM-DD)", str(date.today()))
+        target_date = _input_field("Datum (YYYY-MM-DD)", str(date.today()))
         if not target_date:
             msg.warn("Abgebrochen")
             return
@@ -315,7 +245,7 @@ def edit_logs(target_date: str | None = None) -> None:
         meal_map[label] = i
 
     # Select meal
-    selected = _gum_choose(meal_options, "Wähle eine Mahlzeit zum Editieren")
+    selected = select_from_menu(meal_options, "Wähle eine Mahlzeit zum Editieren")
     if not selected:
         msg.fail("Abgebrochen oder keine Auswahl möglich")
         return
@@ -328,12 +258,12 @@ def edit_logs(target_date: str | None = None) -> None:
     print(f"Datum: {target_date}\n")
 
     # Option: Lookup nutrition from wger/OFF
-    if _gum_confirm("Nährwerte aus wger/OFF laden?"):
+    if _confirm("Nährwerte aus wger/OFF laden?"):
         search_term = meal.get("description")
         msg.info(f"Suche: {search_term}...")
         nutrition = _lookup_nutrition(search_term)
         if nutrition:
-            if _gum_confirm(f"Werte übernehmen? ({nutrition['energy_kcal']} kcal, {nutrition['protein']}P, {nutrition['carbs']}C, {nutrition['fat']}F)"):
+            if _confirm(f"Werte übernehmen? ({nutrition['energy_kcal']} kcal, {nutrition['protein']}P, {nutrition['carbs']}C, {nutrition['fat']}F)"):
                 meal["kcal"] = nutrition["energy_kcal"]
                 meal["protein"] = nutrition["protein"]
                 meal["carbs"] = nutrition["carbs"]
@@ -348,7 +278,7 @@ def edit_logs(target_date: str | None = None) -> None:
     for field in editable_fields:
         if field in meal:
             current = str(meal[field])
-            new_val = _gum_input(f"{field}", current)
+            new_val = _input_field(f"{field}", current)
             if new_val is not None and new_val != current:
                 # Try to convert to number for numeric fields
                 if field in ("kcal", "protein", "carbs", "fat"):
@@ -365,7 +295,7 @@ def edit_logs(target_date: str | None = None) -> None:
         if field in meal:
             print(f"  {field}: {meal[field]}")
 
-    if _gum_confirm("Speichern?"):
+    if _confirm("Speichern?"):
         # Update mtime
         import time
         data["_local_mtime"] = int(time.time() * 1000)
@@ -392,7 +322,7 @@ def edit(mode: str | None = None, target_date: str | None = None) -> None:
     # Expliziter Mode
     if not mode:
         options = ["Catalog editieren", "Log editieren"]
-        selected = _gum_choose(options, "Was möchtest du editieren?")
+        selected = select_from_menu(options, "Was möchtest du editieren?")
         if not selected:
             return
         mode = "catalog" if "Catalog" in selected else "log"
