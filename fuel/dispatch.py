@@ -353,17 +353,29 @@ def stats(days: int = typer.Option(7, "-d", "--days", help="Anzahl Tage")):
     print(f"  Schnitt: {avg_kcal:.0f} kcal  {avg_p:.0f}P {avg_c:.0f}C {avg_f:.0f}F")
 
 
-@app.command()
+@app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
 def edit(
+    ctx: typer.Context,
     mode: str = typer.Option(None, "--mode", "-m", help="catalog | log (default: ncurses für heute)"),
     date_arg: str = typer.Option(None, "--date", "-d", help="Datum für Log-Edit (YYYY-MM-DD)"),
 ):
     """Interactive Nutrition Editor.
 
     Default (keine Argumente): ncurses TUI mit allen Einträgen von heute (schnelle Batch-Edit)
-    --mode catalog: gum-Menü zum Catalog editieren
-    --mode log [--date]: gum-Menü zum Log editieren (default: heute)
+    fuel edit catalog: gum-Menü zum Catalog editieren
+    fuel edit log [DATUM]: gum-Menü zum Log editieren
     """
+    # Allow positional arguments like: fuel edit catalog
+    if ctx.args and not mode:
+        first_arg = ctx.args[0]
+        if first_arg in ("catalog", "log"):
+            mode = first_arg
+        if first_arg and first_arg not in ("catalog", "log") and len(ctx.args) > 1:
+            # Treat as: fuel edit log DATUM
+            if ctx.args[0] == "log":
+                date_arg = ctx.args[1]
+                mode = "log"
+
     tui.edit(mode=mode, target_date=date_arg)
 
 
