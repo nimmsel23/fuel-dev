@@ -156,19 +156,30 @@ def edit_catalog() -> None:
 
     # Edit fields
     msg.divider(f"Editiere: {data.get('name', meal_file.stem)}")
-    print(f"File: {meal_file.name}\n")
+    print(f"File: {meal_file.name}")
 
     editable_fields = ["name", "description", "kcal", "protein", "carbs", "fat", "notes", "meal_type", "category"]
     edit_mode = True
 
+    msg.good("✓ Select erfolgreich!")
+
     while edit_mode:
-        print("\nOptionen:")
+        print("\nAktuelle Werte:")
+        for field in editable_fields:
+            if field in data:
+                print(f"  {field}: {data[field]}")
+
+        print("\n━ OPTIONEN ━")
         print("  (W) wger/OFF Lookup")
         print("  (G) Gemini Revision")
         print("  (E) Edit Felder manuell")
         print("  (S) Speichern")
         print("  (Q) Abbrechen")
-        choice = input("\nWahl: ").strip().lower()
+
+        try:
+            choice = input("\nWahl (W/G/E/S/Q): ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            choice = 'q'
 
         if choice == 'w':
             search_term = data.get("description") or data.get("name")
@@ -282,19 +293,30 @@ def edit_logs(target_date: str | None = None) -> None:
 
     # Edit fields
     msg.divider(f"Editiere Mahlzeit #{meal_idx+1}")
-    print(f"Datum: {target_date}\n")
+    print(f"Datum: {target_date}")
 
     editable_fields = ["description", "kcal", "protein", "carbs", "fat", "notes", "meal_type", "type"]
     edit_mode = True
 
+    msg.good("✓ Select erfolgreich!")
+
     while edit_mode:
-        print("\nOptionen:")
+        print("\nAktuelle Werte:")
+        for field in editable_fields:
+            if field in meal:
+                print(f"  {field}: {meal[field]}")
+
+        print("\n━ OPTIONEN ━")
         print("  (W) wger/OFF Lookup")
         print("  (G) Gemini Revision")
         print("  (E) Edit Felder manuell")
         print("  (S) Speichern")
         print("  (Q) Abbrechen")
-        choice = input("\nWahl: ").strip().lower()
+
+        try:
+            choice = input("\nWahl (W/G/E/S/Q): ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            choice = 'q'
 
         if choice == 'w':
             search_term = meal.get("description")
