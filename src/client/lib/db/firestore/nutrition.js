@@ -52,15 +52,25 @@ export async function getNutritionLogsInRange(dates) {
 // journal-dev/vitalos). Dokument-IDs sind YYYY-MM-DD, also lexikographisch
 // = chronologisch sortierbar.
 export async function getMealsHistory(limitCount = 30) {
-  const q = query(
-    collection(db, "nutrition", getUid(), "logs"),
-    orderBy(documentId(), "desc"),
-    limit(limitCount)
-  );
-  const snap = await getDocs(q);
-  return snap.docs
-    .map(d => ({ date: d.id, ...d.data() }))
-    .filter(log => (log.meals || []).length > 0);
+  try {
+    const q = query(
+      collection(db, "nutrition", getUid(), "logs"),
+      orderBy("updated_at", "desc"),
+      limit(limitCount)
+    );
+    const snap = await getDocs(q);
+    return snap.docs
+      .map(d => ({ date: d.id, ...d.data() }))
+      .filter(log => (log.meals || []).length > 0);
+  } catch (error) {
+    console.error("[getMealsHistory] Query failed, fallback to unordered:", error);
+    // Fallback: alle Logs laden, ungeordnet
+    const snap = await getDocs(collection(db, "nutrition", getUid(), "logs"));
+    return snap.docs
+      .map(d => ({ date: d.id, ...d.data() }))
+      .filter(log => (log.meals || []).length > 0)
+      .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  }
 }
 
 export async function deleteMealFromLog(date, mealId) {
