@@ -378,6 +378,23 @@ def edit(
 
     tui.edit(mode=mode, target_date=date_arg)
 
+@app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True}, name="tui")
+def tui_alias(
+    ctx: typer.Context,
+    mode: str = typer.Option(None, "--mode", "-m"),
+    date_arg: str = typer.Option(None, "--date", "-d"),
+):
+    """Alias for 'fuel edit'."""
+    edit(ctx, mode=mode, date_arg=date_arg)
+
+@app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True}, name="catalog")
+def catalog_alias(
+    ctx: typer.Context,
+    date_arg: str = typer.Option(None, "--date", "-d"),
+):
+    """Alias for 'fuel edit catalog'."""
+    edit(ctx, mode="catalog", date_arg=date_arg)
+
 
 # Known Typer-Subcommands aus der App ableiten — kein hardcoded set mehr.
 def _known_commands() -> set[str]:
