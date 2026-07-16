@@ -124,10 +124,11 @@ export async function deleteJson(path) {
     }
   }
 
-  const res = await fetch(path, {
+  const fn = window.aosOfflineQueue?.fetch ?? fetch;
+  const res = await fn(path, {
     method: "DELETE",
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok && res.status !== 202) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
 
@@ -156,12 +157,13 @@ export async function patchJson(path, body) {
     }
   }
 
-  const res = await fetch(path, {
+  const fn = window.aosOfflineQueue?.fetch ?? fetch;
+  const res = await fn(path, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok && res.status !== 202) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
 
@@ -232,12 +234,13 @@ export async function postJson(path, body) {
     }
   }
 
-  const res = await fetch(path, {
+  const fn = window.aosOfflineQueue?.fetch ?? fetch;
+  const res = await fn(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!res.ok) {
+  if (!res.ok && res.status !== 202) {
     let message = `HTTP ${res.status}`;
     try {
       const data = await res.json();
