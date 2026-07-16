@@ -7,4 +7,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from fuel.supplement import main
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\nAbbruch.")
+        sys.exit(130)

@@ -181,9 +181,14 @@ def do_meal_log(description: str, kcal: float, protein: float, carbs: float, fat
                 catalog_id = hit.get("id")
                 msg.good(f"Catalog-Hit: {hit['name']} ({kcal:.0f} kcal/Stück) — kein Gemini-Call")
         if kcal == 0:
-            msg.info(f"Gemini schätzt Makros für '{description}'...")
-            macros = _parse_macros_with_gemini(description)
+            with Console().status(f"[cyan]Gemini schätzt Makros für '{description}'...[/cyan]", spinner="dots"):
+                macros = _parse_macros_with_gemini(description)
+            
             kcal, protein, carbs, fat = macros.get("kcal", 0), macros.get("protein", 0), macros.get("carbs", 0), macros.get("fat", 0)
+            
+            if kcal == 0 and protein == 0 and carbs == 0 and fat == 0:
+                msg.fail("Gemini konnte die Makros nicht schätzen (Netzwerkfehler oder ungültige Antwort). Abbruch.")
+                raise SystemExit(1)
 
     if qty > 1:
         kcal, protein, carbs, fat = kcal * qty, protein * qty, carbs * qty, fat * qty
@@ -380,7 +385,8 @@ def narrative_command(
         catalog_name = catalog_hit.get("name") or catalog_name
         msg.good(f"Catalog-Hit: {catalog_name} ({per_kcal:.0f} kcal/Teller) — kein Gemini-Call")
     else:
-        macros = _gemini_macros(parsed.items_text)
+        with Console().status(f"[cyan]Gemini schätzt Makros für '{parsed.items_text}'...[/cyan]", spinner="dots"):
+            macros = _gemini_macros(parsed.items_text)
         if macros.get("_error"):
             msg.fail(f"Gemini-Fehler: {macros['_error']}"); raise typer.Exit(1)
         per_kcal    = macros["kcal"]    / parsed.count
@@ -394,8 +400,8 @@ def narrative_command(
 
     # Catalog-Enhancement: bei Miss + --save-catalog → 1× discover + POST → catalog_id
     if save_catalog and not dry_run and not catalog_id:
-        msg.info("Gemini: kanonischer Catalog-Name...")
-        disc = _gemini_discover(parsed.items_text)
+        with Console().status("[cyan]Gemini extrahiert kanonischen Namen...[/cyan]", spinner="dots"):
+            disc = _gemini_discover(parsed.items_text)
         if disc.get("error"):
             msg.warn(f"discover: {disc['error']} — fallback lokaler Name")
         else:
