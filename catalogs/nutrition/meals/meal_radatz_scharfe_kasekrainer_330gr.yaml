@@ -1,0 +1,19 @@
+id: meal_radatz_scharfe_kasekrainer_330gr
+kind: meal
+category: meal
+name: Radatz Scharfe Käsekrainer 330gr
+alias: null
+meal_type: meal
+description: Radatz Scharfe Käsekrainer 330gr
+notes: ''
+kcal: 944.0
+protein: 59.0
+carbs: 5.0
+fat: 76.0
+yield_g: null
+components: []
+addons: []
+default_addon_ids: []
+source: gemini
+created_at: '2026-07-16T15:55:30.150002Z'
+updated_at: '2026-07-16T15:55:30.150002Z'

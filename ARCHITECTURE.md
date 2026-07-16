@@ -55,6 +55,10 @@ GET  /supplements/log?date=
 POST /supplements/log
 GET  /supplements/stats?days=&anchor=
 
+# Push Notifications (Habit Tracker)
+GET  /push/vapidPublicKey
+POST /push/subscribe
+
 # Legacy
 GET|POST /fuel/log
 ```
@@ -135,6 +139,26 @@ Neues Meal: `saveMeal(item)` → schreibt `{id}.json`.
 
 ---
 
+## Supplement Habit Tracker (Push Reminders)
+
+Supplements fungieren als tägliche Checkliste (Habits), die den User an die Einnahme erinnern.
+
+### 1. Datenmodell (Catalog)
+Im `catalog.json` werden Supplements mit einem `schedule` definiert:
+- `daily`: Jeden Tag fällig
+- `weekly`: Nur an bestimmten Wochentagen (z. B. `["mon", "wed"]`)
+- `cyclical`: Alle X Tage (z. B. jeden 3. Tag)
+
+### 2. UI-Logik (Due Today Checkliste)
+Die PWA (V2 / Fuel Studio) berechnet on-the-fly, welche Supplements **heute** an der Reihe sind. Es wird eine Checkliste gruppiert nach Tageszeiten (Morning, Midday, Evening, Night) angezeigt. Ein Tap loggt das Supplement (Y/N).
+
+### 3. Push-Benachrichtigungen
+- **Backend:** `push-scheduler.mjs` läuft im Node-Server als minütlicher Cron-Job.
+- **Triggers:** Um 08:00 (morning), 13:00 (midday), 19:00 (evening) und 21:00 (night) wird der Soll-Zustand (`schedule`) mit dem Ist-Zustand (`logs/YYYY-MM-DD.json`) abgeglichen.
+- **Service Worker:** Sind noch Supplements offen, schickt der Server eine Web-Push-Notification (VAPID) an den Service Worker (`sw.js`), der das Smartphone aufweckt und den Reminder anzeigt.
+
+---
+
 ## Mikronährstoff-Pipeline
 
 ```
@@ -203,6 +227,8 @@ Config: `~/.env/fuel.env` (`GEMINI_API_KEY`, `GEMINI_MODEL=gemini-2.5-flash`)
 | `nutrition-log.mjs` | Tages-Log lesen/schreiben |
 | `supplements-catalog.mjs` | `catalogs/supplements/catalog.json` |
 | `supplements-log.mjs` | Supplement-Logs + Stats |
+| `push.mjs` | Routen für VAPID Key und Subscription |
+| `push-scheduler.mjs` | Cron-Job für Supplement-Reminders |
 | `wger-search.mjs` | wger API Ingredient-Suche |
 
 ---

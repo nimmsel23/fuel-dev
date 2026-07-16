@@ -1,4 +1,4 @@
-const CACHE = "fuel-v17";
+const CACHE = "fuel-v18";
 const BASE_PATH = new URL(self.registration.scope).pathname.replace(/\/$/, "");
 const withBase = (path) => `${BASE_PATH}${path}`;
 const STATIC_ASSETS = [withBase("/"), withBase("/index.html"), withBase("/manifest.json")];
@@ -51,4 +51,46 @@ self.addEventListener("fetch", (event) => {
       });
     }));
   }
+});
+
+self.addEventListener("push", (event) => {
+  if (!event.data) return;
+  
+  try {
+    const data = event.data.json();
+    const options = {
+      body: data.body || "Du hast noch offene Supplements für heute.",
+      icon: data.icon || "/favicon-192x192.png",
+      badge: "/favicon-192x192.png",
+      vibrate: [200, 100, 200],
+      data: {
+        url: data.url || "/supplements"
+      }
+    };
+    
+    event.waitUntil(
+      self.registration.showNotification(data.title || "Fuel Reminder", options)
+    );
+  } catch (err) {
+    console.error("Push event payload not JSON", err);
+  }
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const urlToOpen = event.notification.data.url;
+  
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
+      for (let i = 0; i < windowClients.length; i++) {
+        const client = windowClients[i];
+        if (client.url.includes(urlToOpen) && "focus" in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(urlToOpen);
+      }
+    })
+  );
 });
