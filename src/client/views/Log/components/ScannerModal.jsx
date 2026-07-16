@@ -2,6 +2,8 @@ import { useState, useRef } from "react";
 import { Camera, Upload, X, Loader2 } from "lucide-react";
 import { Modal } from "../../../components/ui.jsx";
 import { postJson } from "@api";
+import { vertexAI } from "../../lib/firebase.js";
+import { getGenerativeModel } from "@firebase/vertexai";
 
 export default function ScannerModal({ onClose, onResult }) {
   const [loading, setLoading] = useState(false);
@@ -45,22 +47,37 @@ export default function ScannerModal({ onClose, onResult }) {
       ctx.drawImage(img, 0, 0, width, height);
 
       const base64Data = canvas.toDataURL("image/jpeg", 0.7);
+      const b64Raw = base64Data.split(",")[1];
+      const cloud = import.meta.env.VITE_APP_MODE === "client";
+      
+      let macrosResult;
+      
+      if (cloud) {
+        // Vertex AI Cloud Mode
+        const model = getGenerativeModel(vertexAI, { model: "gemini-1.5-flash" });
+        const prompt = "Dies ist ein Foto von Essen, einem Barcode oder einer Einkaufsquittung. Identifiziere die Mahlzeit oder Zutaten und schätze die Nährwerte (Makros und Mikros) so genau wie möglich ab. Nutze das übliche JSON Format wie: {\"name\": \"...\", \"macros\": {\"kcal\": 0, \"protein\": 0, \"carbs\": 0, \"fat\": 0}}";
+        
+        const result = await model.generateContent([
+          prompt,
+          { inlineData: { data: b64Raw, mimeType: "image/jpeg" } }
+        ]);
+        const text = result.response.text();
+        
+        // Versuche das JSON zu extrahieren
+        const jsonStr = text.replace(/```json/g, "").replace(/```/g, "").trim();
+        macrosResult = JSON.parse(jsonStr);
+      } else {
+        // Local Mode via Python Backend
+        macrosResult = await postJson("/nutrition/vision", {
+          image_b64: b64Raw,
+          mime_type: "image/jpeg"
+        });
+      }
 
-      // Send to backend (adjust endpoint as needed for Vite proxy or direct)
-      // Since this is the local node app, we use our standard api handler
-      // Wait, the API handler maps to the python backend if properly routed.
-      // We added /nutrition/vision to fuel-fastapi-server.py
-      // But how does the UI talk to it? Through the Node server.
-      // So we must add a /nutrition/vision route to Node server to proxy it, OR call it directly.
-      const res = await postJson("/nutrition/vision", {
-        image_b64: base64Data,
-        mime_type: "image/jpeg"
-      });
-
-      if (res.macros) {
+      if (macrosResult && macrosResult.macros) {
         onResult({
-          description: res.name || "Gescannte Mahlzeit",
-          ...res.macros
+          description: macrosResult.name || "Gescannte Mahlzeit",
+          ...macrosResult.macros
         });
         onClose();
       } else {
