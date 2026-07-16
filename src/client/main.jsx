@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Sparkles } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 import { motion, AnimatePresence } from "framer-motion";
+import { RotateCcw } from "lucide-react";
 
 import "./styles.css";
 import { TAB_CONFIG } from "./routes.js";
@@ -36,10 +37,7 @@ function App() {
     },
   });
 
-  React.useEffect(() => {
-    if (needRefresh) updateServiceWorker(true);
-  }, [needRefresh, updateServiceWorker]);
-
+  // The update button is rendered in the header when needRefresh is true.
   React.useEffect(() => watchAuth((u) => setUser(u)), []);
 
   // URL Hashing for Tabs
@@ -92,6 +90,15 @@ function App() {
                   <Sparkles className="h-3.5 w-3.5" />
                   {(isCloud || isClientBuild) ? "Fuel Centre V3" : "Fuel Centre V2"}
                 </p>
+                {needRefresh && (
+                  <button
+                    onClick={() => updateServiceWorker(true)}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-[10px] uppercase tracking-[0.25em] text-amber-200 hover:border-amber-400/60 hover:bg-amber-400/20 transition"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    Update
+                  </button>
+                )}
                 {isCloud && (
                   user ? (
                     <button onClick={signOut} className="text-[10px] text-slate-500 hover:text-white uppercase tracking-widest">
