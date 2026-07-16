@@ -4,6 +4,8 @@ import { NotebookPen, UtensilsCrossed, Pencil, Trash2, Sparkles } from "lucide-r
 import { twMerge } from "tailwind-merge";
 import { postJson, patchJson } from "@api";
 import FoodSearch from "../components/FoodSearch.jsx";
+import ScannerModal from "../components/ScannerModal.jsx";
+import { Camera } from "lucide-react";
 
 const MEAL_TYPES = [
   { value: "breakfast", label: "Frühstück" },
@@ -36,6 +38,7 @@ export default function LogView({ date, nutrition, journal }) {
   const [moveDate, setMoveDate] = useState("");
   const [aiText, setAiText] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
   
   const isEditing = Boolean(form.id);
   const meals = nutrition?.meals || [];
@@ -157,14 +160,42 @@ export default function LogView({ date, nutrition, journal }) {
                 value={aiText}
                 onChange={(e) => setAiText(e.target.value)}
               />
-              <button
-                disabled={aiLoading || !aiText.trim()}
-                className="mt-4 w-full bg-sky-300 text-slate-950 rounded-full py-3 font-bold disabled:opacity-50 hover:bg-sky-200 transition-colors shadow-lg active:scale-[0.98]"
-              >
-                {aiLoading ? "Verarbeite..." : "Loggen"}
-              </button>
+              <div className="flex gap-2 mt-4">
+                <button
+                  type="submit"
+                  disabled={aiLoading || !aiText.trim()}
+                  className="flex-1 bg-sky-300 text-slate-950 rounded-full py-3 font-bold disabled:opacity-50 hover:bg-sky-200 transition-colors shadow-lg active:scale-[0.98]"
+                >
+                  {aiLoading ? "Verarbeite..." : "Loggen"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setScannerOpen(true)}
+                  className="bg-slate-800 text-sky-400 rounded-full px-5 flex items-center justify-center hover:bg-slate-700 transition-colors shadow-lg active:scale-[0.98] border border-white/10"
+                  title="Foto / Barcode scannen"
+                >
+                  <Camera className="h-5 w-5" />
+                </button>
+              </div>
             </form>
           </div>
+        )}
+        
+        {scannerOpen && (
+          <ScannerModal 
+            onClose={() => setScannerOpen(false)}
+            onResult={(res) => {
+              setForm(f => ({
+                ...f,
+                description: res.description,
+                kcal: res.kcal || "",
+                protein: res.protein || "",
+                carbs: res.carbs || "",
+                fat: res.fat || ""
+              }));
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+          />
         )}
 
         {!isEditing && (
