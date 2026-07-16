@@ -154,10 +154,14 @@ def _normalize_micros(raw: dict) -> dict:
     return {k: float(raw.get(k, 0) or 0) for k in MICRO_KEYS}
 
 
-def _call_one_credential(cred: dict, prompt: str, *, retries: int, timeout: int, log_label: str) -> dict:
+def _call_one_credential(cred: dict, prompt: str, *, image_b64: str | None = None, mime_type: str = "image/jpeg", retries: int, timeout: int, log_label: str) -> dict:
     """Single-credential call with backoff retry. Returns {ok, text, error, retry_other?}."""
     url = f"{GEMINI_API_BASE}/{cred['model']}:generateContent"
-    payload = {"contents": [{"parts": [{"text": prompt}]}]}
+    parts = []
+    if image_b64:
+        parts.append({"inline_data": {"mime_type": mime_type, "data": image_b64}})
+    parts.append({"text": prompt})
+    payload = {"contents": [{"parts": parts}]}
     data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
 
     last_err = "unknown"
@@ -207,7 +211,7 @@ def _call_one_credential(cred: dict, prompt: str, *, retries: int, timeout: int,
     return {"ok": False, "error": last_err}
 
 
-def call_gemini(prompt: str, *, retries: int = 2, timeout: int = 30, log_label: str = "Gemini") -> dict:
+def call_gemini(prompt: str, *, image_b64: str | None = None, mime_type: str = "image/jpeg", retries: int = 2, timeout: int = 30, log_label: str = "Gemini") -> dict:
     """Multi-key Gemini call. Iteriert über alle verfügbaren Keys bei 429/403/network.
 
     Returns {ok, text, error}.
@@ -216,10 +220,10 @@ def call_gemini(prompt: str, *, retries: int = 2, timeout: int = 30, log_label: 
         logger.error("Kein GEMINI_API_KEY in ~/.env/{gemini,fuel,fitness,relax}.env gefunden")
         return {"ok": False, "error": "no credentials"}
 
-    logger.info(f"{log_label} call: prompt={prompt[:60]!r}… ({len(GEMINI_CREDENTIALS)} keys verfügbar)")
+    logger.info(f"{log_label} call: prompt={prompt[:60]!r}… ({len(GEMINI_CREDENTIALS)} keys verfügbar, image={'yes' if image_b64 else 'no'})")
     last_err = "unknown"
     for cred in GEMINI_CREDENTIALS:
-        res = _call_one_credential(cred, prompt, retries=retries, timeout=timeout, log_label=log_label)
+        res = _call_one_credential(cred, prompt, image_b64=image_b64, mime_type=mime_type, retries=retries, timeout=timeout, log_label=log_label)
         if res["ok"]:
             return res
         last_err = res["error"]
@@ -246,6 +250,27 @@ def estimate_nutrition(description: str, *, retries: int = 2, timeout: int = 30)
         "macros": _normalize_macros(parsed.get("macros") or {}),
         "micros": _normalize_micros(parsed.get("micros") or {}),
         "components": parsed.get("components") or [],
+    }
+
+
+def estimate_vision(image_b64: str, mime_type: str = "image/jpeg", *, retries: int = 2, timeout: int = 30) -> dict:
+    """Multimodal one-shot estimation: extracts macros/micros/components from photo or receipt."""
+    prompt = "Dies ist ein Foto von Essen, einem Barcode oder einer Einkaufsquittung. Identifiziere die Mahlzeit oder Zutaten und schätze die Nährwerte (Makros und Mikros) so genau wie möglich ab. Nutze das übliche JSON Format."
+    res = call_gemini(prompt, image_b64=image_b64, mime_type=mime_type, retries=retries, timeout=timeout, log_label="estimate_vision")
+    if not res["ok"]:
+        return _empty_response(res["error"])
+
+    parsed = _extract_json(res["text"])
+    if not parsed:
+        logger.error(f"JSON parse failed: {res['text'][:200]!r}")
+        return _empty_response("json parse failed")
+
+    logger.debug(f"estimate_vision success: {parsed.get('macros')}")
+    return {
+        "macros": _normalize_macros(parsed.get("macros") or {}),
+        "micros": _normalize_micros(parsed.get("micros") or {}),
+        "components": parsed.get("components") or [],
+        "name": parsed.get("name", "Gescannte Mahlzeit") # Fallback falls nicht in JSON
     }
 
 
