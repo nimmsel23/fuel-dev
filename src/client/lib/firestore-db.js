@@ -6,4 +6,4 @@
  * Alle bestehenden Import-Pfade auf diese Datei bleiben gültig.
  */
 
-export * from "./db/firestore/index.js";
+export * from "./db.firestore.js";

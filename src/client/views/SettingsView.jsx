@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Activity, Flame, LogIn, LogOut, RefreshCw, Settings2, Sparkles } from "lucide-react";
 import { useSettings } from "../store.js";
-import { signIn, signOut, watchAuth } from "../lib/firestore-db.js";
+import { signIn, signOut, watchAuth } from "../lib/db.firestore.js";
 import { auth } from "../lib/firebase.js";
 import { fetchJson, postJson } from "@api";
 

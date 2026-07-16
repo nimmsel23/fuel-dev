@@ -1,5 +1,5 @@
 // Cloud channel — Firestore only. No Fastify/local fetch for data.
-import * as firestore from "./firestore-db.js";
+import * as firestore from "./db.firestore.js";
 import { doc, setDoc } from "firebase/firestore";
 
 async function searchOFF(query, limit) {

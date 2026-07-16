@@ -3,6 +3,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { NotebookPen, UtensilsCrossed, Pencil, Trash2, Sparkles } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 import { postJson, patchJson } from "@api";
+import { vertexAI } from "../../lib/firebase.js";
+import { getGenerativeModel } from "@firebase/vertexai";
 import FoodSearch from "../../components/FoodSearch.jsx";
 import ScannerModal from "./components/ScannerModal.jsx";
 import { Camera } from "lucide-react";
@@ -62,7 +64,35 @@ export default function LogView({ date, nutrition, journal }) {
     if (!aiText.trim()) return;
     setAiLoading(true);
     try {
-      await postJson("/nutrition/ai-log", { text: aiText, date });
+      if (cloud) {
+        const model = getGenerativeModel(vertexAI, { model: "gemini-1.5-flash" });
+        const prompt = `Analysiere folgende Mahlzeit/Lebensmittel und schätze die Nährwerte (Makros).
+Eingabe: "${aiText}"
+Gib die Antwort NUR im folgenden JSON Format zurück: {"name": "Gefundenes Essen", "macros": {"kcal": 0, "protein": 0, "carbs": 0, "fat": 0}}`;
+        const result = await model.generateContent(prompt);
+        const text = result.response.text();
+        const jsonStr = text.replace(/```json/g, "").replace(/```/g, "").trim();
+        const parsed = JSON.parse(jsonStr);
+
+        if (parsed && parsed.macros) {
+          await postJson("/nutrition/log", {
+            date,
+            meal: { 
+              type: "snack", // Default
+              description: parsed.name || aiText, 
+              notes: "",
+              kcal: parsed.macros.kcal || 0, 
+              protein: parsed.macros.protein || 0, 
+              carbs: parsed.macros.carbs || 0, 
+              fat: parsed.macros.fat || 0 
+            },
+          });
+        }
+      } else {
+        // Local via Python server
+        await postJson("/nutrition/ai-log", { text: aiText, date });
+      }
+      
       qc.invalidateQueries({ queryKey: ["nutrition", date] });
       setAiText("");
     } catch (err) {
@@ -146,9 +176,8 @@ export default function LogView({ date, nutrition, journal }) {
           <h2 className="text-2xl font-bold tracking-tight">Ernährung</h2>
         </div>
 
-        {/* AI Logger — nur lokal (kein Cloud-Backend) */}
-        {!cloud && (
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur shadow-glow">
+        {/* AI Logger — Hybrid (Lokal & Vertex AI in Firebase) */}
+        <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur shadow-glow">
             <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-violet-300" />
               AI Logger
@@ -179,7 +208,6 @@ export default function LogView({ date, nutrition, journal }) {
               </div>
             </form>
           </div>
-        )}
         
         {scannerOpen && (
           <ScannerModal 
