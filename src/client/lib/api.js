@@ -1,4 +1,4 @@
-import * as firestore from "./firestore-db.js";
+import * as firestore from "./db.firestore.js";
 import { doc, setDoc } from "firebase/firestore";
 
 const isCloud = () => {

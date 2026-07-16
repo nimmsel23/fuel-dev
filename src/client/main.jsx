@@ -13,7 +13,7 @@ import NutritionHeatmap from "./components/NutritionHeatmap.jsx";
 import { useApp } from "./store.js";
 import { useAppData } from "./hooks/useAppData.js";
 import { sumMetric, formatMetric } from "../shared/utils/utils.js";
-import { watchAuth, signIn, signOut, getUid } from "./lib/firestore-db.js";
+import { watchAuth, signIn, signOut, getUid } from "./lib/db.firestore.js";
 
 import { useRegisterSW } from "virtual:pwa-register/react";
 
