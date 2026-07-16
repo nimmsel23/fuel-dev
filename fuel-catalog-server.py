@@ -44,13 +44,46 @@ async def get_supplements_catalog(request):
             return web.json_response(json.load(f))
     return web.HTTPNotFound(text="Supplements catalog not found")
 
+from loguru import logger
+
+async def cors_middleware(app, handler):
+    async def middleware_handler(request):
+        if request.method == "OPTIONS":
+            response = web.Response()
+        else:
+            try:
+                response = await handler(request)
+            except web.HTTPException as ex:
+                response = ex
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS, DELETE, PUT, PATCH'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        if isinstance(response, web.HTTPException):
+            raise response
+        return response
+    return middleware_handler
+
+async def logging_middleware(app, handler):
+    async def middleware_handler(request):
+        if request.method != "OPTIONS":
+            logger.info(f"{request.method} {request.path}")
+        response = await handler(request)
+        if request.method != "OPTIONS":
+            logger.info(f"-> {response.status}")
+        return response
+    return middleware_handler
+
 async def init_app():
-    app = web.Application()
+    app = web.Application(middlewares=[cors_middleware, logging_middleware])
+    # Handle OPTIONS on all routes for CORS preflight
+    app.router.add_options('/{tail:.*}', lambda r: web.Response())
+    
     app.router.add_get('/catalogs/nutrition', get_nutrition_meals)
     app.router.add_get('/catalogs/nutrition/{meal_id}', get_nutrition_meals)
     app.router.add_get('/catalogs/supplements', get_supplements_catalog)
     return app
 
 if __name__ == '__main__':
+    logger.info("Starting fuel-catalog-server on port 9050...")
     app = asyncio.run(init_app())
-    web.run_app(app, port=9050)
+    web.run_app(app, port=9050, print=lambda *args, **kwargs: None)

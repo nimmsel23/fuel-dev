@@ -276,7 +276,11 @@ export default function FoodView({ activeDate, setActiveDate, nutrition }) {
                               {MEAL_LABEL[item.meal_type] || item.meal_type || item.kind}
                             </div>
                           </div>
-                          <button onClick={() => deleteCatalogItem.mutate(item.id)} className="opacity-0 group-hover:opacity-100 transition-opacity p-2 text-slate-500 hover:text-red-400">
+                          <button onClick={() => {
+                            if (window.confirm(`Möchtest du "${item.name}" wirklich unwiderruflich aus dem Katalog löschen?`)) {
+                              deleteCatalogItem.mutate(item.id);
+                            }
+                          }} className="opacity-0 group-hover:opacity-100 transition-opacity p-2 text-slate-500 hover:text-red-400">
                             <Trash2 className="h-4 w-4" />
                           </button>
                         </div>

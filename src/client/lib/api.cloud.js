@@ -66,7 +66,13 @@ export async function fetchJson(path) {
       firestore.searchNutritionCatalog(q, limit),
       searchOFF(q, limit),
     ]);
-    const results = [...catalogResults, ...offResults];
+    const normalizedCatalog = catalogResults.map(i => ({
+      ...i,
+      ew: i.protein,
+      kh: i.carbs,
+      fett: i.fat
+    }));
+    const results = [...normalizedCatalog, ...offResults];
     return { ok: true, count: results.length, results };
   }
   if (normPath.startsWith("/nutrition/weekly")) {
