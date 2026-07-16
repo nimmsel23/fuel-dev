@@ -1,7 +1,7 @@
 // fuel-dev Service Worker
 // v1: static cache + stale-while-revalidate reads + Background Sync für offline POSTs
 
-const CACHE = 'fuel-v21'
+const CACHE = 'fuel-v22'
 
 const STATIC = [
   '/',
