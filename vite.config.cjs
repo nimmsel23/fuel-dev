@@ -25,6 +25,7 @@ module.exports = defineConfig(({ mode }) => {
         "@habits": require("path").resolve(__dirname, "../habits-dev/src"),
         "@journal": require("path").resolve(__dirname, "../journal-dev/src"),
         "@fitness/constants": require("path").resolve(__dirname, "../fitness-dev/src/constants"),
+        "@fuel": require("path").resolve(__dirname, "src/client"),
       },
     },
     plugins: [
