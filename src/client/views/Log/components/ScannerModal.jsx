@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { Camera, Upload, X, Loader2 } from "lucide-react";
-import { Modal } from "./ui.jsx";
+import { Modal } from "../../../components/ui.jsx";
 import { postJson } from "@api";
 
 export default function ScannerModal({ onClose, onResult }) {

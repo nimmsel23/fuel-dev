@@ -3,8 +3,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { NotebookPen, UtensilsCrossed, Pencil, Trash2, Sparkles } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 import { postJson, patchJson } from "@api";
-import FoodSearch from "../components/FoodSearch.jsx";
-import ScannerModal from "../components/ScannerModal.jsx";
+import FoodSearch from "../../components/FoodSearch.jsx";
+import ScannerModal from "./components/ScannerModal.jsx";
 import { Camera } from "lucide-react";
 
 const MEAL_TYPES = [
