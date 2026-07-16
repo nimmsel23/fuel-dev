@@ -117,7 +117,7 @@ def _make_id() -> str:
     import hashlib, time
     return "supp_" + hashlib.sha1(str(time.time()).encode()).hexdigest()[:12]
 
-def do_interactive() -> None:
+def do_interactive(target_day: str | None = None) -> None:
     """Interactive supplement selection via fzf."""
     catalog = load_catalog()
     if not catalog:
@@ -131,8 +131,11 @@ def do_interactive() -> None:
         fzf_lines.append(line)
 
     try:
+        header = "SUPPLEMENT AUSWÄHLEN"
+        if target_day:
+            header += f" ({target_day})"
         result = subprocess.run(
-            ["fzf", "--header", "SUPPLEMENT AUSWÄHLEN", "--height=15", "--layout=reverse"],
+            ["fzf", "--header", header, "--height=15", "--layout=reverse"],
             input="\n".join(fzf_lines),
             capture_output=True,
             text=True,
@@ -147,7 +150,7 @@ def do_interactive() -> None:
         # Extract ID (first column before '|')
         selected_id = selected_line.split("|")[0].strip()
 
-        do_log(selected_id, None, None, None)
+        do_log(selected_id, None, None, target_day)
 
     except FileNotFoundError:
         msg.fail("fzf nicht gefunden")
@@ -248,14 +251,14 @@ def do_unlog(day: str | None) -> None:
 
 # ── Typer App ──────────────────────────────────────────────────────────────────
 
-app = typer.Typer(help="Supplement Tracker CLI")
+app = typer.Typer(help="Supplement Tracker CLI — ohne Subcommand: interaktiver Catalog-Browser (fzf)")
 
 @app.command(name="unlog")
 def unlog_command(
     tag:        str | None = typer.Option(None, "--tag", help="Datum: heute|gestern|vorgestern|-N|Mo|YYYY-MM-DD"),
-    gestern:    bool       = typer.Option(False, "--gestern", "-g", help="= gestern"),
-    vorgestern: bool       = typer.Option(False, "--vorgestern", help="= vorgestern"),
-    day:        str | None = typer.Option(None, "--day", "-d", help="(legacy) Datum YYYY-MM-DD"),
+    gestern:    bool       = typer.Option(False, "--gestern", "-g"),
+    vorgestern: bool       = typer.Option(False, "--vorgestern"),
+    day:        str | None = typer.Option(None, "--day", "-d", hidden=True),
 ) -> None:
     """Entferne einen Supplement-Eintrag interaktiv."""
     try:
@@ -265,38 +268,43 @@ def unlog_command(
     do_unlog(target)
 
 @app.callback(invoke_without_command=True)
-def _app_callback(ctx: typer.Context) -> None:
+def _app_callback(
+    ctx: typer.Context,
+    tag:        str | None = typer.Option(None, "--tag", help="Datum: heute|gestern|vorgestern|-N|Mo|YYYY-MM-DD"),
+    gestern:    bool       = typer.Option(False, "--gestern", "-g"),
+    vorgestern: bool       = typer.Option(False, "--vorgestern"),
+    day:        str | None = typer.Option(None, "--day", "-d", hidden=True),
+) -> None:
     if ctx.invoked_subcommand is None:
-        if len(sys.argv) == 1:
-            do_interactive()
-        else:
-            # Check for shorthand: fuel supplement [id]
-            first_arg = sys.argv[1]
-            if first_arg not in ("--help", "-h"):
-                catalog = load_catalog()
-                if first_arg in catalog:
-                    ctx.invoke(log_command, supplements=[first_arg])
+        try:
+            target = _resolve_date(tag=tag, gestern=gestern, vorgestern=vorgestern, day_legacy=day)
+        except ValueError as e:
+            msg.fail(str(e)); raise typer.Exit(1)
+        do_interactive(target)
 
 @app.command(name="log")
 def log_command(
-    supplements: list[str]   = typer.Argument(..., help="Supplement-IDs"),
-    dose:       float | None = typer.Option(None, "--dose", "-v", help="Dosis für erstes Supplement"),
-    time:       str | None   = typer.Option(None, "--time", "-t", help="morning/evening/night/any"),
+    supplements: list[str]   = typer.Argument(..., help="Supplement-IDs (e.g. 'mag', 'zink')"),
+    dose:       float | None = typer.Option(None, "--dose", "-v", help="Abweichende Dosis für das erste Supplement"),
+    time:       str | None   = typer.Option(None, "--time", "-t", help="morning|evening|night|any"),
     tag:        str | None   = typer.Option(None, "--tag", help="Datum: heute|gestern|vorgestern|-N|Mo|YYYY-MM-DD"),
-    gestern:    bool         = typer.Option(False, "--gestern", "-g", help="= gestern"),
-    vorgestern: bool         = typer.Option(False, "--vorgestern", help="= vorgestern"),
-    day:        str | None   = typer.Option(None, "--day", "-d", help="(legacy) Datum YYYY-MM-DD"),
+    gestern:    bool         = typer.Option(False, "--gestern", "-g"),
+    vorgestern: bool         = typer.Option(False, "--vorgestern"),
+    day:        str | None   = typer.Option(None, "--day", "-d", hidden=True),
 ) -> None:
+    """Manuell ein oder mehrere Supplements loggen (ohne interaktives Menü)."""
     try:
         target = _resolve_date(tag=tag, gestern=gestern, vorgestern=vorgestern, day_legacy=day)
     except ValueError as e:
         msg.fail(str(e)); raise typer.Exit(1)
+        
     for i, supp in enumerate(supplements):
         d = dose if i == 0 else None
         do_log(supp, d, time, target)
 
 @app.command(name="list")
 def list_supplements() -> None:
+    """Katalog der verfügbaren Supplements anzeigen."""
     catalog = load_catalog()
     table = Table(title="Supplement Catalog", show_header=True, header_style="bold magenta")
     table.add_column("ID", style="cyan")
@@ -305,16 +313,17 @@ def list_supplements() -> None:
     table.add_column("TIME", style="blue")
 
     for sid, s in catalog.items():
-        table.add_row(sid, s["name"], f"{s['default_dose']}{s['unit']}", s.get("default_time_of_day", "any"))
+        table.add_row(sid, s["name"], f"{s.get('default_dose', 0)}{s.get('unit', '')}", s.get("default_time_of_day", "any"))
     console.print(table)
 
 @app.command()
 def today(
     tag:        str | None = typer.Option(None, "--tag", help="Datum: heute|gestern|vorgestern|-N|Mo|YYYY-MM-DD"),
-    gestern:    bool       = typer.Option(False, "--gestern", "-g", help="= gestern"),
-    vorgestern: bool       = typer.Option(False, "--vorgestern", help="= vorgestern"),
-    day:        str | None = typer.Option(None, "--day", "-d", help="(legacy) Datum YYYY-MM-DD"),
+    gestern:    bool       = typer.Option(False, "--gestern", "-g"),
+    vorgestern: bool       = typer.Option(False, "--vorgestern"),
+    day:        str | None = typer.Option(None, "--day", "-d", hidden=True),
 ):
+    """Zeigt die geloggten Supplements für ein bestimmtes Datum an."""
     try:
         target = _resolve_date(tag=tag, gestern=gestern, vorgestern=vorgestern, day_legacy=day)
     except ValueError as e:
@@ -323,7 +332,6 @@ def today(
 
 def main() -> None:
     app()
-
 
 if __name__ == "__main__":
     main()
