@@ -11,7 +11,9 @@ import nutritionRoute from "./routes/nutrition/index.mjs";
 import supplementsRoute from "./routes/supplements.mjs";
 import supplementEstimateRoute from "./routes/supplement-estimate.mjs";
 import fuelRoute from "./routes/fuel.mjs";
+import pushRoute from "./routes/push.mjs";
 import staticRoute from "./routes/static.mjs";
+import { startPushScheduler } from "./services/push-scheduler.mjs";
 
 
 export function createApp() {
@@ -41,6 +43,7 @@ export function createApp() {
   app.register(supplementsRoute);
   app.register(supplementEstimateRoute);
   app.register(fuelRoute);
+  app.register(pushRoute);
   app.register(staticRoute); // staticRoute handles catch-all, must be last
 
   // Error handler
@@ -80,5 +83,11 @@ export async function startServer() {
   const app = createApp();
   await app.listen({ port: PORT, host: HOST });
   console.log(`🍽️  Fuel Centre running on http://${HOST}:${PORT}`);
+  
+  // Start the background push scheduler
+  const baseDataDir = "data";
+  const catalogsDir = "catalogs";
+  startPushScheduler(baseDataDir, catalogsDir);
+  
   pullFromFirestoreOnStart();
 }

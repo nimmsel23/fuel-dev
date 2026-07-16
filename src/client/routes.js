@@ -41,7 +41,7 @@ export const TAB_CONFIG = [
     key: "log",
     label: "Log",
     Icon: NotebookPen,
-    View: lazy(() => import("./views/LogView.jsx")),
+    View: lazy(() => import("./views/Log/LogView.jsx")),
     getProps: (ctx) => ({ date: ctx.activeDate, nutrition: ctx.nutrition, journal: ctx.journal || "" }),
   },
   {

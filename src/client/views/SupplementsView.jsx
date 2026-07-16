@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Flame, Pill, Settings2, Sparkles, Minus } from "lucide-react";
+import { Flame, Pill, Settings2, Sparkles, Minus, Check, Bell } from "lucide-react";
 import { lazy, Suspense } from "react";
 import { Field, Input, Empty, inputClassName } from "../components/ui.jsx";
 import { postJson } from "@api";
@@ -37,11 +37,37 @@ export default function SupplementsView({ date, sup, catalog, suppLog }) {
     map[row.supplement.id] = row.days_taken;
     return map;
   }, {});
-  // Quick log = die 8 meistgenutzten Supplements der letzten 30 Tage (Stack-Routine
-  // ändert sich mit der Zeit — keine hart codierte ID-Liste mehr).
-  const quickCatalog = [...catalog]
-    .sort((a, b) => (daysTakenBySupplement[b.id] || 0) - (daysTakenBySupplement[a.id] || 0))
-    .slice(0, QUICK_LOG_LIMIT);
+  const WEEKDAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+  function isDueToday(item, dateString) {
+    if (!item.schedule) return false;
+    if (item.schedule.type === "daily") return true;
+    
+    const dateObj = new Date(dateString);
+    if (item.schedule.type === "weekly") {
+      const dayName = WEEKDAYS[dateObj.getDay()];
+      return item.schedule.days?.includes(dayName);
+    }
+    
+    if (item.schedule.type === "cyclical") {
+      if (!item.schedule.start_date || !item.schedule.interval_days) return false;
+      const start = new Date(item.schedule.start_date);
+      const diffTime = Math.abs(dateObj - start);
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays % item.schedule.interval_days === 0;
+    }
+    
+    return false;
+  }
+
+  const dueTodayItems = catalog.filter(item => isDueToday(item, date));
+  
+  const groupedDue = {
+    morning: dueTodayItems.filter(i => i.default_time_of_day === "morning"),
+    midday: dueTodayItems.filter(i => i.default_time_of_day === "midday"),
+    evening: dueTodayItems.filter(i => i.default_time_of_day === "evening"),
+    night: dueTodayItems.filter(i => i.default_time_of_day === "night"),
+    any: dueTodayItems.filter(i => i.default_time_of_day === "any" || !i.default_time_of_day)
+  };
 
   const supplementForm = useForm({
     resolver: zodResolver(supplementSchema),
@@ -132,6 +158,44 @@ export default function SupplementsView({ date, sup, catalog, suppLog }) {
     }
   }
 
+  const [pushStatus, setPushStatus] = useState(window.Notification ? Notification.permission : "unsupported");
+
+  async function subscribeToPush() {
+    if (!window.Notification || !navigator.serviceWorker) return;
+    try {
+      const permission = await Notification.requestPermission();
+      setPushStatus(permission);
+      if (permission !== "granted") return;
+      
+      const registration = await navigator.serviceWorker.ready;
+      const response = await fetch("/push/vapidPublicKey");
+      const { publicKey } = await response.json();
+      
+      const padding = '='.repeat((4 - publicKey.length % 4) % 4);
+      const base64 = (publicKey + padding).replace(/\-/g, '+').replace(/_/g, '/');
+      const rawData = window.atob(base64);
+      const outputArray = new Uint8Array(rawData.length);
+      for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+      }
+      
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: outputArray
+      });
+      
+      await fetch("/push/subscribe", {
+        method: "POST",
+        body: JSON.stringify(subscription),
+        headers: { "Content-Type": "application/json" }
+      });
+      alert("Push-Benachrichtigungen aktiviert!");
+    } catch (err) {
+      console.error("Push Error:", err);
+      alert("Fehler bei Push-Aktivierung: " + err.message);
+    }
+  }
+
   return (
     <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
       <div className="grid gap-6">
@@ -139,55 +203,59 @@ export default function SupplementsView({ date, sup, catalog, suppLog }) {
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
               <div className="mb-2 flex items-center gap-2">
-                <Flame className="h-5 w-5 text-orange-300" />
-                <h3 className="text-lg font-semibold">Quick log</h3>
+                <Check className="h-5 w-5 text-emerald-400" />
+                <h3 className="text-lg font-semibold">Daily Habit Checklist</h3>
               </div>
-              <p className="text-sm text-slate-400">Die meistgenutzten Supplements der letzten 30 Tage, ein Tap mit den Katalog-Defaults.</p>
+              <p className="text-sm text-slate-400">Deine geplante Supplement-Routine für heute.</p>
             </div>
-            <span className="rounded-full border border-white/10 bg-slate-950/60 px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-400">
-              {date}
-            </span>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {quickCatalog.length ? quickCatalog.map((item) => {
-              const count = intakeCountBySupplement[item.id] || 0;
-              return (
-                <div
-                  key={item.id}
-                  className="group relative rounded-2xl border border-white/10 bg-slate-950/60 p-4 transition hover:bg-slate-900"
+            <div className="flex items-center gap-2">
+              {pushStatus !== "granted" && pushStatus !== "unsupported" && (
+                <button 
+                  onClick={subscribeToPush}
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-violet-400/30 bg-violet-400/10 text-violet-300 transition hover:bg-violet-400/20"
+                  title="Push-Reminders aktivieren"
                 >
-                  <button
-                    type="button"
-                    onClick={() => quickLogSupplement(item)}
-                    disabled={createSupplementMutation.isPending}
-                    className="w-full text-left disabled:opacity-60"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <strong className="text-slate-100">{item.name}</strong>
-                      <span className="text-xs uppercase tracking-[0.18em] text-slate-500">{item.default_time_of_day}</span>
-                    </div>
-                    <div className="mt-2 text-sm text-slate-400">
-                      {formatMetric(item.default_dose ?? 0)} {normalizeSupplementUnit(item.unit)}
-                    </div>
-                    <div className="mt-3 text-xs uppercase tracking-[0.18em] text-orange-200">
-                      {count > 0 ? `${count}x heute im Stack` : "heute noch nicht im Stack"}
-                    </div>
-                  </button>
-                  
-                  {count > 0 && (
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); quickUnlogSupplement(item.id); }}
-                      disabled={deleteSupplementMutation.isPending}
-                      className="absolute bottom-3 right-3 flex h-7 w-7 items-center justify-center rounded-full border border-rose-400/30 bg-rose-400/10 text-rose-300 transition hover:bg-rose-400/20 disabled:opacity-40"
-                      title="Letzten Eintrag entfernen"
-                    >
-                      <Minus className="h-4 w-4" />
-                    </button>
-                  )}
+                  <Bell className="h-4 w-4" />
+                </button>
+              )}
+              <span className="rounded-full border border-white/10 bg-slate-950/60 px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-400">
+                {date}
+              </span>
+            </div>
+          </div>
+          <div className="grid gap-6">
+            {Object.entries(groupedDue).map(([time, items]) => {
+              if (!items.length) return null;
+              return (
+                <div key={time}>
+                  <h4 className="mb-3 text-xs uppercase tracking-[0.2em] text-slate-500">{time}</h4>
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    {items.map((item) => {
+                      const count = intakeCountBySupplement[item.id] || 0;
+                      const isChecked = count > 0;
+                      return (
+                        <div
+                          key={item.id}
+                          className={`group relative rounded-2xl border ${isChecked ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-white/10 bg-slate-950/60'} p-4 transition hover:bg-slate-900 cursor-pointer`}
+                          onClick={() => isChecked ? quickUnlogSupplement(item.id) : quickLogSupplement(item)}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <strong className={isChecked ? 'text-emerald-300' : 'text-slate-100'}>{item.name}</strong>
+                            <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${isChecked ? 'border-emerald-400 bg-emerald-400 text-slate-950' : 'border-slate-500'}`}>
+                               {isChecked && <Check className="h-3 w-3" />}
+                            </div>
+                          </div>
+                          <div className="mt-2 text-sm text-slate-400">
+                            {formatMetric(item.default_dose ?? 0)} {normalizeSupplementUnit(item.unit)}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               );
-            }) : <Empty text="Kein Quick-Log-Katalog verfuegbar." />}
+            })}
+            {dueTodayItems.length === 0 && <Empty text="Keine Supplements fuer heute geplant." />}
           </div>
           {createSupplementMutation.isError ? <p className="mt-3 text-sm text-rose-300">{createSupplementMutation.error.message}</p> : null}
         </section>

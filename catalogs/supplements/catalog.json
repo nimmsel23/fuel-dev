@@ -12,6 +12,9 @@
       "micros": {
         "zinc_mg": 10,
         "vitamin_b6_mg": 1.4
+      },
+      "schedule": {
+        "type": "daily"
       }
     },
     {
@@ -20,7 +23,10 @@
       "product": "Sunday Natural Glycin pur",
       "unit": "g",
       "default_dose": 3,
-      "default_time_of_day": "night"
+      "default_time_of_day": "night",
+      "schedule": {
+        "type": "daily"
+      }
     },
     {
       "id": "kollagen",
@@ -32,6 +38,9 @@
       "micros": {
         "vitamin_c_mg": 80,
         "zinc_mg": 5
+      },
+      "schedule": {
+        "type": "daily"
       }
     },
     {
@@ -42,6 +51,9 @@
       "default_time_of_day": "evening",
       "micros": {
         "magnesium_mg": 200
+      },
+      "schedule": {
+        "type": "daily"
       }
     },
     {
@@ -65,6 +77,14 @@
       "notes": "selten — nur bei bekanntem Mangel",
       "micros": {
         "zinc_mg": 25
+      },
+      "schedule": {
+        "type": "weekly",
+        "days": [
+          "mon",
+          "wed",
+          "fri"
+        ]
       }
     },
     {
@@ -72,7 +92,10 @@
       "name": "Kreatin",
       "unit": "g",
       "default_dose": 5,
-      "default_time_of_day": "any"
+      "default_time_of_day": "any",
+      "schedule": {
+        "type": "daily"
+      }
     },
     {
       "id": "brahmi",
@@ -97,14 +120,20 @@
       "name": "Tongkat Ali Elixier",
       "unit": "ml",
       "default_dose": 250,
-      "default_time_of_day": "morning"
+      "default_time_of_day": "morning",
+      "schedule": {
+        "type": "daily"
+      }
     },
     {
       "id": "mulungu",
       "name": "Mulungu Tee",
       "unit": "ml",
       "default_dose": 250,
-      "default_time_of_day": "evening"
+      "default_time_of_day": "evening",
+      "schedule": {
+        "type": "daily"
+      }
     }
   ]
 }
