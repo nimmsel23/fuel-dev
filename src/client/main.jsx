@@ -15,7 +15,7 @@ import { useAppData } from "./hooks/useAppData.js";
 import { sumMetric, formatMetric } from "../shared/utils/utils.js";
 import { watchAuth, signIn, signOut, getUid } from "./lib/firestore-db.js";
 
-import { useRegisterSW } from "virtual:pwa-register/react";
+
 
 const qc = new QueryClient();
 
@@ -31,11 +31,17 @@ function App() {
   const { activeTab, setActiveTab, activeDate, setActiveDate } = useApp();
   const [user, setUser] = React.useState(null);
 
-  const { needRefresh: [needRefresh], updateServiceWorker } = useRegisterSW({
-    onRegistered(r) {
-      if (r) setInterval(() => r.update(), 60 * 60 * 1000);
-    },
-  });
+  const [needRefresh, setNeedRefresh] = React.useState(false);
+  React.useEffect(() => {
+    const onUpdate = () => setNeedRefresh(true);
+    window.addEventListener('sw-update-available', onUpdate);
+    return () => window.removeEventListener('sw-update-available', onUpdate);
+  }, []);
+  const updateServiceWorker = () => {
+    if (window.__swRegistration?.waiting) {
+      window.__swRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
+    }
+  };
 
   // The update button is rendered in the header when needRefresh is true.
   React.useEffect(() => watchAuth((u) => setUser(u)), []);
