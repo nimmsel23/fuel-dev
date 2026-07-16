@@ -4,7 +4,7 @@ import { NotebookPen, UtensilsCrossed, Pencil, Trash2, Sparkles } from "lucide-r
 import { twMerge } from "tailwind-merge";
 import { postJson, patchJson } from "@api";
 import { vertexAI } from "../../lib/firebase.js";
-import { getGenerativeModel } from "@firebase/vertexai";
+import { getGenerativeModel } from "firebase/vertexai";
 import FoodSearch from "../../components/FoodSearch.jsx";
 import ScannerModal from "./components/ScannerModal.jsx";
 import { Camera } from "lucide-react";

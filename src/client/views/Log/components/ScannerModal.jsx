@@ -3,7 +3,7 @@ import { Camera, Upload, X, Loader2 } from "lucide-react";
 import { Modal } from "../../../components/ui.jsx";
 import { postJson } from "@api";
 import { vertexAI } from "../../../lib/firebase.js";
-import { getGenerativeModel } from "@firebase/vertexai";
+import { getGenerativeModel } from "firebase/vertexai";
 
 export default function ScannerModal({ onClose, onResult }) {
   const [loading, setLoading] = useState(false);

@@ -18,5 +18,5 @@ export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
 // Vertex AI initialization
-import { getVertexAI } from "@firebase/vertexai";
+import { getVertexAI } from "firebase/vertexai";
 export const vertexAI = getVertexAI(app);
