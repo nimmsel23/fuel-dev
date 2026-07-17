@@ -26,6 +26,11 @@ export async function getMicrosCatalog() {
   return snap.exists() ? (snap.data().items || []) : [];
 }
 
+export async function saveMicrosCatalog(items) {
+  const ref = doc(db, "nutrition", "public", "meta", "micros");
+  await setDoc(ref, { items, updated_at: serverTimestamp() }, { merge: true });
+}
+
 export async function getNutritionLog(date = todayISO()) {
   const snap = await getDoc(doc(db, "nutrition", getUid(), "logs", date));
   return snap.exists() ? snap.data() : { date, meals: [], water_ml: 0 };
@@ -185,5 +190,5 @@ export async function getWeeklyMicros(year, week) {
     };
   }
 
-  return { ok: true, year, week, dates, week_totals: weekTotals, rda_comparison, day_breakdown: dayBreakdown };
+  return { ok: true, year, week, dates, week_totals: weekTotals, rda_comparison, day_breakdown: dayBreakdown, missing_meals: Array.from(missingMeals) };
 }

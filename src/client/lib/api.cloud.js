@@ -139,6 +139,22 @@ export async function postJson(path, body) {
     return { ok: true, item };
   }
 
+  if (normPath === "/nutrition/micros") {
+    const items = await firestore.getMicrosCatalog();
+    // body.items is an array of new micros estimates
+    const newItemsMap = new Map(body.items.map(i => [i.meal_name, i]));
+    const merged = items.map(i => newItemsMap.has(i.meal_name) ? newItemsMap.get(i.meal_name) : i);
+    
+    body.items.forEach(newItem => {
+      if (!items.find(i => i.meal_name === newItem.meal_name)) {
+        merged.push(newItem);
+      }
+    });
+
+    await firestore.saveMicrosCatalog(merged);
+    return { ok: true };
+  }
+
   if (normPath === "/supplements/log") {
     const existing = await firestore.getSupplementLog(body.date);
     if (body.delete_id) {
