@@ -1,7 +1,7 @@
 import React from "react";
 import { Calendar, ChevronRight, Trash2, Pencil, ChevronDown, ChevronUp } from "lucide-react";
 import { twMerge } from "tailwind-merge";
-import { sumMetric, formatMetric } from "../../shared/utils/utils.js";
+import { sumMetric, formatMetric } from "../../../shared/utils/utils.js";
 
 export default function HistoryDayCard({ day, isExpanded, onToggle, setActiveDate, setActiveTab, deleteMeal }) {
   const totalKcal = sumMetric(day.meals || [], "kcal");
