@@ -17,3 +17,10 @@ export async function saveUserSettings(settings) {
     updated_at: serverTimestamp(),
   });
 }
+
+export async function saveFcmToken(token) {
+  await setDoc(doc(db, "users", getUid(), "fcm", "token"), {
+    token,
+    updated_at: serverTimestamp()
+  });
+}
