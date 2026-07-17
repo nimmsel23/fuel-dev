@@ -35,5 +35,3 @@ export async function getNutritionNotesHistory(limitCount = 50) {
     time: `${d.id}T12:00:00`,
   }));
 }
-
-export const getNutritionJournalHistory = getNutritionNotesHistory;
