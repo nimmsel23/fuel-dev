@@ -54,7 +54,7 @@ export default function ScannerModal({ onClose, onResult }) {
       
       if (cloud) {
         // Vertex AI Cloud Mode
-        const { MICRO_KEYS } = await import("../../../../lib/db/firestore/utils.js");
+        const { MICRO_KEYS } = await import("../../../lib/db/firestore/utils.js");
         const { SchemaType } = await import("firebase/vertexai");
         const model = getGenerativeModel(vertexAI, { 
           model: "gemini-1.5-flash",
