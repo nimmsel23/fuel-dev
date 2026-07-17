@@ -20,7 +20,19 @@ function Cell({ pct, dach, unit, avg }) {
   );
 }
 
-export default function MicrosGrid({ weeks, results }) {
+export default function MicrosGrid() {
+  const weeks = lastNWeeks(8);
+
+  const results = useQueries({
+    queries: weeks.map(({ year, week }) => ({
+      queryKey: ["nutrition-weekly", year, week],
+      queryFn: () =>
+        fetchJson(`/nutrition/weekly/${year}/${week}`)
+          .then((d) => (d.ok ? d : null)),
+      staleTime: 5 * 60 * 1000,
+    })),
+  });
+
   return (
     <div className="overflow-x-auto">
       <div
