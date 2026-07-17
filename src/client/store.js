@@ -36,7 +36,7 @@ export const useSettings = create(
       hydrateFromCloud: async () => {
         try {
           const db = await import("./lib/db.firestore.js");
-          if (db.getUid()) {
+          if (db.getUidOrNull?.()) {
             const cloudSettings = await db.getUserSettings();
             if (cloudSettings) {
               set(cloudSettings);
