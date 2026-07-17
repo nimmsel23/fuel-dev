@@ -16,10 +16,42 @@ export default function GeminiCatalogModal({ onClose, onSaved }) {
     setError("");
     setPreview(null);
     try {
-      const res = await postJson("/supplements/catalog/estimate", { description: description.trim() });
-      setPreview(res.item);
+      const cloud = import.meta.env.VITE_APP_MODE === "client";
+      let estimatedItem;
+
+      if (cloud) {
+        // Vertex AI Cloud Mode
+        const { vertexAI } = await import("../lib/firebase.js");
+        const { getGenerativeModel, SchemaType } = await import("firebase/vertexai");
+        const model = getGenerativeModel(vertexAI, { 
+          model: "gemini-1.5-flash",
+          generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: SchemaType.OBJECT,
+              properties: {
+                name: { type: SchemaType.STRING },
+                default_dose: { type: SchemaType.NUMBER },
+                unit: { type: SchemaType.STRING },
+                default_time_of_day: { type: SchemaType.STRING },
+                notes: { type: SchemaType.STRING },
+              },
+              required: ["name", "default_dose", "unit", "default_time_of_day"]
+            }
+          }
+        });
+        const prompt = `Analysiere dieses Supplement: "${description.trim()}".
+        Schätze Name, typische Dosis, Einheit und beste Tageszeit ab. Gib als JSON zurück.`;
+        const result = await model.generateContent(prompt);
+        estimatedItem = JSON.parse(result.response.text());
+      } else {
+        // Local API Mode
+        const res = await postJson("/supplements/catalog/estimate", { description: description.trim() });
+        estimatedItem = res.item;
+      }
+      setPreview(estimatedItem);
     } catch (e) {
-      setError(e.message);
+      setError(e.message || "Fehler bei der AI Schätzung");
     } finally {
       setLoading(false);
     }
