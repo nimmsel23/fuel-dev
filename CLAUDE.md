@@ -182,7 +182,7 @@ Wochenheatmap (Mikros-Tab) aggregiert meal_micros-Werte pro Woche vs. DACH.
 **cloud channel** (`src/client/main.jsx` + Vite, `VITE_APP_MODE=client`)
 - Gleiche React-Codebase wie local channel — Deployment-Modus wird per `isCloud()` erkannt
 - `src/client/lib/api.js` — Cloud-Aware-Abstraction: leitet alle Reads/Writes je nach Hostname zu Fastify-Backend oder Firestore-SDK
-- `src/client/lib/firestore-db.js` — Firestore Data Layer (Multi-User, per UID)
+- `src/client/lib/db.firestore.js` — Firestore Data Layer (Multi-User, per UID)
 - `src/client/lib/firebase.js` — Firebase Init + Auth (Google Sign-In)
 - Firestore Collections: `nutrition/{uid}/logs`, `nutrition/{uid}/meta/catalog`, `nutrition/{uid}/journal`, `supplements/{uid}/logs`, `supplements/{uid}/meta/catalog`, `users/{uid}/meta/settings`
 - AI Logger (lokales Gemini-Backend) → nur im local channel sichtbar (kein Backend in cloud)
@@ -289,7 +289,7 @@ fuel-dev/
 │   │       ├── api.js             ⭐ Cloud-Aware Abstraction (lokal→Fastify / cloud→Firestore)
 │   │       ├── firebase.js        Firebase Init + Auth
 │   │       ├── firebase.config.js Firebase Project: fitness-aos (Site: fuel-vos)
-│   │       └── firestore-db.js    Firestore Data Layer (Multi-User, per UID)
+│   │       └── db.firestore.js    Firestore Data Layer (Multi-User, per UID)
 │   ├── server/                   ─── Backend (Fastify, Node) ─────────────────
 │   │   ├── app.mjs               Fastify setup, Plugin-Registration
 │   │   ├── config/

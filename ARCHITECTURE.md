@@ -20,7 +20,7 @@ Die App nutzt in `src/lib/api.js` eine intelligente Weiche:
 1.  **Detection:** Läuft die App auf `*.web.app` oder `*.firebaseapp.com`?
 2.  **Routing:**
     -   **Lokal:** Requests gehen an den Node-Server (`/nutrition/...`).
-    -   **Cloud:** Requests werden auf Firestore-Calls umgeleitet (`src/lib/firestore-db.js`).
+    -   **Cloud:** Requests werden auf Firestore-Calls umgeleitet (`src/lib/db.firestore.js`).
     -   **Fallback:** Wenn der lokale Server nicht erreichbar ist, kann auch lokal auf Firestore ausgewichen werden.
 
 ---
