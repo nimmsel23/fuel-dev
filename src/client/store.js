@@ -21,7 +21,7 @@ export const useSettings = create(
         set({ [key]: val });
         // Im Hintergrund zu Firestore syncen, falls eingeloggt
         import("./lib/db.firestore.js").then((db) => {
-          if (db.getUid()) {
+          if (db.getUidOrNull?.()) {
             const current = get();
             db.saveUserSettings({
               kcal_goal: current.kcal_goal,
@@ -36,7 +36,7 @@ export const useSettings = create(
       hydrateFromCloud: async () => {
         try {
           const db = await import("./lib/db.firestore.js");
-          if (db.getUid()) {
+          if (db.getUidOrNull?.()) {
             const cloudSettings = await db.getUserSettings();
             if (cloudSettings) {
               set(cloudSettings);
