@@ -38,8 +38,12 @@ export default function DailyChecklist({ date, catalog, intakes }) {
         
         if (!messaging) throw new Error("FCM is not supported in this browser.");
         
+        const registration = await navigator.serviceWorker.ready;
         // VAPID key should ideally be provided in env, if not provided it might fail
-        const token = await getToken(messaging, { vapidKey: import.meta.env.VITE_VAPID_KEY });
+        const token = await getToken(messaging, { 
+          vapidKey: import.meta.env.VITE_VAPID_KEY,
+          serviceWorkerRegistration: registration 
+        });
         if (token) {
           await saveFcmToken(token);
           alert("Firebase Push-Benachrichtigungen (Cloud) aktiviert!");
