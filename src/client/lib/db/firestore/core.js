@@ -43,3 +43,9 @@ export function getUid() {
   if (!auth.currentUser) throw new Error("User not authenticated");
   return auth.currentUser.uid;
 }
+
+// Wie getUid(), aber ohne Throw — für Hintergrund-Syncs (z. B. Settings-Store),
+// die vor dem Login einfach nichts tun sollen.
+export function getUidOrNull() {
+  return auth.currentUser?.uid || null;
+}

@@ -21,7 +21,7 @@ export const useSettings = create(
         set({ [key]: val });
         // Im Hintergrund zu Firestore syncen, falls eingeloggt
         import("./lib/db.firestore.js").then((db) => {
-          if (db.getUid()) {
+          if (db.getUidOrNull?.()) {
             const current = get();
             db.saveUserSettings({
               kcal_goal: current.kcal_goal,
