@@ -65,21 +65,49 @@ export default function LogView({ date, nutrition, notes }) {
     setAiLoading(true);
     try {
       if (cloud) {
-        const model = getGenerativeModel(vertexAI, { model: "gemini-1.5-flash" });
-        const prompt = `Analysiere folgende Mahlzeit/Lebensmittel und schätze die Nährwerte (Makros).
-Eingabe: "${aiText}"
-Gib die Antwort NUR im folgenden JSON Format zurück: {"name": "Gefundenes Essen", "macros": {"kcal": 0, "protein": 0, "carbs": 0, "fat": 0}}`;
+        const { MICRO_KEYS } = await import("../../lib/db/firestore/utils.js");
+        const { SchemaType } = await import("firebase/vertexai");
+        const model = getGenerativeModel(vertexAI, { 
+          model: "gemini-1.5-flash",
+          generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: SchemaType.OBJECT,
+              properties: {
+                name: { type: SchemaType.STRING, description: "Gefundenes Essen" },
+                macros: {
+                  type: SchemaType.OBJECT,
+                  properties: {
+                    kcal: { type: SchemaType.NUMBER },
+                    protein: { type: SchemaType.NUMBER },
+                    carbs: { type: SchemaType.NUMBER },
+                    fat: { type: SchemaType.NUMBER }
+                  }
+                },
+                micros: {
+                  type: SchemaType.OBJECT,
+                  properties: Object.fromEntries(MICRO_KEYS.map(k => [k, { type: SchemaType.NUMBER, description: "Wert in mg oder ug" }]))
+                }
+              }
+            }
+          }
+        });
+
+        const prompt = `Analysiere folgende Mahlzeit/Lebensmittel und schätze die Makronährstoffe sowie die absoluten Mikronährstoffe (Vitamine, Mineralstoffe) so exakt wie möglich.
+Eingabe: "${aiText}"`;
+        
         const result = await model.generateContent(prompt);
         const text = result.response.text();
-        const jsonStr = text.replace(/```json/g, "").replace(/```/g, "").trim();
-        const parsed = JSON.parse(jsonStr);
+        const parsed = JSON.parse(text);
 
         if (parsed && parsed.macros) {
+          const mealName = parsed.name || aiText;
+          
           await postJson("/nutrition/log", {
             date,
             meal: { 
               type: "snack", // Default
-              description: parsed.name || aiText, 
+              description: mealName, 
               notes: "",
               kcal: parsed.macros.kcal || 0, 
               protein: parsed.macros.protein || 0, 
@@ -87,6 +115,16 @@ Gib die Antwort NUR im folgenden JSON Format zurück: {"name": "Gefundenes Essen
               fat: parsed.macros.fat || 0 
             },
           });
+
+          if (parsed.micros) {
+            await postJson("/nutrition/micros", {
+              items: [{
+                meal_name: mealName,
+                kcal: parsed.macros.kcal || 0,
+                ...Object.fromEntries(MICRO_KEYS.map(k => [k, parsed.micros[k] || 0]))
+              }]
+            });
+          }
         }
       } else {
         // Local via Python server

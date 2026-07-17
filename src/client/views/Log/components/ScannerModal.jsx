@@ -54,18 +54,53 @@ export default function ScannerModal({ onClose, onResult }) {
       
       if (cloud) {
         // Vertex AI Cloud Mode
-        const model = getGenerativeModel(vertexAI, { model: "gemini-1.5-flash" });
-        const prompt = "Dies ist ein Foto von Essen, einem Barcode oder einer Einkaufsquittung. Identifiziere die Mahlzeit oder Zutaten und schätze die Nährwerte (Makros und Mikros) so genau wie möglich ab. Nutze das übliche JSON Format wie: {\"name\": \"...\", \"macros\": {\"kcal\": 0, \"protein\": 0, \"carbs\": 0, \"fat\": 0}}";
+        const { MICRO_KEYS } = await import("../../../../lib/db/firestore/utils.js");
+        const { SchemaType } = await import("firebase/vertexai");
+        const model = getGenerativeModel(vertexAI, { 
+          model: "gemini-1.5-flash",
+          generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: SchemaType.OBJECT,
+              properties: {
+                name: { type: SchemaType.STRING, description: "Identifiziertes Essen" },
+                macros: {
+                  type: SchemaType.OBJECT,
+                  properties: {
+                    kcal: { type: SchemaType.NUMBER },
+                    protein: { type: SchemaType.NUMBER },
+                    carbs: { type: SchemaType.NUMBER },
+                    fat: { type: SchemaType.NUMBER }
+                  }
+                },
+                micros: {
+                  type: SchemaType.OBJECT,
+                  properties: Object.fromEntries(MICRO_KEYS.map(k => [k, { type: SchemaType.NUMBER, description: "Wert in mg oder ug" }]))
+                }
+              }
+            }
+          }
+        });
+
+        const prompt = "Dies ist ein Foto von Essen, einem Barcode oder einer Einkaufsquittung. Identifiziere die Mahlzeit oder Zutaten und schätze die Nährwerte (Makros) sowie die genauen Mikronährstoffe (Vitamine, Mineralstoffe) so genau wie möglich ab.";
         
         const result = await model.generateContent([
           prompt,
           { inlineData: { data: b64Raw, mimeType: "image/jpeg" } }
         ]);
         const text = result.response.text();
-        
-        // Versuche das JSON zu extrahieren
-        const jsonStr = text.replace(/```json/g, "").replace(/```/g, "").trim();
-        macrosResult = JSON.parse(jsonStr);
+        macrosResult = JSON.parse(text);
+
+        if (macrosResult && macrosResult.micros) {
+          const mealName = macrosResult.name || "Gescannte Mahlzeit";
+          await postJson("/nutrition/micros", {
+            items: [{
+              meal_name: mealName,
+              kcal: macrosResult.macros?.kcal || 0,
+              ...Object.fromEntries(MICRO_KEYS.map(k => [k, macrosResult.micros[k] || 0]))
+            }]
+          });
+        }
       } else {
         // Local Mode via Python Backend
         macrosResult = await postJson("/nutrition/vision", {
