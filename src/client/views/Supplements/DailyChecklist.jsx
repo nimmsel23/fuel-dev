@@ -30,25 +30,42 @@ export default function DailyChecklist({ date, catalog, intakes }) {
       const permission = await Notification.requestPermission();
       setPushStatus(permission);
       if (permission !== "granted") return;
-      
-      const registration = await navigator.serviceWorker.ready;
-      const response = await fetch("/push/vapidPublicKey");
-      const { publicKey } = await response.json();
-      
-      const padding = '='.repeat((4 - publicKey.length % 4) % 4);
-      const base64 = (publicKey + padding).replace(/\-/g, '+').replace(/_/g, '/');
-      const rawData = window.atob(base64);
-      const outputArray = new Uint8Array(rawData.length);
-      for (let i = 0; i < rawData.length; ++i) { outputArray[i] = rawData.charCodeAt(i); }
-      
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true, applicationServerKey: outputArray
-      });
-      
-      await fetch("/push/subscribe", {
-        method: "POST", body: JSON.stringify(subscription), headers: { "Content-Type": "application/json" }
-      });
-      alert("Push-Benachrichtigungen aktiviert!");
+
+      if (isCloudMode) {
+        const { messaging } = await import("../../../lib/firebase.js");
+        const { getToken } = await import("firebase/messaging");
+        const { saveFcmToken } = await import("../../../lib/db.firestore.js");
+        
+        if (!messaging) throw new Error("FCM is not supported in this browser.");
+        
+        // VAPID key should ideally be provided in env, if not provided it might fail
+        const token = await getToken(messaging, { vapidKey: import.meta.env.VITE_VAPID_KEY });
+        if (token) {
+          await saveFcmToken(token);
+          alert("Firebase Push-Benachrichtigungen (Cloud) aktiviert!");
+        } else {
+          throw new Error("Konnte kein FCM Token generieren.");
+        }
+      } else {
+        const registration = await navigator.serviceWorker.ready;
+        const response = await fetch("/push/vapidPublicKey");
+        const { publicKey } = await response.json();
+        
+        const padding = '='.repeat((4 - publicKey.length % 4) % 4);
+        const base64 = (publicKey + padding).replace(/\-/g, '+').replace(/_/g, '/');
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        for (let i = 0; i < rawData.length; ++i) { outputArray[i] = rawData.charCodeAt(i); }
+        
+        const subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true, applicationServerKey: outputArray
+        });
+        
+        await fetch("/push/subscribe", {
+          method: "POST", body: JSON.stringify(subscription), headers: { "Content-Type": "application/json" }
+        });
+        alert("Lokale Push-Benachrichtigungen aktiviert!");
+      }
     } catch (err) {
       console.error("Push Error:", err);
       alert("Fehler bei Push-Aktivierung: " + err.message);
@@ -81,7 +98,7 @@ export default function DailyChecklist({ date, catalog, intakes }) {
           <p className="text-sm text-slate-400">Deine geplante Supplement-Routine für heute.</p>
         </div>
         <div className="flex items-center gap-2">
-          {!isCloudMode && pushStatus !== "granted" && pushStatus !== "unsupported" && (
+          {pushStatus !== "granted" && pushStatus !== "unsupported" && (
             <button onClick={subscribeToPush} className="flex h-8 w-8 items-center justify-center rounded-full border border-violet-400/30 bg-violet-400/10 text-violet-300 transition hover:bg-violet-400/20" title="Push-Reminders aktivieren">
               <Bell className="h-4 w-4" />
             </button>

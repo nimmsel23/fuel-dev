@@ -20,3 +20,7 @@ export const googleProvider = new GoogleAuthProvider();
 // Vertex AI initialization
 import { getVertexAI } from "firebase/vertexai";
 export const vertexAI = getVertexAI(app);
+
+// FCM Initialization
+import { getMessaging } from "firebase/messaging";
+export const messaging = typeof window !== "undefined" && "serviceWorker" in navigator ? getMessaging(app) : null;
