@@ -10,5 +10,5 @@ export * from "./core.js";
 export * from "./utils.js";
 export * from "./settings.js";
 export * from "./nutrition.js";
-export * from "./journal.js";
+export * from "./notes.js";
 export * from "./supplements.js";

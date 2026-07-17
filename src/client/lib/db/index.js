@@ -16,7 +16,7 @@ export {
 } from "./firestore/index.js";
 
 export {
-  getJournal as getNutritionJournal,
-  saveJournal as saveNutritionJournal,
-  getNutritionJournalHistory,
-} from "./firestore/journal.js";
+  getNotes as getNutritionNotes,
+  saveNotes as saveNutritionNotes,
+  getNutritionNotesHistory,
+} from "./firestore/notes.js";

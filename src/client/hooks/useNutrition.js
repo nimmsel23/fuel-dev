@@ -67,19 +67,19 @@ export function useMacroTrend(anchorDate, days = 10) {
   });
 }
 
-export function useJournal(date) {
+export function useNotes(date) {
   return useQuery({
-    queryKey: ["journal", date],
+    queryKey: ["notes", date],
     queryFn: async () => {
       if (isCloud()) {
-        return await firestore.getJournal(date);
+        return await firestore.getNotes(date);
       }
       try {
-        const data = await fetchJson(`/nutrition/journal?date=${date}`);
+        const data = await fetchJson(`/nutrition/notes?date=${date}`);
         return data.content;
       } catch (err) {
         console.warn("API fallback to Firestore:", err);
-        return await firestore.getJournal(date);
+        return await firestore.getNotes(date);
       }
     },
     staleTime: 30_000,

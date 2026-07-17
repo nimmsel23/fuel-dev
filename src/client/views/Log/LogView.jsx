@@ -30,9 +30,9 @@ function Field({ label, children }) {
   );
 }
 
-export default function LogView({ date, nutrition, journal }) {
+export default function LogView({ date, nutrition, notes }) {
   const qc = useQueryClient();
-  const [text, setText] = useState(journal || "");
+  const [text, setText] = useState(notes || "");
   const [loading, setLoading] = useState(false);
   
   // Food Form State
@@ -46,14 +46,14 @@ export default function LogView({ date, nutrition, journal }) {
   const meals = nutrition?.meals || [];
   const cloud = window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com");
 
-  const handleJournalSave = async (e) => {
+  const handleNotesSave = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await postJson("/nutrition/journal", { date, content: text });
-      qc.invalidateQueries({ queryKey: ["journal", date] });
+      await postJson("/nutrition/notes", { date, content: text });
+      qc.invalidateQueries({ queryKey: ["notes", date] });
     } catch (err) {
-      console.error("Journal save error:", err);
+      console.error("Notes save error:", err);
     } finally {
       setLoading(false);
     }
@@ -347,14 +347,22 @@ Gib die Antwort NUR im folgenden JSON Format zurück: {"name": "Gefundenes Essen
         )}
       </section>
 
-      {/* Right Column: Journaling */}
+      {/* Right Column: Notizen */}
       <section className="space-y-6">
         <div className="flex items-center gap-3">
           <NotebookPen className="h-6 w-6 text-sky-300" />
           <h2 className="text-2xl font-bold tracking-tight">Tagebuch</h2>
         </div>
 
-        <form onSubmit={handleJournalSave} className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur shadow-glow">
+        <form onSubmit={handleNotesSave} className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur shadow-glow">
+          <div className="mb-4 flex items-center gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 text-emerald-400">
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-bold text-white tracking-wide">Notizen</h2>
+          </div>
           <textarea 
             className="min-h-[500px] w-full rounded-2xl border border-white/10 bg-slate-950/70 p-4 text-slate-100 placeholder-slate-500 focus:ring-2 focus:ring-sky-400/50 outline-none transition-all" 
             value={text} 
@@ -363,7 +371,7 @@ Gib die Antwort NUR im folgenden JSON Format zurück: {"name": "Gefundenes Essen
           />
           
           <button disabled={loading} className="mt-4 w-full rounded-full bg-sky-300 py-4 font-bold text-slate-950 disabled:opacity-60 hover:bg-sky-200 transition-colors shadow-lg active:scale-[0.98]">
-            {loading ? "Speichere..." : "Journal speichern"}
+            {loading ? "Speichere..." : "Notizen speichern"}
           </button>
         </form>
       </section>

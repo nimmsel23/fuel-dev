@@ -45,10 +45,10 @@ export async function fetchJson(path) {
     const limitCount = parseInt(url.searchParams.get("limit") || "30");
     return { ok: true, history: await firestore.getMealsHistory(limitCount) };
   }
-  if (normPath.startsWith("/nutrition/journal")) {
+  if (normPath.startsWith("/nutrition/notes")) {
     const url = new URL(path, window.location.origin);
     const date = url.searchParams.get("date");
-    return { content: await firestore.getJournal(date) };
+    return { content: await firestore.getNotes(date) };
   }
   if (normPath.startsWith("/supplements/catalog")) {
     return { items: await firestore.getSupplementsCatalog() };
@@ -125,8 +125,8 @@ export async function postJson(path, body) {
     return { ok: true };
   }
 
-  if (normPath === "/nutrition/journal") {
-    await firestore.saveJournal(body.date, body.content);
+  if (normPath === "/nutrition/notes") {
+    await firestore.saveNotes(body.date, body.content);
     return { ok: true };
   }
 
