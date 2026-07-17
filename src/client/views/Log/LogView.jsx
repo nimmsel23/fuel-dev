@@ -8,6 +8,7 @@ import { getGenerativeModel } from "firebase/vertexai";
 import FoodSearch from "../../components/FoodSearch.jsx";
 import ScannerModal from "./components/ScannerModal.jsx";
 import { Camera } from "lucide-react";
+import { sumMetric, formatMetric } from "../../../shared/utils/utils.js";
 
 const MEAL_TYPES = [
   { value: "breakfast", label: "Frühstück" },
@@ -340,47 +341,60 @@ Eingabe: "${aiText}"`;
           </div>
         </div>
 
-        {/* Geloggte Mahlzeiten Liste */}
+        {/* Geloggte Mahlzeiten Liste (Heutiges Log) */}
         {meals.length > 0 && (
-          <div className="space-y-2">
-            <h3 className="px-1 text-xs uppercase tracking-[0.2em] text-slate-500 font-semibold">
-              Geloggte Mahlzeiten
-            </h3>
-            {meals.map((m) => (
-              <div key={m.id}
-                className={twMerge(
-                  "flex items-center justify-between rounded-2xl border px-4 py-3 transition",
-                  form.id === m.id
-                    ? "border-orange-400/40 bg-orange-400/5"
-                    : "border-white/5 bg-slate-900/40 hover:bg-slate-900/70"
-                )}>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate font-medium text-slate-100">{m.description}</div>
-                  <div className="mt-0.5 text-xs text-slate-500">
-                    {MEAL_LABEL[m.type] || m.type}
-                    {" · "}<span className="text-orange-300">{m.kcal} kcal</span>
-                    {" · "}P {m.protein}g · C {m.carbs}g · F {m.fat}g
-                  </div>
-                </div>
-                <div className="ml-3 flex gap-2 shrink-0">
-                  <button onClick={() => loadForEdit(m)}
-                    title="Bearbeiten"
-                    className={twMerge(
-                      "rounded-lg border p-2 transition",
-                      form.id === m.id 
-                        ? "border-orange-400 bg-orange-400 text-slate-950" 
-                        : "border-white/10 bg-white/5 text-slate-400 hover:text-orange-400 hover:bg-orange-400/10"
-                    )}>
-                    <Pencil className="h-3.5 w-3.5" />
-                  </button>
-                  <button onClick={() => deleteMeal.mutate(m.id)}
-                    title="Löschen"
-                    className="rounded-lg border border-white/10 bg-white/5 p-2 text-slate-400 hover:text-red-400 hover:bg-red-400/10 transition">
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur mt-6">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <UtensilsCrossed className="h-5 w-5 text-orange-300" />
+                Heutiges Log ({meals.length})
+              </h3>
+              <div className="text-xs text-slate-400 text-right">
+                <span className="font-bold text-orange-300">{formatMetric(sumMetric(meals, "kcal"))} kcal</span>
+                <div className="mt-0.5 space-x-2">
+                  <span className="text-emerald-300">P {formatMetric(sumMetric(meals, "protein"))}g</span>
+                  <span className="text-sky-300">C {formatMetric(sumMetric(meals, "carbs"))}g</span>
+                  <span className="text-violet-300">F {formatMetric(sumMetric(meals, "fat"))}g</span>
                 </div>
               </div>
-            ))}
+            </div>
+            <div className="space-y-2">
+              {meals.map((m) => (
+                <div key={m.id}
+                  className={twMerge(
+                    "flex items-center justify-between rounded-2xl border px-4 py-3 transition",
+                    form.id === m.id
+                      ? "border-orange-400/40 bg-orange-400/5"
+                      : "border-white/5 bg-slate-900/40 hover:bg-slate-900/70"
+                  )}>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-medium text-slate-100">{m.description}</div>
+                    <div className="mt-0.5 text-xs text-slate-500">
+                      {MEAL_LABEL[m.type] || m.type}
+                      {" · "}<span className="text-orange-300">{m.kcal} kcal</span>
+                      {" · "}P {m.protein}g · C {m.carbs}g · F {m.fat}g
+                    </div>
+                  </div>
+                  <div className="ml-3 flex gap-2 shrink-0">
+                    <button onClick={() => loadForEdit(m)}
+                      title="Bearbeiten"
+                      className={twMerge(
+                        "rounded-lg border p-2 transition",
+                        form.id === m.id 
+                          ? "border-orange-400 bg-orange-400 text-slate-950" 
+                          : "border-white/10 bg-white/5 text-slate-400 hover:text-orange-400 hover:bg-orange-400/10"
+                      )}>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button onClick={() => deleteMeal.mutate(m.id)}
+                      title="Löschen"
+                      className="rounded-lg border border-white/10 bg-white/5 p-2 text-slate-400 hover:text-red-400 hover:bg-red-400/10 transition">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </section>
