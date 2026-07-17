@@ -10,7 +10,7 @@ import "./styles.css";
 import { TAB_CONFIG } from "./routes.js";
 import TabContent from "./components/TabContent.jsx";
 import NutritionHeatmap from "./components/NutritionHeatmap.jsx";
-import { useApp } from "./store.js";
+import { useApp, useSettings } from "./store.js";
 import { useAppData } from "./hooks/useAppData.js";
 import { sumMetric, formatMetric } from "../shared/utils/utils.js";
 import { watchAuth, signIn, signOut, getUid } from "./lib/db.firestore.js";
@@ -44,7 +44,14 @@ function App() {
   };
 
   // The update button is rendered in the header when needRefresh is true.
-  React.useEffect(() => watchAuth((u) => setUser(u)), []);
+  React.useEffect(() => {
+    return watchAuth((u) => {
+      setUser(u);
+      if (u) {
+        useSettings.getState().hydrateFromCloud();
+      }
+    });
+  }, []);
 
   // URL Hashing for Tabs
   React.useEffect(() => {
