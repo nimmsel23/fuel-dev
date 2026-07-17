@@ -13,8 +13,16 @@ export default async function supplementEstimateRoute(app) {
   "unit": "mg|g|ml|IU|µg",
   "default_dose": <Zahl>,
   "default_time_of_day": "morning|midday|evening|night|any",
-  "notes": "kurze Beschreibung auf Deutsch (optional, sonst leer lassen)"
+  "notes": "kurze Beschreibung auf Deutsch (optional, sonst leer lassen)",
+  "schedule": {
+    "type": "daily|weekly|cyclical",
+    "days": ["mon", "wed"], // Nur bei weekly
+    "interval_days": <Zahl>, // Nur bei cyclical
+    "start_date": "YYYY-MM-DD" // Nur bei cyclical
+  }
 }
+
+Falls der Text auf eine Regelmäßigkeit hinweist (z.B. "jeden Tag", "Montags", "jeden 2. Tag"), füge das 'schedule' Objekt passend hinzu, andernfalls weglassen.
 
 Supplement: ${description.trim()}`;
 

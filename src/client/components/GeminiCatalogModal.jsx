@@ -35,13 +35,25 @@ export default function GeminiCatalogModal({ onClose, onSaved }) {
                 unit: { type: SchemaType.STRING },
                 default_time_of_day: { type: SchemaType.STRING },
                 notes: { type: SchemaType.STRING },
+                schedule: {
+                  type: SchemaType.OBJECT,
+                  description: "Optionaler Einnahme-Plan. Wenn das Supplement regelmäßig genommen werden soll.",
+                  properties: {
+                    type: { type: SchemaType.STRING, description: "Muss 'daily', 'weekly' oder 'cyclical' sein." },
+                    days: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "Nur bei weekly: Array von Wochentagen in Englisch (z.B. ['mon', 'wed', 'fri'])." },
+                    interval_days: { type: SchemaType.NUMBER, description: "Nur bei cyclical: Rhythmus in Tagen, z.B. 2 für 'jeden 2. Tag'." },
+                    start_date: { type: SchemaType.STRING, description: "Nur bei cyclical: Startdatum im Format YYYY-MM-DD (heute, falls nicht spezifiziert)." }
+                  }
+                }
               },
               required: ["name", "default_dose", "unit", "default_time_of_day"]
             }
           }
         });
         const prompt = `Analysiere dieses Supplement: "${description.trim()}".
-        Schätze Name, typische Dosis, Einheit und beste Tageszeit ab. Gib als JSON zurück.`;
+        Schätze Name, typische Dosis, Einheit, beste Tageszeit ab.
+        Gibt es im Text einen Hinweis auf Regelmäßigkeit (z.B. "jeden Tag", "Montags", "jeden 2. Tag")? Dann setze das 'schedule' Objekt passend.
+        Gib als JSON zurück.`;
         const result = await model.generateContent(prompt);
         estimatedItem = JSON.parse(result.response.text());
       } else {
