@@ -51,8 +51,12 @@ jobs:
         run: |
           if [ -n "$FIREBASE_CONFIG" ]; then
             echo "$FIREBASE_CONFIG" > fuel-dev/firebase.config.js
+            echo "$FIREBASE_CONFIG" > fitness-dev/firebase.config.js
+            echo "$FIREBASE_CONFIG" > journal-dev/firebase.config.js
           elif [ ! -f fuel-dev/firebase.config.js ]; then
             cp firebase.config.js fuel-dev/firebase.config.js
+            cp firebase.config.js fitness-dev/firebase.config.js
+            cp firebase.config.js journal-dev/firebase.config.js
           fi
         env:
           FIREBASE_CONFIG: ${{ secrets.FIREBASE_CONFIG }}
