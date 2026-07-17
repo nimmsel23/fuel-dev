@@ -55,7 +55,7 @@ export const TAB_CONFIG = [
     key: "micros",
     label: "Mikros",
     Icon: Microscope,
-    View: lazy(() => import("./views/Micros/MicrosView.jsx")),
+    View: lazy(() => import("./views/MicrosView.jsx")),
     getProps: () => ({}),
   },
   {
