@@ -1,18 +1,21 @@
 import { useWeekLogs, weekDates, localISO } from "../hooks/weekLogs.js";
+import { useSettings } from "../store.js";
 
 const DAY_LABELS  = ["Mo","Di","Mi","Do","Fr","Sa","So"];
 const HEAT_COLORS = ["transparent","#f87171","#fb923c","#a3e635","#4ade80"];
 const HEAT_WIDTHS = [0, 25, 50, 75, 100];
 
-function kcalLevel(kcal) {
-  if (!kcal)       return 0;
-  if (kcal < 800)  return 1;
-  if (kcal < 1500) return 2;
-  if (kcal < 2000) return 3;
+function getKcalLevel(kcal, goal) {
+  if (!kcal) return 0;
+  const pct = kcal / (goal || 2000);
+  if (pct < 0.40) return 1;
+  if (pct < 0.75) return 2;
+  if (pct < 1.00) return 3;
   return 4;
 }
 
 export default function NutritionHeatmap({ selectedDate, onSelectDate }) {
+  const { kcal_goal } = useSettings();
   const today  = localISO(new Date());
   const dates  = weekDates(selectedDate);
   const { data: logsMap = {} } = useWeekLogs(selectedDate);
@@ -59,7 +62,7 @@ export default function NutritionHeatmap({ selectedDate, onSelectDate }) {
       {dates.map((dk, i) => {
         const meals    = logsMap[dk] || [];
         const kcal     = meals.reduce((s, m) => s + (Number(m.kcal) || 0), 0);
-        const level    = kcalLevel(kcal);
+        const level    = getKcalLevel(kcal, kcal_goal);
         const isToday    = dk === today;
         const isSelected = dk === selectedDate;
         return (
