@@ -406,6 +406,11 @@ def _known_commands() -> set[str]:
 
 
 def main() -> None:
+    # Zsh/Bash/Typer autocomplete handling
+    if "_FUEL_COMPLETE" in os.environ:
+        app()
+        return
+
     argv = sys.argv[1:]
 
     if not argv:
@@ -416,7 +421,11 @@ def main() -> None:
     # Smart-Routing (Datums-Flags rausziehen, Rest als Item behandeln), das
     # "--help" als reines Flag ignoriert und mangels Item einfach "today"
     # zeigt. Damit war --help faktisch nie erreichbar.
-    if "--help" in argv or "-h" in argv:
+    if (
+        "--help" in argv or "-h" in argv or
+        "--install-completion" in argv or
+        "--show-completion" in argv
+    ):
         app()
         return
 
