@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { X, Wand2, Loader2, CheckCircle2 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { postJson } from "@api";
-import { MICRO_KEYS, NUTRIENTS } from "./utils.js";
+import { NUTRIENTS } from "./utils.js";
+import { MICRO_KEYS } from "../../lib/db/firestore/utils.js";
 import { vertexAI } from "../../lib/firebase.js";
 import { getGenerativeModel, SchemaType } from "firebase/vertexai";
 
