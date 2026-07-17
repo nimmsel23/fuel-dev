@@ -5,7 +5,7 @@ import { fetchJson } from "@api";
 import { lastNWeeks } from "./Micros/utils.js";
 import MicrosLegend from "./Micros/MicrosLegend.jsx";
 import MicrosGrid from "./Micros/MicrosGrid.jsx";
-import MicrosAiCoach from "./Micros/MicrosAiCoach.jsx";
+import MicrosAnalysis from "./Micros/MicrosAnalysis.jsx";
 
 export default function MicrosView() {
   const [coachOpen, setCoachOpen] = useState(false);
@@ -33,7 +33,7 @@ export default function MicrosView() {
           className="flex items-center gap-2 rounded-xl bg-violet-600/20 px-4 py-2 text-sm font-medium text-violet-300 transition-colors hover:bg-violet-600/30"
         >
           <Sparkles className="h-4 w-4" />
-          AI Coach
+          Analyse
         </button>
       </div>
       
@@ -45,7 +45,7 @@ export default function MicrosView() {
       </p>
 
       {coachOpen && (
-        <MicrosAiCoach
+        <MicrosAnalysis
           weeks={weeks}
           results={results}
           onClose={() => setCoachOpen(false)}
