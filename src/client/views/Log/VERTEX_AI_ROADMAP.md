@@ -38,5 +38,15 @@ Dies wird durch das offizielle **Vertex AI for Firebase Web SDK** (`@firebase/ve
 - [ ] Das `GeminiCatalogModal.jsx` für Supplements nach dem exakt gleichen Prinzip auf Vertex AI umbauen, damit der Cloud-Modus wieder vollen KI-Zugriff hat.
 - [x] Den AI-Logger in der `LogView.jsx` (der aktuell im Cloud-Modus komplett ausgeblendet wird) ebenfalls über Vertex AI im Browser wieder freischalten.
 
+### Phase 5: Reliability & Robustness (Verlässlichkeit)
+- [ ] **Structured Outputs (JSON Schema):** Das manuelle Text-Parsing (`replace(/```json/g)`) durch das offizielle `responseSchema` Feature von Gemini 1.5 ersetzen. Dadurch garantiert die API ein valides JSON-Objekt ohne Halluzinationen oder fehlerhaftes Escaping.
+- [ ] **Fehlerbehandlung & Retry-Logik:** Netzwerkausfälle oder Timeout-Fehler von Vertex AI elegant abfangen. Bei einem Fehler sollte der Nutzer einen klaren Hinweis erhalten und die Anfrage mit einem Klick wiederholen können.
+- [ ] **Caching von Barcodes:** Ein lokales Cache-System (z.B. IndexedDB) einführen, sodass ein bereits gescannter Barcode sofort aus dem Speicher geladen wird, ohne dass Vertex AI noch einmal kontaktiert werden muss (spart Zeit und API-Kosten).
+- [ ] **Offline-Warteschlange (Queue):** Wenn das Handy offline ist, Scans/Prompts lokal zwischenspeichern und automatisch abarbeiten lassen, sobald die Firebase-Verbindung wieder steht.
+
+### Phase 6: UX Polish (Benutzererlebnis)
+- [ ] **Streaming Responses:** Die Vertex AI Streaming API (`generateContentStream`) nutzen, um Nährwerte Buchstabe für Buchstabe einfliegen zu lassen, anstatt auf das finale JSON warten zu müssen.
+- [ ] **Erweitertes Kamera-Feedback:** Dem Scanner visuelle Indikatoren (z.B. einen Rahmen, der Barcodes oder Essen fokussiert) hinzufügen.
+
 ## 🚀 Fazit
-Mit diesem Upgrade wird die Firebase-PWA zu 100% autark. Foto-Uploads, Barcode-Scans und Text-Log-Schätzungen funktionieren dann direkt offline/mobil über das Web-Frontend sicher per Google Cloud.
+Mit diesem Upgrade wird die Firebase-PWA zu 100% autark und hochzuverlässig. Foto-Uploads, Barcode-Scans und Text-Log-Schätzungen funktionieren dann direkt offline/mobil über das Web-Frontend sicher und stabil per Google Cloud.
