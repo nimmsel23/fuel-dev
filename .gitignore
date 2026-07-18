@@ -17,3 +17,4 @@ data/
 # hebt die data/-Ignorierung dort ungewollt auf.
 !/catalogs/
 __pycache__/
+.firebase/
