@@ -1,15 +1,19 @@
 import { Flame } from "lucide-react";
-import { useSettings } from "../../../store.js";
+import { useSettings } from "../../store.js";
 
-const sectionCls = "rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur grid gap-4";
-const labelCls = "text-xs uppercase tracking-[0.18em] text-slate-500 mb-1 block";
-const inputCls = "w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-slate-100";
+const defaultSectionCls = "rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur grid gap-4";
+const defaultLabelCls = "text-xs uppercase tracking-[0.18em] text-slate-500 mb-1 block";
+const defaultInputCls = "w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-slate-100";
 
 /**
  * Tagesziele (kcal / Protein / Wasser) — fuel-spezifische Settings-Sektion.
- * Standalone in SettingsView komponiert, von vitalos direkt importiert.
+ * Standalone via GoalsCard in SettingsView komponiert, von vitalos direkt importiert.
  */
-export default function GoalsSection({ className = sectionCls }) {
+export default function GoalsSection({
+  className = defaultSectionCls,
+  labelCls = defaultLabelCls,
+  inputCls = defaultInputCls,
+}) {
   const { kcal_goal, protein_goal, water_goal, setSetting } = useSettings();
 
   return (
