@@ -2,6 +2,10 @@
  * Firestore Utils — Datums-Helpers + Mikronährstoff-Konstanten
  */
 
+import { todayISO } from "../../../../shared/utils/validation.mjs";
+
+export { todayISO };
+
 export const MICRO_KEYS = [
   "vitamin_a_ug", "vitamin_d_ug", "vitamin_e_mg", "vitamin_k_ug",
   "vitamin_c_mg", "vitamin_b1_mg", "vitamin_b2_mg", "vitamin_b3_mg",
@@ -13,11 +17,6 @@ export const MICRO_KEYS = [
 
 export function zeroMicros() {
   return Object.fromEntries(MICRO_KEYS.map((k) => [k, 0]));
-}
-
-export function todayISO() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 export function localToday() { return todayISO(); }
