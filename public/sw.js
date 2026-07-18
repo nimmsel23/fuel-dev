@@ -57,7 +57,21 @@ self.addEventListener("push", (event) => {
   if (!event.data) return;
   
   try {
-    const data = event.data.json();
+    let data;
+    try {
+      data = event.data.json();
+    } catch (e) {
+      data = { body: event.data.text() };
+    }
+    
+    // FCM HTTP v1 payload check
+    if (data && data.notification) {
+      data.title = data.notification.title;
+      data.body = data.notification.body;
+      data.icon = data.notification.icon || "/favicon-192x192.png";
+      data.url = data.fcm_options?.link || "/supplements";
+    }
+
     const options = {
       body: data.body || "Du hast noch offene Supplements für heute.",
       icon: data.icon || "/favicon-192x192.png",
