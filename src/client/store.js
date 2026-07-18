@@ -17,6 +17,10 @@ export const useSettings = create(
       water_goal: 2500,
       age: 30,
       gender: "m",
+      height_cm: 175,
+      weight_kg: 80,
+      activity_level: 1.6,
+      protein_per_kg: 1.6,
       setSetting: (key, val) => {
         set({ [key]: val });
         // Im Hintergrund zu Firestore syncen, falls eingeloggt
@@ -29,6 +33,10 @@ export const useSettings = create(
               water_goal: current.water_goal,
               age: current.age,
               gender: current.gender,
+              height_cm: current.height_cm,
+              weight_kg: current.weight_kg,
+              activity_level: current.activity_level,
+              protein_per_kg: current.protein_per_kg,
             }).catch(err => console.error("Cloud sync failed:", err));
           }
         });

@@ -32,9 +32,9 @@ export default function DailyChecklist({ date, catalog, intakes }) {
       if (permission !== "granted") return;
 
       if (isCloudMode) {
-        const { messaging } = await import("../../../lib/firebase.js");
+        const { messaging } = await import("../../lib/firebase.js");
         const { getToken } = await import("firebase/messaging");
-        const { saveFcmToken } = await import("../../../lib/db.firestore.js");
+        const { saveFcmToken } = await import("../../lib/db.firestore.js");
         
         if (!messaging) throw new Error("FCM is not supported in this browser.");
         
