@@ -59,7 +59,7 @@ Antworte in Markdown, halte es kurz, positiv und direkt anwendbar. Keine ärztli
 `;
 
       if (isCloud() && vertexAI) {
-        const model = getGenerativeModel(vertexAI, { model: "gemini-1.5-flash" });
+        const model = getGenerativeModel(vertexAI, { model: "gemini-2.5-flash" });
         const result = await withAiRetry(() => model.generateContent(prompt));
         setAnalysis(result.response.text());
       } else {

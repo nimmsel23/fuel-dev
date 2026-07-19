@@ -25,7 +25,7 @@ export default function GeminiCatalogModal({ onClose, onSaved }) {
         const { vertexAI } = await import("../lib/firebase.js");
         const { getGenerativeModel, SchemaType } = await import("firebase/vertexai");
         const model = getGenerativeModel(vertexAI, { 
-          model: "gemini-1.5-flash",
+          model: "gemini-2.5-flash",
           generationConfig: {
             responseMimeType: "application/json",
             responseSchema: {
