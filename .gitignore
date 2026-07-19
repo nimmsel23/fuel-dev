@@ -2,6 +2,7 @@ node_modules/
 dist/
 /opt/
 dist-firebase/
+.firebase/
 .DS_Store
 *.log
 *.bak
