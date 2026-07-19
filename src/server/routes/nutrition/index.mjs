@@ -1,6 +1,6 @@
 import catalogRoute from "./catalog.mjs";
 import logRoute from "./log.mjs";
-import journalRoute from "./journal.mjs";
+import journalRoute from "./notes.mjs";
 import composeRoute from "./compose.mjs";
 import dailyRoute from "./daily.mjs";
 import weeklyRoute from "./weekly.mjs";

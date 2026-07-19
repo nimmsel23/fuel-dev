@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { readEntry, writeEntry, listEntries } from "../../services/nutrition-journal.mjs";
+import { readEntry, writeEntry, listEntries } from "../../services/nutrition-notes.mjs";
 import { isISODate, todayISO } from "../../../shared/utils/validation.mjs";
 
 const journalSchema = z.object({

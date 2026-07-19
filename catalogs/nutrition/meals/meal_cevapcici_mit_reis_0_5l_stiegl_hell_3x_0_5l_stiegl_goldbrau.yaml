@@ -1,0 +1,19 @@
+id: meal_cevapcici_mit_reis_0_5l_stiegl_hell_3x_0_5l_stiegl_goldbrau
+kind: meal
+category: meal
+name: Cevapcici mit Reis 0,5l Stiegl Hell 3x 0,5l Stiegl Goldbräu
+alias: null
+meal_type: meal
+description: Cevapcici mit Reis 0,5l Stiegl Hell 3x 0,5l Stiegl Goldbräu
+notes: ''
+kcal: 1690.0
+protein: 72.0
+carbs: 138.0
+fat: 62.0
+yield_g: null
+components: []
+addons: []
+default_addon_ids: []
+source: gemini
+created_at: '2026-07-19T13:14:55.331645Z'
+updated_at: '2026-07-19T13:14:55.331645Z'
