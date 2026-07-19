@@ -1,0 +1,41 @@
+id: meal_150gr_clever_parboiled_reis
+kind: recipe
+category: meal
+name: 150gr Clever Parboiled Reis
+alias: null
+meal_type: meal
+description: 150gr Clever Parboiled Reis, Gemüse als Addon wählbar
+notes: 'Basisvorlage Reis pur; Gemüse-Beilage je nach Tag als Addon dazuwählen (z.B. TexMex) statt fest verdrahtet.'
+yield_g: null
+components:
+- id: parboiled_reis_150g
+  label: Parboiled Reis 150g
+  description: Clever Parboiled Reis gekocht
+  brand: BILLA AT
+  grams: 150
+  kcal: 195
+  protein: 4.05
+  carbs: 42.75
+  fat: 0.375
+  source: manual
+  source_kind: base
+addons:
+- id: texmex_gemuese_100g
+  label: TexMex Gemüse 100g
+  description: BILLA TexMex Gemüse
+  brand: BILLA AT
+  grams: 100
+  kcal: 84
+  protein: 4.55
+  carbs: 13.15
+  fat: 0.725
+  source: manual
+  source_kind: addon
+default_addon_ids: []
+source: manual
+created_at: '2026-05-22T22:39:58.799Z'
+updated_at: '2026-07-19T12:00:00.000Z'
+kcal: 195
+protein: 4.05
+carbs: 42.75
+fat: 0.375

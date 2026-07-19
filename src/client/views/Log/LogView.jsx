@@ -5,9 +5,10 @@ import { twMerge } from "tailwind-merge";
 import { postJson, patchJson } from "@api";
 import { vertexAI } from "../../lib/firebase.js";
 import { getGenerativeModel } from "firebase/vertexai";
+import { withAiRetry } from "../../lib/aiRetry.js";
 import FoodSearch from "../../components/FoodSearch.jsx";
 import ScannerModal from "./components/ScannerModal.jsx";
-import { Camera } from "lucide-react";
+import { Camera, RotateCcw } from "lucide-react";
 import { sumMetric, formatMetric } from "../../../shared/utils/utils.js";
 
 const MEAL_TYPES = [
@@ -41,6 +42,7 @@ export default function LogView({ date, nutrition, notes }) {
   const [moveDate, setMoveDate] = useState("");
   const [aiText, setAiText] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState("");
   const [scannerOpen, setScannerOpen] = useState(false);
   
   const isEditing = Boolean(form.id);
@@ -61,9 +63,10 @@ export default function LogView({ date, nutrition, notes }) {
   };
 
   const handleAiLog = async (e) => {
-    e.preventDefault();
+    e?.preventDefault();
     if (!aiText.trim()) return;
     setAiLoading(true);
+    setAiError("");
     try {
       if (cloud) {
         const { MICRO_KEYS } = await import("../../lib/db/firestore/utils.js");
@@ -96,8 +99,8 @@ export default function LogView({ date, nutrition, notes }) {
 
         const prompt = `Analysiere folgende Mahlzeit/Lebensmittel und schätze die Makronährstoffe sowie die absoluten Mikronährstoffe (Vitamine, Mineralstoffe) so exakt wie möglich.
 Eingabe: "${aiText}"`;
-        
-        const result = await model.generateContent(prompt);
+
+        const result = await withAiRetry(() => model.generateContent(prompt));
         const text = result.response.text();
         const parsed = JSON.parse(text);
 
@@ -136,6 +139,7 @@ Eingabe: "${aiText}"`;
       setAiText("");
     } catch (err) {
       console.error("AI Logging error:", err);
+      setAiError(err.message || "Fehler beim KI-Logging.");
     } finally {
       setAiLoading(false);
     }
@@ -245,6 +249,19 @@ Eingabe: "${aiText}"`;
                   <Camera className="h-5 w-5" />
                 </button>
               </div>
+              {aiError && (
+                <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400">
+                  <span>{aiError}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleAiLog()}
+                    className="flex shrink-0 items-center gap-1.5 rounded-full bg-red-500/20 px-3 py-1.5 text-xs font-semibold text-red-300 hover:bg-red-500/30 transition-colors"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    Erneut versuchen
+                  </button>
+                </div>
+              )}
             </form>
           </div>
         

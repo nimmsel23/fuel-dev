@@ -1,18 +1,21 @@
 import { useState, useRef } from "react";
-import { Camera, Upload, X, Loader2 } from "lucide-react";
+import { Camera, Upload, X, Loader2, RotateCcw } from "lucide-react";
 import { Modal } from "../../../components/ui.jsx";
 import { postJson } from "@api";
 import { vertexAI } from "../../../lib/firebase.js";
 import { getGenerativeModel } from "firebase/vertexai";
+import { withAiRetry } from "../../../lib/aiRetry.js";
 
 export default function ScannerModal({ onClose, onResult }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
+  const lastFileRef = useRef(null);
 
   const processImage = async (file) => {
     if (!file) return;
+    lastFileRef.current = file;
     setLoading(true);
     setError("");
 
@@ -83,11 +86,11 @@ export default function ScannerModal({ onClose, onResult }) {
         });
 
         const prompt = "Dies ist ein Foto von Essen, einem Barcode oder einer Einkaufsquittung. Identifiziere die Mahlzeit oder Zutaten und schätze die Nährwerte (Makros) sowie die genauen Mikronährstoffe (Vitamine, Mineralstoffe) so genau wie möglich ab.";
-        
-        const result = await model.generateContent([
+
+        const result = await withAiRetry(() => model.generateContent([
           prompt,
           { inlineData: { data: b64Raw, mimeType: "image/jpeg" } }
-        ]);
+        ]));
         const text = result.response.text();
         macrosResult = JSON.parse(text);
 
@@ -137,8 +140,17 @@ export default function ScannerModal({ onClose, onResult }) {
     >
       <div className="space-y-4">
         {error && (
-          <div className="rounded-xl bg-red-500/10 p-4 text-sm text-red-400 border border-red-500/20">
-            {error}
+          <div className="rounded-xl bg-red-500/10 p-4 text-sm text-red-400 border border-red-500/20 flex items-center justify-between gap-3">
+            <span>{error}</span>
+            {lastFileRef.current && (
+              <button
+                onClick={() => processImage(lastFileRef.current)}
+                className="flex shrink-0 items-center gap-1.5 rounded-full bg-red-500/20 px-3 py-1.5 text-xs font-semibold text-red-300 hover:bg-red-500/30 transition-colors"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                Erneut versuchen
+              </button>
+            )}
           </div>
         )}
 

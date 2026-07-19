@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Sparkles } from "lucide-react";
+import { Sparkles, RotateCcw } from "lucide-react";
 import { postJson } from "@api";
 import { formatMetric } from "../../shared/utils/utils.js";
 import { Modal } from "./ui.jsx";
+import { withAiRetry } from "../lib/aiRetry.js";
 
 export default function GeminiCatalogModal({ onClose, onSaved }) {
   const [description, setDescription] = useState("");
@@ -54,7 +55,7 @@ export default function GeminiCatalogModal({ onClose, onSaved }) {
         Schätze Name, typische Dosis, Einheit, beste Tageszeit ab.
         Gibt es im Text einen Hinweis auf Regelmäßigkeit (z.B. "jeden Tag", "Montags", "jeden 2. Tag")? Dann setze das 'schedule' Objekt passend.
         Gib als JSON zurück.`;
-        const result = await model.generateContent(prompt);
+        const result = await withAiRetry(() => model.generateContent(prompt));
         estimatedItem = JSON.parse(result.response.text());
       } else {
         // Local API Mode
@@ -136,7 +137,19 @@ export default function GeminiCatalogModal({ onClose, onSaved }) {
           </div>
         )}
 
-        {error && <p className="text-sm text-rose-300">{error}</p>}
+        {error && (
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-rose-500/20 bg-rose-500/10 p-3 text-sm text-rose-300">
+            <span>{error}</span>
+            <button
+              onClick={handleEstimate}
+              disabled={loading}
+              className="flex shrink-0 items-center gap-1.5 rounded-full bg-rose-500/20 px-3 py-1.5 text-xs font-semibold hover:bg-rose-500/30 transition-colors disabled:opacity-50"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Erneut versuchen
+            </button>
+          </div>
+        )}
       </div>
     </Modal>
   );
