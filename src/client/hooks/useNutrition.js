@@ -85,3 +85,14 @@ export function useNotes(date) {
     staleTime: 30_000,
   });
 }
+
+// Wartende AI-Logger-Rohtext-Einträge, deren Gemini-Analyse noch aussteht
+// oder fehlgeschlagen ist. Nur Cloud-Channel (Vertex läuft im Browser).
+export function usePendingAiEntries(date) {
+  return useQuery({
+    queryKey: ["ai-pending", date],
+    queryFn: () => firestore.getPendingAiEntries(date),
+    enabled: isCloud(),
+    staleTime: 10_000,
+  });
+}
