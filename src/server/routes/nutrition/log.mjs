@@ -37,6 +37,15 @@ function saveLog(log, nutritionDir) {
   fs.writeFileSync(path.join(nutritionDir, `${log.date}.json`), JSON.stringify(log, null, 2), "utf-8");
 }
 
+// Der Tages-Mikros-Cache (log.micro_totals, siehe weekly.mjs/daily.mjs) wird
+// bei jeder Log-Änderung ungültig — sonst zeigt /nutrition/weekly veraltete
+// Summen. Einfache Invalidierung statt inkrementeller Pflege: nächster Read
+// rechnet den Tag einmalig neu (und cached wieder).
+function invalidateMicroCache(log) {
+  delete log.micro_totals;
+  delete log.micro_totals_complete;
+}
+
 function resolveCatalogItem(catalog, catalogItemId, addonIds = []) {
   const item = catalog.items.find((i) => i.id === catalogItemId);
   if (!item) return null;
@@ -148,18 +157,23 @@ export default async function logRoute(app) {
 
       if (updates) {
         Object.assign(meal, Object.fromEntries(Object.entries(updates).filter(([, v]) => v !== undefined)));
+        // kcal/description geändert → gecachte Mikros (auf altes kcal skaliert) sind stale.
+        delete meal.micros;
       }
 
       if (new_date && new_date !== date) {
         sourceLog.meals.splice(mealIndex, 1);
+        invalidateMicroCache(sourceLog);
         saveLog(sourceLog, req.paths.nutrition);
         const targetLog = loadLog(new_date, req.paths.nutrition);
         targetLog.meals.push({ ...meal, id: `meal_${Date.now()}` });
+        invalidateMicroCache(targetLog);
         saveLog(targetLog, req.paths.nutrition);
         fireSyncPing(req.uid);
         return reply.send({ ok: true, data: targetLog });
       } else {
         sourceLog.meals[mealIndex] = meal;
+        invalidateMicroCache(sourceLog);
         saveLog(sourceLog, req.paths.nutrition);
         fireSyncPing(req.uid);
         return reply.send({ ok: true, data: sourceLog });
@@ -207,6 +221,7 @@ export default async function logRoute(app) {
         log.water_ml = parsed.data.water_ml;
       }
 
+      invalidateMicroCache(log);
       saveLog(log, req.paths.nutrition);
       fireSyncPing(req.uid);
       return reply.send({ ok: true, data: log });

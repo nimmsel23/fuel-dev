@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { searchNutrition } from "../../services/nutrition-search.mjs";
 import { isISODate } from "../../../shared/utils/validation.mjs";
-import { getMicrosForMeal, zeroMicros, MICRO_KEYS } from "../../services/nutrition-micros.mjs";
+import { MICRO_KEYS, computeMealMicroTotals } from "../../services/nutrition-micros.mjs";
 import { loadCatalog } from "../../services/nutrition-catalog.mjs";
 import { loadCatalog as loadSupplementsCatalog } from "../../services/supplements-catalog.mjs";
 import { loadLog as loadSupplementLog } from "../../services/supplements-log.mjs";
@@ -22,6 +22,10 @@ function loadLog(date) {
   return { date, meals: [], water_ml: 0 };
 }
 
+function saveLog(log) {
+  fs.writeFileSync(path.join(NUTRITION_DIR, `${log.date}.json`), JSON.stringify(log, null, 2), "utf-8");
+}
+
 export default async function dailyRoute(app) {
   app.get("/nutrition/search", async (req, reply) => {
     const parsed = searchQuerySchema.safeParse(req.query);
@@ -38,26 +42,19 @@ export default async function dailyRoute(app) {
       const log = loadLog(date);
       const catalog = loadCatalog();
       const macros = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
-      const micros = zeroMicros();
 
       for (const meal of log.meals || []) {
         macros.kcal    += meal.kcal    || 0;
         macros.protein += meal.protein || 0;
         macros.carbs   += meal.carbs   || 0;
         macros.fat     += meal.fat     || 0;
-
-        const catalogEntry = catalog.items.find(
-          (i) => (meal.catalog_id && i.id === meal.catalog_id) || i.name === meal.description
-        );
-        const lookupName = catalogEntry?.name || meal.description;
-        const mealMicros = getMicrosForMeal(lookupName);
-
-        if (mealMicros) {
-          for (const k of MICRO_KEYS) {
-            micros[k] = Math.round((micros[k] + (mealMicros[k] || 0)) * 10) / 10;
-          }
-        }
       }
+
+      // Nutzt denselben Resolve-Cache wie /nutrition/weekly (meal.micros wird
+      // in-place gecacht) — wurde die Woche schon einmal geladen, ist das
+      // hier ein reiner Cache-Hit statt erneuter Katalog-Namens-Lookups.
+      const { totals: micros } = computeMealMicroTotals(log.meals, catalog);
+      if ((log.meals || []).some((m) => m.micros)) saveLog(log);
 
       // Supplement micros
       const suppCatalog = loadSupplementsCatalog();

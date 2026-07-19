@@ -7,7 +7,7 @@
 
 import {
   doc, getDoc, setDoc, collection, query, where, getDocs,
-  orderBy, limit, documentId, serverTimestamp, writeBatch,
+  orderBy, limit, documentId, serverTimestamp, writeBatch, deleteField,
 } from "firebase/firestore";
 import { db } from "../../firebase.js";
 import { getUid } from "./core.js";
@@ -37,8 +37,27 @@ export async function getNutritionLog(date = todayISO()) {
 }
 
 export async function saveNutritionLog(date, data) {
+  const payload = { ...data, updated_at: serverTimestamp() };
+  // Mikros-Tages-Cache (siehe getWeeklyMicros) wird ungültig, sobald die
+  // Mahlzeiten-Liste angefasst wird — sonst zeigt die Wochenansicht veraltete
+  // Summen. Der Cache-Write selbst läuft über cacheDayMicroTotals() (unten),
+  // nicht über diese Funktion, kollidiert also nicht mit der Invalidierung hier.
+  if ("meals" in data) {
+    payload.micro_totals = deleteField();
+    payload.micro_totals_complete = deleteField();
+  }
+  await setDoc(doc(db, "nutrition", getUid(), "logs", date), payload, { merge: true });
+}
+
+// Schreibt den gecachten Tages-Mikros-Stand zurück — inkl. der pro-Meal
+// aufgelösten Mikros (meal.micros), die computeMealMicroTotals() in-place
+// auf den übergebenen meals-Objekten gesetzt hat. Bewusst getrennt von
+// saveNutritionLog(), damit dieser Cache-Write sich nicht selbst invalidiert.
+async function cacheDayMicroTotals(date, meals, totals, complete) {
   await setDoc(doc(db, "nutrition", getUid(), "logs", date), {
-    ...data,
+    meals,
+    micro_totals: totals,
+    micro_totals_complete: complete,
     updated_at: serverTimestamp(),
   }, { merge: true });
 }
@@ -93,6 +112,47 @@ export async function searchNutritionCatalog(q, limit = 20) {
     .slice(0, limit);
 }
 
+// Löst die Mikros einer Mahlzeit auf (Katalog-Name-Lookup, kcal-skaliert) und
+// cached sie in-place auf `meal.micros` — Pendant zu
+// server/services/nutrition-micros.mjs#resolveMealMicros für den Cloud-Channel.
+function resolveMealMicros(meal, catalog, microsMap) {
+  if (meal.micros) return meal.micros;
+
+  const catalogEntry = catalog.find((i) => (meal.catalog_id && i.id === meal.catalog_id) || i.name === meal.description);
+  const lookupName = catalogEntry?.name || meal.description;
+  const micros = microsMap[lookupName];
+  if (!micros) return null;
+
+  let factor = 1;
+  if (meal.kcal && micros.kcal) factor = meal.kcal / micros.kcal;
+
+  const resolved = {};
+  for (const k of MICRO_KEYS) {
+    resolved[k] = Math.round((micros[k] || 0) * factor * 10) / 10;
+  }
+  meal.micros = resolved;
+  return resolved;
+}
+
+function computeMealMicroTotals(meals, catalog, microsMap) {
+  const totals = zeroMicros();
+  let complete = true;
+  const missing = [];
+  for (const meal of meals || []) {
+    const micros = resolveMealMicros(meal, catalog, microsMap);
+    if (!micros) {
+      complete = false;
+      const catalogEntry = catalog.find((i) => (meal.catalog_id && i.id === meal.catalog_id) || i.name === meal.description);
+      missing.push(catalogEntry?.name || meal.description);
+      continue;
+    }
+    for (const k of MICRO_KEYS) {
+      totals[k] = Math.round((totals[k] + micros[k]) * 10) / 10;
+    }
+  }
+  return { totals, complete, missing };
+}
+
 export async function getWeeklyMicros(year, week) {
   const dates = getWeekDates(year, week);
   const logsMap = await getNutritionLogsInRange(dates);
@@ -113,27 +173,28 @@ export async function getWeeklyMicros(year, week) {
 
   for (const date of dates) {
     const log = logsMap[date] || { meals: [] };
-    const dayTotals = zeroMicros();
+    let mealTotals;
 
-    for (const meal of log.meals || []) {
-      const catalogEntry = catalog.find(i => (meal.catalog_id && i.id === meal.catalog_id) || i.name === meal.description);
-      const lookupName = catalogEntry?.name || meal.description;
-      const micros = microsMap[lookupName];
+    if (log.micro_totals && log.micro_totals_complete) {
+      // Gecacht (voriger Request oder beim Loggen aufgelöst) — kein Rechnen nötig.
+      mealTotals = log.micro_totals;
+    } else {
+      const { totals, complete, missing } = computeMealMicroTotals(log.meals, catalog, microsMap);
+      mealTotals = totals;
+      missing.forEach((m) => missingMeals.add(m));
 
-      if (micros) {
-        let factor = 1;
-        if (meal.kcal && micros.kcal) {
-          factor = meal.kcal / micros.kcal;
-        }
-
-        for (const k of MICRO_KEYS) {
-          dayTotals[k] = Math.round((dayTotals[k] + ((micros[k] || 0) * factor)) * 10) / 10;
-        }
-      } else {
-        missingMeals.add(lookupName);
+      // Selbstheilend zurückschreiben, sobald irgendeine Mahlzeit neu
+      // aufgelöst wurde. complete=false wird mitgespeichert, aber die
+      // Read-Prüfung oben verlangt complete=true — ein unvollständiger Tag
+      // wird beim nächsten Request automatisch erneut versucht.
+      if ((log.meals || []).some((m) => m.micros)) {
+        await cacheDayMicroTotals(date, log.meals, totals, complete).catch((err) =>
+          console.error(`[getWeeklyMicros] Cache-Write für ${date} fehlgeschlagen:`, err)
+        );
       }
     }
 
+    const dayTotals = { ...mealTotals };
     const suppLog = suppLogsMap[date] || { intakes: [] };
     for (const intake of suppLog.intakes || []) {
       const entry = suppCatalogMap[intake.supplement_id];

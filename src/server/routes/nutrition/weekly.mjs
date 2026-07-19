@@ -1,7 +1,7 @@
 import path from "path";
 import fs from "fs";
 import { NUTRITION_DIR } from "../../config/paths.mjs";
-import { getMicrosForMeal, zeroMicros, MICRO_KEYS } from "../../services/nutrition-micros.mjs";
+import { zeroMicros, MICRO_KEYS, computeMealMicroTotals } from "../../services/nutrition-micros.mjs";
 import { loadCatalog } from "../../services/nutrition-catalog.mjs";
 import { loadCatalog as loadSupplementsCatalog } from "../../services/supplements-catalog.mjs";
 import { loadLog as loadSupplementLog } from "../../services/supplements-log.mjs";
@@ -29,6 +29,10 @@ function loadNutritionLog(date) {
     try { return JSON.parse(fs.readFileSync(filePath, "utf-8")); } catch { /* fall through */ }
   }
   return { date, meals: [], water_ml: 0 };
+}
+
+function saveNutritionLog(log) {
+  fs.writeFileSync(path.join(NUTRITION_DIR, `${log.date}.json`), JSON.stringify(log, null, 2), "utf-8");
 }
 
 function addSupplementMicros(dayTotals, date, supplementCatalogMap) {
@@ -70,39 +74,46 @@ export default async function weeklyRoute(app) {
 
       for (const date of dates) {
         const log = loadNutritionLog(date);
-        const dayTotals = zeroMicros();
+        let mealTotals;
 
-        for (const meal of log.meals || []) {
-          const catalogEntry = catalog.items.find(
-            (i) => (meal.catalog_id && i.id === meal.catalog_id) || i.name === meal.description
-          );
-          const lookupName = catalogEntry?.name || meal.description;
+        if (log.micro_totals && log.micro_totals_complete) {
+          // Gecacht (aus einem vorherigen Request oder beim Loggen aufgelöst) — kein Rechnen nötig.
+          mealTotals = log.micro_totals;
+        } else {
+          const { totals, complete } = computeMealMicroTotals(log.meals, catalog);
+          mealTotals = totals;
 
-          const micros = getMicrosForMeal(lookupName);
-          if (!micros) {
-            // Asynchronously trigger estimation in the background
-            import("../../services/nutrition-estimate-micros.mjs").then(({ estimateMicros }) => {
-              import("../../services/nutrition-micros.mjs").then(({ saveMicrosForMeal }) => {
-                estimateMicros(lookupName).then((est) => {
-                  if (Object.keys(est).length > 0) {
-                    saveMicrosForMeal(lookupName, est);
-                    console.log(`[micros] Background estimation completed for: ${lookupName}`);
-                  }
-                });
-              });
-            });
-            continue;
+          // Selbstheilend zurückschreiben, sobald irgendeine Mahlzeit neu
+          // aufgelöst wurde (per-Meal-Cache spart beim nächsten Lauf Zeit).
+          // complete=false wird mitgespeichert, aber die Read-Prüfung oben
+          // verlangt complete=true — ein unvollständiger Tag wird also beim
+          // nächsten Request automatisch erneut versucht, statt als 0 zu
+          // erstarren.
+          if ((log.meals || []).some((m) => m.micros)) {
+            log.micro_totals = totals;
+            log.micro_totals_complete = complete;
+            saveNutritionLog(log);
           }
 
-          for (const k of MICRO_KEYS) {
-            let factor = 1;
-            if (meal.kcal && micros.kcal) {
-              factor = meal.kcal / micros.kcal;
+          if (!complete) {
+            for (const meal of log.meals || []) {
+              if (meal.micros || !meal.description) continue;
+              const lookupName = meal.description;
+              import("../../services/nutrition-estimate-micros.mjs").then(({ estimateMicros }) => {
+                import("../../services/nutrition-micros.mjs").then(({ saveMicrosForMeal }) => {
+                  estimateMicros(lookupName).then((est) => {
+                    if (Object.keys(est).length > 0) {
+                      saveMicrosForMeal(lookupName, meal.kcal || 0, est, "gemini");
+                      console.log(`[micros] Background estimation completed for: ${lookupName}`);
+                    }
+                  });
+                });
+              });
             }
-            dayTotals[k] = Math.round((dayTotals[k] + ((micros[k] || 0) * factor)) * 10) / 10;
           }
         }
 
+        const dayTotals = { ...mealTotals };
         addSupplementMicros(dayTotals, date, suppCatalogMap);
 
         dayBreakdown[date] = dayTotals;

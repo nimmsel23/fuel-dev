@@ -22,7 +22,7 @@ export default async function aiLogRoute(app) {
       
       const mealName = result.meal.description;
       if (result.meal.micros) {
-        saveMicrosForMeal(mealName, result.meal.micros);
+        saveMicrosForMeal(mealName, result.meal.kcal || 0, result.meal.micros, "gemini-ai-log");
       }
 
       if (result.type === "meal") {
