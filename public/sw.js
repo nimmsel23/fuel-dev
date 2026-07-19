@@ -1,4 +1,4 @@
-const CACHE = "fuel-v51";
+const CACHE = "fuel-v0"; // Platzhalter — echte Version wird post-build in dist-firebase gestempelt (scripts/stamp-sw.mjs), nie hier committed.
 const BASE_PATH = new URL(self.registration.scope).pathname.replace(/\/$/, "");
 const withBase = (path) => `${BASE_PATH}${path}`;
 const STATIC_ASSETS = [withBase("/"), withBase("/index.html"), withBase("/manifest.json")];
