@@ -1,26 +1,26 @@
 import React from "react";
-import { useQueries } from "@tanstack/react-query";
-import { fetchJson } from "@api";
-import { lastNWeeks, NUTRIENTS, pctColor } from "./utils.js";
+import { NUTRIENTS, pctColor } from "./utils.js";
 
-function Cell({ pct, dach, unit, avg }) {
+function Cell({ pct, dach, unit, avg, onClick }) {
   const { bg, text } = pctColor(pct);
   const title = pct != null
-    ? `${avg} ${unit} / ${dach} ${unit} DACH (${pct}%)`
+    ? `${avg} ${unit} / ${dach} ${unit} DACH (${pct}%) — Klicken für Details`
     : "Keine Daten";
 
   return (
-    <div
+    <button
+      type="button"
+      onClick={onClick}
       title={title}
-      className="flex h-9 w-full items-center justify-center rounded text-[10px] font-semibold transition-opacity"
+      className="flex h-9 w-full items-center justify-center rounded text-[10px] font-semibold transition-transform hover:scale-105 hover:ring-2 hover:ring-white/30 active:scale-95"
       style={{ background: bg, color: text }}
     >
       {pct != null ? `${pct}%` : "—"}
-    </div>
+    </button>
   );
 }
 
-export default function MicrosGrid({ weeks, results }) {
+export default function MicrosGrid({ weeks, results, onCellClick }) {
   return (
     <div className="overflow-x-auto">
       <div
@@ -28,7 +28,7 @@ export default function MicrosGrid({ weeks, results }) {
         style={{ gridTemplateColumns: `7rem repeat(${weeks.length}, 1fr)` }}
       >
         <div />
-        {weeks.map(({ year, week }, i) => (
+        {weeks.map(({ week }, i) => (
           <div key={i} className="text-center text-[10px] font-bold text-slate-500">
             KW{week}
           </div>
@@ -49,6 +49,7 @@ export default function MicrosGrid({ weeks, results }) {
                   dach={d?.dach ?? null}
                   unit={unit}
                   avg={d?.avg_daily ?? null}
+                  onClick={() => onCellClick?.({ key, label, unit }, weeks[wi], res.data)}
                 />
               );
             })}

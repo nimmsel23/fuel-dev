@@ -3,20 +3,31 @@ import { useQueries } from "@tanstack/react-query";
 import { Wand2 } from "lucide-react";
 import { fetchJson } from "@api";
 import { lastNWeeks } from "./Micros/utils.js";
+import { readCache, writeCache } from "../lib/localCache.js";
 import MicrosLegend from "./Micros/MicrosLegend.jsx";
 import MicrosGrid from "./Micros/MicrosGrid.jsx";
 import MicrosEstimator from "./Micros/MicrosEstimator.jsx";
+import MicrosDetailModal from "./Micros/MicrosDetailModal.jsx";
+
+// Cache hält den letzten bekannten Stand pro Woche vor — Heatmap zeigt beim
+// Öffnen sofort etwas an, statt auf 8 parallele Requests zu warten (optimistic).
+const CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const cacheKey = (year, week) => `nutrition-weekly:${year}:${week}`;
 
 export default function MicrosView() {
   const [estimatorOpen, setEstimatorOpen] = useState(false);
+  const [detail, setDetail] = useState(null); // { nutrient, week, weekData }
   const weeks = lastNWeeks(8);
 
   const results = useQueries({
     queries: weeks.map(({ year, week }) => ({
       queryKey: ["nutrition-weekly", year, week],
       queryFn: () =>
-        fetchJson(`/nutrition/weekly/${year}/${week}`)
-          .then((d) => (d.ok ? d : null)),
+        fetchJson(`/nutrition/weekly/${year}/${week}`).then((d) => {
+          if (d.ok) writeCache(cacheKey(year, week), d);
+          return d.ok ? d : null;
+        }),
+      placeholderData: () => readCache(cacheKey(year, week), CACHE_MAX_AGE_MS),
       staleTime: 5 * 60 * 1000,
     })),
   });
@@ -49,16 +60,30 @@ export default function MicrosView() {
       </div>
       
       <MicrosLegend />
-      <MicrosGrid weeks={weeks} results={results} />
-      
+      <MicrosGrid
+        weeks={weeks}
+        results={results}
+        onCellClick={(nutrient, week, weekData) => setDetail({ nutrient, week, weekData })}
+      />
+
       <p className="text-xs text-slate-600">
         Mikronährstoffe werden aus dem Micros-Katalog geschätzt. Mahlzeiten ohne Eintrag zählen als 0.
+        Zelle anklicken für Tagesverlauf.
       </p>
 
       {estimatorOpen && (
         <MicrosEstimator
           missingMeals={missingMeals}
           onClose={() => setEstimatorOpen(false)}
+        />
+      )}
+
+      {detail && (
+        <MicrosDetailModal
+          nutrient={detail.nutrient}
+          week={detail.week}
+          weekData={detail.weekData}
+          onClose={() => setDetail(null)}
         />
       )}
     </div>
