@@ -132,8 +132,20 @@ export async function postJson(path, body) {
 
   if (normPath === "/nutrition/catalog") {
     const items = await firestore.getNutritionCatalog();
-    const item = { ...body.item, id: body.item.id || `meal_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}` };
-    items.push(item);
+    const normalizeName = (n) => String(n || "").trim().toLowerCase().replace(/\s+/g, " ");
+    const inputName = normalizeName(body.item?.name);
+    const existingIdx = items.findIndex(
+      (i) => (body.item?.id && i.id === body.item.id) || normalizeName(i.name) === inputName
+    );
+    const item = {
+      ...body.item,
+      id: (existingIdx >= 0 ? items[existingIdx].id : body.item.id) || `meal_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+    };
+    if (existingIdx >= 0) {
+      items[existingIdx] = item;
+    } else {
+      items.push(item);
+    }
     const ref = doc(firestore.db, "nutrition", firestore.getUid(), "meta", "catalog");
     await setDoc(ref, { items, updated_at: firestore.serverTimestamp() });
     return { ok: true, item };

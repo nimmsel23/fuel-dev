@@ -115,8 +115,15 @@ export function normalizeMeal(input, existingId = null) {
   };
 }
 
+function normalizeName(name) {
+  return String(name || "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
 export function addOrUpdateItem(catalog, input) {
-  const existing = catalog.items.find((i) => i.id === input.id || i.name === input.name);
+  const inputName = normalizeName(input.name);
+  const existing = catalog.items.find(
+    (i) => i.id === input.id || normalizeName(i.name) === inputName
+  );
   const item = normalizeMeal(input, existing?.id);
   if (!item) return null;
   if (existing) item.created_at = existing.created_at;

@@ -207,7 +207,10 @@ def do_today(day: str | None) -> None:
     st.add_column("ZEIT",       style="blue")
 
     for i in intakes:
-        st.add_row(i["name"], f"{i['dose']}{i['unit']}", i["time_of_day"])
+        name = i.get("name") or i.get("supplement_id", "?")
+        dose = i.get("dose")
+        unit = i.get("unit", "")
+        st.add_row(name, f"{dose}{unit}" if dose is not None else "-", i.get("time_of_day", "any"))
     console.print(st)
 
 def do_unlog(day: str | None) -> None:
@@ -221,7 +224,11 @@ def do_unlog(day: str | None) -> None:
     # If only one entry, maybe ask? Or just fzf always for safety
     fzf_lines = []
     for i in intakes:
-        line = f"{i['id']} | {i['name']} ({i['dose']}{i['unit']}) @ {i['time_of_day']}"
+        name = i.get("name") or i.get("supplement_id", "?")
+        dose = i.get("dose")
+        unit = i.get("unit", "")
+        dose_str = f"{dose}{unit}" if dose is not None else "-"
+        line = f"{i['id']} | {name} ({dose_str}) @ {i.get('time_of_day', 'any')}"
         fzf_lines.append(line)
 
     try:

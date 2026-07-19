@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { X, Sparkles, Loader2 } from "lucide-react";
+import { X, Sparkles, Loader2, RotateCcw } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { vertexAI } from "../../lib/firebase.js";
 import { getGenerativeModel } from "firebase/vertexai";
+import { withAiRetry } from "../../lib/aiRetry.js";
 import { NUTRIENTS } from "./utils.js";
 
 // Optional: Fallback to local server if not cloud
@@ -58,8 +59,8 @@ Antworte in Markdown, halte es kurz, positiv und direkt anwendbar. Keine ärztli
 `;
 
       if (isCloud() && vertexAI) {
-        const model = getGenerativeModel(vertexAI, { model: "gemini-1.5-flash" });
-        const result = await model.generateContent(prompt);
+        const model = getGenerativeModel(vertexAI, { model: "gemini-2.5-flash" });
+        const result = await withAiRetry(() => model.generateContent(prompt));
         setAnalysis(result.response.text());
       } else {
         // Fallback for local coach mode (stub)
@@ -67,7 +68,7 @@ Antworte in Markdown, halte es kurz, positiv und direkt anwendbar. Keine ärztli
       }
     } catch (err) {
       console.error(err);
-      setError("Analyse fehlgeschlagen. Bitte später erneut versuchen.");
+      setError(err.message || "Analyse fehlgeschlagen. Bitte später erneut versuchen.");
     } finally {
       setLoading(false);
     }
@@ -96,8 +97,15 @@ Antworte in Markdown, halte es kurz, positiv und direkt anwendbar. Keine ärztli
               <p>Analysiere deine Mikronährstoffe der letzten Wochen...</p>
             </div>
           ) : error ? (
-            <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-red-400">
-              {error}
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-red-400">
+              <span>{error}</span>
+              <button
+                onClick={analyzeData}
+                className="flex shrink-0 items-center gap-1.5 rounded-full bg-red-500/20 px-3 py-1.5 text-xs font-semibold hover:bg-red-500/30 transition-colors"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                Erneut versuchen
+              </button>
             </div>
           ) : (
             <div className="prose prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-li:my-1">

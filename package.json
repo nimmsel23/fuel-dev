@@ -16,7 +16,7 @@
     "deploy:cloud": "npm run build:cloud && firebase deploy --only hosting --project fitness-aos",
     "deploy:firebase": "firebase deploy --only hosting --project fitness-aos",
     "firebase": "npm run build:firebase && npm run deploy:firebase",
-    "prod": "PORT=9000 HOST=0.0.0.0 node server.mjs",
+    "prod": "PORT=${PORT:-7000} HOST=${HOST:-0.0.0.0} node server.mjs",
     "sync:push": "node --env-file-if-exists=.env scripts/firestore-sync.mjs push",
     "sync:pull": "node --env-file-if-exists=.env scripts/firestore-sync.mjs pull",
     "sync:watch": "node --env-file-if-exists=.env scripts/firestore-sync.mjs watch",
