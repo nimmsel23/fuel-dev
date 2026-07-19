@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { NotebookPen, UtensilsCrossed, Pencil, Trash2, Sparkles, AlertTriangle, RefreshCw, Check, X, ScanSearch, CopyPlus } from "lucide-react";
 import { twMerge } from "tailwind-merge";
-import { postJson, patchJson } from "@api";
+import { fetchJson, postJson, patchJson } from "@api";
 import { vertexAI } from "../../lib/firebase.js";
 import { getGenerativeModel } from "firebase/vertexai";
 import { withAiRetry } from "../../lib/aiRetry.js";
@@ -11,6 +11,29 @@ import FoodSearch from "../../components/FoodSearch.jsx";
 import ScannerModal from "./components/ScannerModal.jsx";
 import { Camera, RotateCcw } from "lucide-react";
 import { sumMetric, formatMetric } from "../../../shared/utils/utils.js";
+
+// "3x Stiegl Hell" → { qty: 3, rest: "Stiegl Hell" }. Ohne Präfix qty=1.
+function parseQuantityPrefix(text) {
+  const m = text.trim().match(/^(\d+)\s*[x×]\s*(.+)$/i);
+  if (m) return { qty: Math.max(1, parseInt(m[1], 10)), rest: m[2].trim() };
+  return { qty: 1, rest: text.trim() };
+}
+
+// Sucht einen bereits im Katalog gespeicherten Treffer, bevor überhaupt
+// Vertex gefragt wird — bekannte Sachen (mit echten Makros) brauchen keine
+// KI-Schätzung, die zudem bei z.B. Getränken gerne mal unzuverlässig ist.
+function findCatalogMatch(catalog, name) {
+  const norm = (s) => String(s || "").trim().toLowerCase();
+  const target = norm(name);
+  if (!target || target.length < 3) return null;
+  const label = (i) => norm(i.name || i.description);
+  return (
+    catalog.find((i) => label(i) === target) ||
+    catalog.find((i) => label(i).length > 3 && target.includes(label(i))) ||
+    catalog.find((i) => label(i).length > 3 && label(i).includes(target)) ||
+    null
+  );
+}
 
 // Gemeinsames Response-Schema für Makro/Mikro-Analyse (AI-Logger + Re-Analyse).
 async function analyzeMealText(promptText) {
@@ -140,6 +163,12 @@ export default function LogView({ date, nutrition, notes }) {
   const meals = nutrition?.meals || [];
   const cloud = window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com");
   const { data: pendingAiEntries = [] } = usePendingAiEntries(date);
+  const { data: catalogData } = useQuery({
+    queryKey: ["nutrition-catalog"],
+    queryFn: () => fetchJson("/nutrition/catalog"),
+    staleTime: 60_000,
+  });
+  const catalogItems = catalogData?.items || [];
 
   const handleNotesSave = async (e) => {
     e.preventDefault();
@@ -212,6 +241,30 @@ export default function LogView({ date, nutrition, notes }) {
 
     try {
       if (cloud) {
+        // 0. Katalog-Match zuerst — bekannte Sachen ("3x Stiegl Hell") haben
+        //    schon echte Makros gespeichert, brauchen keinen Vertex-Call.
+        const { qty, rest } = parseQuantityPrefix(rawText);
+        const match = findCatalogMatch(catalogItems, rest);
+        if (match) {
+          for (let i = 0; i < qty; i++) {
+            await postJson("/nutrition/log", {
+              date,
+              meal: {
+                type: match.meal_type || match.type || "meal",
+                description: match.name || match.description,
+                notes: "",
+                kcal: match.kcal || 0, protein: match.protein || 0,
+                carbs: match.carbs || 0, fat: match.fat || 0,
+                catalog_item_id: match.id,
+              },
+            });
+          }
+          qc.invalidateQueries({ queryKey: ["nutrition", date] });
+          qc.invalidateQueries({ queryKey: ["week-logs"] });
+          setAiText("");
+          return;
+        }
+
         // 1. Optimistic Save — Text landet sofort als Journal/Notiz-Eintrag des
         //    Tages, unabhängig davon ob Vertex AI danach erreichbar ist.
         const firestore = await import("../../lib/db.firestore.js");
