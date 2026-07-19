@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import { NUTRITION_DB_PATH } from "../config/paths.mjs";
+import { MICRO_KEYS } from "../../shared/config/dach.mjs";
 
 let db = null;
 
@@ -64,17 +65,11 @@ function initDb() {
     CREATE INDEX IF NOT EXISTS idx_meal_micros_name ON meal_micros(meal_name COLLATE NOCASE);
   `);
 
-  // Migrate existing DBs: add new columns if they don't exist yet
-  const newCols = [
-    "kcal REAL",
-    "vitamin_a_ug REAL DEFAULT 0",  "vitamin_k_ug REAL DEFAULT 0",
-    "vitamin_c_mg REAL DEFAULT 0",  "vitamin_b1_mg REAL DEFAULT 0",
-    "vitamin_b2_mg REAL DEFAULT 0", "vitamin_b3_mg REAL DEFAULT 0",
-    "vitamin_b5_mg REAL DEFAULT 0", "vitamin_b6_mg REAL DEFAULT 0",
-    "vitamin_b7_ug REAL DEFAULT 0", "phosphorus_mg REAL DEFAULT 0",
-    "selenium_ug REAL DEFAULT 0",   "iodine_ug REAL DEFAULT 0",
-    "omega3_mg REAL DEFAULT 0",
-  ];
+  // Migrate existing DBs: alle MICRO_KEYS (Quelle: shared/config/dach.mjs)
+  // + kcal idempotent nachziehen — neue Nährstoffe landen automatisch hier,
+  // ohne diese Liste manuell zu pflegen. ALTER TABLE wirft bei bereits
+  // vorhandener Spalte, das ist der erwartete No-Op-Pfad.
+  const newCols = ["kcal REAL", ...MICRO_KEYS.map((k) => `${k} REAL DEFAULT 0`)];
   for (const col of newCols) {
     try { db.exec(`ALTER TABLE meal_micros ADD COLUMN ${col}`); } catch { /* column exists */ }
   }
@@ -106,14 +101,7 @@ export function getIngredientByWgerId(wgerId) {
 
 // ── Meal micros ───────────────────────────────────────────────────────────────
 
-const MICRO_COLS = [
-  "vitamin_a_ug", "vitamin_d_ug", "vitamin_e_mg", "vitamin_k_ug",
-  "vitamin_c_mg", "vitamin_b1_mg", "vitamin_b2_mg", "vitamin_b3_mg",
-  "vitamin_b5_mg", "vitamin_b6_mg", "vitamin_b7_ug", "folate_ug", "vitamin_b12_ug",
-  "calcium_mg", "phosphorus_mg", "magnesium_mg", "iron_mg", "zinc_mg",
-  "selenium_ug", "iodine_ug", "potassium_mg", "sodium_mg",
-  "omega3_mg",
-];
+const MICRO_COLS = MICRO_KEYS;
 
 export function upsertMealMicros(mealName, kcal, micros, source = "gemini") {
   const db = getDb();

@@ -16,7 +16,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from fuel_cli.compose import compose_meal
+from fuel.compose import compose_meal
 
 
 def main() -> int:

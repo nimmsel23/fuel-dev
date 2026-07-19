@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-gemini-estimate — Macro estimation via Gemini (thin wrapper around fuel_cli.gemini).
+gemini-estimate — Macro estimation via Gemini (thin wrapper around fuel.gemini).
 
 Usage:
   gemini-estimate "250g Basmati Reis"
 
 Output: {"kcal": …, "protein": …, "carbs": …, "fat": …}
 
-Note: Uses the unified fuel_cli.gemini.estimate_nutrition() under the hood,
+Note: Uses the unified fuel.gemini.estimate_nutrition() under the hood,
 but extracts only the macros for backward compatibility with server.mjs.
 For full breakdown (macros + micros + components) use `gemini-nutrition`.
 """
@@ -20,7 +20,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from fuel_cli.gemini import estimate_macros_only
+from fuel.gemini import estimate_macros_only
 
 
 def main() -> int:

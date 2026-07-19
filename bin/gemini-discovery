@@ -17,7 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from fuel_cli.gemini import discover_item
+from fuel.gemini import discover_item
 
 
 def main() -> int:

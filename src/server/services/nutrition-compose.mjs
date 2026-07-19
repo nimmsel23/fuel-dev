@@ -3,7 +3,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const GEMINI_COMPOSE_SCRIPT = path.join(__dirname, "..", "..", "gemini-compose");
+const GEMINI_COMPOSE_SCRIPT = path.join(__dirname, "..", "..", "..", "bin", "gemini-compose");
 
 export async function composeMeal(description) {
   return new Promise((resolve) => {

@@ -21,7 +21,7 @@ from pathlib import Path
 # Make fuel_cli importable without install
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from fuel_cli.gemini import (
+from fuel.gemini import (
     estimate_nutrition,
     estimate_macros_only,
     estimate_micros_only,

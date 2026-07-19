@@ -82,7 +82,7 @@ MICRO_KEYS = (
     "vitamin_b5_mg", "vitamin_b6_mg", "vitamin_b7_ug", "folate_ug",
     "vitamin_b12_ug", "calcium_mg", "phosphorus_mg", "magnesium_mg",
     "iron_mg", "zinc_mg", "selenium_ug", "iodine_ug", "potassium_mg",
-    "sodium_mg", "omega3_mg",
+    "sodium_mg", "boron_mg", "omega3_mg",
 )
 
 PROMPT_TEMPLATE = """Schätze die Nährwerte (Makro- + Mikronährstoffe) für folgende Beschreibung:
@@ -107,7 +107,7 @@ Antworte NUR mit JSON (keine Erklärungen, keine Markdown-Codeblöcke):
     "vitamin_b5_mg": <Zahl>, "vitamin_b6_mg": <Zahl>, "vitamin_b7_ug": <Zahl>, "folate_ug": <Zahl>,
     "vitamin_b12_ug": <Zahl>, "calcium_mg": <Zahl>, "phosphorus_mg": <Zahl>, "magnesium_mg": <Zahl>,
     "iron_mg": <Zahl>, "zinc_mg": <Zahl>, "selenium_ug": <Zahl>, "iodine_ug": <Zahl>,
-    "potassium_mg": <Zahl>, "sodium_mg": <Zahl>, "omega3_mg": <Zahl>
+    "potassium_mg": <Zahl>, "sodium_mg": <Zahl>, "boron_mg": <Zahl>, "omega3_mg": <Zahl>
   }},
   "components": [
     {{"name": "<komponente>", "qty": "<wie interpretiert>", "kcal": <Zahl>, "protein": <Zahl>, "carbs": <Zahl>, "fat": <Zahl>}}

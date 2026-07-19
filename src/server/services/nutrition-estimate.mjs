@@ -3,7 +3,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const GEMINI_ESTIMATE_SCRIPT = path.join(__dirname, "..", "..", "gemini-estimate");
+const GEMINI_ESTIMATE_SCRIPT = path.join(__dirname, "..", "..", "..", "bin", "gemini-estimate");
 
 export async function estimateMacros(description) {
   return new Promise((resolve) => {

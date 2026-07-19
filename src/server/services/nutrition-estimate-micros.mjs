@@ -3,7 +3,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const GEMINI_MICROS_SCRIPT = path.join(__dirname, "..", "..", "gemini-micros");
+const GEMINI_MICROS_SCRIPT = path.join(__dirname, "..", "..", "..", "bin", "gemini-micros");
 
 export async function estimateMicros(description) {
   return new Promise((resolve) => {
