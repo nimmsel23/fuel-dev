@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { NotebookPen, UtensilsCrossed, Pencil, Trash2, Sparkles, AlertTriangle, RefreshCw, Check, X, ScanSearch } from "lucide-react";
+import { NotebookPen, UtensilsCrossed, Pencil, Trash2, Sparkles, AlertTriangle, RefreshCw, Check, X, ScanSearch, CopyPlus } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 import { postJson, patchJson } from "@api";
 import { vertexAI } from "../../lib/firebase.js";
@@ -109,7 +109,7 @@ const MEAL_TYPES = [
 const MEAL_LABEL = Object.fromEntries(MEAL_TYPES.map(({ value, label }) => [value, label]));
 
 const inputCls = "w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-slate-100";
-const EMPTY_FORM = { id: null, type: "breakfast", description: "", notes: "", kcal: "", protein: "", carbs: "", fat: "" };
+const EMPTY_FORM = { id: null, type: "breakfast", description: "", notes: "", kcal: "", protein: "", carbs: "", fat: "", grams: "" };
 
 function Field({ label, children }) {
   return (
@@ -285,7 +285,7 @@ export default function LogView({ date, nutrition, notes }) {
   function loadForEdit(meal) {
     setForm({ id: meal.id, type: meal.type, description: meal.description,
       notes: meal.notes || "", kcal: meal.kcal, protein: meal.protein,
-      carbs: meal.carbs, fat: meal.fat });
+      carbs: meal.carbs, fat: meal.fat, grams: meal.grams || "" });
     setMoveDate("");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -296,7 +296,8 @@ export default function LogView({ date, nutrition, notes }) {
         const body = {
           date, meal_id: form.id,
           meal: { type: form.type, description: form.description, notes: form.notes,
-            kcal: form.kcal, protein: form.protein, carbs: form.carbs, fat: form.fat },
+            kcal: form.kcal, protein: form.protein, carbs: form.carbs, fat: form.fat,
+            grams: Number(form.grams) || null },
         };
         if (moveDate && moveDate !== date) body.new_date = moveDate;
         return patchJson("/nutrition/log", body);
@@ -304,7 +305,8 @@ export default function LogView({ date, nutrition, notes }) {
       return postJson("/nutrition/log", {
         date,
         meal: { type: form.type, description: form.description, notes: form.notes,
-          kcal: form.kcal, protein: form.protein, carbs: form.carbs, fat: form.fat },
+          kcal: form.kcal, protein: form.protein, carbs: form.carbs, fat: form.fat,
+          grams: Number(form.grams) || null },
       });
     },
     onSuccess: () => {
@@ -329,6 +331,7 @@ export default function LogView({ date, nutrition, notes }) {
         protein: Number(form.protein) || 0,
         carbs: Number(form.carbs) || 0,
         fat: Number(form.fat) || 0,
+        yield_g: Number(form.grams) || null,
         source: "manual",
       }
     }),
@@ -341,6 +344,24 @@ export default function LogView({ date, nutrition, notes }) {
       qc.invalidateQueries({ queryKey: ["nutrition", date] });
       qc.invalidateQueries({ queryKey: ["week-logs"] });
       if (isEditing) setForm(EMPTY_FORM);
+    },
+  });
+
+  // "Nochmal loggen" — legt denselben Eintrag ein weiteres Mal an, ohne
+  // erneut Text eintippen oder durch den AI Logger zu müssen. Löst den Fall
+  // "3x dasselbe Getränk" direkt über einen Klick pro Wiederholung.
+  const repeatMeal = useMutation({
+    mutationFn: (meal) => postJson("/nutrition/log", {
+      date,
+      meal: {
+        type: meal.type, description: meal.description, notes: meal.notes || "",
+        kcal: meal.kcal, protein: meal.protein, carbs: meal.carbs, fat: meal.fat,
+        grams: meal.grams ?? null, catalog_item_id: meal.catalog_item_id || null,
+      },
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["nutrition", date] });
+      qc.invalidateQueries({ queryKey: ["week-logs"] });
     },
   });
 
@@ -460,9 +481,14 @@ export default function LogView({ date, nutrition, notes }) {
             )}
           </div>
           
-          <Field label="Beschreibung">
-            <input className={inputCls} placeholder="Mahlzeit…" value={form.description} onChange={set("description")} />
-          </Field>
+          <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+            <Field label="Beschreibung">
+              <input className={inputCls} placeholder="Mahlzeit…" value={form.description} onChange={set("description")} />
+            </Field>
+            <Field label="Gewicht (g)">
+              <input type="number" min="0" className={twMerge(inputCls, "sm:w-28")} placeholder="optional" value={form.grams} onChange={set("grams")} />
+            </Field>
+          </div>
 
           <div className="grid grid-cols-4 gap-3">
             {[["kcal", "kcal"], ["protein", "Prot g"], ["carbs", "Carb g"], ["fat", "Fett g"]].map(([k, lbl]) => (
@@ -471,6 +497,11 @@ export default function LogView({ date, nutrition, notes }) {
               </Field>
             ))}
           </div>
+          {form.grams && (
+            <p className="text-xs text-slate-500">
+              Für Katalog+ gespeichert als {form.grams}g-Portion — beim erneuten Loggen aus dem Katalog später anpassbar.
+            </p>
+          )}
 
           <div className="grid gap-3 sm:grid-cols-2">
             <button onClick={() => saveMeal.mutate()} disabled={saveMeal.isPending || !form.description}
@@ -529,6 +560,12 @@ export default function LogView({ date, nutrition, notes }) {
                     </div>
                   </div>
                   <div className="ml-3 flex gap-2 shrink-0">
+                    <button onClick={() => repeatMeal.mutate(m)}
+                      disabled={repeatMeal.isPending && repeatMeal.variables?.id === m.id}
+                      title="Nochmal loggen"
+                      className="rounded-lg border border-white/10 bg-white/5 p-2 text-slate-400 hover:text-emerald-400 hover:bg-emerald-400/10 transition">
+                      <CopyPlus className="h-3.5 w-3.5" />
+                    </button>
                     <button onClick={() => loadForEdit(m)}
                       title="Bearbeiten"
                       className={twMerge(

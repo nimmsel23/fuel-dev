@@ -21,6 +21,28 @@ const CATEGORY_LABELS = {
 export default function FoodCatalog({ activeDate }) {
   const qc = useQueryClient();
   const [catalogAddonSelection, setCatalogAddonSelection] = useState({});
+  const [catalogGrams, setCatalogGrams] = useState({});
+
+  function gramsFor(item) {
+    return catalogGrams[item.id] ?? item.yield_g ?? "";
+  }
+
+  // Skaliert die gespeicherten Makros (die für item.yield_g gelten) linear auf
+  // die aktuell gewählte Grammzahl — Makros pro 100g werden hier, beim Client,
+  // aus den absoluten Katalog-Werten abgeleitet statt im Kopf umgerechnet.
+  function scaledMacros(item) {
+    const grams = Number(gramsFor(item)) || 0;
+    if (!item.yield_g || !grams) {
+      return { kcal: item.kcal, protein: item.protein, carbs: item.carbs, fat: item.fat };
+    }
+    const factor = grams / item.yield_g;
+    return {
+      kcal: Math.round(item.kcal * factor),
+      protein: Math.round(item.protein * factor * 10) / 10,
+      carbs: Math.round(item.carbs * factor * 10) / 10,
+      fat: Math.round(item.fat * factor * 10) / 10,
+    };
+  }
 
   const { data: catalogData } = useQuery({
     queryKey: ["nutrition-catalog"],
@@ -44,9 +66,25 @@ export default function FoodCatalog({ activeDate }) {
   }
 
   const logCatalogItem = useMutation({
-    mutationFn: ({ catalogItemId, addonIds = [] }) => postJson("/nutrition/log", {
-      date: activeDate, catalog_item_id: catalogItemId, catalog_addon_ids: addonIds,
-    }),
+    mutationFn: ({ item, addonIds = [], grams, macros }) => {
+      if (item.yield_g && grams && grams !== item.yield_g) {
+        // Menge abweichend von der gespeicherten Portion — als eigenständigen
+        // Meal-Eintrag mit skalierten Makros loggen statt fixer Katalog-Portion.
+        return postJson("/nutrition/log", {
+          date: activeDate,
+          meal: {
+            type: item.meal_type || item.type || "meal",
+            description: item.name || item.description,
+            notes: item.notes || "",
+            grams, catalog_item_id: item.id,
+            ...macros,
+          },
+        });
+      }
+      return postJson("/nutrition/log", {
+        date: activeDate, catalog_item_id: item.id, catalog_addon_ids: addonIds,
+      });
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["nutrition", activeDate] });
       qc.invalidateQueries({ queryKey: ["week-logs"] });
@@ -106,11 +144,29 @@ export default function FoodCatalog({ activeDate }) {
                       </button>
                     </div>
                     
+                    {item.yield_g ? (
+                      <div className="mt-3 flex items-center gap-3">
+                        <label className="flex items-center gap-2 text-xs text-slate-400">
+                          Menge
+                          <input type="number" min="1"
+                            value={gramsFor(item)}
+                            onChange={(e) => setCatalogGrams((cur) => ({ ...cur, [item.id]: e.target.value }))}
+                            className="w-20 rounded-lg border border-white/10 bg-slate-900/70 px-2 py-1 text-slate-100" />
+                          g
+                        </label>
+                        <span className="text-[10px] text-slate-600">(gespeichert: {item.yield_g}g)</span>
+                      </div>
+                    ) : null}
+
                     <div className="mt-3 flex gap-4 text-sm font-medium text-slate-400">
-                      <span className="text-orange-300">{item.kcal} kcal</span>
-                      <span>P {item.protein}g</span>
-                      <span>C {item.carbs}g</span>
-                      <span>F {item.fat}g</span>
+                      {(() => { const m = scaledMacros(item); return (
+                        <>
+                          <span className="text-orange-300">{m.kcal} kcal</span>
+                          <span>P {m.protein}g</span>
+                          <span>C {m.carbs}g</span>
+                          <span>F {m.fat}g</span>
+                        </>
+                      ); })()}
                     </div>
 
                     {item.notes && <div className="mt-2 text-xs italic text-slate-500">{item.notes}</div>}
@@ -142,8 +198,10 @@ export default function FoodCatalog({ activeDate }) {
                     <div className="mt-4 flex gap-2">
                       <button type="button"
                         onClick={() => logCatalogItem.mutate({
-                          catalogItemId: item.id,
+                          item,
                           addonIds: catalogAddonSelection[item.id] || item.default_addon_ids || [],
+                          grams: Number(gramsFor(item)) || item.yield_g || null,
+                          macros: scaledMacros(item),
                         })}
                         disabled={logCatalogItem.isPending}
                         className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-orange-400 px-4 py-2.5 text-sm font-bold text-slate-950 hover:bg-orange-300 transition active:scale-95 disabled:opacity-50">

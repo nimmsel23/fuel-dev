@@ -52,6 +52,7 @@ export default function RecipeBuilder() {
   const [recipeType, setRecipeType] = useState("lunch");
   const [recipeNotes, setRecipeNotes] = useState("");
   const [recipeComponents, setRecipeComponents] = useState([]);
+  const [yieldGrams, setYieldGrams] = useState("");
 
   const recipeTotals = recipeComponents.reduce(
     (acc, c) => ({
@@ -63,7 +64,11 @@ export default function RecipeBuilder() {
     { kcal: 0, protein: 0, carbs: 0, fat: 0 },
   );
 
-  const clearRecipe = () => { setRecipeName(""); setRecipeType("lunch"); setRecipeNotes(""); setRecipeComponents([]); };
+  // Summe der bekannten Komponenten-Gramm als Vorschlag fürs Gesamtgewicht —
+  // Basis für die spätere 100g-Umrechnung beim Loggen mit angepasster Menge.
+  const suggestedYield = recipeComponents.reduce((sum, c) => sum + (Number(c.grams) || 0), 0);
+
+  const clearRecipe = () => { setRecipeName(""); setRecipeType("lunch"); setRecipeNotes(""); setRecipeComponents([]); setYieldGrams(""); };
 
   function addRecipeComponent(component) {
     setRecipeComponents((items) => [...items, {
@@ -84,6 +89,7 @@ export default function RecipeBuilder() {
         type: recipeType, meal_type: recipeType, notes: recipeNotes,
         kcal: recipeTotals.kcal, protein: recipeTotals.protein,
         carbs: recipeTotals.carbs, fat: recipeTotals.fat, components: recipeComponents,
+        yield_g: Number(yieldGrams) || suggestedYield || null,
       }),
     }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["nutrition-catalog"] }); clearRecipe(); },
@@ -118,11 +124,21 @@ export default function RecipeBuilder() {
             </select>
           </Field>
         </div>
-        <Field label="Notizen">
-          <input className={inputCls} placeholder="optional, z.B. Zubereitung"
-            value={recipeNotes} onChange={(e) => setRecipeNotes(e.target.value)} />
-        </Field>
-        
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Notizen">
+            <input className={inputCls} placeholder="optional, z.B. Zubereitung"
+              value={recipeNotes} onChange={(e) => setRecipeNotes(e.target.value)} />
+          </Field>
+          <Field label="Gesamtgewicht (g)">
+            <input type="number" min="0" className={inputCls}
+              placeholder={suggestedYield ? `${suggestedYield} (Summe Komponenten)` : "z.B. 450"}
+              value={yieldGrams} onChange={(e) => setYieldGrams(e.target.value)} />
+          </Field>
+        </div>
+        <p className="text-xs text-slate-500 -mt-2">
+          Wird für die Mengen-Anpassung beim Loggen gebraucht (Makros pro 100g). Ohne Gewicht bleibt das Gericht nur in fixer Portion loggbar.
+        </p>
+
         <div className="rounded-2xl border border-white/5 bg-slate-950/60 p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
             <strong className="text-sm text-slate-100 uppercase tracking-widest">Komponenten</strong>
