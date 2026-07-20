@@ -1,21 +1,24 @@
 node_modules/
 dist/
-/opt/
 dist-firebase/
+/opt/
 .firebase/
-.DS_Store
+.firebase/hosting.*.cache
 *.log
+.env
+.env.*.local
+.DS_Store
 *.bak
-.claude/TICKETS/
-*.egg-info/
+*.bak*
 .venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.claude/TICKETS/
 
 # Runtime data (daily logs, journals, user sessions)
 data/
 
-# Keep catalogs (versioniert) — Root-Anker (!) wichtig, sonst matched das
-# Pattern auch data/catalogs/ (das sind tägliche Logs, kein Katalog) und
-# hebt die data/-Ignorierung dort ungewollt auf.
+# Keep catalogs (versioniert) — root anchor (!) wichtig, sonst matched das
+# Pattern auch data/catalogs/ (das sind tägliche Logs, kein Katalog)
 !/catalogs/
-__pycache__/
-.firebase/
