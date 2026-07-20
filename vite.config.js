@@ -23,8 +23,8 @@ export default defineConfig(({ mode }) => {
       preserveSymlinks: true,
       alias: {
         "@api":     resolve(__dirname, appMode === "client" ? "src/client/lib/api.cloud.js" : "src/client/lib/api.local.js"),
-        "@habits":  resolve(__dirname, "../habits-dev/src"),
-        "@journal": resolve(__dirname, "../journal-dev/src"),
+        "@habits":  resolve(__dirname, "../habit-app/src"),
+        "@journal": resolve(__dirname, "../journal-app/src"),
       },
       dedupe: ["react", "react-dom", "@tanstack/react-query"],
     },
