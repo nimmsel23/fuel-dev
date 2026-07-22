@@ -172,7 +172,13 @@ export async function postJson(path, body) {
     if (body.delete_id) {
       existing.intakes = (existing.intakes || []).filter((i) => i.id !== body.delete_id);
     } else {
-      existing.intakes = [...(existing.intakes || []), { ...body.intake, id: `supp_${Date.now()}` }];
+      let intake = { ...body.intake };
+      if (!intake.name && intake.supplement_id) {
+        const catalog = await firestore.getSupplementsCatalog();
+        const catalogItem = catalog.find((i) => i.id === intake.supplement_id);
+        if (catalogItem) intake.name = catalogItem.name;
+      }
+      existing.intakes = [...(existing.intakes || []), { ...intake, id: `supp_${Date.now()}` }];
     }
     const ref = doc(firestore.db, "supplements", firestore.getUid(), "logs", body.date);
     await setDoc(ref, { ...existing, updated_at: firestore.serverTimestamp() });
