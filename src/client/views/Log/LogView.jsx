@@ -24,13 +24,16 @@ function parseQuantityPrefix(text) {
 // KI-Schätzung, die zudem bei z.B. Getränken gerne mal unzuverlässig ist.
 function findCatalogMatch(catalog, name) {
   const norm = (s) => String(s || "").trim().toLowerCase();
+  // Wortgrenzen statt reinem includes() — sonst matcht z.B. der Katalogeintrag
+  // "Reis" fälschlich in "Reisepass" oder Freitext, der "reis" nur als Teilwort enthält.
+  const hasWord = (haystack, needle) => new RegExp(`(^|\\W)${needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\W|$)`).test(haystack);
   const target = norm(name);
   if (!target || target.length < 3) return null;
   const label = (i) => norm(i.name || i.description);
   return (
     catalog.find((i) => label(i) === target) ||
-    catalog.find((i) => label(i).length > 3 && target.includes(label(i))) ||
-    catalog.find((i) => label(i).length > 3 && label(i).includes(target)) ||
+    catalog.find((i) => label(i).length > 3 && hasWord(target, label(i))) ||
+    catalog.find((i) => label(i).length > 3 && hasWord(label(i), target)) ||
     null
   );
 }
@@ -187,8 +190,32 @@ export default function LogView({ date, nutrition, notes }) {
   // wird daraus ein echtes Meal und der Pending-Eintrag verschwindet aus der
   // Ablage. Scheitert die Analyse, bleibt der Pending-Eintrag unverändert stehen.
   const resolvePendingEntry = async (entry) => {
-    const { MICRO_KEYS } = await import("../../lib/db/firestore/utils.js");
     const firestore = await import("../../lib/db.firestore.js");
+
+    // Katalog-Match zuerst versuchen — derselbe Check wie beim ersten Log-Versuch.
+    // Ohne das landete jede Re-Analyse zwangsläufig bei Vertex-Freitextschätzung,
+    // selbst wenn der Text exakt einem Katalogeintrag mit echten Makros entspricht.
+    const { qty, rest } = parseQuantityPrefix(entry.text);
+    const match = findCatalogMatch(catalogItems, rest);
+    if (match) {
+      for (let i = 0; i < qty; i++) {
+        await postJson("/nutrition/log", {
+          date,
+          meal: {
+            type: match.meal_type || match.type || "meal",
+            description: match.name || match.description,
+            notes: "",
+            kcal: match.kcal || 0, protein: match.protein || 0,
+            carbs: match.carbs || 0, fat: match.fat || 0,
+            catalog_item_id: match.id,
+          },
+        });
+      }
+      await firestore.removePendingAiEntry(date, entry);
+      return;
+    }
+
+    const { MICRO_KEYS } = await import("../../lib/db/firestore/utils.js");
     const parsed = await analyzeMealText(entry.text);
     if (!parsed?.macros) throw new Error("Gemini hat keine Makros erkannt.");
 

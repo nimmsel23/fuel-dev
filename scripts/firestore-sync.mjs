@@ -339,25 +339,45 @@ async function push(uid) {
     console.log(`    Found ${nutritionItems.length} individual meals in catalogs/`);
   }
 
-  // B) Fallback/Legacy: central catalog.json OR catalog.yaml
-  const legacyCatalogJson = join(nutritionDir, "catalog.json");
-  const legacyCatalogYaml = join(nutritionDir, "catalog.yaml");
-  
-  for (const legacyPath of [legacyCatalogYaml, legacyCatalogJson]) {
-    if (existsSync(legacyPath)) {
-      try {
-        const raw = readFileSync(legacyPath, "utf8");
-        const data = (legacyPath.endsWith(".json")) ? JSON.parse(raw) : YAML.parse(raw);
-        const items = data.items || data;
-        if (Array.isArray(items)) {
-          nutritionItems = [...nutritionItems, ...items];
-          console.log(`    Added items from legacy ${basename(legacyPath)}`);
-          break; // Stop if we found one
+  // B) Fallback/Legacy: central catalog.json OR catalog.yaml — nur wenn KEINE
+  // Einzeldateien existieren. Beide Quellen sind unterschiedliche Momentaufnahmen
+  // desselben Katalogs; addiert man sie, verdoppelt sich der Katalog bei jedem
+  // Push in Firestore (der komplette meta/catalog-Doc wird überschrieben).
+  if (nutritionItems.length === 0) {
+    const legacyCatalogJson = join(nutritionDir, "catalog.json");
+    const legacyCatalogYaml = join(nutritionDir, "catalog.yaml");
+
+    for (const legacyPath of [legacyCatalogYaml, legacyCatalogJson]) {
+      if (existsSync(legacyPath)) {
+        try {
+          const raw = readFileSync(legacyPath, "utf8");
+          const data = (legacyPath.endsWith(".json")) ? JSON.parse(raw) : YAML.parse(raw);
+          const items = data.items || data;
+          if (Array.isArray(items)) {
+            nutritionItems = [...nutritionItems, ...items];
+            console.log(`    Added items from legacy ${basename(legacyPath)}`);
+            break; // Stop if we found one
+          }
+        } catch (e) {
+          console.error(`    ❌ Fehler in legacy catalog:`, e.message);
         }
-      } catch (e) {
-        console.error(`    ❌ Fehler in legacy catalog:`, e.message);
       }
     }
+  } else {
+    console.log(`    Skipping legacy catalog.json/yaml — individual meal files take precedence`);
+  }
+
+  // Sicherheitsnetz: nach id bzw. normalisiertem Namen deduplizieren, bevor
+  // der komplette Katalog nach Firestore geschrieben wird.
+  {
+    const seen = new Map();
+    const normalizeName = (n) => String(n || "").trim().toLowerCase().replace(/\s+/g, " ");
+    for (const item of nutritionItems) {
+      const key = item.id || normalizeName(item.name);
+      if (!key) continue;
+      seen.set(key, item); // letzter Eintrag gewinnt
+    }
+    nutritionItems = Array.from(seen.values());
   }
 
   if (nutritionItems.length > 0) {
