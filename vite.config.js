@@ -1,18 +1,34 @@
-import { defineConfig, loadEnv } from "vite";
+import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
+import { existsSync } from "fs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), "");
-  const appMode = process.env.VITE_APP_MODE || env.VITE_APP_MODE || "coach";
-  
-  // coach builds to dist/ (local server), client builds to dist-firebase/ (for firebase deploy)
-  const outDir = appMode === "client" ? "./dist-firebase" : "./dist";
+// Sibling-Repos existieren unter zwei Namensschemata, je nach Checkout:
+// ~/fuel-dev (dev-Branch, Home-Root)     → Siblings heißen *-dev (habits-dev, journal-dev, fitness-dev)
+// ~/vitalos/fuel-app (master, Submodule) → Siblings heißen *-app (habit-app, journal-app, fitness-app)
+// Der lokale Build muss aus BEIDEN Checkouts funktionieren, also wird pro
+// Alias die erste tatsächlich existierende Kandidaten-Variante genommen.
+function resolveSibling(candidates, label) {
+  for (const rel of candidates) {
+    const abs = resolve(__dirname, rel);
+    if (existsSync(abs)) return abs;
+  }
+  throw new Error(`[vite.config.js] Kein Sibling-Pfad gefunden für ${label}: ${candidates.join(", ")}`);
+}
 
-  console.log(`🚀 Building for mode: ${mode}, APP_MODE: ${appMode} -> outDir: ${outDir}`);
+// Local channel (build:local → /opt/fuel via deploy.sh). Muss im Quell-Checkout
+// gebaut werden, wo die Sibling-Repos tatsächlich neben fuel-dev/fuel-app liegen
+// — deploy.sh baut deshalb VOR dem rsync nach /opt/fuel, nicht mehr darin. Nach
+// dem Build ist dist/ vollständig gebündelt, /opt/fuel braucht die Sibling-Repos
+// danach nicht mehr.
+export default defineConfig(() => {
+  const appMode = "coach";
+  const outDir = "./dist";
+
+  console.log(`🚀 Building for local channel (APP_MODE: ${appMode}) -> outDir: ${outDir}`);
 
   return {
     base: "/",
@@ -22,9 +38,15 @@ export default defineConfig(({ mode }) => {
     resolve: {
       preserveSymlinks: true,
       alias: {
-        "@api":     resolve(__dirname, appMode === "client" ? "src/client/lib/api.cloud.js" : "src/client/lib/api.local.js"),
-        "@habits":  resolve(__dirname, "../habit-app/src"),
-        "@journal": resolve(__dirname, "../journal-app/src"),
+        "@api":     resolve(__dirname, "src/client/lib/api.local.js"),
+        "@db":      resolve(__dirname, "src/client/lib/db/index.js"),
+        "@utils":   resolve(__dirname, "src/client/lib/db/index.js"),
+        "@fuel":    resolve(__dirname, "src/client"),
+        "@habits":  resolveSibling(["../habit-app/src", "../habits-dev/src"], "@habits"),
+        "@journal": resolveSibling(["../journal-app/src", "../journal-dev/src"], "@journal"),
+        "@fitness/constants": resolveSibling(["../fitness-app/src/constants", "../fitness-dev/src/constants"], "@fitness/constants"),
+        // Lokaler Build (Coach) → fitness' LOKALE db-Variante, nicht Firestore.
+        "@fitness-db": resolveSibling(["../fitness-app/src/lib/db/index.js", "../fitness-dev/src/lib/db/index.js"], "@fitness-db"),
       },
       dedupe: ["react", "react-dom", "@tanstack/react-query"],
     },
