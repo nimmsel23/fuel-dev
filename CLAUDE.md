@@ -198,6 +198,49 @@ Wochenheatmap (Mikros-Tab) aggregiert meal_micros-Werte pro Woche vs. DACH.
 
 API-Key: `~/.env/fuel.env` (`GEMINI_API_KEY`, `GEMINI_MODEL=gemini-2.5-flash`)
 
+### Nährwert-Schätzung: Haiku-CLI zuerst, Gemini als Fallback (seit 2026-07-23)
+
+`fuel/gemini.py:estimate_nutrition()` ruft nicht mehr direkt Gemini, sondern zuerst
+`fuel/claude_cli.py:call_claude()` — ein Subprocess-Call auf die lokal installierte
+Claude Code CLI (`claude -p <prompt> --model claude-haiku-4-5-20251001
+--allowedTools WebSearch`, `stdin=DEVNULL`). Der Prompt weist Haiku bei erkannter
+Marke an, per WebSearch die offizielle Herstellertabelle zu suchen, statt zu
+schätzen. Nur wenn die CLI fehlt (`shutil.which("claude")` → None), fehlschlägt
+oder kein valides JSON liefert, fällt der Code auf den bisherigen
+Multi-Key-Gemini-Pfad (`call_gemini()`) zurück — Gemini bleibt vollständiger
+Fallback, kein Feature-Verlust.
+
+**Warum `--allowedTools WebSearch` zwingend ist:** ohne dieses Flag nutzt Haiku im
+`-p`-Headless-Modus kein WebSearch (Tool-Permission-Gate greift auch non-interaktiv).
+`--permission-mode bypassPermissions` funktioniert technisch, wird aber vom
+Claude-Code-Auto-Mode-Classifier als riskant geblockt — nicht nötig, das gezielte
+`--allowedTools WebSearch` reicht für diesen Use-Case.
+
+### Katalog-Verifikation: `fuel-catalog-verify` (wöchentlich, optional)
+
+`fuel/catalog_verify.py` (`python3 -m fuel.catalog_verify --limit N`, Default
+`N=20`) scannt `catalogs/nutrition/meals/*.yaml` nach `source: gemini`
+(unverifiziert) und lässt Haiku+WebSearch pro Eintrag nach der offiziellen
+Herstellertabelle suchen. Bei Treffer wird die YAML-Datei direkt korrigiert
+(`kcal`/`protein`/`carbs`/`fat`/`yield_g` neu berechnet, `source: manual`, `notes`
+mit Quelle). Kein Treffer → Eintrag bleibt unverändert (kein blindes Überschreiben).
+`source: manual`-Einträge gelten als bereits verifiziert und werden nie erneut
+angefasst.
+
+Regel seit 2026-07-23 (User-Vorgabe): Katalog-Einträge sollen, wann immer eine
+offizielle Quelle auffindbar ist, auf diese umgestellt werden statt auf einer
+Gemini-/Haiku-Schätzung zu verbleiben.
+
+**systemd — aktiv seit 2026-07-23:** Units liegen unter
+`deploy/systemd/fuel-catalog-verify.{service,timer}` (Symlinks in
+`~/.config/systemd/user/`), Timer läuft wöchentlich Montag 04:00
+(`Persistent=true` — holt verpasste Läufe beim nächsten Boot nach). Status prüfen:
+```bash
+systemctl --user list-timers fuel-catalog-verify.timer
+journalctl --user -u fuel-catalog-verify.service -n 50
+```
+Deaktivieren falls nötig: `systemctl --user disable --now fuel-catalog-verify.timer`.
+
 ### CLI Tools
 
 **`./fuel`** (Python/Typer)

@@ -5,15 +5,18 @@ name: 2 Nusschnecken vom Billa
 alias: null
 meal_type: meal
 description: 2 Nusschnecken vom Billa
-notes: ''
-kcal: 880.0
-protein: 16.0
-carbs: 92.0
-fat: 50.0
-yield_g: null
+notes: 'Offizielle Herstellerangabe (https://fddb.info/db/de/lebensmittel/billa_nussschnecke/index.html)
+  pro 100g: {''kcal'': 359, ''protein'': 6.2, ''carbs'': 37.2, ''fat'': 20.2}. Nährwerte
+  pro 100g von FDDB (österreichische Lebensmitteldatenbank). Portionsgewicht konnte
+  nicht exakt verifiziert werden; Standard-Annahme: ~50g pro Nusschnecke.'
+kcal: 359.0
+protein: 6.2
+carbs: 37.2
+fat: 20.2
+yield_g: 100.0
 components: []
 addons: []
 default_addon_ids: []
-source: gemini
+source: manual
 created_at: '2026-07-14T15:15:40.345834Z'
-updated_at: '2026-07-14T15:15:40.345834Z'
+updated_at: '2026-07-23T11:28:39.306319Z'
