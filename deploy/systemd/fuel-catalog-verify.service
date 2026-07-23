@@ -1,0 +1,12 @@
+[Unit]
+Description=Fuel Catalog Verify — unverifizierte Meal-Einträge gegen offizielle Herstellerwerte abgleichen (Haiku+WebSearch)
+After=network.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/alpha/fuel-dev
+Environment=AOS_FUEL_LOG_LEVEL=INFO
+Environment=PYTHONPATH=/home/alpha/fuel-dev
+ExecStart=/usr/bin/python3 -m fuel.catalog_verify --limit 20
+StandardOutput=journal
+StandardError=journal

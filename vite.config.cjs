@@ -23,6 +23,8 @@ module.exports = defineConfig(({ mode }) => {
         "@habits": require("path").resolve(__dirname, "../habit-app/src"),
         "@journal": require("path").resolve(__dirname, "../journal-app/src"),
         "@fitness/constants": require("path").resolve(__dirname, "../fitness-app/src/constants"),
+        // Cloud-Build (Client) → fitness' Firestore-db-Variante.
+        "@fitness-db": require("path").resolve(__dirname, "../fitness-app/src/lib/db/index.firestore.js"),
         "@fuel": require("path").resolve(__dirname, "src/client"),
       },
     },

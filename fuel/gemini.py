@@ -18,6 +18,7 @@ from loguru import logger
 
 from pathlib import Path
 
+from . import claude_cli
 from . import log as _log  # configures loguru
 from .env import load_fuel_env
 
@@ -233,17 +234,40 @@ def call_gemini(prompt: str, *, image_b64: str | None = None, mime_type: str = "
     return {"ok": False, "error": f"all keys exhausted: {last_err}"}
 
 
-def estimate_nutrition(description: str, *, retries: int = 2, timeout: int = 30) -> dict:
-    """One-shot estimation: macros + micros + components."""
-    prompt = PROMPT_TEMPLATE.format(description=description)
-    res = call_gemini(prompt, retries=retries, timeout=timeout, log_label="estimate_nutrition")
-    if not res["ok"]:
-        return _empty_response(res["error"])
+CLAUDE_PROMPT_SUFFIX = """
+Wenn eine Marke/ein Produktname genannt ist (z.B. "Wertvoll", "Hubers", "Billa"),
+nutze WebSearch um die offizielle Nährwerttabelle des Herstellers zu finden und
+rechne die Werte exakt auf die angegebene Menge um, statt zu schätzen. Wenn keine
+Marke erkennbar ist oder nichts gefunden wird, schätze wie gewohnt.
+"""
 
-    parsed = _extract_json(res["text"])
+
+def estimate_nutrition(description: str, *, retries: int = 2, timeout: int = 30) -> dict:
+    """One-shot estimation: macros + micros + components.
+
+    Primär: Claude-CLI (Haiku, mit WebSearch-Grounding für Markenprodukte).
+    Fallback: Gemini, falls Claude-CLI fehlt/fehlschlägt.
+    """
+    prompt = PROMPT_TEMPLATE.format(description=description)
+
+    parsed = None
+    if claude_cli.available():
+        res = claude_cli.call_claude(prompt + CLAUDE_PROMPT_SUFFIX, timeout=60, log_label="estimate_nutrition")
+        if res["ok"]:
+            parsed = claude_cli._extract_json(res["text"])
+            if not parsed:
+                logger.warning(f"Haiku JSON parse failed, falling back to Gemini: {res['text'][:200]!r}")
+        else:
+            logger.warning(f"Haiku CLI failed ({res['error']}), falling back to Gemini")
+
     if not parsed:
-        logger.error(f"JSON parse failed: {res['text'][:200]!r}")
-        return _empty_response("json parse failed")
+        res = call_gemini(prompt, retries=retries, timeout=timeout, log_label="estimate_nutrition")
+        if not res["ok"]:
+            return _empty_response(res["error"])
+        parsed = _extract_json(res["text"])
+        if not parsed:
+            logger.error(f"JSON parse failed: {res['text'][:200]!r}")
+            return _empty_response("json parse failed")
 
     logger.debug(f"estimate_nutrition success: {parsed.get('macros')}")
     return {

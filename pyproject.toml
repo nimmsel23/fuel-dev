@@ -21,6 +21,7 @@ dependencies = [
 fuel              = "fuel.dispatch:main"
 fuel-meal         = "fuel.meal:main"
 fuel-supplement   = "fuel.supplement:main"
+fuel-catalog-verify = "fuel.catalog_verify:main"
 
 [tool.setuptools]
 include-package-data = true
