@@ -318,6 +318,30 @@ def sync(
         raise typer.Exit(1)
 
 
+@app.command(name="db-resync")
+def db_resync():
+    """nutrition.db aus allen Tages-JSONs neu befüllen (global + je User).
+
+    Idempotent (Upsert) — für Drift-Fälle nutzbar, z.B. wenn der
+    Node/CLI-Sync-Code zeitweise nicht aktiv war oder JSONs manuell
+    editiert wurden. Ersetzt das Ad-hoc-Migrationsskript vom 2026-07-23.
+    """
+    from . import meal as _meal
+
+    data_root = _meal.DATA_DIR
+    roots = [data_root / "nutrition"]
+    users_dir = data_root / "users"
+    if users_dir.exists():
+        roots += [d / "nutrition" for d in sorted(users_dir.iterdir()) if (d / "nutrition").is_dir()]
+
+    total = 0
+    for root in roots:
+        n = _meal.resync_db_from_json(root)
+        typer.echo(f"  {root}: {n} Tage synced")
+        total += n
+    msg.good(f"nutrition.db resync fertig — {total} Tage insgesamt")
+
+
 @app.command()
 def get(day: str = typer.Argument(..., help="Datum (YYYY-MM-DD)")):
     """Tages-Log für ein bestimmtes Datum (direkt aus Dateien)."""

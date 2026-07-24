@@ -13,7 +13,12 @@ import { dirname } from "node:path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
-const DATA_DIR = join(ROOT, "data", "catalogs");
+// AlphaOS-Konvention: persistente Daten gehören nach ~/.aos/fuel/, nicht ins
+// Dev-Repo. War vorher ein eigener repo-lokaler data/catalogs/-Baum (Duplikat
+// der ~/.aos/fuel/-Daten, teils nur per Hardlink zufällig synchron).
+const DATA_DIR = process.env.AOS_FUEL_DATA_DIR
+  ? resolve(process.env.AOS_FUEL_DATA_DIR)
+  : join(process.env.HOME, ".aos", "fuel");
 const SA_PATH = process.env.FUEL_FIRESTORE_SA
   ? resolve(process.env.FUEL_FIRESTORE_SA)
   : join(process.env.HOME, ".env", "firebase-fitness.json");
@@ -148,14 +153,9 @@ async function saveMealMicrosToFirestore(mealName, kcal, micros) {
 
 function saveMealMicrosToLocalSqlite(mealName, kcal, micros) {
   const dbPaths = [];
-  
-  // 1. Repo catalog database
-  const repoDb = join(ROOT, "data", "catalogs", "nutrition", "nutrition.db");
-  if (existsSync(repoDb)) dbPaths.push(repoDb);
-  
-  // 2. Active user databases
-  const globalDataDir = process.env.AOS_FUEL_DATA_DIR || join(process.env.HOME, ".aos", "fuel");
-  const usersDir = join(globalDataDir, "users");
+
+  // Active user databases
+  const usersDir = join(DATA_DIR, "users");
   if (existsSync(usersDir)) {
     try {
       const dirs = readdirSync(usersDir);
@@ -169,9 +169,9 @@ function saveMealMicrosToLocalSqlite(mealName, kcal, micros) {
       console.error("Fehler beim Suchen von User-DBs:", e.message);
     }
   }
-  
-  // Also check single-user mode active db
-  const singleUserDb = join(globalDataDir, "nutrition", "nutrition.db");
+
+  // Single-user mode active db
+  const singleUserDb = join(DATA_DIR, "nutrition", "nutrition.db");
   if (existsSync(singleUserDb)) dbPaths.push(singleUserDb);
   
   const MICRO_COLS = [

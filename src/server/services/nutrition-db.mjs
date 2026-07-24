@@ -73,6 +73,96 @@ function initDb() {
   for (const col of newCols) {
     try { db.exec(`ALTER TABLE meal_micros ADD COLUMN ${col}`); } catch { /* column exists */ }
   }
+
+  // Tages-Log als normalisierte Rows statt JSON-Blob-pro-Tag. Grund: der
+  // Firestore-Sync (firestored push_fuel) pusht bisher den kompletten
+  // Tages-JSON-Blob als EIN Dokument — Firestore-merge=True ersetzt
+  // Array-Felder ('meals') komplett statt sie zu mergen, was am 2026-07-23
+  // zu echtem Datenverlust führte (App-Einträge durch lokalen CLI-Log
+  // überschrieben). Mit einer Row pro Meal (id = Primary Key) kann ein
+  // künftiger Row-basierter Sync einzelne Einträge upserten, ohne
+  // gleichzeitig bestehende fremde Rows zu zerstören. JSON-Dateien bleiben
+  // vorerst parallel bestehen (Migration/Fallback), SQLite ist die neue
+  // Source of Truth für den Server-Schreibpfad.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS meals (
+      id          TEXT PRIMARY KEY,
+      date        TEXT NOT NULL,
+      catalog_id  TEXT,
+      type        TEXT DEFAULT 'meal',
+      description TEXT NOT NULL,
+      notes       TEXT DEFAULT '',
+      kcal        REAL DEFAULT 0,
+      protein     REAL DEFAULT 0,
+      carbs       REAL DEFAULT 0,
+      fat         REAL DEFAULT 0,
+      micros_json TEXT,
+      logged_at   TEXT,
+      created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_meals_date ON meals(date);
+
+    CREATE TABLE IF NOT EXISTS daily_water (
+      date       TEXT PRIMARY KEY,
+      water_ml   REAL DEFAULT 0,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+}
+
+// ── Meals (Tages-Log, normalisiert) ───────────────────────────────────────────
+
+export function upsertMeal(meal) {
+  const db = getDb();
+  db.prepare(`
+    INSERT INTO meals (id, date, catalog_id, type, description, notes, kcal, protein, carbs, fat, micros_json, logged_at)
+    VALUES (@id, @date, @catalog_id, @type, @description, @notes, @kcal, @protein, @carbs, @fat, @micros_json, @logged_at)
+    ON CONFLICT(id) DO UPDATE SET
+      date = excluded.date, catalog_id = excluded.catalog_id, type = excluded.type,
+      description = excluded.description, notes = excluded.notes,
+      kcal = excluded.kcal, protein = excluded.protein, carbs = excluded.carbs, fat = excluded.fat,
+      micros_json = excluded.micros_json, logged_at = excluded.logged_at,
+      updated_at = CURRENT_TIMESTAMP
+  `).run({
+    id: meal.id,
+    date: meal.date,
+    catalog_id: meal.catalog_id ?? null,
+    type: meal.type ?? "meal",
+    description: meal.description,
+    notes: meal.notes ?? "",
+    kcal: meal.kcal ?? 0,
+    protein: meal.protein ?? 0,
+    carbs: meal.carbs ?? 0,
+    fat: meal.fat ?? 0,
+    micros_json: meal.micros ? JSON.stringify(meal.micros) : null,
+    logged_at: meal.logged_at ?? meal.time ?? null,
+  });
+}
+
+export function deleteMeal(id) {
+  return getDb().prepare("DELETE FROM meals WHERE id = ?").run(id);
+}
+
+export function getMealsForDate(date) {
+  const rows = getDb().prepare("SELECT * FROM meals WHERE date = ? ORDER BY logged_at, id").all(date);
+  return rows.map((r) => ({
+    ...r,
+    micros: r.micros_json ? JSON.parse(r.micros_json) : undefined,
+    micros_json: undefined,
+  }));
+}
+
+export function upsertWater(date, waterMl) {
+  getDb().prepare(`
+    INSERT INTO daily_water (date, water_ml) VALUES (?, ?)
+    ON CONFLICT(date) DO UPDATE SET water_ml = excluded.water_ml, updated_at = CURRENT_TIMESTAMP
+  `).run(date, waterMl);
+}
+
+export function getWater(date) {
+  const row = getDb().prepare("SELECT water_ml FROM daily_water WHERE date = ?").get(date);
+  return row ? row.water_ml : 0;
 }
 
 // ── Ingredients (wger cache) ──────────────────────────────────────────────────
@@ -126,4 +216,7 @@ export function getAllMealMicros() {
   return getDb().prepare("SELECT * FROM meal_micros ORDER BY meal_name").all();
 }
 
-export default { getDb, upsertIngredient, getIngredientByWgerId, upsertMealMicros, getMealMicros, getAllMealMicros };
+export default {
+  getDb, upsertIngredient, getIngredientByWgerId, upsertMealMicros, getMealMicros, getAllMealMicros,
+  upsertMeal, deleteMeal, getMealsForDate, upsertWater, getWater,
+};
