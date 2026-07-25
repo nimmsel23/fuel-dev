@@ -43,10 +43,15 @@ export default defineConfig(() => {
         "@utils":   resolve(__dirname, "src/client/lib/db/index.js"),
         "@fuel":    resolve(__dirname, "src/client"),
         "@habits":  resolveSibling(["../habit-app/src", "../habits-dev/src"], "@habits"),
+        "@habits-db": resolveSibling(["../habit-app/src/db", "../habits-dev/src/db"], "@habits-db"),
         "@journal": resolveSibling(["../journal-app/src", "../journal-dev/src"], "@journal"),
+        "@journal-db": resolveSibling(["../journal-app/src/db/index.js", "../journal-dev/src/db/index.js"], "@journal-db"),
+        "@relax":   resolveSibling(["../relax-app/src", "../relax-dev/src"], "@relax"),
         "@fitness/constants": resolveSibling(["../fitness-app/src/constants", "../fitness-dev/src/constants"], "@fitness/constants"),
-        // Lokaler Build (Coach) → fitness' LOKALE db-Variante, nicht Firestore.
-        "@fitness-db": resolveSibling(["../fitness-app/src/lib/db/index.js", "../fitness-dev/src/lib/db/index.js"], "@fitness-db"),
+        // Bare "@fitness-db" löst über Directory-Resolution weiter auf index.js (LOKALE Variante).
+        // habits-dev/journal-dev importieren zusätzlich den Subpath "@fitness-db/index.firestore.js" explizit —
+        // dafür muss der Alias auf das Verzeichnis zeigen, nicht direkt auf eine Datei.
+        "@fitness-db": resolveSibling(["../fitness-app/src/lib/db", "../fitness-dev/src/lib/db"], "@fitness-db"),
       },
       dedupe: ["react", "react-dom", "@tanstack/react-query"],
     },

@@ -87,8 +87,9 @@ function App() {
   const isClientBuild = import.meta.env.VITE_APP_MODE === "client";
 
   React.useEffect(() => {
-    document.title = (isCloud || isClientBuild) ? "Fuel Centre V3 (Firebase PWA)" : "Fuel Centre V2 (Desktop Prod)";
-  }, [isCloud, isClientBuild]);
+    const tab = TAB_CONFIG.find((t) => t.key === activeTab);
+    document.title = tab?.label || ((isCloud || isClientBuild) ? "Fuel Centre V3 (Firebase PWA)" : "Fuel Centre V2 (Desktop Prod)");
+  }, [activeTab, isCloud, isClientBuild]);
 
   const tabCtx = { nutrition, sup, suppCatalog, suppLog, journal, macroTrend, activeDate, setActiveDate, setActiveTab };
 
@@ -126,7 +127,7 @@ function App() {
               </div>
               <h1 className="text-3xl font-semibold tracking-tight md:text-5xl">Nutrition Journal Control Deck</h1>
               <p className="mt-3 max-w-2xl text-sm text-slate-300 md:text-base">
-                Fuel Studio schreibt jetzt direkt in die Nutrition- und Journal-Daten statt nur Mock-UI zu zeigen.
+                Krankheit hat viele Väter, aber die Mutter ist immer die Ernährung. -Hippokrates
               </p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-4 text-right">

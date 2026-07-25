@@ -5,6 +5,7 @@ import fs from "fs";
 import { loadCatalog } from "../../services/nutrition-catalog.mjs";
 import { estimateMicros } from "../../services/nutrition-estimate-micros.mjs";
 import { getMicrosForMeal, saveMicrosForMeal } from "../../services/nutrition-micros.mjs";
+import { upsertMeal, deleteMeal as deleteMealRow, upsertWater, getMealsForDate } from "../../services/nutrition-db.mjs";
 
 const logPostSchema = z.object({
   date: z.string().optional(),
@@ -35,6 +36,33 @@ function loadLog(date, nutritionDir) {
 
 function saveLog(log, nutritionDir) {
   fs.writeFileSync(path.join(nutritionDir, `${log.date}.json`), JSON.stringify(log, null, 2), "utf-8");
+  syncLogToDb(log);
+}
+
+// Schreibt den Tag komplett nach SQLite durch (meals als Rows, id-basiert
+// upsertet + verwaiste Rows gelöscht). SQLite ist damit die normalisierte
+// Sicht auf dieselben Daten wie die Tages-JSON — der JSON-Blob bleibt
+// vorerst der Lesepfad (loadLog), SQLite existiert parallel als
+// Row-granulare Quelle für zukünftigen Firestore-Row-Sync (siehe
+// _merge_by_id-Fix in firestored/adapters/vitalos.py, 2026-07-23).
+function syncLogToDb(log) {
+  try {
+    const existing = getMealsForDate(log.date);
+    const currentIds = new Set((log.meals || []).filter((m) => m.id).map((m) => m.id));
+    for (const row of existing) {
+      if (!currentIds.has(row.id)) deleteMealRow(row.id);
+    }
+    for (const meal of log.meals || []) {
+      if (!meal.id) {
+        console.warn(`[nutrition-db] Meal ohne id in ${log.date} übersprungen:`, meal.description);
+        continue;
+      }
+      upsertMeal({ ...meal, date: log.date });
+    }
+    upsertWater(log.date, log.water_ml || 0);
+  } catch (e) {
+    console.warn(`[nutrition-db] Sync-Fehler für ${log.date}:`, e.message);
+  }
 }
 
 // Der Tages-Mikros-Cache (log.micro_totals, siehe weekly.mjs/daily.mjs) wird

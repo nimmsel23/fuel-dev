@@ -84,13 +84,14 @@ def status():
         msg.warn("Sync Watcher is idle")
 
 @app.command()
-def dev(action: str = typer.Argument("status", help="up, down, status, logs, build")):
+def dev(action: str = typer.Argument("status", help="up, down, restart, status, logs, build")):
     """Manage the development stack."""
     cmd_map = {
         "up": "start",
         "start": "start",
         "down": "stop",
         "stop": "stop",
+        "restart": "restart",
         "status": "status",
         "logs": "logs",
         "build": "build"
@@ -102,12 +103,15 @@ def dev(action: str = typer.Argument("status", help="up, down, status, logs, bui
         msg.fail(f"Unknown dev action: {action}")
 
 @app.command()
-def local(action: str = typer.Argument("status", help="deploy, status, logs")):
+def local(action: str = typer.Argument("status", help="deploy, restart, status, logs")):
     """Manage the local channel (Desktop Prod, /opt/fuel)."""
     if action == "status":
         status()
     elif action == "logs":
         subprocess.run(["sudo", "journalctl", "-u", LOCAL_SERVICE, "-f"])
+    elif action == "restart":
+        msg.divider(f"Restarting {LOCAL_SERVICE}")
+        subprocess.run(["sudo", "systemctl", "restart", LOCAL_SERVICE])
     elif action == "deploy":
         msg.divider("Local channel deployment → /opt/fuel")
         if not DEPLOY_SCRIPT.exists():

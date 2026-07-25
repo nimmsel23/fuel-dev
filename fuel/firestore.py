@@ -287,6 +287,12 @@ def sync_nutrition_catalog(direction: str, uid: str, data_dir: Path) -> dict:
     
     if direction == "push":
         merged_items = _merge_by_id(local_items, remote_items)
+    elif direction == "push-snapshot":
+        # Echter Snapshot-Push: lokale Dateien sind die Wahrheit, kein Union-
+        # Merge mit Remote — sonst tauchen lokal gelöschte Katalog-Einträge
+        # (z.B. bei einer Duplikat-Bereinigung) nach dem nächsten Push wieder
+        # in Firestore auf (_merge_by_id kann nur hinzufügen, nie entfernen).
+        merged_items = [_strip_firestore_fields(item) for item in local_items]
     elif direction == "pull":
         merged_items = remote_items
         legacy_json = nutrition_dir / "catalog.json"
@@ -294,8 +300,11 @@ def sync_nutrition_catalog(direction: str, uid: str, data_dir: Path) -> dict:
         _write_json(legacy_json, {"items": merged_items})
     else:
         merged_items = _merge_by_id(local_items, remote_items)
-        
-    doc_ref.set({"items": merged_items}, merge=True)
+
+    if direction == "push-snapshot":
+        doc_ref.set({"items": merged_items})  # kein merge=True — echtes Overwrite
+    else:
+        doc_ref.set({"items": merged_items}, merge=True)
     return {"catalog_items": len(merged_items)}
 
 

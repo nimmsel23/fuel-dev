@@ -1,4 +1,5 @@
 {
+  "_note": "Firestore rules SSOT = ~/vitalos/firestore.rules — NEVER add a firestore block here or deploy rules from fuel-dev. Only vitalos deploys rules.",
   "hosting": {
     "site": "fuel-vos",
     "public": "dist-firebase",

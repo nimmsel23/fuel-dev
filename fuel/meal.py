@@ -87,6 +87,122 @@ def _save_log_local(log: dict) -> None:
     NUTRITION_DIR.mkdir(parents=True, exist_ok=True)
     p = NUTRITION_DIR / f"{log['date']}.json"
     p.write_text(json.dumps(log, indent=2, ensure_ascii=False) + "\n")
+    _sync_log_to_db(log)
+
+# ── SQLite Sync (meals als Rows, id-basiert) ────────────────────────────────
+# Schwester-Implementierung zu fuel-dev/src/server/services/nutrition-db.mjs
+# (Node-Server schreibt dieselbe Tabelle). SQLite ist die normalisierte
+# Row-Sicht auf denselben Tages-Log, JSON bleibt der Lesepfad fürs CLI.
+# Grund: künftiger Firestore-Sync soll pro Meal-Row upserten können statt
+# einen kompletten Tages-Blob zu überschreiben (siehe _merge_by_id-Fix in
+# firestored/adapters/vitalos.py, 2026-07-23 — Datenverlust-Bug).
+
+_DB_SCHEMA = """
+CREATE TABLE IF NOT EXISTS meals (
+  id          TEXT PRIMARY KEY,
+  date        TEXT NOT NULL,
+  catalog_id  TEXT,
+  type        TEXT DEFAULT 'meal',
+  description TEXT NOT NULL,
+  notes       TEXT DEFAULT '',
+  kcal        REAL DEFAULT 0,
+  protein     REAL DEFAULT 0,
+  carbs       REAL DEFAULT 0,
+  fat         REAL DEFAULT 0,
+  micros_json TEXT,
+  logged_at   TEXT,
+  created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_meals_date ON meals(date);
+
+CREATE TABLE IF NOT EXISTS daily_water (
+  date       TEXT PRIMARY KEY,
+  water_ml   REAL DEFAULT 0,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+"""
+
+
+def _sync_log_to_db(log: dict) -> None:
+    import sqlite3
+
+    db_path = NUTRITION_DIR / "nutrition.db"
+    try:
+        con = sqlite3.connect(db_path)
+        con.executescript(_DB_SCHEMA)
+
+        existing_ids = {row[0] for row in con.execute(
+            "SELECT id FROM meals WHERE date = ?", (log["date"],)
+        )}
+        current_ids = {m["id"] for m in log.get("meals", []) if m.get("id")}
+        for stale_id in existing_ids - current_ids:
+            con.execute("DELETE FROM meals WHERE id = ?", (stale_id,))
+
+        for m in log.get("meals", []):
+            meal_id = m.get("id")
+            if not meal_id:
+                # Alte Einträge ohne id (vor der id-Konvention) einzeln
+                # überspringen statt den kompletten Tag zu verwerfen.
+                gum_log("warn", f"Meal ohne id in {log['date']} übersprungen: {m.get('description')!r}")
+                continue
+            micros_json = json.dumps(m["micros"]) if m.get("micros") else None
+            con.execute(
+                """
+                INSERT INTO meals (id, date, catalog_id, type, description, notes,
+                                    kcal, protein, carbs, fat, micros_json, logged_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    date = excluded.date, catalog_id = excluded.catalog_id, type = excluded.type,
+                    description = excluded.description, notes = excluded.notes,
+                    kcal = excluded.kcal, protein = excluded.protein, carbs = excluded.carbs, fat = excluded.fat,
+                    micros_json = excluded.micros_json, logged_at = excluded.logged_at,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                (
+                    meal_id, log["date"], m.get("catalog_id"), m.get("type", "meal"),
+                    m.get("description", ""), m.get("notes", ""),
+                    m.get("kcal", 0), m.get("protein", 0), m.get("carbs", 0), m.get("fat", 0),
+                    micros_json, m.get("logged_at") or m.get("time"),
+                ),
+            )
+
+        con.execute(
+            """
+            INSERT INTO daily_water (date, water_ml) VALUES (?, ?)
+            ON CONFLICT(date) DO UPDATE SET water_ml = excluded.water_ml, updated_at = CURRENT_TIMESTAMP
+            """,
+            (log["date"], log.get("water_ml", 0)),
+        )
+        con.commit()
+        con.close()
+    except Exception as e:
+        gum_log("warn", f"nutrition.db Sync fehlgeschlagen: {e}")
+
+
+def resync_db_from_json(nutrition_dir: Path) -> int:
+    """Zieht alle Tages-JSONs eines nutrition/-Ordners erneut in dessen
+    nutrition.db nach (idempotent — ON CONFLICT-Upsert). Für Drift-Fälle
+    (z.B. Zeitraum in dem der Node/CLI-Sync-Code noch nicht aktiv war,
+    oder manuelle JSON-Edits) statt Ad-hoc-Skripte im Bedarfsfall."""
+    global NUTRITION_DIR
+    prev = NUTRITION_DIR
+    NUTRITION_DIR = nutrition_dir
+    count = 0
+    try:
+        for f in sorted(nutrition_dir.glob("*.json")):
+            try:
+                log = json.loads(f.read_text())
+            except Exception:
+                continue
+            if not log.get("meals"):
+                continue
+            _sync_log_to_db(log)
+            count += 1
+    finally:
+        NUTRITION_DIR = prev
+    return count
+
 
 # ── Validation ─────────────────────────────────────────────────────────────────
 

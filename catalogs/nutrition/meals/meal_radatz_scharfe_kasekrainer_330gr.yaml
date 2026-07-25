@@ -4,16 +4,51 @@ category: meal
 name: Radatz Scharfe Käsekrainer 330gr
 alias: null
 meal_type: meal
-description: Radatz Scharfe Käsekrainer 330gr
-notes: ''
+description: Radatz Scharfe Käsekrainer 330gr, Brot/Bier als Addon wählbar
+notes: 'Basisvorlage 330g Käsekrainer pur; Beilagen aus den früher separat angelegten
+  Kombi-Einträgen (Bergsteigerbrot, Weißbrot, Stiegl Helles) jetzt als Addons statt
+  eigener Katalogeinträge.'
 kcal: 944.0
 protein: 59.0
 carbs: 5.0
 fat: 76.0
 yield_g: null
 components: []
-addons: []
+addons:
+- id: bergsteigerbrot_2_scheiben
+  label: 2 Scheiben Bergsteigerbrot (Ja!)
+  description: Ja! Natürlich Bergsteigerbrot, 2 Scheiben (~70g)
+  brand: Ja! Natürlich
+  grams: 70
+  kcal: 180
+  protein: 6.0
+  carbs: 32.0
+  fat: 1.5
+  source: manual
+  source_kind: addon
+- id: weissbrot_100g
+  label: 100g Weißbrot
+  description: Weißbrot, 100g
+  brand: null
+  grams: 100
+  kcal: 265
+  protein: 8.0
+  carbs: 51.0
+  fat: 1.5
+  source: manual
+  source_kind: addon
+- id: stiegl_helles_05l
+  label: 1 Stiegl Helles 0,5l
+  description: Stiegl Goldbräu/Helles, 0,5l Flasche
+  brand: Stiegl
+  grams: null
+  kcal: 210
+  protein: 1.5
+  carbs: 16.0
+  fat: 0.0
+  source: manual
+  source_kind: addon
 default_addon_ids: []
-source: gemini
+source: manual
 created_at: '2026-07-16T15:55:30.150002Z'
-updated_at: '2026-07-16T15:55:30.150002Z'
+updated_at: '2026-07-23T00:00:00.000000Z'

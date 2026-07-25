@@ -256,6 +256,68 @@ def do_unlog(day: str | None) -> None:
         msg.fail("fzf nicht gefunden")
         raise SystemExit(1)
 
+def do_edit(day: str | None, dose: float | None, time_of_day: str | None, notes: str | None) -> None:
+    target_day = day or date.today().isoformat()
+    log_data = read_log(target_day)
+    intakes = log_data.get("intakes", [])
+
+    if not intakes:
+        msg.warn(f"Keine Einträge am {target_day} zum Bearbeiten.")
+        return
+
+    fzf_lines = []
+    for i in intakes:
+        name = i.get("name") or i.get("supplement_id", "?")
+        d = i.get("dose")
+        unit = i.get("unit", "")
+        dose_str = f"{d}{unit}" if d is not None else "-"
+        fzf_lines.append(f"{i['id']} | {name} ({dose_str}) @ {i.get('time_of_day', 'any')}")
+
+    try:
+        result = subprocess.run(
+            ["fzf", "--header", f"EINTRAG BEARBEITEN ({target_day})", "--height=15", "--layout=reverse"],
+            input="\n".join(fzf_lines),
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError:
+        msg.fail("fzf nicht gefunden")
+        raise SystemExit(1)
+
+    if result.returncode != 0 or not result.stdout.strip():
+        return
+
+    edit_id = result.stdout.strip().split("|")[0].strip()
+    entry = next((i for i in intakes if i["id"] == edit_id), None)
+    if entry is None:
+        msg.fail(f"Eintrag {edit_id} nicht gefunden.")
+        raise SystemExit(1)
+
+    if dose is None and time_of_day is None and notes is None:
+        msg.warn("Nichts zu ändern — --dose/--time/--notes angeben.")
+        return
+
+    try:
+        SupplementInput(
+            name=entry["name"],
+            dose=dose if dose is not None else entry.get("dose"),
+            unit=entry.get("unit"),
+            time_of_day=time_of_day or entry.get("time_of_day"),
+        )
+    except ValidationError as e:
+        msg.fail(f"Validation error: {e.error_count()} Fehler")
+        raise SystemExit(1)
+
+    if dose is not None:
+        entry["dose"] = dose
+    if time_of_day is not None:
+        entry["time_of_day"] = time_of_day
+    if notes is not None:
+        entry["notes"] = notes
+
+    write_log(target_day, log_data)
+    msg.good(f"{entry['name']} aktualisiert — {target_day}")
+
 # ── Typer App ──────────────────────────────────────────────────────────────────
 
 app = typer.Typer(help="Supplement Tracker CLI — ohne Subcommand: interaktiver Catalog-Browser (fzf)")
@@ -308,6 +370,29 @@ def log_command(
     for i, supp in enumerate(supplements):
         d = dose if i == 0 else None
         do_log(supp, d, time, target)
+
+@app.command(name="edit")
+def edit_command(
+    dose:       float | None = typer.Option(None, "--dose", "-v", help="Neue Dosis"),
+    time:       str | None   = typer.Option(None, "--time", "-t", help="morning|evening|night|any"),
+    notes:      str | None   = typer.Option(None, "--notes", "-n", help="Notiz überschreiben"),
+    tag:        str | None   = typer.Option(None, "--tag", help="Datum: heute|gestern|vorgestern|-N|Mo|YYYY-MM-DD"),
+    gestern:    bool         = typer.Option(False, "--gestern", "-g"),
+    vorgestern: bool         = typer.Option(False, "--vorgestern"),
+    day:        str | None   = typer.Option(None, "--day", "-d", hidden=True),
+) -> None:
+    """Bearbeite einen bestehenden Supplement-Eintrag interaktiv (fzf-Auswahl)."""
+    try:
+        target = _resolve_date(tag=tag, gestern=gestern, vorgestern=vorgestern, day_legacy=day)
+    except ValueError as e:
+        msg.fail(str(e)); raise typer.Exit(1)
+    do_edit(target, dose, time, notes)
+
+@app.command(name="catalog")
+def catalog_tui() -> None:
+    """Öffnet die Supplement-Katalog-TUI (voll CRUD: Add/Edit/Delete auf catalog.yaml)."""
+    from .supplement_catalog_tui import SupplementCatalogTUI
+    SupplementCatalogTUI().run()
 
 @app.command(name="list")
 def list_supplements() -> None:
