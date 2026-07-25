@@ -87,8 +87,9 @@ function App() {
   const isClientBuild = import.meta.env.VITE_APP_MODE === "client";
 
   React.useEffect(() => {
-    document.title = (isCloud || isClientBuild) ? "Fuel Centre V3 (Firebase PWA)" : "Fuel Centre V2 (Desktop Prod)";
-  }, [isCloud, isClientBuild]);
+    const tab = TAB_CONFIG.find((t) => t.key === activeTab);
+    document.title = tab?.label || ((isCloud || isClientBuild) ? "Fuel Centre V3 (Firebase PWA)" : "Fuel Centre V2 (Desktop Prod)");
+  }, [activeTab, isCloud, isClientBuild]);
 
   const tabCtx = { nutrition, sup, suppCatalog, suppLog, journal, macroTrend, activeDate, setActiveDate, setActiveTab };
 
