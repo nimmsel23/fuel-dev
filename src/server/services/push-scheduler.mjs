@@ -14,6 +14,15 @@ webpush.setVapidDetails(
 
 // Einfache Due-Check Logik (ähnlich Frontend)
 const WEEKDAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+const DEFAULT_PUSH_SETTINGS = {
+  enabled: true,
+  times: {
+    morning: "08:00",
+    midday: "13:00",
+    evening: "19:00",
+    night: "21:00",
+  },
+};
 
 function isDueToday(item, dateString) {
   if (!item.schedule) return false;
@@ -35,22 +44,32 @@ function isDueToday(item, dateString) {
   return false;
 }
 
+function loadPushSettings(baseDataDir) {
+  const settingsPath = path.join(baseDataDir, "push-settings.json");
+  try {
+    if (!fs.existsSync(settingsPath)) return DEFAULT_PUSH_SETTINGS;
+    const raw = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
+    return {
+      enabled: raw.enabled ?? DEFAULT_PUSH_SETTINGS.enabled,
+      times: {
+        ...DEFAULT_PUSH_SETTINGS.times,
+        ...(raw.times || {}),
+      },
+    };
+  } catch (error) {
+    console.error("[PushScheduler] Failed to load push settings:", error);
+    return DEFAULT_PUSH_SETTINGS;
+  }
+}
+
 export function startPushScheduler(baseDataDir, catalogsDir) {
-  // Der Scheduler prüft jede Minute, ob es "Reminder-Zeit" ist.
-  // Morning = 08:00, Evening = 19:00, Night = 21:00
   setInterval(() => {
     const now = new Date();
-    const hours = now.getHours();
-    const minutes = now.getMinutes();
-    
-    // Nur zur vollen Minute triggern
-    if (minutes !== 0) return;
+    const settings = loadPushSettings(baseDataDir);
+    if (!settings.enabled) return;
 
-    let timeOfDayToCheck = null;
-    if (hours === 8) timeOfDayToCheck = "morning";
-    else if (hours === 13) timeOfDayToCheck = "midday";
-    else if (hours === 19) timeOfDayToCheck = "evening";
-    else if (hours === 21) timeOfDayToCheck = "night";
+    const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+    const timeOfDayToCheck = Object.entries(settings.times).find(([, value]) => value === currentTime)?.[0] || null;
 
     if (timeOfDayToCheck) {
       console.log(`[PushScheduler] Running check for ${timeOfDayToCheck}...`);
