@@ -1,5 +1,16 @@
 const { defineConfig, loadEnv } = require("vite");
 const react = require("@vitejs/plugin-react");
+const { resolve } = require("path");
+const { existsSync } = require("fs");
+
+function resolveSibling(candidates, label) {
+  for (const rel of candidates) {
+    const abs = resolve(__dirname, rel);
+    if (existsSync(abs)) return abs;
+  }
+  throw new Error(`[vite.config.cjs] Kein Sibling-Pfad gefunden für ${label}: ${candidates.join(", ")}`);
+}
+
 module.exports = defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const appMode = process.env.VITE_APP_MODE || env.VITE_APP_MODE || "coach";
@@ -17,15 +28,22 @@ module.exports = defineConfig(({ mode }) => {
     resolve: {
       preserveSymlinks: true,
       alias: {
-        "@api":    require("path").resolve(__dirname, appMode === "client" ? "src/client/lib/api.cloud.js" : "src/client/lib/api.local.js"),
-        "@db":     require("path").resolve(__dirname, "src/client/lib/db/index.js"),
-        "@utils":  require("path").resolve(__dirname, "src/client/lib/db/index.js"),
-        "@habits": require("path").resolve(__dirname, "../habit-app/src"),
-        "@journal": require("path").resolve(__dirname, "../journal-app/src"),
-        "@fitness/constants": require("path").resolve(__dirname, "../fitness-app/src/constants"),
-        // Cloud-Build (Client) → fitness' Firestore-db-Variante.
-        "@fitness-db": require("path").resolve(__dirname, "../fitness-app/src/lib/db/index.firestore.js"),
-        "@fuel": require("path").resolve(__dirname, "src/client"),
+        "@api":    resolve(__dirname, appMode === "client" ? "src/client/lib/api.cloud.js" : "src/client/lib/api.local.js"),
+        "@db":     resolve(__dirname, "src/client/lib/db/index.js"),
+        "@utils":  resolve(__dirname, "src/client/lib/db/index.js"),
+        "@habits": resolveSibling(["../habit-app/src", "../habits-dev/src"], "@habits"),
+        "@habits-db": resolveSibling(["../habit-app/src/db", "../habits-dev/src/db"], "@habits-db"),
+        "@journal": resolveSibling(["../journal-app/src", "../journal-dev/src"], "@journal"),
+        "@journal-db": resolveSibling(["../journal-app/src/db/index.js", "../journal-dev/src/db/index.js"], "@journal-db"),
+        "@relax": resolveSibling(["../relax-app/src", "../relax-dev/src"], "@relax"),
+        "@fitness/constants": resolveSibling(["../fitness-app/src/constants", "../fitness-dev/src/constants"], "@fitness/constants"),
+        // Cloud-Build (Client) → fitness' Firestore-db-Variante. Beide Keys zeigen auf
+        // dieselbe Datei: bare "@fitness-db" (fuel selbst) und der explizite Subpath
+        // "@fitness-db/index.firestore.js" (habit-app/journal-app importieren ihn direkt).
+        // Der spezifischere Key muss zuerst stehen, da Vite Alias-Keys als Prefix matcht.
+        "@fitness-db/index.firestore.js": resolveSibling(["../fitness-app/src/lib/db/index.firestore.js", "../fitness-dev/src/lib/db/index.firestore.js"], "@fitness-db/index.firestore.js"),
+        "@fitness-db": resolveSibling(["../fitness-app/src/lib/db/index.firestore.js", "../fitness-dev/src/lib/db/index.firestore.js"], "@fitness-db"),
+        "@fuel": resolve(__dirname, "src/client"),
       },
     },
     plugins: [
