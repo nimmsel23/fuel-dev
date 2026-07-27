@@ -21,6 +21,11 @@ export const useSettings = create(
       weight_kg: 80,
       activity_level: 1.6,
       protein_per_kg: 1.6,
+      supplement_push_enabled: true,
+      supplement_push_morning_time: "08:00",
+      supplement_push_midday_time: "13:00",
+      supplement_push_evening_time: "19:00",
+      supplement_push_night_time: "21:00",
       setSetting: (key, val) => {
         set({ [key]: val });
         // Im Hintergrund zu Firestore syncen, falls eingeloggt
@@ -37,6 +42,11 @@ export const useSettings = create(
               weight_kg: current.weight_kg,
               activity_level: current.activity_level,
               protein_per_kg: current.protein_per_kg,
+              supplement_push_enabled: current.supplement_push_enabled,
+              supplement_push_morning_time: current.supplement_push_morning_time,
+              supplement_push_midday_time: current.supplement_push_midday_time,
+              supplement_push_evening_time: current.supplement_push_evening_time,
+              supplement_push_night_time: current.supplement_push_night_time,
             }).catch(err => console.error("Cloud sync failed:", err));
           }
         });

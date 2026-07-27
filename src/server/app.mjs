@@ -1,7 +1,7 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import { PORT, HOST } from "../shared/config/constants.mjs";
-import { initializePaths, getPaths } from "./config/paths.mjs";
+import { initializePaths, getPaths, GLOBAL_DATA_DIR, CATALOGS_DIR } from "./config/paths.mjs";
 import { normalizeRoutedPath } from "../shared/utils/validation.mjs";
 import { getUidForClient } from "./lib/client-manager.mjs";
 
@@ -85,9 +85,7 @@ export async function startServer() {
   console.log(`🍽️  Fuel Centre running on http://${HOST}:${PORT}`);
   
   // Start the background push scheduler
-  const baseDataDir = "data";
-  const catalogsDir = "catalogs";
-  startPushScheduler(baseDataDir, catalogsDir);
+  startPushScheduler(GLOBAL_DATA_DIR, CATALOGS_DIR);
   
   pullFromFirestoreOnStart();
 }
