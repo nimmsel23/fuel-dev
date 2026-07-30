@@ -37,6 +37,11 @@ export function addOrUpdateSupplement(catalog, input) {
     unit,
     default_dose: defaultDose,
     default_time_of_day: defaultTime,
+    // schedule war früher nie Teil dieses Objekts — GeminiCatalogModal.jsx
+    // schätzte es längst, aber es wurde beim Speichern verworfen.
+    // Supplements/utils.js:isDueToday() (genutzt von DailyChecklist.jsx)
+    // hing dadurch komplett in der Luft (2026-07-30 entdeckt).
+    schedule: input.schedule ?? null,
   };
 
   const idx = catalog.items.findIndex((i) => i.id === id);

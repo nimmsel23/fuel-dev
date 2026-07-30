@@ -6,11 +6,25 @@ import { SUPPLEMENTS_LOG_DIR } from "../config/paths.mjs";
 import fs from "fs";
 import path from "path";
 
+const scheduleSchema = z.object({
+  type: z.enum(["daily", "weekly", "cyclical"]),
+  days: z.array(z.string()).optional(),          // nur bei weekly
+  interval_days: z.coerce.number().optional(),   // nur bei cyclical
+  start_date: z.string().optional(),             // nur bei cyclical
+}).nullable().optional();
+
 const catalogPostSchema = z.object({
+  id: z.string().optional(),
   name: z.string().min(1),
   unit: z.string().optional(),
   default_dose: z.coerce.number().optional(),
   default_time_of_day: z.string().optional(),
+  // War bisher nie im Schema — GeminiCatalogModal.jsx schätzte längst ein
+  // schedule-Objekt, das aber beim Speichern verworfen wurde. utils.js'
+  // isDueToday() (genutzt von DailyChecklist.jsx) hing dadurch komplett in
+  // der Luft: fertige Logik, aber item.schedule war immer undefined
+  // (2026-07-30 entdeckt).
+  schedule: scheduleSchema,
 });
 
 const logPostSchema = z.object({
