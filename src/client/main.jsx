@@ -14,6 +14,7 @@ import { useApp, useSettings } from "./store.js";
 import { useAppData } from "./hooks/useAppData.js";
 import { sumMetric, formatMetric } from "../shared/utils/utils.js";
 import { watchAuth, signIn, signOut, getUid } from "./lib/db.firestore.js";
+import { fetchJson } from "@api";
 
 
 
@@ -30,6 +31,19 @@ if (typeof window !== "undefined") {
 function App() {
   const { activeTab, setActiveTab, activeDate, setActiveDate } = useApp();
   const [user, setUser] = React.useState(null);
+
+  // Fragt /coach/health einmalig ab: erreichbar → wir laufen lokal (Fastify-
+  // Backend vorhanden), server.mode sagt ob dev (:9000) oder prod (:7000,
+  // /opt/fuel). Unerreichbar (z.B. Cloud-Build ohne eigenes Backend) →
+  // localMode bleibt null, der Dev/Prod-Tab wird dann ausgeblendet.
+  const [localMode, setLocalMode] = React.useState(null); // "dev" | "prod" | null
+  React.useEffect(() => {
+    let cancelled = false;
+    fetchJson("/coach/health")
+      .then((r) => { if (!cancelled) setLocalMode(r?.server?.mode || null); })
+      .catch(() => { if (!cancelled) setLocalMode(null); });
+    return () => { cancelled = true; };
+  }, []);
 
   const [needRefresh, setNeedRefresh] = React.useState(false);
   React.useEffect(() => {
@@ -144,22 +158,25 @@ function App() {
           <NutritionHeatmap selectedDate={activeDate} onSelectDate={setActiveDate} />
 
           <nav className="flex flex-wrap gap-2">
-            {TAB_CONFIG.map(({ key, label, Icon }) => (
-              <motion.button
-                whileTap={{ scale: 0.96 }}
-                key={key}
-                onClick={() => setActiveTab(key)}
-                className={twMerge(
-                  "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition",
-                  activeTab === key
-                    ? "border-orange-400/40 bg-orange-400 text-slate-950"
-                    : "border-white/10 bg-white/5 text-slate-200 hover:bg-white/10",
-                )}
-              >
-                <Icon className="h-4 w-4" />
-                {label}
-              </motion.button>
-            ))}
+            {TAB_CONFIG
+              .filter((t) => !t.localOnly || localMode !== null)
+              .map(({ key, label, Icon, localOnly }) => (
+                <motion.button
+                  whileTap={{ scale: 0.96 }}
+                  key={key}
+                  onClick={() => setActiveTab(key)}
+                  className={twMerge(
+                    "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition",
+                    activeTab === key
+                      ? "border-orange-400/40 bg-orange-400 text-slate-950"
+                      : "border-white/10 bg-white/5 text-slate-200 hover:bg-white/10",
+                    localOnly && localMode === "prod" && "ring-1 ring-emerald-400/40",
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                  {localOnly ? (localMode === "prod" ? "Prod" : "Dev") : label}
+                </motion.button>
+              ))}
           </nav>
         </header>
 

@@ -5,8 +5,12 @@ import { vertexAI } from "../../lib/firebase.js";
 import { getGenerativeModel } from "firebase/vertexai";
 import { withAiRetry } from "../../lib/aiRetry.js";
 import { NUTRIENTS } from "./utils.js";
+import { postJson } from "@api";
 
-// Optional: Fallback to local server if not cloud
+// Cloud-Build ruft Vertex AI direkt aus dem Browser auf (Firebase-Billing).
+// Lokal (Coach-Build) gibt's kein Vertex-SDK im Bundle — stattdessen ruft
+// /nutrition/ai-coach den bestehenden Gemini-API-Key aus ~/.env/fuel.env
+// auf (services/gemini.mjs), kein Vertex-Aufpreis für den Desktop-Betrieb.
 const isCloud = () => window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com");
 
 export default function MicrosAiCoach({ weeks, results, onClose }) {
@@ -63,8 +67,9 @@ Antworte in Markdown, halte es kurz, positiv und direkt anwendbar. Keine ärztli
         const result = await withAiRetry(() => model.generateContent(prompt));
         setAnalysis(result.response.text());
       } else {
-        // Fallback for local coach mode (stub)
-        setAnalysis("Lokaler Modus: Vertex AI API ist aktuell nur im Cloud-Build aktiv. Bitte auf Firebase testen oder Backend-Endpoint ergänzen!");
+        const r = await postJson("/nutrition/ai-coach", { prompt });
+        if (!r.ok) throw new Error(r.error || "Analyse fehlgeschlagen");
+        setAnalysis(r.analysis);
       }
     } catch (err) {
       console.error(err);

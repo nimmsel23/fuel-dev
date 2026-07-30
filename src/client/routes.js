@@ -1,5 +1,5 @@
 import { lazy } from "react";
-import { Flame, UtensilsCrossed, NotebookPen, CheckSquare, BookOpen, Pill, Microscope, Settings2, History } from "lucide-react";
+import { Flame, UtensilsCrossed, NotebookPen, CheckSquare, BookOpen, Pill, Microscope, Settings2, History, TerminalSquare } from "lucide-react";
 
 export const TAB_CONFIG = [
   {
@@ -64,5 +64,17 @@ export const TAB_CONFIG = [
     Icon: Settings2,
     View: lazy(() => import("./views/SettingsView.jsx")),
     getProps: () => ({}),
+  },
+  {
+    // Nur sichtbar wenn /coach/health erreichbar ist (lokaler Server, egal ob
+    // dev :9000 oder local-prod :7000) — im Cloud-Build gibt es kein
+    // Backend zu fragen, der Tab bleibt dann versteckt (main.jsx filtert
+    // per localMode). Label wird je nach server.mode zu "Dev" oder "Prod".
+    key: "dev",
+    label: "Dev",
+    Icon: TerminalSquare,
+    View: lazy(() => import("./views/Dev/DevView.jsx")),
+    getProps: () => ({}),
+    localOnly: true,
   },
 ];

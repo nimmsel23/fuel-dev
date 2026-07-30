@@ -12,6 +12,7 @@ import supplementsRoute from "./routes/supplements.mjs";
 import supplementEstimateRoute from "./routes/supplement-estimate.mjs";
 import fuelRoute from "./routes/fuel.mjs";
 import pushRoute from "./routes/push.mjs";
+import coachRoute from "./routes/coach.mjs";
 import staticRoute from "./routes/static.mjs";
 import { startPushScheduler } from "./services/push-scheduler.mjs";
 import { startFirestorePullScheduler } from "./lib/firestore-admin.mjs";
@@ -55,6 +56,7 @@ export function createApp() {
   app.register(supplementEstimateRoute);
   app.register(fuelRoute);
   app.register(pushRoute);
+  app.register(coachRoute);
   app.register(staticRoute); // staticRoute handles catch-all, must be last
 
   // Error handler
@@ -74,5 +76,5 @@ export async function startServer() {
 
   // Background schedulers
   startPushScheduler(GLOBAL_DATA_DIR, CATALOGS_DIR);
-  startFirestorePullScheduler(getPaths());
+  startFirestorePullScheduler();
 }

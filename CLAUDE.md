@@ -91,7 +91,7 @@ npm run sync:pull    # Firestore → lokale Dateien
 npm run sync:watch   # firestore-sync.mjs im Watch-Modus
 ```
 
-**Kein Auto-Deploy mehr:** Der früher dokumentierte `post-commit`-Hook (build:cloud + Firebase-Deploy bei Client-Änderungen) existiert nicht mehr — alle Deploys sind explizit (`deploy:cloud` / `deploy:preview`).
+**Auto-Deploy via pre-push Hook (seit 2026-07-30 aktiv):** `.githooks/pre-push` (`core.hooksPath=.githooks`) prüft bei jedem Push auf `master`, ob relevante Dateien (`src/`, `public/`, `index.html`, `vite.config*`, `package.json`, `firebase.json`, `firestore.rules`) im Diff sind — wenn ja, läuft automatisch `npm run firebase` (= `build:cloud` + `deploy:firebase`) **vor** dem Push. Fehlschlag bricht den Push ab (kein halb-deployter Stand). Umgehen mit `git push --no-verify`, falls explizit gewünscht. Das früher dokumentierte "kein Auto-Deploy mehr" (Entfernung eines alten `post-commit`-Hooks) bezog sich auf einen anderen, älteren Mechanismus — dieser pre-push-Hook ist der aktuell gewollte Deploy-Flow.
 
 ---
 
@@ -284,7 +284,7 @@ npm run deploy:preview # 24h-Preview-Channel + Telegram-Link
 ```
 
 **Firebase Config:** `src/client/lib/firebase.config.js` — Project: `fitness-aos` (Hosting-Site: `fuel-vos` → fuel-vos.web.app). Das frühere Projekt `fuel-aos` ist abgelöst — alle VitalOS-Apps deployen ins gemeinsame Projekt `fitness-aos`, unterschieden per Hosting-Site.
-**Auto-Deploy:** entfernt (kein `post-commit`-Hook mehr) — Deploys nur explizit via `deploy:cloud` / `deploy:preview`.
+**Auto-Deploy:** `.githooks/pre-push` deployt automatisch bei Push auf `master`, wenn relevante Dateien im Diff sind (Details siehe oben) — daneben bleiben `deploy:cloud` / `deploy:preview` für manuelle/Preview-Deploys.
 
 **24h-Preview (`deploy:preview`):** `scripts/deploy-preview.mjs` deployt einen Preview-Channel (24h gültig) und schickt den Link per Telegram (`@aos_fitness_bot`, Creds aus `~/.env/fitness.env`). Läuft bewusst **lokal statt als GitHub Action**: die Crossover-Aliase in `vite.config.cjs` (`@db`/`@utils` → `~/fitness-dev`, `@habits` → `~/habits-dev`) zeigen absolut auf Nachbar-Repos, die auf einem CI-Runner nicht existieren. Deaktivierte CI-Workflows liegen in `.github/workflows.disabled/`.
 

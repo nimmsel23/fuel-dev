@@ -43,6 +43,31 @@ const PULL_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 let _db = null;
 let _initAttempted = false;
 
+// Real status, read by GET /dev/health — no more guessing from a dead
+// Bridge ping endpoint (the old /api/fuel-firestore/status never existed
+// as a fuel-dev route, it pinged AlphaOS Bridge on :9080 which has nothing
+// to do with this sync).
+const _status = {
+  lastPushAt: null,
+  lastPushError: null,
+  lastPullAt: null,
+  lastPullError: null,
+  pushCount: 0,
+  pullCount: 0,
+};
+
+export function getSyncStatus() {
+  return {
+    configured: Boolean(UID),
+    uid: UID,
+    saPath: SA_PATH,
+    saExists: fs.existsSync(SA_PATH),
+    connected: Boolean(getDb()),
+    pullIntervalMs: PULL_INTERVAL_MS,
+    ..._status,
+  };
+}
+
 function getDb() {
   if (_initAttempted) return _db;
   _initAttempted = true;
@@ -83,6 +108,16 @@ function recentDates(n) {
   return dates;
 }
 
+function markPushOk() {
+  _status.lastPushAt = new Date().toISOString();
+  _status.lastPushError = null;
+  _status.pushCount += 1;
+}
+
+function markPushError(message) {
+  _status.lastPushError = message;
+}
+
 // ── PUSH ─────────────────────────────────────────────────────────────────────
 
 /**
@@ -96,8 +131,10 @@ export async function pushNutritionCatalog(items) {
     await db.collection("nutrition").doc(UID).collection("meta").doc("catalog")
       .set({ items, updated_at: new Date().toISOString() }, { merge: false });
     console.log(`[firestore-admin] 📤 nutrition/meta/catalog (${items.length} items)`);
+    markPushOk();
   } catch (e) {
     console.error("[firestore-admin] pushNutritionCatalog failed:", e.message);
+    markPushError(e.message);
   }
 }
 
@@ -112,8 +149,10 @@ export async function pushSupplementsCatalog(items) {
     await db.collection("supplements").doc(UID).collection("meta").doc("catalog")
       .set({ items, updated_at: new Date().toISOString() }, { merge: false });
     console.log(`[firestore-admin] 📤 supplements/meta/catalog (${items.length} items)`);
+    markPushOk();
   } catch (e) {
     console.error("[firestore-admin] pushSupplementsCatalog failed:", e.message);
+    markPushError(e.message);
   }
 }
 
@@ -133,8 +172,10 @@ export async function pushNutritionLog(date, meals, waterMl) {
     await db.collection("nutrition").doc(UID).collection("logs").doc(date)
       .set({ meals, water_ml: waterMl, updated_at: now }, { merge: false });
     console.log(`[firestore-admin] 📤 nutrition/logs/${date} (${meals.length} meals)`);
+    markPushOk();
   } catch (e) {
     console.error("[firestore-admin] pushNutritionLog failed:", e.message);
+    markPushError(e.message);
   }
 }
 
@@ -153,8 +194,10 @@ export async function pushSupplementLog(date, log) {
     await db.collection("supplements").doc(UID).collection("logs").doc(date)
       .set({ ...log, updated_at: now }, { merge: false });
     console.log(`[firestore-admin] 📤 supplements/logs/${date} (${log.intakes?.length ?? 0} intakes)`);
+    markPushOk();
   } catch (e) {
     console.error("[firestore-admin] pushSupplementLog failed:", e.message);
+    markPushError(e.message);
   }
 }
 
@@ -166,12 +209,25 @@ export async function pushSupplementLog(date, log) {
  * Nutrition meals are upserted row-by-row (never array-overwrite) to
  * avoid the data-loss bug that motivated the SQLite migration.
  *
- * @param {object} paths – from getPaths() (needs .nutritionDb, .supplementsLog)
+ * Services resolve their own file paths internally (config/paths.mjs), so
+ * this function needs no path arguments.
  */
-async function pullRecentLogs(paths) {
+async function pullRecentLogs() {
   const db = getDb();
   if (!db) return;
 
+  try {
+    await doPullRecentLogs(db);
+    _status.lastPullAt = new Date().toISOString();
+    _status.lastPullError = null;
+    _status.pullCount += 1;
+  } catch (e) {
+    _status.lastPullError = e.message;
+    throw e;
+  }
+}
+
+async function doPullRecentLogs(db) {
   // Lazy-import services to avoid circular deps at module load time.
   const { upsertMeal, upsertWater }   = await import("../services/nutrition-db.mjs");
   const { loadLog, saveLog }          = await import("../services/supplements-log.mjs");
@@ -248,22 +304,28 @@ async function pullRecentLogs(paths) {
 // ── Scheduler ─────────────────────────────────────────────────────────────────
 
 /**
+ * Manually trigger a pull outside the hourly schedule — used by the
+ * POST /dev/sync/pull button in the Dev/Prod tab.
+ */
+export async function pullNow() {
+  return pullRecentLogs();
+}
+
+/**
  * Start the hourly Firestore pull scheduler.
  * Also fires once immediately on startup (after a short delay to let the
  * server finish booting).
- *
- * @param {object} paths – from getPaths()
  */
-export function startFirestorePullScheduler(paths) {
+export function startFirestorePullScheduler() {
   if (!getDb()) return; // no-op in local-only mode
 
   // Initial pull after 5 s so the server is fully up first.
-  setTimeout(() => pullRecentLogs(paths).catch(e =>
+  setTimeout(() => pullRecentLogs().catch(e =>
     console.error("[firestore-admin] startup pull failed:", e.message)
   ), 5_000);
 
   // Hourly pull.
-  setInterval(() => pullRecentLogs(paths).catch(e =>
+  setInterval(() => pullRecentLogs().catch(e =>
     console.error("[firestore-admin] hourly pull failed:", e.message)
   ), PULL_INTERVAL_MS);
 

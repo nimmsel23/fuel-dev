@@ -12,6 +12,7 @@ import time
 from pathlib import Path
 from typing import Optional
 
+import psutil
 import typer
 from wasabi import Printer
 
@@ -54,6 +55,43 @@ def is_running() -> bool:
             return True
     except:
         return False
+
+def kill_leftover_processes() -> list[int]:
+    """Kill only node/vite/nodemon processes whose cwd sits inside this repo.
+
+    Was previously a blind `pkill -f "...|vite"` — matched against the full
+    cmdline of every process on the machine, so it also killed vite/node
+    dev servers of unrelated AlphaOS pillars (fitness-dev, habit-dev, ...).
+    Scoping by cwd via psutil fixes that without losing the "catch orphans
+    that escaped the process group" safety net.
+    """
+    dev_dir_str = str(DEV_DIR)
+    killed = []
+    for proc in psutil.process_iter(["pid", "name", "cmdline", "cwd"]):
+        try:
+            info = proc.info
+            name = (info.get("name") or "").lower()
+            cmdline = " ".join(info.get("cmdline") or [])
+            if not any(k in name or k in cmdline.lower() for k in ("node", "vite", "nodemon")):
+                continue
+            cwd = info.get("cwd") or ""
+            if not cwd.startswith(dev_dir_str) and dev_dir_str not in cmdline:
+                continue
+            proc.terminate()
+            killed.append(info["pid"])
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            continue
+
+    if killed:
+        time.sleep(0.5)
+        for pid in killed:
+            try:
+                p = psutil.Process(pid)
+                if p.is_running():
+                    p.kill()
+            except psutil.NoSuchProcess:
+                pass
+    return killed
 
 # ── Commands ──────────────────────────────────────────────────────────────────
 
@@ -131,12 +169,12 @@ def stop():
         except Exception as e:
             msg.warn(f"Error while killing process group: {e}")
 
-    # Aggressive cleanup of Node/Vite leftovers
-    msg.info("Cleaning up leftover Node.js and Vite processes...")
-    subprocess.run(
-        ["pkill", "-f", "node.*scripts/dev-runner.mjs|nodemon.*scripts/dev-runner.mjs|node.*server.mjs|node_modules/.bin/vite|vite"],
-        stderr=subprocess.DEVNULL
-    )
+    # Cleanup of leftover Node/Vite processes — scoped to this repo (see
+    # kill_leftover_processes() docstring for why this used to be too broad).
+    msg.info("Cleaning up leftover Node.js and Vite processes (scoped to this repo)...")
+    killed = kill_leftover_processes()
+    if killed:
+        msg.info(f"Killed {len(killed)} leftover process(es): {killed}")
     
     if PIDFILE.exists():
         PIDFILE.unlink()

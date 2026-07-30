@@ -7,6 +7,7 @@ import weeklyRoute from "./weekly.mjs";
 import estimateRoute from "./estimate.mjs";
 import aiLogRoute from "./ai-log.mjs";
 import visionRoute from "./vision.mjs";
+import aiCoachRoute from "./ai-coach.mjs";
 
 export default async function nutritionRoute(app) {
   app.register(catalogRoute);
@@ -18,4 +19,5 @@ export default async function nutritionRoute(app) {
   app.register(estimateRoute);
   app.register(aiLogRoute);
   app.register(visionRoute);
+  app.register(aiCoachRoute);
 }

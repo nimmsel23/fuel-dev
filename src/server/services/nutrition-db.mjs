@@ -154,11 +154,15 @@ export function deleteMeal(id) {
 
 export function getMealsForDate(date) {
   const rows = getDb().prepare("SELECT * FROM meals WHERE date = ? ORDER BY logged_at, id").all(date);
-  return rows.map((r) => ({
-    ...r,
-    micros: r.micros_json ? JSON.parse(r.micros_json) : undefined,
-    micros_json: undefined,
-  }));
+  return rows.map((r) => {
+    const { micros_json, ...rest } = r;
+    // `undefined` statt gelöschtem Key wurde von Firestore Admin abgelehnt
+    // ("Cannot use 'undefined' as a Firestore value") — deshalb Destructuring
+    // statt `micros_json: undefined`, damit der Key im Objekt fehlt statt
+    // nur einen undefined-Wert zu tragen.
+    if (micros_json) rest.micros = JSON.parse(micros_json);
+    return rest;
+  });
 }
 
 export function upsertWater(date, waterMl) {

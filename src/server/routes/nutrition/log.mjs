@@ -122,8 +122,6 @@ const logPatchSchema = z.object({
   }).optional(),
 });
 
-const SYNC_PING_URL = process.env.FUEL_FIRESTORE_PING_URL || "http://127.0.0.1:9080/api/fuel-firestore/ping";
-
 function fireMicrosEstimate(description, kcal) {
   if (!description || getMicrosForMeal(description)) return;
   estimateMicros(description)
@@ -133,14 +131,6 @@ function fireMicrosEstimate(description, kcal) {
       }
     })
     .catch((e) => console.warn(`[micros] estimate failed for "${description}":`, e.message));
-}
-
-function fireSyncPing(uid) {
-  const headers = { "Content-Type": "application/json", "X-Fuel-UID": uid };
-  fetch(SYNC_PING_URL, { method: "POST", headers, signal: AbortSignal.timeout(3000) })
-    .then((r) => r.json())
-    .then((body) => { if (!body.ok) console.warn(`[fuel-firestore] sync warn (${uid}):`, body.error); })
-    .catch((e) => console.warn(`[fuel-firestore] sync unreachable (${uid}):`, e.message));
 }
 
 export default async function logRoute(app) {
@@ -197,13 +187,11 @@ export default async function logRoute(app) {
         targetLog.meals.push({ ...meal, id: `meal_${Date.now()}` });
         invalidateMicroCache(targetLog);
         saveLog(targetLog, req.paths.nutrition);
-        fireSyncPing(req.uid);
         return reply.send({ ok: true, data: targetLog });
       } else {
         sourceLog.meals[mealIndex] = meal;
         invalidateMicroCache(sourceLog);
         saveLog(sourceLog, req.paths.nutrition);
-        fireSyncPing(req.uid);
         return reply.send({ ok: true, data: sourceLog });
       }
     } catch (error) {
@@ -251,7 +239,6 @@ export default async function logRoute(app) {
 
       invalidateMicroCache(log);
       saveLog(log, req.paths.nutrition);
-      fireSyncPing(req.uid);
       return reply.send({ ok: true, data: log });
     } catch (error) {
       console.error(error);

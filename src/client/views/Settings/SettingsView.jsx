@@ -2,7 +2,6 @@ import React from "react";
 import AccountCard from "./AccountCard.jsx";
 import GoalsCard from "./GoalsCard.jsx";
 import ProfileCard from "./ProfileCard.jsx";
-import SyncCard from "./SyncCard.jsx";
 import VersionCard from "./VersionCard.jsx";
 import SystemHealthCard from "./SystemHealthCard.jsx";
 import PushRemindersCard from "./PushRemindersCard.jsx";
@@ -18,7 +17,6 @@ export default function SettingsView() {
       <GoalsCard sectionCls={sectionCls} labelCls={labelCls} inputCls={inputCls} />
       <ProfileCard sectionCls={sectionCls} labelCls={labelCls} inputCls={inputCls} />
       <PushRemindersCard sectionCls={sectionCls} labelCls={labelCls} inputCls={inputCls} />
-      <SyncCard sectionCls={sectionCls} />
       <VersionCard sectionCls={sectionCls} />
       <SystemHealthCard sectionCls={sectionCls} />
     </div>

@@ -2,13 +2,14 @@ import { useState, useEffect } from "react";
 import { Settings2 } from "lucide-react";
 import { fetchJson } from "@api";
 
+// Detaillierter Sync-/Server-Status (Firestore Admin, Uptime, Katalog-
+// Zählungen) lebt im lokalen Dev/Prod-Tab (routes.js: key "dev") — dieser
+// Card bleibt bewusst ein simpler Ping, der auch im Cloud-Build funktioniert.
 export default function SystemHealthCard({ sectionCls }) {
   const [health, setHealth] = useState(null);
-  const [syncStatus, setSyncStatus] = useState(null);
 
   useEffect(() => {
     fetchJson("/health").then(setHealth).catch(() => setHealth({ status: "error" }));
-    fetchJson("/api/fuel-firestore/status").then(setSyncStatus).catch(() => setSyncStatus({ ok: false, firestore: "unreachable" }));
   }, []);
 
   return (
@@ -19,8 +20,7 @@ export default function SystemHealthCard({ sectionCls }) {
       </div>
       <div className="grid gap-2 text-sm">
         {[
-          ["fuel-dev", health?.status === "ok" ? "online :9000" : health ? "error" : "prüfe…", health?.status === "ok"],
-          ["Bridge", syncStatus !== null ? (syncStatus.ok || syncStatus.firestore !== "unreachable" ? "online :9080" : "offline") : "prüfe…", syncStatus?.ok || (syncStatus && syncStatus.firestore !== "unreachable")],
+          ["fuel-dev", health?.status === "ok" || health?.ok ? "online" : health ? "error" : "prüfe…", health?.status === "ok" || health?.ok],
           ["Data", "~/.aos/fuel/", true],
         ].map(([label, val, ok]) => (
           <div key={label} className="flex items-center justify-between rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3">

@@ -6,14 +6,6 @@ import { SUPPLEMENTS_LOG_DIR } from "../config/paths.mjs";
 import fs from "fs";
 import path from "path";
 
-const SYNC_PING_URL = process.env.FUEL_FIRESTORE_PING_URL || "http://127.0.0.1:9080/api/fuel-firestore/ping";
-function fireSyncPing() {
-  fetch(SYNC_PING_URL, { method: "POST", signal: AbortSignal.timeout(3000) })
-    .then((r) => r.json())
-    .then((body) => { if (!body.ok) console.warn("[fuel-firestore] sync warn:", body.error); })
-    .catch((e) => console.warn("[fuel-firestore] sync unreachable:", e.message));
-}
-
 const catalogPostSchema = z.object({
   name: z.string().min(1),
   unit: z.string().optional(),
@@ -136,7 +128,6 @@ export default async function supplementsRoute(app) {
       }
 
       saveLog(log);
-      fireSyncPing();
       return reply.send({ ok: true, data: log });
     } catch (error) {
       console.error(error);
@@ -164,7 +155,6 @@ export default async function supplementsRoute(app) {
       }
 
       saveLog(log);
-      fireSyncPing();
       return reply.send({ ok: true, data: log });
     } catch (error) {
       console.error(error);
