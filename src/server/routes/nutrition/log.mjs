@@ -81,7 +81,33 @@ function resolveCatalogItem(catalog, catalogItemId, addonIds = []) {
   const addonSet = new Set(addonIds.length > 0 ? addonIds : (item.default_addon_ids || []));
   const selectedAddons = (item.addons || []).filter((a) => addonSet.has(a.id));
 
-  const base = { kcal: item.kcal || 0, protein: item.protein || 0, carbs: item.carbs || 0, fat: item.fat || 0 };
+  // Basis algebraisch herleiten: item.kcal/protein/carbs/fat ist der
+  // Vorschau-Wert für den zuletzt gespeicherten default_addon_ids-Zustand
+  // (siehe saveMeal()) — bei Einträgen wie Eierspeise (default_addon_ids:
+  // [freiland_2er]) steht dort z.B. schon "168" (= inkl. Ei-Addon). Würde
+  // man das direkt als Basis nehmen UND das Addon nochmal addieren, zählt
+  // man doppelt (Live-Bug gefunden 2026-07-30: Eierspeise loggte 336 statt
+  // 168 kcal). Fix: die Makros der DEFAULT-Addons vom Top-Level abziehen,
+  // um die addon-freie Basis zu bekommen — funktioniert unabhängig davon,
+  // ob components gepflegt ist oder nicht (viele ältere Einträge haben nur
+  // einen reinen Top-Level-Wert ohne components-Aufschlüsselung).
+  const defaultAddonIds = new Set(item.default_addon_ids || []);
+  const defaultAddons = (item.addons || []).filter((a) => defaultAddonIds.has(a.id));
+  const bakedIn = defaultAddons.reduce(
+    (acc, a) => ({
+      kcal:    acc.kcal    + (a.kcal    || 0),
+      protein: acc.protein + (a.protein || 0),
+      carbs:   acc.carbs   + (a.carbs   || 0),
+      fat:     acc.fat     + (a.fat     || 0),
+    }),
+    { kcal: 0, protein: 0, carbs: 0, fat: 0 }
+  );
+  const base = {
+    kcal:    (item.kcal    || 0) - bakedIn.kcal,
+    protein: (item.protein || 0) - bakedIn.protein,
+    carbs:   (item.carbs   || 0) - bakedIn.carbs,
+    fat:     (item.fat     || 0) - bakedIn.fat,
+  };
   const totals = selectedAddons.reduce(
     (acc, a) => ({
       kcal:    acc.kcal    + (a.kcal    || 0),
