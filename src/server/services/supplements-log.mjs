@@ -2,6 +2,7 @@ import path from "path";
 import { readJsonFile, writeJsonFile } from "../lib/file-io.mjs";
 import { randomId } from "../../shared/utils/ids.mjs";
 import { SUPPLEMENTS_LOG_DIR } from "../config/paths.mjs";
+import { pushSupplementLog } from "../lib/firestore-admin.mjs";
 
 function getLogPath(date) {
   return path.join(SUPPLEMENTS_LOG_DIR, `${date}.json`);
@@ -19,7 +20,10 @@ export function loadLog(date) {
 
 export function saveLog(log) {
   const filePath = getLogPath(log.date);
+  log.updated_at = new Date().toISOString();
   writeJsonFile(filePath, log);
+  // Fire-and-forget push
+  pushSupplementLog(log.date, log).catch(() => {});
 }
 
 export function addIntake(log, intakeInput) {

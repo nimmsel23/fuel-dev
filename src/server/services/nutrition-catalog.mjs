@@ -3,6 +3,7 @@ import path from "path";
 import YAML from "yaml";
 import { NUTRITION_MEALS_DIR } from "../config/paths.mjs";
 import { slugifyId } from "../../shared/utils/ids.mjs";
+import { pushNutritionCatalog } from "../lib/firestore-admin.mjs";
 
 function mealPath(id, ext = ".yaml") {
   return path.join(NUTRITION_MEALS_DIR, `${id}${ext}`);
@@ -11,9 +12,10 @@ function mealPath(id, ext = ".yaml") {
 export function loadCatalog() {
   if (!fs.existsSync(NUTRITION_MEALS_DIR)) fs.mkdirSync(NUTRITION_MEALS_DIR, { recursive: true });
   
-  // Support both .yaml and .json
-  const files = fs.readdirSync(NUTRITION_MEALS_DIR).filter((f) => 
-    f.endsWith(".yaml") || f.endsWith(".yml") || f.endsWith(".json")
+  // Support .yaml and .json — skip tombstones (.deleted) and backups (.bak)
+  const files = fs.readdirSync(NUTRITION_MEALS_DIR).filter((f) =>
+    (f.endsWith(".yaml") || f.endsWith(".yml") || f.endsWith(".json")) &&
+    !f.includes(".deleted") && !f.includes(".bak")
   );
   
   const items = [];
@@ -63,26 +65,50 @@ export function loadMeal(id) {
 
 export function saveMeal(item) {
   if (!fs.existsSync(NUTRITION_MEALS_DIR)) fs.mkdirSync(NUTRITION_MEALS_DIR, { recursive: true });
-  
+
   item.updated_at = new Date().toISOString();
-  
+
   // Always save as .yaml
   const p = mealPath(item.id, ".yaml");
   fs.writeFileSync(p, YAML.stringify(item, { indent: 2 }), "utf-8");
-  
-  // If a legacy .json exists, remove it to avoid confusion
+
+  // If a legacy .json exists, tombstone it
   const pJson = mealPath(item.id, ".json");
   if (fs.existsSync(pJson)) {
-    try { fs.unlinkSync(pJson); } catch {}
+    try { fs.renameSync(pJson, `${pJson}.deleted`); } catch {}
   }
-  
+
+  // If a tombstone exists for this id, remove it (meal was un-deleted by re-save)
+  for (const ext of [".yaml", ".yml", ".json"]) {
+    const tomb = mealPath(item.id, `${ext}.deleted`);
+    if (fs.existsSync(tomb)) { try { fs.unlinkSync(tomb); } catch {} }
+  }
+
+  // Fire-and-forget push to Firestore
+  const catalog = loadCatalog();
+  pushNutritionCatalog(catalog.items).catch(() => {});
+
   return item;
 }
 
 export function deleteMeal(id) {
+  let deleted = false;
   for (const ext of [".yaml", ".yml", ".json"]) {
     const p = mealPath(id, ext);
-    if (fs.existsSync(p)) fs.unlinkSync(p);
+    if (!fs.existsSync(p)) continue;
+    const tombstone = `${p}.deleted`;
+    try {
+      fs.renameSync(p, tombstone);
+      deleted = true;
+      console.log(`[nutrition-catalog] 🪦  ${path.basename(p)} → ${path.basename(tombstone)}`);
+    } catch (e) {
+      console.warn(`[nutrition-catalog] tombstone rename failed for ${p}:`, e.message);
+    }
+  }
+  if (deleted) {
+    // Push updated catalog (without the deleted meal) to Firestore
+    const catalog = loadCatalog();
+    pushNutritionCatalog(catalog.items).catch(() => {});
   }
 }
 
@@ -106,12 +132,13 @@ export function normalizeMeal(input, existingId = null) {
     carbs:            Math.max(0, Math.round((input.carbs ?? 0) * 10) / 10),
     fat:              Math.max(0, Math.round((input.fat ?? 0) * 10) / 10),
     yield_g:          input.yield_g || null,
-    components:       input.components || [],
-    addons:           input.addons || [],
-    default_addon_ids: input.default_addon_ids || [],
-    source:           input.source || "manual",
-    created_at:       input.created_at || new Date().toISOString(),
-    updated_at:       new Date().toISOString(),
+    components:            input.components || [],
+    addons:                input.addons || [],
+    default_addon_ids:     input.default_addon_ids || [],
+    linked_supplement_ids: input.linked_supplement_ids || [],
+    source:                input.source || "manual",
+    created_at:            input.created_at || new Date().toISOString(),
+    updated_at:            new Date().toISOString(),
   };
 }
 

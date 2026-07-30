@@ -173,6 +173,13 @@ export default function LogView({ date, nutrition, notes }) {
   });
   const catalogItems = catalogData?.items || [];
 
+  const { data: suppCatalogData } = useQuery({
+    queryKey: ["supp-catalog"],
+    queryFn: () => fetchJson("/supplements/catalog"),
+    staleTime: 300_000,
+  });
+  const suppCatalog = suppCatalogData?.items || [];
+
   const handleNotesSave = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -208,6 +215,21 @@ export default function LogView({ date, nutrition, notes }) {
             kcal: match.kcal || 0, protein: match.protein || 0,
             carbs: match.carbs || 0, fat: match.fat || 0,
             catalog_item_id: match.id,
+          },
+        });
+      }
+      // Verknüpfte Supplemente automatisch mitloggen
+      for (const suppId of (match.linked_supplement_ids || [])) {
+        const suppEntry = suppCatalog.find((s) => s.id === suppId);
+        if (!suppEntry) continue;
+        await postJson("/supplements/log", {
+          date,
+          intake: {
+            supplement_id: suppEntry.id,
+            dose: suppEntry.default_dose ?? 0,
+            unit: suppEntry.unit || "g",
+            time_of_day: suppEntry.default_time_of_day || "morning",
+            notes: `Auto via Meal-Katalog: ${match.name}`,
           },
         });
       }
@@ -286,8 +308,25 @@ export default function LogView({ date, nutrition, notes }) {
               },
             });
           }
+          // Verknüpfte Supplemente automatisch mitloggen
+          for (const suppId of (match.linked_supplement_ids || [])) {
+            const suppEntry = suppCatalog.find((s) => s.id === suppId);
+            if (!suppEntry) continue;
+            await postJson("/supplements/log", {
+              date,
+              intake: {
+                supplement_id: suppEntry.id,
+                dose: suppEntry.default_dose ?? 0,
+                unit: suppEntry.unit || "g",
+                time_of_day: suppEntry.default_time_of_day || "morning",
+                notes: `Auto via Meal-Katalog: ${match.name}`,
+              },
+            });
+          }
           qc.invalidateQueries({ queryKey: ["nutrition", date] });
           qc.invalidateQueries({ queryKey: ["week-logs"] });
+          qc.invalidateQueries({ queryKey: ["supp-log", date] });
+          qc.invalidateQueries({ queryKey: ["supp-stats", date] });
           setAiText("");
           return;
         }

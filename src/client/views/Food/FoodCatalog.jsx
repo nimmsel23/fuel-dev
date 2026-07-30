@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { twMerge } from "tailwind-merge";
-import { Play, Trash2, Pencil, UtensilsCrossed } from "lucide-react";
+import { Play, Trash2, Pencil, UtensilsCrossed, Pill } from "lucide-react";
 import { fetchJson, postJson, deleteJson } from "@api";
 import CatalogItemEditor from "./CatalogItemEditor.jsx";
 
@@ -52,6 +52,13 @@ export default function FoodCatalog({ activeDate }) {
     staleTime: 60_000,
   });
   const catalog = catalogData?.items || [];
+
+  const { data: suppCatalogData } = useQuery({
+    queryKey: ["supp-catalog"],
+    queryFn: () => fetchJson("/supplements/catalog"),
+    staleTime: 300_000,
+  });
+  const suppCatalog = suppCatalogData?.items || [];
   const catalogGroups = catalog.reduce((groups, item) => {
     const key = item.category || item.kind || "meal";
     if (!groups[key]) groups[key] = [];
@@ -68,11 +75,10 @@ export default function FoodCatalog({ activeDate }) {
   }
 
   const logCatalogItem = useMutation({
-    mutationFn: ({ item, addonIds = [], grams, macros }) => {
+    mutationFn: async ({ item, addonIds = [], grams, macros }) => {
+      // 1. Meal loggen
       if (item.yield_g && grams && grams !== item.yield_g) {
-        // Menge abweichend von der gespeicherten Portion — als eigenständigen
-        // Meal-Eintrag mit skalierten Makros loggen statt fixer Katalog-Portion.
-        return postJson("/nutrition/log", {
+        await postJson("/nutrition/log", {
           date: activeDate,
           meal: {
             type: item.meal_type || item.type || "meal",
@@ -82,14 +88,34 @@ export default function FoodCatalog({ activeDate }) {
             ...macros,
           },
         });
+      } else {
+        await postJson("/nutrition/log", {
+          date: activeDate, catalog_item_id: item.id, catalog_addon_ids: addonIds,
+        });
       }
-      return postJson("/nutrition/log", {
-        date: activeDate, catalog_item_id: item.id, catalog_addon_ids: addonIds,
-      });
+
+      // 2. Verknüpfte Supplemente automatisch mitloggen
+      const linkedIds = item.linked_supplement_ids || [];
+      for (const suppId of linkedIds) {
+        const suppEntry = suppCatalog.find((s) => s.id === suppId);
+        if (!suppEntry) continue;
+        await postJson("/supplements/log", {
+          date: activeDate,
+          intake: {
+            supplement_id: suppEntry.id,
+            dose: suppEntry.default_dose ?? 0,
+            unit: suppEntry.unit || "g",
+            time_of_day: suppEntry.default_time_of_day || "morning",
+            notes: `Auto via Meal-Katalog: ${item.name}`,
+          },
+        });
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["nutrition", activeDate] });
       qc.invalidateQueries({ queryKey: ["week-logs"] });
+      qc.invalidateQueries({ queryKey: ["supp-log", activeDate] });
+      qc.invalidateQueries({ queryKey: ["supp-stats", activeDate] });
     },
   });
 
@@ -135,6 +161,13 @@ export default function FoodCatalog({ activeDate }) {
                         <div className="truncate font-bold text-slate-100 group-hover:text-orange-200">{item.name}</div>
                         <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
                           {MEAL_LABEL[item.meal_type] || item.meal_type || item.kind}
+                          {item.source_kind === "supplement" && <span className="ml-2 text-sky-500">[SUPP]</span>}
+                          {Array.isArray(item.linked_supplement_ids) && item.linked_supplement_ids.length > 0 && (
+                            <span className="ml-2 inline-flex items-center gap-0.5 text-violet-400" title={`Supplement wird automatisch mitgeloggt: ${item.linked_supplement_ids.join(", ")}`}>
+                              <Pill className="h-2.5 w-2.5" />
+                              {item.linked_supplement_ids.join(" + ")}
+                            </span>
+                          )}
                         </div>
                       </div>
                       <div className="flex shrink-0 items-center opacity-0 transition-opacity group-hover:opacity-100">
@@ -160,9 +193,9 @@ export default function FoodCatalog({ activeDate }) {
                             value={gramsFor(item)}
                             onChange={(e) => setCatalogGrams((cur) => ({ ...cur, [item.id]: e.target.value }))}
                             className="w-20 rounded-lg border border-white/10 bg-slate-900/70 px-2 py-1 text-slate-100" />
-                          g
+                          {item.unit || "g"}
                         </label>
-                        <span className="text-[10px] text-slate-600">(gespeichert: {item.yield_g}g)</span>
+                        <span className="text-[10px] text-slate-600">(gespeichert: {item.yield_g}{item.unit || "g"})</span>
                       </div>
                     ) : null}
 

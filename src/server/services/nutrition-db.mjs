@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import { NUTRITION_DB_PATH } from "../config/paths.mjs";
 import { MICRO_KEYS } from "../../shared/config/dach.mjs";
+import { pushNutritionLog } from "../lib/firestore-admin.mjs";
 
 let db = null;
 
@@ -138,10 +139,17 @@ export function upsertMeal(meal) {
     micros_json: meal.micros ? JSON.stringify(meal.micros) : null,
     logged_at: meal.logged_at ?? meal.time ?? null,
   });
+  // Fire-and-forget push
+  const date = meal.date;
+  pushNutritionLog(date, getMealsForDate(date), getWater(date)).catch(() => {});
 }
 
 export function deleteMeal(id) {
-  return getDb().prepare("DELETE FROM meals WHERE id = ?").run(id);
+  const row = getDb().prepare("SELECT date FROM meals WHERE id = ?").get(id);
+  const result = getDb().prepare("DELETE FROM meals WHERE id = ?").run(id);
+  // Fire-and-forget push
+  if (row?.date) pushNutritionLog(row.date, getMealsForDate(row.date), getWater(row.date)).catch(() => {});
+  return result;
 }
 
 export function getMealsForDate(date) {
@@ -158,6 +166,8 @@ export function upsertWater(date, waterMl) {
     INSERT INTO daily_water (date, water_ml) VALUES (?, ?)
     ON CONFLICT(date) DO UPDATE SET water_ml = excluded.water_ml, updated_at = CURRENT_TIMESTAMP
   `).run(date, waterMl);
+  // Fire-and-forget push
+  pushNutritionLog(date, getMealsForDate(date), waterMl).catch(() => {});
 }
 
 export function getWater(date) {

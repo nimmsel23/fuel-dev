@@ -14,13 +14,24 @@ import fuelRoute from "./routes/fuel.mjs";
 import pushRoute from "./routes/push.mjs";
 import staticRoute from "./routes/static.mjs";
 import { startPushScheduler } from "./services/push-scheduler.mjs";
+import { startFirestorePullScheduler } from "./lib/firestore-admin.mjs";
 
 
 export function createApp() {
   // Initialize data directories
   initializePaths();
 
-  const app = Fastify({ logger: true });
+  const app = Fastify({
+    logger:
+      process.env.NODE_ENV === "development"
+        ? {
+            transport: {
+              target: "pino-pretty",
+              options: { colorize: true, translateTime: "SYS:HH:MM:ss", ignore: "pid,hostname" },
+            },
+          }
+        : true,
+  });
 
   // CORS
   app.register(cors, {
@@ -55,37 +66,13 @@ export function createApp() {
   return app;
 }
 
-const SYNC_PULL_URL = process.env.FUEL_FIRESTORE_PING_URL || "http://127.0.0.1:9080/api/fuel-firestore/ping";
-
-async function pullFromFirestoreOnStart() {
-  try {
-    const uid = process.env.FUEL_CLOUD_UID || "default";
-    const headers = { "Content-Type": "application/json", "X-Fuel-UID": uid };
-    
-    const r = await fetch(SYNC_PULL_URL, { 
-      method: "POST", 
-      headers,
-      signal: AbortSignal.timeout(5000) 
-    });
-    const body = await r.json();
-    if (body.ok) {
-      console.log("[fuel-firestore] startup pull ok:", JSON.stringify(body));
-    } else {
-      console.warn("[fuel-firestore] startup pull warn:", body.error);
-    }
-  } catch (e) {
-    console.warn("[fuel-firestore] startup pull unreachable:", e.message);
-  }
-}
-
 
 export async function startServer() {
   const app = createApp();
   await app.listen({ port: PORT, host: HOST });
   console.log(`🍽️  Fuel Centre running on http://${HOST}:${PORT}`);
-  
-  // Start the background push scheduler
+
+  // Background schedulers
   startPushScheduler(GLOBAL_DATA_DIR, CATALOGS_DIR);
-  
-  pullFromFirestoreOnStart();
+  startFirestorePullScheduler(getPaths());
 }

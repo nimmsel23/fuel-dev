@@ -1,6 +1,7 @@
 import { readYamlFile, writeYamlFile } from "../lib/file-io.mjs";
 import { slugifyId } from "../../shared/utils/ids.mjs";
 import { SUPPLEMENTS_CATALOG_PATH } from "../config/paths.mjs";
+import { pushSupplementsCatalog } from "../lib/firestore-admin.mjs";
 
 const CATALOG_DEFAULTS = {
   version: 1,
@@ -17,6 +18,8 @@ export function loadCatalog() {
 export function saveCatalog(catalog) {
   catalog.updated_at = new Date().toISOString();
   writeYamlFile(SUPPLEMENTS_CATALOG_PATH, catalog);
+  // Fire-and-forget Firestore push
+  pushSupplementsCatalog(catalog.items || []).catch(() => {});
 }
 
 export function addOrUpdateSupplement(catalog, input) {

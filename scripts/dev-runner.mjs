@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 
 const env = {
   ...process.env,
+  NODE_ENV: process.env.NODE_ENV || "development",
   PORT: process.env.PORT || "9000",
   HOST: process.env.HOST || "0.0.0.0",
   FUEL_BUILD_DIR: process.env.FUEL_BUILD_DIR || "./dist",
