@@ -5,7 +5,7 @@ import { useSettings } from "../../store.js";
 // — für den Fall, dass ein Elternteil (SettingsView) mehrere Cards visuell
 // zu einer zusammenfassen will, ohne die Komponenten selbst zu verschmelzen.
 export default function ProfileCard({ sectionCls, labelCls, inputCls, bare = false }) {
-  const { age, gender, setSetting } = useSettings();
+  const { age, gender, height_cm, weight_kg, setSetting } = useSettings();
 
   return (
     <section className={bare ? "grid gap-4" : sectionCls}>
@@ -13,7 +13,7 @@ export default function ProfileCard({ sectionCls, labelCls, inputCls, bare = fal
         <Activity className="h-5 w-5 text-emerald-300" />
         <h2 className="text-lg font-semibold">Profil</h2>
       </div>
-      <div className="grid gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <div>
           <label className={labelCls}>Alter</label>
           <input
@@ -33,8 +33,24 @@ export default function ProfileCard({ sectionCls, labelCls, inputCls, bare = fal
             <option value="f">Weiblich</option>
           </select>
         </div>
-        <p className="text-xs text-slate-500">Wird für DACH-Referenzwerte im Mikros-Tab verwendet.</p>
+        <div>
+          <label className={labelCls}>Größe (cm)</label>
+          <input
+            type="number" value={height_cm} min={100} max={230}
+            onChange={e => setSetting("height_cm", Number(e.target.value))}
+            className={inputCls}
+          />
+        </div>
+        <div>
+          <label className={labelCls}>Gewicht (kg)</label>
+          <input
+            type="number" value={weight_kg} min={30} max={250}
+            onChange={e => setSetting("weight_kg", Number(e.target.value))}
+            className={inputCls}
+          />
+        </div>
       </div>
+      <p className="text-xs text-slate-500">Alter/Geschlecht für DACH-Referenzwerte im Mikros-Tab, Größe/Gewicht für Kalorien-/Protein-Ziele.</p>
     </section>
   );
 }

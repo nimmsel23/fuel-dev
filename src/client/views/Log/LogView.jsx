@@ -153,6 +153,14 @@ export default function LogView({ date, nutrition, notes }) {
   
   // Food Form State
   const [form, setForm] = useState(EMPTY_FORM);
+  // Referenz-Makros aus dem letzten Scan (ScannerModal), damit "Gewicht (g)"
+  // korrigieren die Makros proportional mitzieht. Vorher: Foto-Analyse
+  // schätzte z.B. 100g, das Gewicht-Feld war rein kosmetisch (nur Katalog-
+  // Metadaten) — beim Korrigieren auf die tatsächliche Packungsangabe (z.B.
+  // 178g) blieben kcal/Protein/Carbs/Fett unverändert stehen (2026-07-30
+  // gemeldet). null = kein aktiver Scan-Bezug, Gewicht-Feld bleibt wie vorher
+  // rein deskriptiv.
+  const [scanBaseline, setScanBaseline] = useState(null); // { grams, kcal, protein, carbs, fat }
   const [moveDate, setMoveDate] = useState("");
   const [aiText, setAiText] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
@@ -399,6 +407,26 @@ export default function LogView({ date, nutrition, notes }) {
   });
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  // Skaliert kcal/protein/carbs/fat proportional mit, wenn eine Scan-Referenz
+  // existiert (siehe scanBaseline oben) — sonst reines Textfeld wie vorher.
+  const setGrams = (e) => {
+    const newGrams = e.target.value;
+    setForm((f) => {
+      if (!scanBaseline || !newGrams || Number(newGrams) <= 0) {
+        return { ...f, grams: newGrams };
+      }
+      const factor = Number(newGrams) / scanBaseline.grams;
+      return {
+        ...f,
+        grams: newGrams,
+        kcal: Math.round(scanBaseline.kcal * factor * 10) / 10,
+        protein: Math.round(scanBaseline.protein * factor * 10) / 10,
+        carbs: Math.round(scanBaseline.carbs * factor * 10) / 10,
+        fat: Math.round(scanBaseline.fat * factor * 10) / 10,
+      };
+    });
+  };
   const cancelEdit = () => { setForm(EMPTY_FORM); setMoveDate(""); };
 
   function loadForEdit(meal) {
@@ -542,7 +570,7 @@ export default function LogView({ date, nutrition, notes }) {
           </div>
         
         {scannerOpen && (
-          <ScannerModal 
+          <ScannerModal
             onClose={() => setScannerOpen(false)}
             onResult={(res) => {
               setForm(f => ({
@@ -551,8 +579,14 @@ export default function LogView({ date, nutrition, notes }) {
                 kcal: res.kcal || "",
                 protein: res.protein || "",
                 carbs: res.carbs || "",
-                fat: res.fat || ""
+                fat: res.fat || "",
+                grams: res.grams || "",
               }));
+              // Nur setzen wenn die Analyse eine Mengenangabe mitliefert —
+              // sonst bleibt das Gewicht-Feld wie vorher rein deskriptiv.
+              setScanBaseline(res.grams
+                ? { grams: res.grams, kcal: res.kcal || 0, protein: res.protein || 0, carbs: res.carbs || 0, fat: res.fat || 0 }
+                : null);
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
           />
@@ -605,18 +639,24 @@ export default function LogView({ date, nutrition, notes }) {
               <input className={inputCls} placeholder="Mahlzeit…" value={form.description} onChange={set("description")} />
             </Field>
             <Field label="Gewicht (g)">
-              <input type="number" min="0" className={twMerge(inputCls, "sm:w-28")} placeholder="optional" value={form.grams} onChange={set("grams")} />
+              <input type="number" min="0" className={twMerge(inputCls, "sm:w-28")} placeholder="optional" value={form.grams} onChange={setGrams} />
             </Field>
           </div>
 
           <div className="grid grid-cols-4 gap-3">
             {[["kcal", "kcal"], ["protein", "Prot g"], ["carbs", "Carb g"], ["fat", "Fett g"]].map(([k, lbl]) => (
               <Field key={k} label={lbl}>
-                <input type="number" min="0" className={inputCls} value={form[k]} onChange={set(k)} />
+                <input type="number" min="0" className={inputCls} value={form[k]}
+                  onChange={(e) => { setScanBaseline(null); set(k)(e); }} />
               </Field>
             ))}
           </div>
-          {form.grams && (
+          {scanBaseline && (
+            <p className="text-xs text-emerald-400">
+              Scan-Referenz aktiv ({scanBaseline.grams}g) — Gewicht ändern skaliert die Makros automatisch mit.
+            </p>
+          )}
+          {form.grams && !scanBaseline && (
             <p className="text-xs text-slate-500">
               Für Katalog+ gespeichert als {form.grams}g-Portion — beim erneuten Loggen aus dem Katalog später anpassbar.
             </p>

@@ -67,6 +67,7 @@ export default function ScannerModal({ onClose, onResult }) {
               type: SchemaType.OBJECT,
               properties: {
                 name: { type: SchemaType.STRING, description: "Identifiziertes Essen" },
+                grams: { type: SchemaType.NUMBER, description: "Geschätztes/erkanntes Gewicht der Portion in Gramm, auf das sich die Makros beziehen (z.B. von einer Verpackungsangabe oder geschätzter Portionsgröße)." },
                 macros: {
                   type: SchemaType.OBJECT,
                   properties: {
@@ -85,7 +86,7 @@ export default function ScannerModal({ onClose, onResult }) {
           }
         });
 
-        const prompt = "Dies ist ein Foto von Essen, einem Barcode oder einer Einkaufsquittung. Identifiziere die Mahlzeit oder Zutaten und schätze die Nährwerte (Makros) sowie die genauen Mikronährstoffe (Vitamine, Mineralstoffe) so genau wie möglich ab.";
+        const prompt = "Dies ist ein Foto von Essen, einem Barcode oder einer Einkaufsquittung. Identifiziere die Mahlzeit oder Zutaten und schätze die Nährwerte (Makros) sowie die genauen Mikronährstoffe (Vitamine, Mineralstoffe) so genau wie möglich ab. Gib außerdem in 'grams' an, auf welches Gewicht (in Gramm) sich diese Makros beziehen — von einer erkannten Verpackungsangabe oder sonst deiner besten Schätzung der abgebildeten Portionsgröße.";
 
         const result = await withAiRetry(() => model.generateContent([
           prompt,
@@ -115,6 +116,7 @@ export default function ScannerModal({ onClose, onResult }) {
       if (macrosResult && macrosResult.macros) {
         onResult({
           description: macrosResult.name || "Gescannte Mahlzeit",
+          grams: macrosResult.grams || null,
           ...macrosResult.macros
         });
         onClose();

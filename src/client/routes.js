@@ -7,7 +7,7 @@ export const TAB_CONFIG = [
     label: "Dashboard",
     Icon: Flame,
     View: lazy(() => import("./views/DashboardView.jsx")),
-    getProps: (ctx) => ({ nutrition: ctx.nutrition, sup: ctx.sup, journal: ctx.journal, macroTrend: ctx.macroTrend }),
+    getProps: (ctx) => ({ nutrition: ctx.nutrition, sup: ctx.sup, journal: ctx.journal, macroTrend: ctx.macroTrend, setActiveTab: ctx.setActiveTab, activeDate: ctx.activeDate }),
   },
   {
     key: "food",
