@@ -33,5 +33,23 @@ export async function callGemini(prompt) {
 }
 
 export function extractJson(raw) {
-  return raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+  let s = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+  // Gemini hängt gelegentlich Prosa vor/nach das JSON ("Hier ist die Analyse: {...}")
+  // trotz Anweisung "ausschließlich JSON" — Fenced-Code-Strip allein reicht dann
+  // nicht, JSON.parse bricht am ersten Zeichen. Fallback: äußerstes {...} oder
+  // [...] per Klammer-Zählung extrahieren statt blind zu vertrauen.
+  const first = s.search(/[[{]/);
+  if (first > 0) {
+    const open = s[first];
+    const close = open === "{" ? "}" : "]";
+    let depth = 0;
+    for (let i = first; i < s.length; i++) {
+      if (s[i] === open) depth++;
+      else if (s[i] === close) {
+        depth--;
+        if (depth === 0) { s = s.slice(first, i + 1); break; }
+      }
+    }
+  }
+  return s;
 }

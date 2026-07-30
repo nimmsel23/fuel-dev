@@ -66,6 +66,17 @@ function initDb() {
     CREATE INDEX IF NOT EXISTS idx_meal_micros_name ON meal_micros(meal_name COLLATE NOCASE);
   `);
 
+  // name_key: normalisierter Signatur-Key (siehe normalizeMicroKey unten).
+  // Grund: Freitext-Logs derselben Mahlzeit ("125g Käsleberkäse + Semmel",
+  // "2x Käseleberkäsesemmel", "400g Käsleberkäse mit 4 Semmeln BILLA", ...)
+  // erzeugten bisher JEDES Mal eine neue Gemini-Schätzung, weil meal_name
+  // exakt (COLLATE NOCASE) verglichen wurde. 11 Varianten desselben Gerichts
+  // landeten so als 11 unabhängig halluzinierte Zeilen (u.a. Omega-3 zwischen
+  // 120–600mg für ein Leberkäse-Gericht ohne jede Omega-3-Quelle, 2026-07-30
+  // entdeckt). name_key gruppiert Varianten VOR dem nächsten Gemini-Call.
+  try { db.exec(`ALTER TABLE meal_micros ADD COLUMN name_key TEXT`); } catch { /* column exists */ }
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_meal_micros_name_key ON meal_micros(name_key)`);
+
   // Migrate existing DBs: alle MICRO_KEYS (Quelle: shared/config/dach.mjs)
   // + kcal idempotent nachziehen — neue Nährstoffe landen automatisch hier,
   // ohne diese Liste manuell zu pflegen. ALTER TABLE wirft bei bereits
@@ -207,23 +218,72 @@ export function getIngredientByWgerId(wgerId) {
 
 const MICRO_COLS = MICRO_KEYS;
 
+// Bekannte Rechtschreib-/Fugen-Varianten und zusammengeschriebene Formen aus
+// echten Logs (z.B. "Käsleberkäse" vs "Käseleberkäse", "Käseleberkäsesemmel"
+// als ein Wort) — bewusst datengetrieben statt generischer NLP, das ist ein
+// Single-User-Tracker, keine Public-Suche.
+const MICRO_KEY_SPELLING_FIXES = [
+  [/käse?leberkäsesemmeln?/g, "käseleberkäse semmel"], // fused form first
+  [/käse?krainerleberkäse/g, "käseleberkäse"],
+  [/käsleberkäse/g, "käseleberkäse"],
+  [/kaisersemmeln?/g, "semmel"],
+  [/semmeln/g, "semmel"],
+];
+const MICRO_KEY_DRINK_NOISE = /(redbull|cola|bier|budweiser|wein|schnaps|energy)/;
+const MICRO_KEY_NOISE_WORDS = new Set([
+  "billa", "hofer", "spar", "at", "mit", "und", "in", "klks",
+  "scharf", "scharfe", "scharfer", "scharfes",
+  "pikant", "pikante", "pikanter", "pikantes",
+]);
+
+/**
+ * Normalisiert einen Mahlzeit-Namen auf eine Signatur, die Mengenangaben,
+ * Marken-Rauschen und Getränke-Zusätze ignoriert — z.B. "125g Käsleberkäse +
+ * 65g Semmel", "2x Käseleberkäsesemmel" und "400g Käsleberkäse mit 4
+ * Semmeln BILLA" ergeben alle denselben Key. Grund: Freitext-Logs derselben
+ * Mahlzeit unterschieden sich bisher fast immer nur in der Menge — jede
+ * Variante loste trotzdem eine eigene Gemini-Mikros-Schätzung aus (siehe
+ * initDb()-Kommentar oben, 11 Käseleberkäse-Varianten mit je erfundenem
+ * Omega-3-Wert, 2026-07-30 entdeckt).
+ */
+export function normalizeMicroKey(name) {
+  let s = String(name || "").toLowerCase();
+  for (const [pattern, replacement] of MICRO_KEY_SPELLING_FIXES) {
+    s = s.replace(pattern, replacement);
+  }
+  // Getränke-/Extra-Segmente hinter "+" rauswerfen, Rest behalten.
+  s = s.split("+").filter((seg) => !MICRO_KEY_DRINK_NOISE.test(seg)).join(" ");
+  s = s.replace(/[()]/g, " ");           // Klammern nur als Zeichen entfernen, Inhalt behalten
+  s = s.replace(/\d+[.,]?\d*\s?(g|kg|ml|l)\b/g, " "); // Mengenangaben
+  s = s.replace(/\b\d+x?\b/g, " ");      // Zähler ("2x", "4")
+  s = s.replace(/[^a-zäöüß\s]/g, " ");   // Rest-Sonderzeichen
+  const tokens = s.split(/\s+/).filter((t) => t && !MICRO_KEY_NOISE_WORDS.has(t)).sort();
+  return tokens.join(" ");
+}
+
 export function upsertMealMicros(mealName, kcal, micros, source = "gemini") {
   const db = getDb();
   const vals = MICRO_COLS.map((c) => micros[c] ?? 0);
   const sets = MICRO_COLS.map((c) => `${c} = excluded.${c}`).join(", ");
+  const nameKey = normalizeMicroKey(mealName);
 
   db.prepare(`
-    INSERT INTO meal_micros (meal_name, kcal, ${MICRO_COLS.join(", ")}, source)
-    VALUES (?, ?, ${MICRO_COLS.map(() => "?").join(", ")}, ?)
+    INSERT INTO meal_micros (meal_name, kcal, ${MICRO_COLS.join(", ")}, source, name_key)
+    VALUES (?, ?, ${MICRO_COLS.map(() => "?").join(", ")}, ?, ?)
     ON CONFLICT(meal_name) DO UPDATE SET
-      kcal = excluded.kcal, ${sets}, source = excluded.source, updated_at = CURRENT_TIMESTAMP
-  `).run(mealName, kcal, ...vals, source);
+      kcal = excluded.kcal, ${sets}, source = excluded.source,
+      name_key = excluded.name_key, updated_at = CURRENT_TIMESTAMP
+  `).run(mealName, kcal, ...vals, source, nameKey);
 }
 
 export function getMealMicros(mealName) {
-  return getDb()
-    .prepare("SELECT * FROM meal_micros WHERE meal_name = ? COLLATE NOCASE")
-    .get(mealName) || null;
+  const db = getDb();
+  const exact = db.prepare("SELECT * FROM meal_micros WHERE meal_name = ? COLLATE NOCASE").get(mealName);
+  if (exact) return exact;
+
+  const key = normalizeMicroKey(mealName);
+  if (!key) return null;
+  return db.prepare("SELECT * FROM meal_micros WHERE name_key = ? ORDER BY updated_at DESC LIMIT 1").get(key) || null;
 }
 
 export function getAllMealMicros() {
