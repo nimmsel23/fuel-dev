@@ -6,14 +6,12 @@ const isCloud = () =>
   typeof window !== "undefined" &&
   (window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com"));
 
-// Detaillierter Sync-/Server-Status (Firestore Admin, Uptime, Katalog-
-// Zählungen) lebt im lokalen Dev/Prod-Tab (routes.js: key "dev") — dieser
-// Card bleibt bewusst ein simpler Ping, der auch im Cloud-Build funktioniert.
-// Zeigt je nach Channel unterschiedliche Zeilen — vorher stand hier immer
-// "fuel-dev" + "~/.aos/fuel/", auch im Cloud-Build, wo beides nicht existiert.
+// Nur lokal relevant (Fastify-Backend + Dateisystem) — im Cloud-Build gibt's
+// nichts Sinnvolles zu zeigen. Ein Firestore-Erreichbarkeits-Ping wurde
+// probiert, war aber unzuverlässig (false "offline") und brachte dem User
+// keinen echten Mehrwert — einfach weglassen statt raten.
 export default function SystemHealthCard({ sectionCls }) {
   const [health, setHealth] = useState(null);
-  const [firestoreOk, setFirestoreOk] = useState(null); // null = prüft noch
   const cloud = isCloud();
 
   useEffect(() => {
@@ -21,36 +19,12 @@ export default function SystemHealthCard({ sectionCls }) {
     fetchJson("/health").then(setHealth).catch(() => setHealth({ status: "error" }));
   }, [cloud]);
 
-  useEffect(() => {
-    if (!cloud) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const [{ doc, getDoc }, { db }] = await Promise.all([
-          import("firebase/firestore"),
-          import("../../lib/firebase.js"),
-        ]);
-        const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 4000));
-        // Ping-Doc muss nicht existieren — getDoc() erreicht Firestore
-        // trotzdem, exists()===false ist ok, ein Timeout/Netzwerkfehler nicht.
-        await Promise.race([getDoc(doc(db, "_health", "ping")), timeout]);
-        if (!cancelled) setFirestoreOk(true);
-      } catch {
-        if (!cancelled) setFirestoreOk(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [cloud]);
+  if (cloud) return null;
 
-  const rows = cloud
-    ? [
-        ["Fuel Centre", "Cloud (fuel-vos.web.app)", true],
-        ["Data", firestoreOk === null ? "prüfe…" : firestoreOk ? "Firestore online" : "Firestore offline", firestoreOk !== false],
-      ]
-    : [
-        ["fuel-dev", health?.status === "ok" || health?.ok ? "online" : health ? "error" : "prüfe…", health?.status === "ok" || health?.ok],
-        ["Data", "~/.aos/fuel/", true],
-      ];
+  const rows = [
+    ["fuel-dev", health?.status === "ok" || health?.ok ? "online" : health ? "error" : "prüfe…", health?.status === "ok" || health?.ok],
+    ["Data", "~/.aos/fuel/", true],
+  ];
 
   return (
     <section className={sectionCls}>
