@@ -78,7 +78,11 @@ def _load_log_local(date_str: str) -> dict:
     p = NUTRITION_DIR / f"{date_str}.json"
     if p.exists():
         try:
-            return json.loads(p.read_text())
+            log = json.loads(p.read_text())
+            # Firestore-Pull (firestore-sync.mjs pull()) schreibt Docs 1:1 ohne
+            # "date"-Feld — das Datum steckt dort nur in der Doc-ID/Dateiname.
+            log.setdefault("date", date_str)
+            return log
         except:
             pass
     return {"date": date_str, "meals": [], "water_ml": 0}

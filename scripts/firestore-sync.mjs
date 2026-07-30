@@ -551,6 +551,10 @@ async function pull(uid = UID_DEFAULT) {
   nutSnap.forEach(doc => {
     const data = doc.data();
     delete data.updated_at;
+    // Firestore speichert das Datum nur als Doc-ID, nicht als Feld im Doc —
+    // ohne diese Zeile fehlt "date" im lokalen JSON und meal.py._save_log_local
+    // crasht mit KeyError('date').
+    data.date = doc.id;
     writeFileSync(join(nutritionDir, `${doc.id}.json`), JSON.stringify(data, null, 2));
     console.log(`  ← Nutrition ${doc.id}`);
   });
