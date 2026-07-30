@@ -2,7 +2,7 @@ const CACHE = "fuel-v0"; // Platzhalter — echte Version wird post-build in dis
 const BASE_PATH = new URL(self.registration.scope).pathname.replace(/\/$/, "");
 const withBase = (path) => `${BASE_PATH}${path}`;
 const STATIC_ASSETS = [withBase("/"), withBase("/index.html"), withBase("/manifest.json")];
-const API_PATHS = ["/health", "/fuel/", "/nutrition/", "/supplements/"];
+const API_PATHS = ["/health", "/coach/", "/fuel/", "/nutrition/", "/supplements/"];
 const stripBase = (pathname) => {
   if (pathname.startsWith(BASE_PATH + "/")) return pathname.slice(BASE_PATH.length);
   if (pathname === BASE_PATH) return "/";
