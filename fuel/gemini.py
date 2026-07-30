@@ -278,8 +278,18 @@ def estimate_nutrition(description: str, *, retries: int = 2, timeout: int = 30)
 
 
 def estimate_vision(image_b64: str, mime_type: str = "image/jpeg", *, retries: int = 2, timeout: int = 30) -> dict:
-    """Multimodal one-shot estimation: extracts macros/micros/components from photo or receipt."""
-    prompt = "Dies ist ein Foto von Essen, einem Barcode oder einer Einkaufsquittung. Identifiziere die Mahlzeit oder Zutaten und schätze die Nährwerte (Makros und Mikros) so genau wie möglich ab. Nutze das übliche JSON Format."
+    """Multimodal one-shot estimation: extracts macros/micros/components/grams from photo or receipt."""
+    # 'grams' explizit anfordern: ohne diese Angabe war das Gewicht-Feld im
+    # Frontend rein kosmetisch (nur Katalog-Metadaten), Korrekturen auf die
+    # echte Packungsangabe veränderten die Makros nicht mit (2026-07-30
+    # gemeldet, gleicher Fix auch im Vertex-Pfad in ScannerModal.jsx).
+    prompt = (
+        "Dies ist ein Foto von Essen, einem Barcode oder einer Einkaufsquittung. "
+        "Identifiziere die Mahlzeit oder Zutaten und schätze die Nährwerte (Makros und Mikros) "
+        "so genau wie möglich ab. Gib zusätzlich als 'grams' an, auf welches Gewicht (in Gramm) "
+        "sich diese Makros beziehen — von einer erkannten Verpackungsangabe oder sonst deiner "
+        "besten Schätzung der abgebildeten Portionsgröße. Nutze das übliche JSON Format."
+    )
     res = call_gemini(prompt, image_b64=image_b64, mime_type=mime_type, retries=retries, timeout=timeout, log_label="estimate_vision")
     if not res["ok"]:
         return _empty_response(res["error"])
@@ -294,7 +304,8 @@ def estimate_vision(image_b64: str, mime_type: str = "image/jpeg", *, retries: i
         "macros": _normalize_macros(parsed.get("macros") or {}),
         "micros": _normalize_micros(parsed.get("micros") or {}),
         "components": parsed.get("components") or [],
-        "name": parsed.get("name", "Gescannte Mahlzeit") # Fallback falls nicht in JSON
+        "name": parsed.get("name", "Gescannte Mahlzeit"), # Fallback falls nicht in JSON
+        "grams": parsed.get("grams"),
     }
 
 
