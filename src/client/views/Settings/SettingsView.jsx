@@ -14,9 +14,16 @@ const inputCls = "w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4
 export default function SettingsView() {
   return (
     <div className="grid gap-6 lg:grid-cols-2">
-      <AccountCard sectionCls={sectionCls} />
-      <ProfileCard sectionCls={sectionCls} labelCls={labelCls} inputCls={inputCls} />
-      <FuelMapFrame sectionCls={sectionCls} />
+      {/* Account + Profil + Anamnese bleiben eigene Komponenten (Wiederverwendbarkeit,
+          z.B. Alter/Geschlecht auch für DACH-Referenz im Mikros-Tab), werden hier per
+          bare-Prop nur optisch zu einer Card zusammengefasst statt drei separaten Boxen. */}
+      <section className={sectionCls}>
+        <AccountCard bare />
+        <hr className="border-white/10" />
+        <ProfileCard labelCls={labelCls} inputCls={inputCls} bare />
+        <hr className="border-white/10" />
+        <FuelMapFrame bare />
+      </section>
       <GoalsCard sectionCls={sectionCls} labelCls={labelCls} inputCls={inputCls} />
       <PushRemindersCard sectionCls={sectionCls} labelCls={labelCls} inputCls={inputCls} />
       <VersionCard sectionCls={sectionCls} />

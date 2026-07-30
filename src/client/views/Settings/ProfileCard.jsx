@@ -1,11 +1,14 @@
 import { Activity } from "lucide-react";
 import { useSettings } from "../../store.js";
 
-export default function ProfileCard({ sectionCls, labelCls, inputCls }) {
+// bare=true: nur die interne Grid-Struktur, kein eigener Rahmen/Hintergrund
+// — für den Fall, dass ein Elternteil (SettingsView) mehrere Cards visuell
+// zu einer zusammenfassen will, ohne die Komponenten selbst zu verschmelzen.
+export default function ProfileCard({ sectionCls, labelCls, inputCls, bare = false }) {
   const { age, gender, setSetting } = useSettings();
 
   return (
-    <section className={sectionCls}>
+    <section className={bare ? "grid gap-4" : sectionCls}>
       <div className="flex items-center gap-2 mb-1">
         <Activity className="h-5 w-5 text-emerald-300" />
         <h2 className="text-lg font-semibold">Profil</h2>

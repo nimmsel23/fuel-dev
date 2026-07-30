@@ -25,14 +25,14 @@ function Domain({ icon: Icon, title, children }) {
   );
 }
 
-export default function FuelMapFrame({ sectionCls }) {
+export default function FuelMapFrame({ sectionCls, bare = false }) {
   const {
     nutrition_goal, diet_type, intolerances, chronic_conditions, medications, digestive_notes,
     setSetting,
   } = useSettings();
 
   return (
-    <section className={sectionCls}>
+    <section className={bare ? "grid gap-4" : sectionCls}>
       <details className="group rounded-2xl border border-white/10">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3">
           <span className="flex items-center gap-2 text-lg font-semibold">

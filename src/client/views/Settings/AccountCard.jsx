@@ -3,7 +3,10 @@ import { Sparkles, LogIn, LogOut } from "lucide-react";
 import { signIn, signOut, watchAuth } from "../../lib/db.firestore.js";
 import { auth } from "../../lib/firebase.js";
 
-export default function AccountCard({ sectionCls }) {
+// bare=true: nur die interne Grid-Struktur, kein eigener Rahmen/Hintergrund
+// — für den Fall, dass ein Elternteil (SettingsView) mehrere Cards visuell
+// zu einer zusammenfassen will, ohne die Komponenten selbst zu verschmelzen.
+export default function AccountCard({ sectionCls, bare = false }) {
   const [user, setUser] = useState(() => auth.currentUser);
 
   useEffect(() => {
@@ -11,7 +14,7 @@ export default function AccountCard({ sectionCls }) {
   }, []);
 
   return (
-    <section className={sectionCls}>
+    <section className={bare ? "grid gap-4" : sectionCls}>
       <div className="flex items-center gap-2 mb-1">
         <Sparkles className="h-5 w-5 text-sky-300" />
         <h2 className="text-lg font-semibold">Account</h2>
