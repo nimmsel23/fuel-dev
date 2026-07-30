@@ -230,21 +230,28 @@ const MICRO_KEY_SPELLING_FIXES = [
   [/semmeln/g, "semmel"],
 ];
 const MICRO_KEY_DRINK_NOISE = /(redbull|cola|bier|budweiser|wein|schnaps|energy)/;
+// WICHTIG: Marken (Billa, Spar, Hofer, ...) sind KEIN Rauschen — verschiedene
+// Hersteller verwenden unterschiedlichen Käse/Rezeptur im selben Produkt,
+// was real unterschiedliche Verträglichkeit auslösen kann (User-Beobachtung
+// 2026-07-30: Spar-KLK Beschwerden, Billa-KLK nicht). Nur echte Füllwörter
+// bleiben hier, keine Marken.
 const MICRO_KEY_NOISE_WORDS = new Set([
-  "billa", "hofer", "spar", "at", "mit", "und", "in", "klks",
+  "at", "mit", "und", "in", "klks",
   "scharf", "scharfe", "scharfer", "scharfes",
   "pikant", "pikante", "pikanter", "pikantes",
 ]);
 
 /**
- * Normalisiert einen Mahlzeit-Namen auf eine Signatur, die Mengenangaben,
- * Marken-Rauschen und Getränke-Zusätze ignoriert — z.B. "125g Käsleberkäse +
+ * Normalisiert einen Mahlzeit-Namen auf eine Signatur, die Mengenangaben
+ * und Getränke-Zusätze ignoriert, aber Marken bewusst UNANGETASTET lässt
+ * (siehe Kommentar bei MICRO_KEY_NOISE_WORDS) — z.B. "125g Käsleberkäse +
  * 65g Semmel", "2x Käseleberkäsesemmel" und "400g Käsleberkäse mit 4
- * Semmeln BILLA" ergeben alle denselben Key. Grund: Freitext-Logs derselben
- * Mahlzeit unterschieden sich bisher fast immer nur in der Menge — jede
- * Variante loste trotzdem eine eigene Gemini-Mikros-Schätzung aus (siehe
- * initDb()-Kommentar oben, 11 Käseleberkäse-Varianten mit je erfundenem
- * Omega-3-Wert, 2026-07-30 entdeckt).
+ * Semmeln BILLA" ergeben denselben Key, aber "... BILLA" und "... SPAR"
+ * bleiben getrennt. Grund: Freitext-Logs derselben Mahlzeit unterschieden
+ * sich bisher fast immer nur in der Menge — jede Variante loste trotzdem
+ * eine eigene Gemini-Mikros-Schätzung aus (siehe initDb()-Kommentar oben,
+ * 11 Käseleberkäse-Varianten mit je erfundenem Omega-3-Wert, 2026-07-30
+ * entdeckt).
  */
 export function normalizeMicroKey(name) {
   let s = String(name || "").toLowerCase();
