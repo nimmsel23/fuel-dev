@@ -1,3 +1,4 @@
+import { AlertTriangle } from "lucide-react";
 import { useWeekLogs, weekDates, localISO } from "../hooks/weekLogs.js";
 import { useSettings } from "../store.js";
 
@@ -12,6 +13,17 @@ function getKcalLevel(kcal, goal) {
   if (pct < 0.75) return 2;
   if (pct < 1.00) return 3;
   return 4;
+}
+
+// Vermutlich lückenhaft geloggt: wenig Einträge UND niedrige kcal. Nur
+// Meal-Anzahl allein reicht nicht (OMAD-Tage haben oft nur 1 Eintrag, aber
+// hohe kcal — legitim, siehe eating_pattern in FuelMapFrame.jsx). Erst die
+// Kombination aus wenig Einträgen UND niedriger Summe ist ein echtes Signal
+// für "wahrscheinlich vergessen weiterzuloggen" (30-Tage-Auswertung
+// 2026-07-30: Tage mit <3 Einträgen lagen im Schnitt bei 746 statt 2022 kcal).
+function looksIncomplete(meals, kcal, goal) {
+  if (!goal) return false;
+  return meals.length > 0 && meals.length < 3 && kcal < goal * 0.5;
 }
 
 export default function NutritionHeatmap({ selectedDate, onSelectDate }) {
@@ -63,15 +75,20 @@ export default function NutritionHeatmap({ selectedDate, onSelectDate }) {
         const meals    = logsMap[dk] || [];
         const kcal     = meals.reduce((s, m) => s + (Number(m.kcal) || 0), 0);
         const level    = getKcalLevel(kcal, kcal_goal);
+        const incomplete = looksIncomplete(meals, kcal, kcal_goal);
         const isToday    = dk === today;
         const isSelected = dk === selectedDate;
         return (
           <button
             key={dk}
             onClick={() => onSelectDate(dk)}
-            className="flex flex-col items-center gap-1 rounded-lg p-1 transition hover:bg-white/5"
+            title={incomplete ? "Wenige Einträge, niedrige kcal — evtl. nicht alles geloggt?" : undefined}
+            className="relative flex flex-col items-center gap-1 rounded-lg p-1 transition hover:bg-white/5"
             style={{ borderBottom: isSelected ? "2px solid #f97316" : "2px solid transparent" }}
           >
+            {incomplete && (
+              <AlertTriangle className="absolute -top-1 -right-1 h-3 w-3 text-amber-400" />
+            )}
             <span className="text-[9px] font-bold tracking-widest"
               style={{ color: isSelected ? "#f97316" : isToday ? "#4ade80" : "#4a5874" }}>
               {DAY_LABELS[i]}

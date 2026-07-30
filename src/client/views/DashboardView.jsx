@@ -5,6 +5,8 @@ import MacroTrendChart from "./Dashboard/MacroTrendChart.jsx";
 import TodayMeals from "./Dashboard/TodayMeals.jsx";
 import JournalWidget from "./Dashboard/JournalWidget.jsx";
 import QuickAiLog from "../components/QuickAiLog.jsx";
+import IncompleteDayHint from "./Dashboard/IncompleteDayHint.jsx";
+import { format } from "date-fns";
 
 export default function DashboardView({ nutrition, sup, journal, macroTrend, setActiveTab, activeDate }) {
   const meals = nutrition?.meals || [];
@@ -12,11 +14,13 @@ export default function DashboardView({ nutrition, sup, journal, macroTrend, set
   const totalKcal = sumMetric(meals, "kcal");
   const totalProtein = sumMetric(meals, "protein");
   const waterMl = nutrition?.water_ml || 0;
+  const isToday = activeDate === format(new Date(), "yyyy-MM-dd");
 
   return (
     <div className="grid gap-6 xl:grid-cols-[1.4fr_0.9fr]">
       <div className="grid gap-6">
         <QuickAiLog date={activeDate} />
+        <IncompleteDayHint totalKcal={totalKcal} isToday={isToday} />
         <StatsGrid mealsCount={meals.length} totalProtein={totalProtein} waterMl={waterMl} />
         <DailyGoals totalKcal={totalKcal} totalProtein={totalProtein} waterMl={waterMl} />
         <MacroTrendChart macroTrend={macroTrend} />

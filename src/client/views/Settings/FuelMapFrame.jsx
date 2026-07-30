@@ -27,7 +27,7 @@ function Domain({ icon: Icon, title, children }) {
 
 export default function FuelMapFrame({ sectionCls, bare = false }) {
   const {
-    nutrition_goal, diet_type, intolerances, chronic_conditions, medications, digestive_notes,
+    nutrition_goal, diet_type, eating_pattern, intolerances, chronic_conditions, medications, digestive_notes,
     setSetting,
   } = useSettings();
 
@@ -63,6 +63,15 @@ export default function FuelMapFrame({ sectionCls, bare = false }) {
                 <option value="zunehmen">Zunehmen</option>
                 <option value="muskelaufbau">Muskelaufbau</option>
               </select>
+            </div>
+            <div>
+              <label className={labelCls}>Ess-Rhythmus</label>
+              <select value={eating_pattern} onChange={(e) => setSetting("eating_pattern", e.target.value)} className={inputCls}>
+                <option value="omad">OMAD (eine große Mahlzeit/Tag)</option>
+                <option value="nomad">NOMAD (mehrere Mahlzeiten verteilt)</option>
+                <option value="flexibel">Flexibel / unterschiedlich</option>
+              </select>
+              <p className="mt-1 text-[11px] text-slate-500">Verhindert falsche "wenig geloggt"-Warnungen bei legitimen Ein-Mahlzeit-Tagen.</p>
             </div>
           </Domain>
 

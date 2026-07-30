@@ -25,6 +25,12 @@ export const useSettings = create(
       // (FuelMapFrame.jsx), nicht Pflichtfelder, dienen dem Coach als Kontext.
       nutrition_goal: "halten",
       diet_type: "omnivor",
+      // OMAD = eine große Mahlzeit/Tag (z.B. Kaffee tagsüber, spät nach dem
+      // Training essen), NOMAD = mehrere Mahlzeiten verteilt, flexibel = mal
+      // so mal so. Wird genutzt, um "wenig geloggt heute"-Warnungen nicht
+      // fälschlich bei legitimen Ein-Mahlzeit-Tagen zu triggern (User-Hinweis
+      // 2026-07-30: das ist bei ihm der Normalfall, kein Rand-Fall).
+      eating_pattern: "flexibel",
       intolerances: "",
       chronic_conditions: "",
       medications: "",
@@ -52,6 +58,7 @@ export const useSettings = create(
               protein_per_kg: current.protein_per_kg,
               nutrition_goal: current.nutrition_goal,
               diet_type: current.diet_type,
+              eating_pattern: current.eating_pattern,
               intolerances: current.intolerances,
               chronic_conditions: current.chronic_conditions,
               medications: current.medications,
