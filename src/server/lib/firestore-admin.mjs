@@ -201,6 +201,45 @@ export async function pushSupplementLog(date, log) {
   }
 }
 
+/**
+ * Push an immutable Fuel-Frame snapshot (Ernährungs-Anamnese zu einem
+ * Zeitpunkt) — analog zum Cloud-Pfad in db/firestore/frames.js. Anders als
+ * die übrigen push*-Funktionen kein Upsert (set/merge), sondern add(), da
+ * jeder Frame ein eigenes, nie überschriebenes Dokument ist.
+ */
+export async function pushFuelFrame(frameData) {
+  const db = getDb();
+  if (!db) return null;
+  try {
+    const now = new Date().toISOString();
+    const ref = await db.collection("users").doc(UID).collection("fuelFrames")
+      .add({ ...frameData, created_at: now });
+    console.log(`[firestore-admin] 📤 users/fuelFrames/${ref.id}`);
+    markPushOk();
+    return { id: ref.id };
+  } catch (e) {
+    console.error("[firestore-admin] pushFuelFrame failed:", e.message);
+    markPushError(e.message);
+    return null;
+  }
+}
+
+/**
+ * List the most recent Fuel-Frame snapshots, newest first.
+ */
+export async function getFuelFrames(limitCount = 20) {
+  const db = getDb();
+  if (!db) return [];
+  try {
+    const snap = await db.collection("users").doc(UID).collection("fuelFrames")
+      .orderBy("created_at", "desc").limit(limitCount).get();
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  } catch (e) {
+    console.error("[firestore-admin] getFuelFrames failed:", e.message);
+    return [];
+  }
+}
+
 // ── PULL ─────────────────────────────────────────────────────────────────────
 
 /**

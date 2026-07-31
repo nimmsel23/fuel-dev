@@ -253,3 +253,28 @@ export async function getWeeklyMicros(year, week) {
 
   return { ok: true, year, week, dates, week_totals: weekTotals, rda_comparison, day_breakdown: dayBreakdown, missing_meals: Array.from(missingMeals) };
 }
+
+export async function getFastingWindows(days = 14) {
+  const { computeFastingWindows } = await import("../../../../shared/utils/fasting.mjs");
+  const { todayISO } = await import("./utils.js");
+
+  // Build array of last `days + 1` dates (oldest first)
+  const dates = [];
+  const today = new Date(todayISO());
+  for (let i = days; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    dates.push(d.toISOString().split("T")[0]);
+  }
+
+  const logsMap = await getNutritionLogsInRange(dates);
+  const dayLogs = dates.map((date) => ({
+    date,
+    meals: logsMap[date]?.meals || [],
+  }));
+
+  const windows = computeFastingWindows(dayLogs);
+
+  // Return only last `days` entries (discard extra first day used for context)
+  return windows.slice(-days);
+}

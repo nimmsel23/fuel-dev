@@ -22,7 +22,7 @@ export const useSettings = create(
       activity_level: 1.6,
       protein_per_kg: 1.6,
       // Ernährungsspezifische Anamnese — hinter Dropdown im Account-Bereich
-      // (FuelMapFrame.jsx), nicht Pflichtfelder, dienen dem Coach als Kontext.
+      // (FuelProfile.jsx), nicht Pflichtfelder, dienen dem Coach als Kontext.
       nutrition_goal: "halten",
       diet_type: "omnivor",
       // OMAD = eine große Mahlzeit/Tag (z.B. Kaffee tagsüber, spät nach dem
@@ -31,10 +31,17 @@ export const useSettings = create(
       // fälschlich bei legitimen Ein-Mahlzeit-Tagen zu triggern (User-Hinweis
       // 2026-07-30: das ist bei ihm der Normalfall, kein Rand-Fall).
       eating_pattern: "flexibel",
+      weight_goal: "",
+      nutrition_focus: "",
+      energy_level: "",
+      hunger_notes: "",
+      nutrition_satisfaction: "",
       intolerances: "",
       chronic_conditions: "",
       medications: "",
       digestive_notes: "",
+      nutrition_working: "",
+      nutrition_not_working: "",
       supplement_push_enabled: true,
       supplement_push_morning_time: "08:00",
       supplement_push_midday_time: "13:00",
@@ -59,10 +66,17 @@ export const useSettings = create(
               nutrition_goal: current.nutrition_goal,
               diet_type: current.diet_type,
               eating_pattern: current.eating_pattern,
+              weight_goal: current.weight_goal,
+              nutrition_focus: current.nutrition_focus,
+              energy_level: current.energy_level,
+              hunger_notes: current.hunger_notes,
+              nutrition_satisfaction: current.nutrition_satisfaction,
               intolerances: current.intolerances,
               chronic_conditions: current.chronic_conditions,
               medications: current.medications,
               digestive_notes: current.digestive_notes,
+              nutrition_working: current.nutrition_working,
+              nutrition_not_working: current.nutrition_not_working,
               supplement_push_enabled: current.supplement_push_enabled,
               supplement_push_morning_time: current.supplement_push_morning_time,
               supplement_push_midday_time: current.supplement_push_midday_time,

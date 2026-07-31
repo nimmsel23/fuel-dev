@@ -17,7 +17,7 @@ function getKcalLevel(kcal, goal) {
 
 // Vermutlich lückenhaft geloggt: wenig Einträge UND niedrige kcal. Nur
 // Meal-Anzahl allein reicht nicht (OMAD-Tage haben oft nur 1 Eintrag, aber
-// hohe kcal — legitim, siehe eating_pattern in FuelMapFrame.jsx). Erst die
+// hohe kcal — legitim, siehe eating_pattern in FuelProfile.jsx). Erst die
 // Kombination aus wenig Einträgen UND niedriger Summe ist ein echtes Signal
 // für "wahrscheinlich vergessen weiterzuloggen" (30-Tage-Auswertung
 // 2026-07-30: Tage mit <3 Einträgen lagen im Schnitt bei 746 statt 2022 kcal).

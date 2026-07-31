@@ -45,6 +45,11 @@ export async function fetchJson(path) {
     const limitCount = parseInt(url.searchParams.get("limit") || "30");
     return { ok: true, history: await firestore.getMealsHistory(limitCount) };
   }
+  if (normPath.startsWith("/nutrition/frames")) {
+    const url = new URL(path, window.location.origin);
+    const limitCount = parseInt(url.searchParams.get("limit") || "20");
+    return { ok: true, frames: await firestore.getFuelFrames(limitCount) };
+  }
   if (normPath.startsWith("/nutrition/notes")) {
     const url = new URL(path, window.location.origin);
     const date = url.searchParams.get("date");
@@ -80,6 +85,12 @@ export async function fetchJson(path) {
     const year = parseInt(parts[parts.length - 2]);
     const week = parseInt(parts[parts.length - 1]);
     return await firestore.getWeeklyMicros(year, week);
+  }
+  if (normPath.startsWith("/nutrition/fasting")) {
+    const url = new URL(path, window.location.origin);
+    const days = parseInt(url.searchParams.get("days") || "14");
+    const windows = await firestore.getFastingWindows(days);
+    return { ok: true, windows };
   }
   if (normPath === "/fuel-firestore/status" || normPath === "/health") {
     return { ok: true, mode: "cloud" };
@@ -128,6 +139,11 @@ export async function postJson(path, body) {
   if (normPath === "/nutrition/notes") {
     await firestore.saveNotes(body.date, body.content);
     return { ok: true };
+  }
+
+  if (normPath === "/nutrition/frame") {
+    const result = await firestore.saveFuelFrame(body.frame);
+    return { ok: true, ...result };
   }
 
   if (normPath === "/nutrition/catalog") {
