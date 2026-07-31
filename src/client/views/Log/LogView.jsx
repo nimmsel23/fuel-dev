@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { NotebookPen, UtensilsCrossed, Pencil, Trash2, Sparkles, AlertTriangle, RefreshCw, Check, X, ScanSearch, CopyPlus } from "lucide-react";
+import { NotebookPen, UtensilsCrossed, Pencil, Trash2, Sparkles, AlertTriangle, RefreshCw, Check, X, ScanSearch, CopyPlus, Clock } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 import { fetchJson, postJson, patchJson } from "@api";
 import { vertexAI } from "../../lib/firebase.js";
@@ -135,7 +135,38 @@ const MEAL_TYPES = [
 const MEAL_LABEL = Object.fromEntries(MEAL_TYPES.map(({ value, label }) => [value, label]));
 
 const inputCls = "w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-slate-100";
-const EMPTY_FORM = { id: null, type: "breakfast", description: "", notes: "", kcal: "", protein: "", carbs: "", fat: "", grams: "" };
+
+// HH:MM in lokaler Zeit — Basis für die Zeitwahl im Formular. Meals wurden
+// bisher serverseitig immer mit "jetzt" gestempelt, unabhängig davon wann
+// tatsächlich gegessen wurde (bricht die Fastenfenster-Erkennung, wenn
+// nachträglich geloggt wird) — dieses Feld macht die echte Essenszeit
+// editierbar, mit "jetzt" nur als Default, nicht als Zwang.
+function nowHHMM() {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function emptyForm() {
+  return { id: null, type: "breakfast", description: "", notes: "", kcal: "", protein: "", carbs: "", fat: "", grams: "", time: nowHHMM() };
+}
+
+// HH:MM (lokal) aus einem gespeicherten ISO-Timestamp, für den Edit-Modus.
+function hhmmFromISO(iso) {
+  if (!iso) return nowHHMM();
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return nowHHMM();
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+// date (YYYY-MM-DD) + HH:MM (lokal) → ISO-Timestamp, wie ihn der Server
+// erwartet (logged_at/time). Ohne "Z"-Suffix parst der Date-Constructor
+// YYYY-MM-DDTHH:MM als lokale Zeit, toISOString() normalisiert auf UTC —
+// exakt dasselbe Format wie das bisherige new Date().toISOString().
+function toLoggedAt(date, hhmm) {
+  if (!date || !hhmm) return new Date().toISOString();
+  const d = new Date(`${date}T${hhmm}:00`);
+  return Number.isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+}
 
 function Field({ label, children }) {
   return (
@@ -152,7 +183,7 @@ export default function LogView({ date, nutrition, notes }) {
   const [loading, setLoading] = useState(false);
   
   // Food Form State
-  const [form, setForm] = useState(EMPTY_FORM);
+  const [form, setForm] = useState(emptyForm);
   // Referenz-Makros aus dem letzten Scan (ScannerModal), damit "Gewicht (g)"
   // korrigieren die Makros proportional mitzieht. Vorher: Foto-Analyse
   // schätzte z.B. 100g, das Gewicht-Feld war rein kosmetisch (nur Katalog-
@@ -427,12 +458,13 @@ export default function LogView({ date, nutrition, notes }) {
       };
     });
   };
-  const cancelEdit = () => { setForm(EMPTY_FORM); setMoveDate(""); };
+  const cancelEdit = () => { setForm(emptyForm()); setMoveDate(""); };
 
   function loadForEdit(meal) {
     setForm({ id: meal.id, type: meal.type, description: meal.description,
       notes: meal.notes || "", kcal: meal.kcal, protein: meal.protein,
-      carbs: meal.carbs, fat: meal.fat, grams: meal.grams || "" });
+      carbs: meal.carbs, fat: meal.fat, grams: meal.grams || "",
+      time: hhmmFromISO(meal.time || meal.logged_at) });
     setMoveDate("");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -444,7 +476,8 @@ export default function LogView({ date, nutrition, notes }) {
           date, meal_id: form.id,
           meal: { type: form.type, description: form.description, notes: form.notes,
             kcal: form.kcal, protein: form.protein, carbs: form.carbs, fat: form.fat,
-            grams: Number(form.grams) || null },
+            grams: Number(form.grams) || null,
+            time: toLoggedAt(moveDate || date, form.time) },
         };
         if (moveDate && moveDate !== date) body.new_date = moveDate;
         return patchJson("/nutrition/log", body);
@@ -453,14 +486,15 @@ export default function LogView({ date, nutrition, notes }) {
         date,
         meal: { type: form.type, description: form.description, notes: form.notes,
           kcal: form.kcal, protein: form.protein, carbs: form.carbs, fat: form.fat,
-          grams: Number(form.grams) || null },
+          grams: Number(form.grams) || null,
+          time: toLoggedAt(date, form.time) },
       });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["nutrition", date] });
       if (moveDate) qc.invalidateQueries({ queryKey: ["nutrition", moveDate] });
       qc.invalidateQueries({ queryKey: ["week-logs"] });
-      setForm(EMPTY_FORM);
+      setForm(emptyForm());
       setMoveDate("");
     },
   });
@@ -490,7 +524,7 @@ export default function LogView({ date, nutrition, notes }) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["nutrition", date] });
       qc.invalidateQueries({ queryKey: ["week-logs"] });
-      if (isEditing) setForm(EMPTY_FORM);
+      if (isEditing) setForm(emptyForm());
     },
   });
 
@@ -633,7 +667,36 @@ export default function LogView({ date, nutrition, notes }) {
               </Field>
             )}
           </div>
-          
+
+          <Field label="Uhrzeit">
+            <div className="flex flex-wrap items-center gap-2">
+              <Clock className="h-4 w-4 text-slate-500 shrink-0" />
+              <input type="time" className={twMerge(inputCls, "w-auto")} value={form.time} onChange={set("time")} />
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  ["Jetzt", 0],
+                  ["-30m", -30],
+                  ["-1h", -60],
+                  ["-2h", -120],
+                  ["-3h", -180],
+                ].map(([label, deltaMin]) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => {
+                      const base = deltaMin === 0 ? new Date() : new Date(`${date}T${form.time || nowHHMM()}:00`);
+                      if (deltaMin !== 0) base.setMinutes(base.getMinutes() + deltaMin);
+                      setForm((f) => ({ ...f, time: `${String(base.getHours()).padStart(2, "0")}:${String(base.getMinutes()).padStart(2, "0")}` }));
+                    }}
+                    className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-slate-300 transition hover:bg-white/10"
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </Field>
+
           <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
             <Field label="Beschreibung">
               <input className={inputCls} placeholder="Mahlzeit…" value={form.description} onChange={set("description")} />

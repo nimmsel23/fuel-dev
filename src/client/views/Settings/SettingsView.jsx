@@ -2,6 +2,7 @@ import React from "react";
 import AccountCard from "./AccountCard.jsx";
 import ProfileCard from "./ProfileCard.jsx";
 import FuelProfile from "./FuelProfile.jsx";
+import FuelFrameMap from "./FuelFrameMap.jsx";
 import GoalsCard from "./GoalsCard.jsx";
 import VersionCard from "./VersionCard.jsx";
 import SystemHealthCard from "./SystemHealthCard.jsx";
@@ -24,6 +25,7 @@ export default function SettingsView() {
         <hr className="border-white/10" />
         <FuelProfile bare />
       </section>
+      <FuelFrameMap sectionCls={sectionCls} />
       <GoalsCard sectionCls={sectionCls} labelCls={labelCls} inputCls={inputCls} />
       <PushRemindersCard sectionCls={sectionCls} labelCls={labelCls} inputCls={inputCls} />
       <VersionCard sectionCls={sectionCls} />

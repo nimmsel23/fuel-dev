@@ -45,11 +45,6 @@ export async function fetchJson(path) {
     const limitCount = parseInt(url.searchParams.get("limit") || "30");
     return { ok: true, history: await firestore.getMealsHistory(limitCount) };
   }
-  if (normPath.startsWith("/nutrition/frames")) {
-    const url = new URL(path, window.location.origin);
-    const limitCount = parseInt(url.searchParams.get("limit") || "20");
-    return { ok: true, frames: await firestore.getFuelFrames(limitCount) };
-  }
   if (normPath.startsWith("/nutrition/notes")) {
     const url = new URL(path, window.location.origin);
     const date = url.searchParams.get("date");
@@ -129,7 +124,10 @@ export async function postJson(path, body) {
       existing.meals = [...(existing.meals || []), {
         ...body.meal,
         id: body.meal.id || `meal_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
-        logged_at: body.meal.logged_at || new Date().toISOString(),
+        // "time" ist das lokale (Fastify/SQLite) Feld für die echte Essenszeit
+        // (LogView.jsx toLoggedAt()) — hier auf logged_at mappen, damit beide
+        // Channels dieselbe vom User gesetzte Zeit übernehmen statt "jetzt".
+        logged_at: body.meal.logged_at || body.meal.time || new Date().toISOString(),
       }];
     }
     await firestore.saveNutritionLog(body.date, existing);
@@ -139,11 +137,6 @@ export async function postJson(path, body) {
   if (normPath === "/nutrition/notes") {
     await firestore.saveNotes(body.date, body.content);
     return { ok: true };
-  }
-
-  if (normPath === "/nutrition/frame") {
-    const result = await firestore.saveFuelFrame(body.frame);
-    return { ok: true, ...result };
   }
 
   if (normPath === "/nutrition/catalog") {
@@ -218,19 +211,26 @@ export async function patchJson(path, body) {
   const normPath = normalizePath(path);
 
   if (normPath === "/nutrition/log") {
+    // "time" ist das lokale Feld für die Essenszeit (siehe LogView.jsx
+    // toLoggedAt()) — Cloud-Meals nutzen logged_at als kanonisches Feld dafür
+    // (vgl. postJson oben), sonst würde ein Zeit-Edit hier folgenlos bleiben.
+    const mealUpdate = body.meal?.time
+      ? { ...body.meal, logged_at: body.meal.time }
+      : body.meal;
+
     const existing = await firestore.getNutritionLog(body.date);
     const meals = [...(existing.meals || [])];
     const idx = meals.findIndex((m) => m.id === body.meal_id);
     if (idx !== -1) {
       if (body.new_date && body.new_date !== body.date) {
-        const movedMeal = { ...meals[idx], ...body.meal, id: body.meal_id };
+        const movedMeal = { ...meals[idx], ...mealUpdate, id: body.meal_id };
         meals.splice(idx, 1);
         await firestore.saveNutritionLog(body.date, { ...existing, meals });
         const targetLog = await firestore.getNutritionLog(body.new_date);
         targetLog.meals = [...(targetLog.meals || []), movedMeal];
         await firestore.saveNutritionLog(body.new_date, targetLog);
       } else {
-        meals[idx] = { ...meals[idx], ...body.meal };
+        meals[idx] = { ...meals[idx], ...mealUpdate };
         await firestore.saveNutritionLog(body.date, { ...existing, meals });
       }
     }

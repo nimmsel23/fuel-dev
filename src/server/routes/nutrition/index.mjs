@@ -8,7 +8,6 @@ import estimateRoute from "./estimate.mjs";
 import aiLogRoute from "./ai-log.mjs";
 import visionRoute from "./vision.mjs";
 import aiCoachRoute from "./ai-coach.mjs";
-import framesRoute from "./frames.mjs";
 import fastingRoute from "./fasting.mjs";
 
 export default async function nutritionRoute(app) {
@@ -22,6 +21,5 @@ export default async function nutritionRoute(app) {
   app.register(aiLogRoute);
   app.register(visionRoute);
   app.register(aiCoachRoute);
-  app.register(framesRoute);
   app.register(fastingRoute);
 }

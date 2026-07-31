@@ -13,4 +13,4 @@ export * from "./nutrition.js";
 export * from "./notes.js";
 export * from "./supplements.js";
 export * from "./journal.js";
-export * from "./frames.js";
+export * from "./fuelframe.js";

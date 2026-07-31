@@ -10,6 +10,7 @@ import "./styles.css";
 import { TAB_CONFIG } from "./routes.js";
 import TabContent from "./components/TabContent.jsx";
 import NutritionHeatmap from "./components/NutritionHeatmap.jsx";
+import { IosInstallHint } from "./components/IosInstallHint.jsx";
 import { useApp, useSettings } from "./store.js";
 import { useAppData } from "./hooks/useAppData.js";
 import { sumMetric, formatMetric } from "../shared/utils/utils.js";
@@ -108,8 +109,10 @@ function App() {
   const tabCtx = { nutrition, sup, suppCatalog, suppLog, journal, macroTrend, activeDate, setActiveDate, setActiveTab };
 
   return (
-    <div className="min-h-screen text-slate-100">
-      <div className="mx-auto max-w-7xl px-4 py-6 lg:px-8">
+    <>
+      <IosInstallHint />
+      <div className="min-h-screen text-slate-100">
+        <div className="mx-auto max-w-7xl px-4 py-6 lg:px-8">
         <header className="mb-6 grid gap-4 rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-glow backdrop-blur">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
@@ -193,8 +196,9 @@ function App() {
             </motion.div>
           </AnimatePresence>
         </main>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 

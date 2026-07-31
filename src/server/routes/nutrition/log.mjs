@@ -18,6 +18,10 @@ const logPostSchema = z.object({
     protein: z.coerce.number().min(0).optional(),
     carbs: z.coerce.number().min(0).optional(),
     fat: z.coerce.number().min(0).optional(),
+    // Vom Client vorausberechneter ISO-Timestamp (echte Essenszeit statt
+    // "jetzt") — siehe toLoggedAt() in LogView.jsx. Optional, fällt sonst
+    // auf new Date().toISOString() zurück (Quicklog-Fall).
+    time: z.string().optional(),
   }).optional(),
   // Quicklog from catalog: resolve macros server-side
   catalog_item_id: z.string().optional(),
@@ -145,6 +149,7 @@ const logPatchSchema = z.object({
     protein: z.coerce.number().min(0).optional(),
     carbs: z.coerce.number().min(0).optional(),
     fat: z.coerce.number().min(0).optional(),
+    time: z.string().optional(),
   }).optional(),
 });
 
@@ -251,7 +256,7 @@ export default async function logRoute(app) {
           description: m.description,
           notes: m.notes || "",
           kcal: m.kcal || 0, protein: m.protein || 0, carbs: m.carbs || 0, fat: m.fat || 0,
-          time: new Date().toISOString(),
+          time: m.time || new Date().toISOString(),
         });
         fireMicrosEstimate(m.description, m.kcal || 0);
       }
