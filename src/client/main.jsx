@@ -11,6 +11,7 @@ import { TAB_CONFIG } from "./routes.js";
 import TabContent from "./components/TabContent.jsx";
 import NutritionHeatmap from "./components/NutritionHeatmap.jsx";
 import { IosInstallHint } from "./components/IosInstallHint.jsx";
+import { InstallPromptHandler } from "./components/InstallPromptHandler.jsx";
 import { useApp, useSettings } from "./store.js";
 import { useAppData } from "./hooks/useAppData.js";
 import { sumMetric, formatMetric } from "../shared/utils/utils.js";
@@ -110,6 +111,7 @@ function App() {
 
   return (
     <>
+      <InstallPromptHandler />
       <IosInstallHint />
       <div className="min-h-screen text-slate-100">
         <div className="mx-auto max-w-7xl px-4 py-6 lg:px-8">
