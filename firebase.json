@@ -2,7 +2,7 @@
   "_note": "Firestore rules SSOT = ~/vitalos/firestore.rules — NEVER add a firestore block here or deploy rules from fuel-dev. Only vitalos deploys rules.",
   "functions": {
     "source": "functions",
-    "runtime": "nodejs20"
+    "runtime": "nodejs22"
   },
   "hosting": {
     "site": "fuel-vos",
