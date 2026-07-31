@@ -1,16 +1,11 @@
 import { Utensils, HeartPulse, Activity, Gauge, ScanSearch, ChevronDown } from "lucide-react";
 import { useSettings } from "../../store.js";
 
-// FuelProfile — läuft optisch direkt an ProfileCard.jsx an (auf
-// User-Wunsch 2026-07-31 Teil von Profil, wo auch Größe/Gewicht stehen).
-// Alles hier sind schlichte Ernährungs-Anamnese-Felder, kein "Frame"/
-// Snapshot-Konzept — jedes Feld speichert automatisch über setSetting()
-// (wie der Rest der App), es gibt keinen Save-Button und keine Historie.
-// Basis-Felder (Ernährungsform / Verträglichkeit / Gesundheit) sind immer
-// sichtbar, die selteneren Detail-Felder (Aktuelle Situation / Review)
-// stecken hinter einem "Weitere Details"-Accordion, rein aus Platzgründen.
-// Alle Felder optional, dienen dem Coach als Kontext, kein Pflicht-Gate.
-
+// FuelProfile — Ernährungs-Profilfragen, einmal beantwortet und danach
+// selten geändert (Ernährungsform, Verträglichkeit, Gesundheit, Aktuelle
+// Situation, Review). Kein "Frame"-Konzept — das ist etwas anderes
+// (FuelFrameMap.jsx, AlphaOS-Frame-Map-Analogon). Läuft optisch direkt an
+// ProfileCard.jsx an, jedes Feld speichert automatisch über setSetting().
 const labelCls = "text-xs uppercase tracking-[0.18em] text-slate-500 mb-1 block";
 const inputCls = "w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-slate-100";
 
@@ -127,9 +122,7 @@ export default function FuelProfile({ sectionCls, bare = false }) {
 
       <details className="group mt-4 rounded-2xl border border-white/10">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3">
-          <span className="flex items-center gap-2 text-sm font-semibold text-slate-300">
-            Weitere Details
-          </span>
+          <span className="flex items-center gap-2 text-sm font-semibold text-slate-300">Weitere Details</span>
           <ChevronDown className="h-4 w-4 text-slate-500 transition-transform group-open:rotate-180" />
         </summary>
         <div className="grid gap-3 border-t border-white/10 p-4">

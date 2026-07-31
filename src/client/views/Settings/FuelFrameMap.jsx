@@ -2,12 +2,14 @@ import { useState, useEffect } from "react";
 import { Compass, Loader2 } from "lucide-react";
 import * as db from "../../lib/db.firestore.js";
 
-// FuelFrameMap — Anamnese für den Klienten nach dem AlphaOS-Frame-Map-Muster
-// (~/aos/game/gas-frame-map): 5 feste Reflexionsfragen, aber nur die Domain
-// "Fuel" statt aller vier (Body/Being/Balance/Business) — sonst explodiert
-// dem Klienten der Kopf. Kein Snapshot-Verlauf, ein aktueller Stand, direkt
-// gegen Firestore (users/{uid}/meta/fuelFrame) — bewusst losgelöst vom
-// lokalen Settings-Store/Sync-System, das ist ein eigenständiges Feld.
+// FuelFrameMap — echte Frame Map nach AlphaOS-Vorbild (~/aos/game/gas-frame-map):
+// 5 feste Reflexionsfragen, aber nur die Domain "Fuel" statt aller vier
+// (Body/Being/Balance/Business) — sonst explodiert dem Klienten der Kopf.
+// KEINE Profil-Felder hier (die gehören zu FuelProfile.jsx) — Frame ist
+// kein Ersatzname für Profil, sondern ein eigenständiges Reflexions-Tool.
+// Kein Snapshot-Verlauf, ein aktueller Stand, direkt gegen Firestore
+// (users/{uid}/meta/fuelFrame) — bewusst losgelöst vom lokalen
+// Settings-Store/Sync-System.
 const FIELDS = [
   { key: "whereNow", label: "Wo stehe ich aktuell mit meiner Ernährung?" },
   { key: "howGotHere", label: "Wie bin ich hierher gekommen?" },
