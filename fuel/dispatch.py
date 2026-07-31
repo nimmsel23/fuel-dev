@@ -486,7 +486,20 @@ def main() -> None:
     # zu einem Text zusammengefügt — Gemini summiert Komponenten selbst
     # (siehe PROMPT_TEMPLATE Punkt 3 in fuel/gemini.py).
     description = " ".join(rest)
-    sys.exit(_meal_log(description, date_flags, meal_type))
+
+    # Führende Menge abtrennen ("3 käsleberkässemmeln" → qty=3, "käsleberkässemmeln").
+    # Ohne das landete die Zahl im Beschreibungstext: Catalog-Match schlug fehl
+    # (falscher String), UND --save-catalog speicherte die GESAMTSUMME für N
+    # Stück als vermeintlichen Pro-Stück-Wert ab (do_meal_log kennt qty>1 nur
+    # über --qty, nicht aus der Beschreibung) — Quelle der Geister-Duplikate
+    # im Meal-Catalog.
+    qty_args: list[str] = []
+    m = re.match(r"^(\d+)\s+(.+)$", description)
+    if m:
+        qty_args = ["--qty", m.group(1)]
+        description = m.group(2)
+
+    sys.exit(_meal_log(description, date_flags + qty_args, meal_type))
 
 
 if __name__ == "__main__":
