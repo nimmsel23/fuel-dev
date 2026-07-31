@@ -62,7 +62,12 @@ Beide Channels teilen sich **dieselbe React-Codebase** in `src/client/` — Unte
 
 **Data location (local):** `~/.aos/fuel/` (via `AOS_FUEL_DATA_DIR`)
 **Data location (cloud):** Firestore — Collections `nutrition/{uid}/logs`, `supplements/{uid}/logs`, `users/{uid}/meta`
-**Catalogs:** Im Repo unter `catalogs/` (git-tracked, local); Firestore `nutrition/{uid}/meta/catalog` (cloud)
+**Catalogs:** Im Repo unter `catalogs/` (git-tracked, local); Firestore `nutrition/{uid}/meta/catalog` (cloud).
+Sync-Richtung: lokal ist Master, **aber nur solange der lokale Server läuft** — jeder lokale Katalog-Save
+pusht den kompletten Dateistand per Merge (`pushNutritionCatalog`, `server/lib/firestore-admin.mjs`) nach
+Firestore. Ist der lokale Server offline, ist Firestore die einzig aktive Instanz; Cloud-Änderungen aus
+dieser Zeit werden beim nächsten lokalen Push jetzt gemerged statt überschrieben (Fix 2026-07-31, vorher
+`merge:false`-Full-Overwrite, siehe Git-Historie).
 **Build output local:** `/opt/fuel` (via `FUEL_BUILD_DIR`)
 **Build output cloud:** `./dist-firebase/` → Firebase Hosting
 

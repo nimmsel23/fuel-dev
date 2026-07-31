@@ -112,6 +112,17 @@ export function deleteMeal(id) {
   }
 }
 
+// IDs aller lokal tombstoned Meals — Grundlage für pushNutritionCatalog()'s
+// Merge (eine lokale Löschung muss auch dann gewinnen, wenn Firestore die ID
+// zwischenzeitlich wieder enthält, z.B. weil sie während lokaler Downtime
+// über die Cloud-UI neu angelegt wurde).
+export function listDeletedMealIds() {
+  if (!fs.existsSync(NUTRITION_MEALS_DIR)) return [];
+  return fs.readdirSync(NUTRITION_MEALS_DIR)
+    .filter((f) => f.includes(".deleted"))
+    .map((f) => path.basename(f.replace(/\.(yaml|yml|json)\.deleted$/, "")));
+}
+
 export function normalizeMeal(input, existingId = null) {
   const name = (input.name || input.description || "").toString().trim();
   if (!name) return null;

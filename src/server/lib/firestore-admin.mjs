@@ -121,16 +121,45 @@ function markPushError(message) {
 // ── PUSH ─────────────────────────────────────────────────────────────────────
 
 /**
- * Push the full nutrition meal catalog to Firestore.
- * Called fire-and-forget after every catalog mutation.
+ * Push the nutrition meal catalog to Firestore — MERGED, not overwritten.
+ *
+ * Vorher (bis 2026-07-31): merge:false Full-Overwrite mit dem lokalen
+ * Dateistand. Das hat Katalog-Löschungen, die während lokaler Downtime über
+ * die Cloud-UI gemacht wurden, beim nächsten lokalen Push kommentarlos
+ * rückgängig gemacht (lokal war ja "nicht informiert" über die
+ * Cloud-Löschung) — siehe git log für den konkreten Vorfall
+ * (meal_ashwagandha/kasekrainer/nussschnecke kamen wiederholt zurück).
+ *
+ * Jetzt: 3-Wege-Merge pro ID —
+ *   1. Remote-Katalog laden.
+ *   2. Lokale Items reinmergen, aber nur wenn sie neuer sind (updated_at)
+ *      oder remote die ID noch gar nicht kennt — Cloud-Items, die lokal
+ *      unbekannt sind (z.B. während Downtime hinzugefügt), bleiben erhalten.
+ *   3. Lokal tombstoned IDs werden explizit aus dem Ergebnis entfernt —
+ *      eine lokale Löschung gewinnt IMMER, unabhängig vom Remote-Stand.
  */
 export async function pushNutritionCatalog(items) {
   const db = getDb();
   if (!db) return;
   try {
-    await db.collection("nutrition").doc(UID).collection("meta").doc("catalog")
-      .set({ items, updated_at: new Date().toISOString() }, { merge: false });
-    console.log(`[firestore-admin] 📤 nutrition/meta/catalog (${items.length} items)`);
+    const { listDeletedMealIds } = await import("../services/nutrition-catalog.mjs");
+    const ref = db.collection("nutrition").doc(UID).collection("meta").doc("catalog");
+
+    const snap = await ref.get();
+    const remoteItems = snap.exists ? (snap.data().items || []) : [];
+
+    const merged = new Map(remoteItems.map((it) => [it.id, it]));
+    for (const local of items) {
+      const remote = merged.get(local.id);
+      const localNewer = !remote || !remote.updated_at || !local.updated_at
+        || new Date(local.updated_at) >= new Date(remote.updated_at);
+      if (localNewer) merged.set(local.id, local);
+    }
+    for (const deletedId of listDeletedMealIds()) merged.delete(deletedId);
+
+    const mergedItems = Array.from(merged.values());
+    await ref.set({ items: mergedItems, updated_at: new Date().toISOString() }, { merge: false });
+    console.log(`[firestore-admin] 📤 nutrition/meta/catalog (${mergedItems.length} items, merged)`);
     markPushOk();
   } catch (e) {
     console.error("[firestore-admin] pushNutritionCatalog failed:", e.message);
