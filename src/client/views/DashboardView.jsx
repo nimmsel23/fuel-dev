@@ -4,6 +4,8 @@ import DailyGoals from "./Dashboard/DailyGoals.jsx";
 import MacroTrendChart from "./Dashboard/MacroTrendChart.jsx";
 import TodayMeals from "./Dashboard/TodayMeals.jsx";
 import JournalWidget from "./Dashboard/JournalWidget.jsx";
+import MealStreakWidget from "./Dashboard/MealStreakWidget.jsx";
+import FirstMealTrend from "./Dashboard/FirstMealTrend.jsx";
 import QuickAiLog from "../components/QuickAiLog.jsx";
 import IncompleteDayHint from "./Dashboard/IncompleteDayHint.jsx";
 import FastingWindowBadge from "../components/FastingWindowBadge.jsx";
@@ -23,12 +25,14 @@ export default function DashboardView({ nutrition, sup, journal, macroTrend, set
         <QuickAiLog date={activeDate} />
         <IncompleteDayHint totalKcal={totalKcal} isToday={isToday} />
         <FastingWindowBadge />
+        <FirstMealTrend activeDate={activeDate} />
         <StatsGrid mealsCount={meals.length} totalProtein={totalProtein} waterMl={waterMl} />
         <DailyGoals totalKcal={totalKcal} totalProtein={totalProtein} waterMl={waterMl} />
         <MacroTrendChart macroTrend={macroTrend} />
       </div>
 
       <aside className="grid gap-6">
+        <MealStreakWidget activeDate={activeDate} />
         <TodayMeals meals={meals} setActiveTab={setActiveTab} />
         <JournalWidget journal={journal} streak={streak} />
       </aside>
