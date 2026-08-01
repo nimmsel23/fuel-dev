@@ -4,7 +4,8 @@ category: meal
 name: Eierspeise Freiland
 meal_type: meal
 description: Eierspeise mit Freiland-Eiern, Salz und Pfeffer
-notes: Base-Rezept mit Addons für verschiedene Portionsgrößen (2er, 3er, 5er, 6er,
+notes: >-
+  Base-Rezept mit Addons für verschiedene Portionsgrößen (2er, 3er, 5er, 6er,
   10er). Makros 2026-08-01 gegen USDA FDC (Egg, whole, raw, fresh, fdcId 171287)
   verifiziert — vorherige wger-Werte lagen 2-4% niedriger, innerhalb normaler
   Datenbank-Schwankung, keine Korrektur nötig gewesen, aber USDA-Basis jetzt

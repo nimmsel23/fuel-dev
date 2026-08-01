@@ -56,7 +56,7 @@ export default defineConfig(async () => {
   console.log(`🚀 Building for local channel (APP_MODE: ${appMode}) -> outDir: ${outDir}`);
 
   return {
-    base: "/",
+    base: "./",
     define: {
       "import.meta.env.VITE_APP_MODE": JSON.stringify(appMode),
     },

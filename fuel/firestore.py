@@ -118,6 +118,26 @@ def _strip_firestore_fields(obj: dict) -> dict:
     return {k: v for k, v in obj.items() if k not in ("updated_at", "_firestore_updated")}
 
 
+def _locally_deleted_meal_ids() -> set[str]:
+    """IDs aller lokal tombstoned Meal-Catalog-Einträge (*.yaml.deleted etc.).
+
+    Schwester-Implementierung zu listDeletedMealIds() in
+    nutrition-catalog.mjs — eine lokale Löschung muss auch beim Python-Sync
+    gewinnen, egal was Firestore noch an alten Docs hat.
+    """
+    meals_dir = ROOT / "catalogs" / "nutrition" / "meals"
+    if not meals_dir.exists():
+        return set()
+    ids = set()
+    for f in meals_dir.glob("*.deleted"):
+        stem = f.name
+        for ext in (".yaml.deleted", ".yml.deleted", ".json.deleted"):
+            if stem.endswith(ext):
+                ids.add(stem[: -len(ext)])
+                break
+    return ids
+
+
 # ── Merge ─────────────────────────────────────────────────────────────────────
 
 def _merge_by_id(a: list[dict], b: list[dict]) -> list[dict]:
@@ -240,12 +260,26 @@ def sync_supplements_catalog(direction: str, uid: str, data_dir: Path) -> dict:
     return {"catalog_items": len(merged_items)}
 
 
+def _export_catalog_json(items: list[dict]) -> None:
+    """Regeneriert die Legacy-catalog.json rein als Export der aktuellen
+    Meal-YAMLs — kein unabhängiges Schreibziel mehr (Fix 2026-08-01: der
+    Firestore-Pull schrieb hier vorher ungefiltert rein und ignorierte
+    Tombstones, wodurch gelöschte Einträge wie Ashwagandha/Käsekrainer über
+    catalog_lookup.py wieder auftauchten). SSOT bleiben die Einzel-Files
+    unter catalogs/nutrition/meals/ — catalog.json ist nur noch ein
+    generierter Snapshot für Alt-Konsumenten, die eine einzelne JSON-Datei
+    erwarten.
+    """
+    nutrition_dir = ROOT / "catalogs" / "nutrition"
+    nutrition_dir.mkdir(parents=True, exist_ok=True)
+    _write_json(nutrition_dir / "catalog.json", {"items": items})
+
+
 def sync_nutrition_catalog(direction: str, uid: str, data_dir: Path) -> dict:
     fs = get_fs()
     local_items = []
     seen_ids = set()
-    
-    # A) Check individual meal files in catalogs/ (support .yaml, .yml, .json)
+
     meals_dir = ROOT / "catalogs" / "nutrition" / "meals"
     if meals_dir.exists():
         for ext in ("yaml", "yml", "json"):
@@ -261,50 +295,50 @@ def sync_nutrition_catalog(direction: str, uid: str, data_dir: Path) -> dict:
                         seen_ids.add(iid)
                 except Exception as e:
                     logger.error(f"Fehler beim Laden von Meal-File {f.name}: {e}")
-                    
-    # B) Fallback/Legacy: central catalog.json OR catalog.yaml
-    nutrition_dir = ROOT / "catalogs" / "nutrition"
-    for legacy_name in ("catalog.yaml", "catalog.json"):
-        legacy_path = nutrition_dir / legacy_name
-        if legacy_path.exists():
-            try:
-                raw = legacy_path.read_text(encoding="utf-8")
-                data = json.loads(raw) if legacy_name.endswith(".json") else yaml.safe_load(raw)
-                items = data.get("items") if isinstance(data, dict) else data
-                if isinstance(items, list):
-                    for item in items:
-                        iid = item.get("id")
-                        if iid and iid not in seen_ids:
-                            local_items.append(item)
-                            seen_ids.add(iid)
-                    break
-            except Exception as e:
-                logger.error(f"Fehler beim Laden von legacy catalog {legacy_name}: {e}")
-                
+
     doc_ref = fs.collection("nutrition").document(uid).collection("meta").document("catalog")
     snap = doc_ref.get()
     remote_items = snap.to_dict().get("items", []) if snap.exists else []
-    
+
+    # Eine lokale Löschung (Tombstone-Rename auf .deleted) muss IMMER gewinnen
+    # — unabhängig davon, ob Firestore die ID noch führt. Ohne diesen Filter
+    # kommen tombstoned Katalog-Einträge (z.B. Ashwagandha, Käsekrainer) über
+    # jeden push/pull wieder rein, weil _merge_by_id nur addieren kann.
+    deleted_ids = _locally_deleted_meal_ids()
+    remote_items = [it for it in remote_items if it.get("id") not in deleted_ids]
+
     if direction == "push":
         merged_items = _merge_by_id(local_items, remote_items)
+        doc_ref.set({"items": merged_items}, merge=True)
     elif direction == "push-snapshot":
         # Echter Snapshot-Push: lokale Dateien sind die Wahrheit, kein Union-
         # Merge mit Remote — sonst tauchen lokal gelöschte Katalog-Einträge
         # (z.B. bei einer Duplikat-Bereinigung) nach dem nächsten Push wieder
         # in Firestore auf (_merge_by_id kann nur hinzufügen, nie entfernen).
         merged_items = [_strip_firestore_fields(item) for item in local_items]
+        doc_ref.set({"items": merged_items})  # kein merge=True — echtes Overwrite
     elif direction == "pull":
-        merged_items = remote_items
-        legacy_json = nutrition_dir / "catalog.json"
-        nutrition_dir.mkdir(parents=True, exist_ok=True)
-        _write_json(legacy_json, {"items": merged_items})
+        # SSOT bleiben die Einzel-YAMLs. Neue/geänderte Remote-Items werden
+        # direkt als eigene .yaml-Files in meals_dir geschrieben statt in
+        # eine zentrale catalog.json — so greifen Tombstones (.deleted) auch
+        # beim Pull, und Node + Python sehen denselben Datenstand.
+        meals_dir.mkdir(parents=True, exist_ok=True)
+        for item in remote_items:
+            iid = item.get("id")
+            if not iid or iid in seen_ids:
+                continue
+            clean = _strip_firestore_fields(item)
+            (meals_dir / f"{iid}.yaml").write_text(
+                yaml.safe_dump(clean, allow_unicode=True, sort_keys=False), encoding="utf-8"
+            )
+            local_items.append(clean)
+            seen_ids.add(iid)
+        merged_items = local_items
     else:
         merged_items = _merge_by_id(local_items, remote_items)
-
-    if direction == "push-snapshot":
-        doc_ref.set({"items": merged_items})  # kein merge=True — echtes Overwrite
-    else:
         doc_ref.set({"items": merged_items}, merge=True)
+
+    _export_catalog_json(merged_items)
     return {"catalog_items": len(merged_items)}
 
 
@@ -505,6 +539,10 @@ def push_uid_batched(uid: str, data_dir: Path) -> dict:
             except Exception as e:
                 logger.error(f"Fehler beim Laden von legacy catalog {legacy_name}: {e}")
                 
+    if nutrition_items:
+        deleted_ids = _locally_deleted_meal_ids()
+        nutrition_items = [it for it in nutrition_items if it.get("id") not in deleted_ids]
+
     if nutrition_items:
         ref = fs.collection("nutrition").document(uid).collection("meta").document("catalog")
         meta = remote_meta(ref)

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { isISODate, todayISO } from "../../../shared/utils/validation.mjs";
 import path from "path";
 import fs from "fs";
-import { loadCatalog } from "../../services/nutrition-catalog.mjs";
+import { loadCatalog, addOrUpdateItem } from "../../services/nutrition-catalog.mjs";
 import { estimateMicros } from "../../services/nutrition-estimate-micros.mjs";
 import { getMicrosForMeal, saveMicrosForMeal } from "../../services/nutrition-micros.mjs";
 import { upsertMeal, deleteMeal as deleteMealRow, upsertWater, getMealsForDate } from "../../services/nutrition-db.mjs";
@@ -33,7 +33,14 @@ const logPostSchema = z.object({
 function loadLog(date, nutritionDir) {
   const filePath = path.join(nutritionDir, `${date}.json`);
   if (fs.existsSync(filePath)) {
-    try { return JSON.parse(fs.readFileSync(filePath, "utf-8")); } catch { /* fall through */ }
+    try {
+      const data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+      // Legacy-Files (u.a. per Firestore-Pull ohne date-Backfill entstanden)
+      // haben teils kein top-level "date" — saveLog() hängt sich sonst an
+      // `${log.date}.json` auf und schreibt lautlos nach "undefined.json",
+      // wodurch Deletes/Edits nie im echten Tages-File ankommen.
+      return { date, meals: [], water_ml: 0, ...data, date };
+    } catch { /* fall through */ }
   }
   return { date, meals: [], water_ml: 0 };
 }
@@ -164,6 +171,41 @@ function fireMicrosEstimate(description, kcal) {
     .catch((e) => console.warn(`[micros] estimate failed for "${description}":`, e.message));
 }
 
+function normalizeMealName(name) {
+  return String(name || "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+// Jedes freihändig geloggte Meal (kein bestehender catalog_item_id) landet
+// automatisch im Katalog — aber nur als NEUER Eintrag, wenn noch keiner mit
+// demselben normalisierten Namen existiert. Gibt es schon einen Treffer,
+// fassen wir ihn nicht an — sonst würde jedes lässige Relog mit leicht
+// abweichenden Zahlen einen bereits verifizierten Katalogeintrag lautlos
+// wieder mit Rohwerten überschreiben. Neue Einträge bekommen source:
+// "gemini", damit der wöchentliche fuel-catalog-verify-Timer (Haiku+
+// WebSearch) sie im Zweifelsfall gegen echte Herstellerangaben recherchiert.
+function autoUpsertCatalog(m) {
+  if (m.catalog_id || !m.description) return;
+  try {
+    const catalog = loadCatalog();
+    const nameNorm = normalizeMealName(m.description);
+    const existing = catalog.items.find((i) => normalizeMealName(i.name) === nameNorm);
+    if (existing) return;
+    addOrUpdateItem(catalog, {
+      name: m.description,
+      description: m.description,
+      meal_type: m.type || "meal",
+      notes: m.notes || "",
+      kcal: m.kcal || 0,
+      protein: m.protein || 0,
+      carbs: m.carbs || 0,
+      fat: m.fat || 0,
+      source: "gemini",
+    });
+  } catch (e) {
+    console.warn(`[nutrition-catalog] auto-upsert failed for "${m.description}":`, e.message);
+  }
+}
+
 export default async function logRoute(app) {
   app.get("/nutrition/log", async (req, reply) => {
     const date = (req.query.date || todayISO()).toString();
@@ -259,6 +301,7 @@ export default async function logRoute(app) {
           time: m.time || new Date().toISOString(),
         });
         fireMicrosEstimate(m.description, m.kcal || 0);
+        autoUpsertCatalog(m);
       }
 
       if (parsed.data.delete_meal_id) {

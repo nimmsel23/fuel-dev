@@ -7,7 +7,6 @@ Per-Unit-Makros nutzen, null Gemini-Calls verbrauchen.
 from __future__ import annotations
 
 import json
-import os
 import re
 import unicodedata
 from datetime import datetime, timezone
@@ -21,13 +20,6 @@ from . import log as _log
 _log.setup()
 
 REPO_CATALOG_DIR = Path(__file__).resolve().parent.parent / "catalogs" / "nutrition" / "meals"
-# Legacy zentrale Catalog-Datei (vor der Umstellung auf ein YAML-File pro
-# Meal) — enthält weiterhin echte, git-unabhängige Einträge (z.B. Restaurant-
-# Kombos). Wird mitgelesen, damit sie für find_meal() nicht unsichtbar sind.
-_LEGACY_CATALOG_FILE = (
-    Path(os.environ.get("AOS_FUEL_DATA_DIR", Path.home() / ".aos" / "fuel")).expanduser()
-    / "nutrition" / "catalog.json"
-)
 
 # Wörter, die in Catalog-Namen typisch für "schlechte" Einträge mit Mengen sind
 _QUANTITY_NOISE = re.compile(r"\d+\s*(g|gr|gramm|ml|stk|stück|x)\b", re.IGNORECASE)
@@ -62,6 +54,13 @@ def _normalize_singular(s: str) -> str:
 
 
 def _load_catalog_from_repo() -> list[dict]:
+    """Lädt den Meal-Catalog aus den Einzel-Files (SSOT). catalog.json ist
+    seit 2026-08-01 nur noch ein generierter Export davon (siehe
+    firestore.py::_export_catalog_json) — kein eigenständiger Datenpfad mehr,
+    also auch keine separate Legacy-Merge-Logik mehr nötig. Tombstones
+    (*.yaml.deleted) sind hier automatisch ausgeschlossen, weil sie nicht auf
+    ".yaml"/".json" enden.
+    """
     items: list[dict] = []
     if not REPO_CATALOG_DIR.exists():
         return items
@@ -83,15 +82,6 @@ def _load_catalog_from_repo() -> list[dict]:
             items.append(json.loads(f.read_text()))
         except Exception as e:
             logger.warning(f"catalog json parse failed for {f.name}: {e}")
-
-    if _LEGACY_CATALOG_FILE.exists():
-        try:
-            data = json.loads(_LEGACY_CATALOG_FILE.read_text())
-            for it in data.get("items", []):
-                if it.get("id") not in seen_ids:
-                    items.append(it)
-        except Exception as e:
-            logger.warning(f"legacy catalog.json parse failed: {e}")
 
     return items
 
