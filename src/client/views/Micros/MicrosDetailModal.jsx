@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine, Cell as RCell } from "recharts";
 import { pctColor } from "./utils.js";
@@ -6,16 +7,35 @@ export default function MicrosDetailModal({ nutrient, week, weekData, onClose })
   const { key, label, unit } = nutrient;
   const status = weekData?.rda_comparison?.[key];
   const dayBreakdown = weekData?.day_breakdown || {};
+  const mealBreakdown = weekData?.meal_breakdown || {};
+  const dates = weekData?.dates || [];
 
-  const chartData = (weekData?.dates || []).map((date) => ({
+  const chartData = dates.map((date) => ({
     date: date.slice(5), // MM-DD
+    fullDate: date,
     value: dayBreakdown[date]?.[key] ?? 0,
   }));
+
+  // Standardmäßig der letzte Tag mit Daten für diesen Nährstoff — Klick auf
+  // einen Balken wechselt die Auswahl (siehe Bar onClick unten).
+  const defaultDate = useMemo(() => {
+    const withData = [...chartData].reverse().find((d) => d.value > 0);
+    return (withData || chartData[chartData.length - 1])?.fullDate;
+  }, [weekData, key]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const [selectedDate, setSelectedDate] = useState(defaultDate);
+  const activeDate = selectedDate && dates.includes(selectedDate) ? selectedDate : defaultDate;
+
+  const contributions = (mealBreakdown[activeDate] || [])
+    .map((entry) => ({ ...entry, value: entry.micros?.[key] ?? 0 }))
+    .filter((entry) => entry.value > 0)
+    .sort((a, b) => b.value - a.value);
+  const activeDayTotal = dayBreakdown[activeDate]?.[key] ?? 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="w-full max-w-lg rounded-2xl bg-slate-900 shadow-2xl ring-1 ring-white/10"
+        className="w-full max-w-lg rounded-2xl bg-slate-900 shadow-2xl ring-1 ring-white/10 max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-white/10 p-4">
@@ -64,17 +84,65 @@ export default function MicrosDetailModal({ nutrient, week, weekData, onClose })
                 {status && (
                   <ReferenceLine y={status.dach} stroke="rgba(255,255,255,0.35)" strokeDasharray="4 4" />
                 )}
-                <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                  {chartData.map((d, i) => (
-                    <RCell key={i} fill={pctColor(status ? Math.round((d.value / status.dach) * 100) : null).bg} />
-                  ))}
+                <Bar
+                  dataKey="value"
+                  radius={[4, 4, 0, 0]}
+                  cursor="pointer"
+                  onClick={(d) => d?.fullDate && setSelectedDate(d.fullDate)}
+                >
+                  {chartData.map((d, i) => {
+                    const color = pctColor(status ? Math.round((d.value / status.dach) * 100) : null).bg;
+                    const isActive = d.fullDate === activeDate;
+                    return (
+                      <RCell
+                        key={i}
+                        fill={color}
+                        stroke={isActive ? "#e2e8f0" : "transparent"}
+                        strokeWidth={isActive ? 2 : 0}
+                      />
+                    );
+                  })}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
           <p className="mt-3 text-[11px] text-slate-600">
-            Gestrichelte Linie = DACH-Tagesreferenz ({status?.dach ?? "—"} {unit}).
+            Gestrichelte Linie = DACH-Tagesreferenz ({status?.dach ?? "—"} {unit}). Balken anklicken für Beiträge dieses Tages.
           </p>
+
+          <div className="mt-5 border-t border-white/10 pt-4">
+            <div className="mb-2 flex items-center justify-between">
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Beiträge — {activeDate ? activeDate.slice(5).split("-").reverse().join(".") : "—"}
+              </h4>
+              <span className="text-xs text-slate-500">{activeDayTotal} {unit} gesamt</span>
+            </div>
+            {contributions.length === 0 ? (
+              <p className="text-sm text-slate-600">Keine Einträge mit {label}-Beitrag an diesem Tag.</p>
+            ) : (
+              <ul className="space-y-1.5">
+                {contributions.map((entry, i) => {
+                  const pct = activeDayTotal > 0 ? Math.round((entry.value / activeDayTotal) * 100) : 0;
+                  return (
+                    <li key={i} className="flex items-center gap-3 rounded-lg bg-white/5 px-3 py-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm text-slate-200">
+                          {entry.kind === "supplement" ? "💊 " : "🍽 "}{entry.name}
+                        </div>
+                        <div className="h-1 mt-1 rounded-full bg-white/10 overflow-hidden">
+                          <div className="h-full rounded-full bg-violet-400/70" style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                      <div className="shrink-0 text-right text-sm font-medium text-slate-200">
+                        {entry.value} {unit}
+                        <div className="text-[10px] font-normal text-slate-500">{pct}%</div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
         </div>
       </div>
     </div>

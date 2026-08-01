@@ -35,8 +35,12 @@ function saveNutritionLog(log) {
   fs.writeFileSync(path.join(NUTRITION_DIR, `${log.date}.json`), JSON.stringify(log, null, 2), "utf-8");
 }
 
+// Gibt zusätzlich die Pro-Supplement-Beiträge zurück (für Modal-Aufschlüsselung
+// "welcher Eintrag hat wie viel beigetragen") — dayTotals bleibt wie bisher
+// die aufsummierte Quelle für Heatmap/Status.
 function addSupplementMicros(dayTotals, date, supplementCatalogMap) {
   const suppLog = loadSupplementLog(date);
+  const contributions = [];
   for (const intake of suppLog.intakes || []) {
     const entry = supplementCatalogMap[intake.supplement_id];
     if (!entry?.micros) continue;
@@ -46,12 +50,23 @@ function addSupplementMicros(dayTotals, date, supplementCatalogMap) {
       factor = intake.dose / entry.default_dose;
     }
 
+    const scaledMicros = {};
     for (const k of MICRO_KEYS) {
       if (entry.micros[k]) {
-        dayTotals[k] = Math.round((dayTotals[k] + (entry.micros[k] * factor)) * 10) / 10;
+        const v = Math.round(entry.micros[k] * factor * 10) / 10;
+        scaledMicros[k] = v;
+        dayTotals[k] = Math.round((dayTotals[k] + v) * 10) / 10;
       }
     }
+    contributions.push({
+      kind: "supplement",
+      name: entry.name || intake.supplement_id,
+      dose: intake.dose,
+      unit: entry.unit || "",
+      micros: scaledMicros,
+    });
   }
+  return contributions;
 }
 
 export default async function weeklyRoute(app) {
@@ -71,6 +86,7 @@ export default async function weeklyRoute(app) {
 
       const weekTotals = zeroMicros();
       const dayBreakdown = {};
+      const mealBreakdown = {};
 
       for (const date of dates) {
         const log = loadNutritionLog(date);
@@ -114,12 +130,21 @@ export default async function weeklyRoute(app) {
         }
 
         const dayTotals = { ...mealTotals };
-        addSupplementMicros(dayTotals, date, suppCatalogMap);
+        const suppContributions = addSupplementMicros(dayTotals, date, suppCatalogMap);
 
         dayBreakdown[date] = dayTotals;
         for (const k of MICRO_KEYS) {
           weekTotals[k] = Math.round((weekTotals[k] + dayTotals[k]) * 10) / 10;
         }
+
+        // Pro-Eintrag-Aufschlüsselung fürs Detail-Modal ("welcher Eintrag hat
+        // wie viel beigetragen"). log.meals[].micros ist an dieser Stelle
+        // bereits aufgelöst (computeMealMicroTotals mutiert in-place) oder
+        // stammt aus dem Cache (beim ersten Auflösen persistiert).
+        const mealContributions = (log.meals || [])
+          .filter((m) => m.micros)
+          .map((m) => ({ kind: "meal", name: m.description, kcal: m.kcal || 0, micros: m.micros }));
+        mealBreakdown[date] = [...mealContributions, ...suppContributions];
       }
 
       const status = {};
@@ -135,7 +160,7 @@ export default async function weeklyRoute(app) {
         };
       }
 
-      return reply.send({ ok: true, year: y, week: w, dates, week_totals: weekTotals, rda_comparison: status, day_breakdown: dayBreakdown });
+      return reply.send({ ok: true, year: y, week: w, dates, week_totals: weekTotals, rda_comparison: status, day_breakdown: dayBreakdown, meal_breakdown: mealBreakdown });
     } catch (error) {
       console.error(error);
       return reply.status(500).send({ ok: false, error: "Internal server error" });
