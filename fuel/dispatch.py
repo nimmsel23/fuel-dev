@@ -46,6 +46,8 @@ from datetime import date, timedelta
 from pathlib import Path
 
 import typer
+from rich.console import Console
+from rich.table import Table
 
 try:
     from wasabi import Printer
@@ -420,6 +422,38 @@ def catalog_alias(
     edit(ctx, mode="catalog", date_arg=date_arg)
 
 
+@app.command(name="usda")
+def usda_lookup(query: str = typer.Argument(..., help="Lebensmittel-Suchbegriff, z.B. 'egg whole raw'")):
+    """Fuzzy-Suche in USDA FoodData Central — Makros + volles Mikroprofil pro 100g."""
+    from .sources import usda as _usda
+
+    hits = _usda.search_food(query, limit=5)
+    if not hits:
+        msg.fail(f"Kein USDA-Treffer für {query!r}")
+        raise typer.Exit(1)
+
+    console = Console()
+    table = Table(title=f"USDA-Treffer für '{query}'")
+    table.add_column("#")
+    table.add_column("Beschreibung")
+    table.add_column("Typ")
+    for i, h in enumerate(hits, 1):
+        table.add_row(str(i), h["description"], h["data_type"] or "")
+    console.print(table)
+
+    top = _usda.get_nutrients(hits[0]["fdc_id"])
+    if not top:
+        raise typer.Exit(1)
+
+    profile = Table(title=f"Profil pro 100g — {top['description']}")
+    profile.add_column("Nährstoff")
+    profile.add_column("Wert", justify="right")
+    for k, v in top["per_100g"].items():
+        if v:
+            profile.add_row(k, str(v))
+    console.print(profile)
+
+
 # Known Typer-Subcommands aus der App ableiten — kein hardcoded set mehr.
 def _known_commands() -> set[str]:
     names = set()
@@ -493,11 +527,18 @@ def main() -> None:
     # Stück als vermeintlichen Pro-Stück-Wert ab (do_meal_log kennt qty>1 nur
     # über --qty, nicht aus der Beschreibung) — Quelle der Geister-Duplikate
     # im Meal-Catalog.
+    # ABER: nur wenn der Rest-String ein Catalog-Hit ist. Sonst bleibt die Zahl
+    # in der Beschreibung — bei Multi-Komponenten-Text ("10 Eier mit 5dag Speck")
+    # würde --qty die GESAMTE Gemini-Schätzung ×N nehmen (auch den Speck), und
+    # Gemini bekäme nur einen Plural ohne Stückzahl. Gemini summiert Komponenten
+    # inkl. führender Mengen selbst (PROMPT_TEMPLATE Punkt 3).
     qty_args: list[str] = []
     m = re.match(r"^(\d+)\s+(.+)$", description)
     if m:
-        qty_args = ["--qty", m.group(1)]
-        description = m.group(2)
+        from fuel.catalog_lookup import find_meal
+        if find_meal(m.group(2)):
+            qty_args = ["--qty", m.group(1)]
+            description = m.group(2)
 
     sys.exit(_meal_log(description, date_flags + qty_args, meal_type))
 

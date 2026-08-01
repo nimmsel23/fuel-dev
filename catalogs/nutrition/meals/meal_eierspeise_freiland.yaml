@@ -5,8 +5,13 @@ name: Eierspeise Freiland
 meal_type: meal
 description: Eierspeise mit Freiland-Eiern, Salz und Pfeffer
 notes: Base-Rezept mit Addons für verschiedene Portionsgrößen (2er, 3er, 5er, 6er,
-  10er)
-source: manual
+  10er). Makros 2026-08-01 gegen USDA FDC (Egg, whole, raw, fresh, fdcId 171287)
+  verifiziert — vorherige wger-Werte lagen 2-4% niedriger, innerhalb normaler
+  Datenbank-Schwankung, keine Korrektur nötig gewesen, aber USDA-Basis jetzt
+  konsistent mit den Mikronährstoff-Werten in meal_micros (gleiche Quelle).
+  KEIN Aufschlag für Bratfett enthalten — "angebraten" braucht eigenes Addon
+  oder manuellen Zuschlag beim Loggen (Butter/Öl: +~90 kcal/10g).
+source: usda
 yield_g: null
 components: []
 default_addon_ids:
@@ -17,59 +22,59 @@ addons:
   description: 2 große Freiland-Eier
   brand: Freiland
   grams: 120
-  kcal: 168
+  kcal: 171.6
   protein: 15.1
-  carbs: 0.6
-  fat: 11.8
-  source: wger
+  carbs: 0.9
+  fat: 11.4
+  source: usda
   source_kind: addon
 - id: freiland_3er
   label: 3 mittlere Freiland-Eier
   description: 3 mittlere Freiland-Eier
   brand: Freiland
   grams: 165
-  kcal: 231
-  protein: 20.8
-  carbs: 0.8
-  fat: 16.2
-  source: wger
+  kcal: 235.9
+  protein: 20.7
+  carbs: 1.2
+  fat: 15.7
+  source: usda
   source_kind: addon
 - id: freiland_5er
   label: 5 mittlere Freiland-Eier
   description: 5 mittlere Freiland-Eier
   brand: Freiland
   grams: 290
-  kcal: 406
-  protein: 36.8
-  carbs: 0.9
-  fat: 28.4
-  source: wger
+  kcal: 414.7
+  protein: 36.4
+  carbs: 2.1
+  fat: 27.6
+  source: usda
   source_kind: addon
 - id: freiland_6er
   label: 6 große Freiland-Eier
   description: 6 große Freiland-Eier
   brand: Freiland
   grams: 360
-  kcal: 504
-  protein: 45.4
-  carbs: 1.8
-  fat: 35.3
-  source: wger
+  kcal: 514.8
+  protein: 45.2
+  carbs: 2.6
+  fat: 34.2
+  source: usda
   source_kind: addon
 - id: freiland_10er
   label: 10 mittlere Freiland-Eier
   description: 10 mittlere Freiland-Eier
   brand: Freiland
   grams: 500
-  kcal: 700
-  protein: 63.5
-  carbs: 1.5
-  fat: 49
-  source: wger
+  kcal: 715.0
+  protein: 62.8
+  carbs: 3.6
+  fat: 47.5
+  source: usda
   source_kind: addon
 created_at: '2026-05-18T16:00:00.000Z'
-updated_at: '2026-05-18T16:00:00.000Z'
-kcal: 168
+updated_at: '2026-08-01T00:00:00.000Z'
+kcal: 171.6
 protein: 15.1
-carbs: 0.6
-fat: 11.8
+carbs: 0.9
+fat: 11.4
