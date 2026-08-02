@@ -181,7 +181,7 @@ export default function CatalogItemEditor({ item, open, onOpenChange }) {
         </div>
 
         {!hasComponents && (
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <Field label="Kcal">
               <input type="number" className={inputCls} value={macros.kcal}
                 onChange={(e) => setMacros((m) => ({ ...m, kcal: Number(e.target.value) || 0 }))} />

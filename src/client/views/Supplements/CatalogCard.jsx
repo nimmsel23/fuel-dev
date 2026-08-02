@@ -24,12 +24,12 @@ export default function CatalogCard({ catalog }) {
 
   return (
     <section className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur">
-      <div className="mb-4 flex items-center justify-between gap-2">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Settings2 className="h-5 w-5 text-slate-300" />
           <h3 className="text-lg font-semibold">Catalog</h3>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => setEditingItem("new")}
             className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-300 transition hover:bg-white/10"

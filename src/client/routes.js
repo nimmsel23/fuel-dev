@@ -29,6 +29,9 @@ export const TAB_CONFIG = [
     Icon: BookOpen,
     View: lazy(() => import("./views/JournalVosView.jsx")),
     getProps: (ctx) => ({ date: ctx.activeDate }),
+    // In der vitalos-Shell gibt es bereits einen eigenen Journal-Tab —
+    // dieser Tab ist nur fürs Fuel-Standalone-Deployment relevant.
+    embeddedHidden: true,
   },
   {
     key: "habits",
@@ -36,6 +39,8 @@ export const TAB_CONFIG = [
     Icon: CheckSquare,
     View: lazy(() => import("./views/HabitVosView.jsx")),
     getProps: (ctx) => ({ date: ctx.activeDate }),
+    // dito — Habits existiert bereits als eigener Shell-Tab.
+    embeddedHidden: true,
   },
   {
     key: "log",
@@ -64,6 +69,9 @@ export const TAB_CONFIG = [
     Icon: Settings2,
     View: lazy(() => import("./views/SettingsView.jsx")),
     getProps: () => ({}),
+    // Setup-Invariante (vitalos): im Shell-Betrieb gibt es nur den einen
+    // vereinheitlichten VitalOS-Setup-Tab, keine App-eigenen Einstiege.
+    embeddedHidden: true,
   },
   {
     // Nur sichtbar wenn /coach/health erreichbar ist (lokaler Server, egal ob
