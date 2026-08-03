@@ -1,6 +1,8 @@
 import { lazy } from "react";
 import { Flame, UtensilsCrossed, NotebookPen, CheckSquare, BookOpen, Pill, Microscope, Settings2, History, TerminalSquare } from "lucide-react";
 
+const BUILD_IS_LOCAL = import.meta.env.VITE_APP_MODE !== "client" && import.meta.env.MODE !== "firebase";
+
 export const TAB_CONFIG = [
   {
     key: "dashboard",
@@ -73,16 +75,14 @@ export const TAB_CONFIG = [
     // vereinheitlichten VitalOS-Setup-Tab, keine App-eigenen Einstiege.
     embeddedHidden: true,
   },
-  {
-    // Nur sichtbar wenn /coach/health erreichbar ist (lokaler Server, egal ob
-    // dev :9000 oder local-prod :7000) — im Cloud-Build gibt es kein
-    // Backend zu fragen, der Tab bleibt dann versteckt (main.jsx filtert
-    // per localMode). Label wird je nach server.mode zu "Dev" oder "Prod".
+  ...(BUILD_IS_LOCAL ? [{
+    // Lokale Builds (Fuel standalone coach + VitalOS ohne firebase mode)
+    // dürfen den Dev/Prod-Server-Tab bundlen; Cloud-/Firebase-Builds nicht.
     key: "dev",
     label: "Dev",
     Icon: TerminalSquare,
     View: lazy(() => import("./views/Dev/DevView.jsx")),
     getProps: () => ({}),
     localOnly: true,
-  },
+  }] : []),
 ];
