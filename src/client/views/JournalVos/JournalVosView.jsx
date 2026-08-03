@@ -12,7 +12,7 @@ export default function JournalVosView(props) {
         </div>
       </header>
       <div className="rounded-3xl border border-slate-800/80 bg-slate-900/40 p-6">
-        <Journal {...props} />
+        <Journal embedded {...props} />
       </div>
     </section>
   );
