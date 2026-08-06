@@ -15,6 +15,10 @@ export const useSettings = create(
       kcal_goal: 2000,
       protein_goal: 150,
       water_goal: 2500,
+      // Protein steht als Gramm-Ziel fest (g/kg-Faustregel, s.u.) — carb_ratio
+      // legt fest, wie sich die nach Protein verbleibenden kcal auf Carbs/Fett
+      // aufteilen (% davon als Carbs, Rest als Fett). Presets siehe GoalsSection.jsx.
+      carb_ratio: 50,
       age: 30,
       gender: "m",
       height_cm: 175,
@@ -57,6 +61,7 @@ export const useSettings = create(
               kcal_goal: current.kcal_goal,
               protein_goal: current.protein_goal,
               water_goal: current.water_goal,
+              carb_ratio: current.carb_ratio,
               age: current.age,
               gender: current.gender,
               height_cm: current.height_cm,
