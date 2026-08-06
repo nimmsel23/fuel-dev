@@ -57,18 +57,25 @@ async function analyzeMealText(promptText) {
               protein: { type: SchemaType.NUMBER },
               carbs: { type: SchemaType.NUMBER },
               fat: { type: SchemaType.NUMBER }
-            }
+            },
+            required: ["kcal", "protein", "carbs", "fat"]
           },
           micros: {
             type: SchemaType.OBJECT,
             properties: Object.fromEntries(MICRO_KEYS.map(k => [k, { type: SchemaType.NUMBER, description: "Wert in mg oder ug" }]))
           }
-        }
+        },
+        // Ohne required bleibt macros optional — das Modell konnte es bei
+        // Unsicherheit einfach weglassen, statt zu schätzen. Landete dann in
+        // der Pending-Queue ("keine Makros erkannt"), obwohl eine Schätzung
+        // (wie bei QuickAiLog.jsx) fast immer möglich gewesen wäre.
+        required: ["name", "macros"]
       }
     }
   });
 
   const prompt = `Analysiere folgende Mahlzeit/Lebensmittel und schätze die Makronährstoffe sowie die absoluten Mikronährstoffe (Vitamine, Mineralstoffe) so exakt wie möglich.
+Gib IMMER eine Makro-Schätzung ab, auch bei ungenauer/unvollständiger Beschreibung — nutze plausible Standardportionen statt die Werte wegzulassen.
 Eingabe: "${promptText}"`;
 
   const result = await withAiRetry(() => model.generateContent(prompt));
