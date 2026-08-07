@@ -73,7 +73,9 @@ function App() {
   React.useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace("#", "");
-      if (hash && TAB_CONFIG.some((t) => t.key === hash)) {
+      const isCloudNow = window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com") || import.meta.env.VITE_APP_MODE === "client";
+      const tab = TAB_CONFIG.find((t) => t.key === hash);
+      if (tab && !(tab.cloudHidden && isCloudNow)) {
         setActiveTab(hash);
       }
     };
@@ -101,6 +103,8 @@ function App() {
 
   const isCloud = window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com");
   const isClientBuild = import.meta.env.VITE_APP_MODE === "client";
+  const isCloudFrontend = isCloud || isClientBuild;
+  const visibleTabs = TAB_CONFIG.filter((t) => !t.localOnly || localMode !== null).filter((t) => !(t.cloudHidden && isCloudFrontend));
 
   React.useEffect(() => {
     const tab = TAB_CONFIG.find((t) => t.key === activeTab);
@@ -144,7 +148,7 @@ function App() {
                   )
                 )}
               </div>
-              <h1 className="text-3xl font-semibold tracking-tight md:text-5xl">Nutrition Journal Control Deck</h1>
+              <h1 className="text-3xl font-semibold tracking-tight md:text-5xl">Fuel Control Deck</h1>
               <p className="mt-3 max-w-2xl text-sm text-slate-300 md:text-base">
                 Krankheit hat viele Väter, aber die Mutter ist immer die Ernährung. -Hippokrates
               </p>
@@ -163,8 +167,7 @@ function App() {
           <NutritionHeatmap selectedDate={activeDate} onSelectDate={setActiveDate} />
 
           <nav className="flex flex-wrap gap-2">
-            {TAB_CONFIG
-              .filter((t) => !t.localOnly || localMode !== null)
+            {visibleTabs
               .map(({ key, label, Icon, localOnly }) => (
                 <motion.button
                   whileTap={{ scale: 0.96 }}

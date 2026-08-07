@@ -6,6 +6,26 @@ const defaultSectionCls = "rounded-3xl border border-white/10 bg-white/5 p-5 bac
 const defaultLabelCls = "text-xs uppercase tracking-[0.18em] text-slate-500 mb-1 block";
 const defaultInputCls = "w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-slate-100";
 
+// % der nach Protein verbleibenden kcal, die als Carbs gerechnet werden
+// (Rest = Fett) — gängige Splits, kein Anspruch auf Vollständigkeit.
+const CARB_RATIO_PRESETS = [
+  { value: 70, label: "High-Carb / Ausdauer — 70% Carbs, 30% Fett" },
+  { value: 50, label: "Balanced — 50% Carbs, 50% Fett" },
+  { value: 25, label: "Low-Carb — 25% Carbs, 75% Fett" },
+  { value: 10, label: "Keto — 10% Carbs, 90% Fett" },
+];
+
+// Carbs/Fett-Ziel aus kcal_goal + protein_goal + carb_ratio ableiten —
+// einzige Stelle, die diese Rechnung macht (auch von MacroTrendChart genutzt).
+export function computeMacroGoals({ kcal_goal, protein_goal, carb_ratio }) {
+  const remaining_kcal = Math.max(0, (kcal_goal || 0) - (protein_goal || 0) * 4);
+  const ratio = carb_ratio ?? 50;
+  return {
+    carbs_goal: Math.round((remaining_kcal * ratio / 100) / 4),
+    fat_goal: Math.round((remaining_kcal * (100 - ratio) / 100) / 9),
+  };
+}
+
 const ACTIVITY_LEVELS = [
   { value: 1.2, label: "Sitzend (kaum Bewegung)" },
   { value: 1.4, label: "Leicht aktiv (Alltag + Spaziergänge)" },
@@ -47,13 +67,14 @@ export default function GoalsSection({
   inputCls = defaultInputCls,
 }) {
   const {
-    kcal_goal, protein_goal, water_goal,
+    kcal_goal, protein_goal, water_goal, carb_ratio,
     age, gender, height_cm, weight_kg, activity_level, protein_per_kg,
     setSetting,
   } = useSettings();
   const [showAuto, setShowAuto] = useState(false);
 
   const suggested = computeGoals({ age, gender, height_cm, weight_kg, activity_level, protein_per_kg });
+  const { carbs_goal, fat_goal } = computeMacroGoals({ kcal_goal, protein_goal, carb_ratio });
   const applySuggestion = () => {
     setSetting("kcal_goal", suggested.kcal_goal);
     setSetting("protein_goal", suggested.protein_goal);
@@ -135,6 +156,22 @@ export default function GoalsSection({
             onChange={e => setSetting("protein_goal", Number(e.target.value))}
             className={inputCls}
           />
+        </div>
+        <div>
+          <label className={labelCls}>Makro-Split (Carbs/Fett)</label>
+          <select
+            value={carb_ratio}
+            onChange={e => setSetting("carb_ratio", Number(e.target.value))}
+            className={inputCls}
+          >
+            {CARB_RATIO_PRESETS.map(({ value, label }) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+          <p className="mt-1 text-[11px] text-slate-500">
+            Protein bleibt fix ({protein_goal} g) — der Split gilt für die restlichen kcal.
+            → {carbs_goal} g Carbs · {fat_goal} g Fett
+          </p>
         </div>
         <div>
           <label className={labelCls}>Wasser (ml)</label>

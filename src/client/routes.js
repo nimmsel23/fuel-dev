@@ -27,17 +27,23 @@ export const TAB_CONFIG = [
     getProps: (ctx) => ({ setActiveDate: ctx.setActiveDate, setActiveTab: ctx.setActiveTab }),
   },
   ...(!BUILD_IS_SHELL ? [{
+    // Seit 2026-08-07 (TODO.md): im Firebase-Frontend (cloud) ausgeblendet —
+    // Habit/Journal-VOS-Tabs sind Cross-Repo-Import aus habits-dev/journal-dev,
+    // nicht Teil des Ernährungs-Tagebuchs. Das bleibt via JournalWidget im
+    // Dashboard weiterhin ladbar (siehe DashboardView.jsx).
     key: "journal",
     label: "Journal",
     Icon: BookOpen,
     View: lazy(() => import("./views/JournalVosView.jsx")),
     getProps: (ctx) => ({ date: ctx.activeDate }),
+    cloudHidden: true,
   }, {
     key: "habits",
     label: "Habits",
     Icon: CheckSquare,
     View: lazy(() => import("./views/HabitVosView.jsx")),
     getProps: (ctx) => ({ date: ctx.activeDate }),
+    cloudHidden: true,
   }] : []),
   {
     key: "log",

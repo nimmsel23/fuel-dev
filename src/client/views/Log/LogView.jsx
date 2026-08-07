@@ -1,79 +1,16 @@
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { NotebookPen, UtensilsCrossed, Pencil, Trash2, Sparkles, AlertTriangle, RefreshCw, Check, X, ScanSearch, CopyPlus, Clock } from "lucide-react";
 import { twMerge } from "tailwind-merge";
-import { fetchJson, postJson, patchJson } from "@api";
+import { postJson, patchJson } from "@api";
 import { vertexAI } from "../../lib/firebase.js";
 import { getGenerativeModel } from "firebase/vertexai";
 import { withAiRetry } from "../../lib/aiRetry.js";
-import { usePendingAiEntries } from "../../hooks/useNutrition.js";
+import { useAiMealLogger } from "../../hooks/useAiMealLogger.js";
 import FoodSearch from "../../components/FoodSearch.jsx";
 import ScannerModal from "./components/ScannerModal.jsx";
 import { Camera, RotateCcw } from "lucide-react";
 import { sumMetric, formatMetric } from "../../../shared/utils/utils.js";
-
-// "3x Stiegl Hell" → { qty: 3, rest: "Stiegl Hell" }. Ohne Präfix qty=1.
-function parseQuantityPrefix(text) {
-  const m = text.trim().match(/^(\d+)\s*[x×]\s*(.+)$/i);
-  if (m) return { qty: Math.max(1, parseInt(m[1], 10)), rest: m[2].trim() };
-  return { qty: 1, rest: text.trim() };
-}
-
-// Sucht einen bereits im Katalog gespeicherten Treffer, bevor überhaupt
-// Vertex gefragt wird — bekannte Sachen (mit echten Makros) brauchen keine
-// KI-Schätzung, die zudem bei z.B. Getränken gerne mal unzuverlässig ist.
-function findCatalogMatch(catalog, name) {
-  const norm = (s) => String(s || "").trim().toLowerCase();
-  // Wortgrenzen statt reinem includes() — sonst matcht z.B. der Katalogeintrag
-  // "Reis" fälschlich in "Reisepass" oder Freitext, der "reis" nur als Teilwort enthält.
-  const hasWord = (haystack, needle) => new RegExp(`(^|\\W)${needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\W|$)`).test(haystack);
-  const target = norm(name);
-  if (!target || target.length < 3) return null;
-  const label = (i) => norm(i.name || i.description);
-  return (
-    catalog.find((i) => label(i) === target) ||
-    catalog.find((i) => label(i).length > 3 && hasWord(target, label(i))) ||
-    catalog.find((i) => label(i).length > 3 && hasWord(label(i), target)) ||
-    null
-  );
-}
-
-// Gemeinsames Response-Schema für Makro/Mikro-Analyse (AI-Logger + Re-Analyse).
-async function analyzeMealText(promptText) {
-  const { MICRO_KEYS } = await import("../../lib/db/firestore/utils.js");
-  const { SchemaType } = await import("firebase/vertexai");
-  const model = getGenerativeModel(vertexAI, {
-    model: "gemini-2.5-flash",
-    generationConfig: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: SchemaType.OBJECT,
-        properties: {
-          name: { type: SchemaType.STRING, description: "Gefundenes Essen" },
-          macros: {
-            type: SchemaType.OBJECT,
-            properties: {
-              kcal: { type: SchemaType.NUMBER },
-              protein: { type: SchemaType.NUMBER },
-              carbs: { type: SchemaType.NUMBER },
-              fat: { type: SchemaType.NUMBER }
-            }
-          },
-          micros: {
-            type: SchemaType.OBJECT,
-            properties: Object.fromEntries(MICRO_KEYS.map(k => [k, { type: SchemaType.NUMBER, description: "Wert in mg oder ug" }]))
-          }
-        }
-      }
-    }
-  });
-
-  const prompt = `Analysiere folgende Mahlzeit/Lebensmittel und schätze die Makronährstoffe sowie die absoluten Mikronährstoffe (Vitamine, Mineralstoffe) so exakt wie möglich.
-Eingabe: "${promptText}"`;
-
-  const result = await withAiRetry(() => model.generateContent(prompt));
-  return JSON.parse(result.response.text());
-}
 
 // Vergleicht Journal-Freitext gegen die bereits geloggten Mahlzeiten des Tages
 // und liefert nur eindeutig erwähnte, aber nicht geloggte Ernährungs-Infos zurück.
@@ -193,9 +130,6 @@ export default function LogView({ date, nutrition, notes }) {
   // rein deskriptiv.
   const [scanBaseline, setScanBaseline] = useState(null); // { grams, kcal, protein, carbs, fat }
   const [moveDate, setMoveDate] = useState("");
-  const [aiText, setAiText] = useState("");
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState("");
   const [scannerOpen, setScannerOpen] = useState(false);
   const [journalSuggestions, setJournalSuggestions] = useState([]);
   const [journalCheckLoading, setJournalCheckLoading] = useState(false);
@@ -204,20 +138,11 @@ export default function LogView({ date, nutrition, notes }) {
   const isEditing = Boolean(form.id);
   const meals = nutrition?.meals || [];
   const cloud = window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com");
-  const { data: pendingAiEntries = [] } = usePendingAiEntries(date);
-  const { data: catalogData } = useQuery({
-    queryKey: ["nutrition-catalog"],
-    queryFn: () => fetchJson("/nutrition/catalog"),
-    staleTime: 60_000,
-  });
-  const catalogItems = catalogData?.items || [];
 
-  const { data: suppCatalogData } = useQuery({
-    queryKey: ["supp-catalog"],
-    queryFn: () => fetchJson("/supplements/catalog"),
-    staleTime: 300_000,
-  });
-  const suppCatalog = suppCatalogData?.items || [];
+  const {
+    text: aiText, setText: setAiText, loading: aiLoading, error: aiError,
+    submit: handleAiLog, pendingEntries: pendingAiEntries, reanalyzePending,
+  } = useAiMealLogger(date);
 
   const handleNotesSave = async (e) => {
     e.preventDefault();
@@ -229,177 +154,6 @@ export default function LogView({ date, nutrition, notes }) {
       console.error("Notes save error:", err);
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Löst einen wartenden Eintrag auf: Vertex analysiert den Rohtext, bei Erfolg
-  // wird daraus ein echtes Meal und der Pending-Eintrag verschwindet aus der
-  // Ablage. Scheitert die Analyse, bleibt der Pending-Eintrag unverändert stehen.
-  const resolvePendingEntry = async (entry) => {
-    const firestore = await import("../../lib/db.firestore.js");
-
-    // Katalog-Match zuerst versuchen — derselbe Check wie beim ersten Log-Versuch.
-    // Ohne das landete jede Re-Analyse zwangsläufig bei Vertex-Freitextschätzung,
-    // selbst wenn der Text exakt einem Katalogeintrag mit echten Makros entspricht.
-    const { qty, rest } = parseQuantityPrefix(entry.text);
-    const match = findCatalogMatch(catalogItems, rest);
-    if (match) {
-      for (let i = 0; i < qty; i++) {
-        await postJson("/nutrition/log", {
-          date,
-          meal: {
-            type: match.meal_type || match.type || "meal",
-            description: match.name || match.description,
-            notes: "",
-            kcal: match.kcal || 0, protein: match.protein || 0,
-            carbs: match.carbs || 0, fat: match.fat || 0,
-            catalog_item_id: match.id,
-          },
-        });
-      }
-      // Verknüpfte Supplemente automatisch mitloggen
-      for (const suppId of (match.linked_supplement_ids || [])) {
-        const suppEntry = suppCatalog.find((s) => s.id === suppId);
-        if (!suppEntry) continue;
-        await postJson("/supplements/log", {
-          date,
-          intake: {
-            supplement_id: suppEntry.id,
-            dose: suppEntry.default_dose ?? 0,
-            unit: suppEntry.unit || "g",
-            time_of_day: suppEntry.default_time_of_day || "morning",
-            notes: `Auto via Meal-Katalog: ${match.name}`,
-          },
-        });
-      }
-      await firestore.removePendingAiEntry(date, entry);
-      return;
-    }
-
-    const { MICRO_KEYS } = await import("../../lib/db/firestore/utils.js");
-    const parsed = await analyzeMealText(entry.text);
-    if (!parsed?.macros) throw new Error("Gemini hat keine Makros erkannt.");
-
-    const mealName = parsed.name || entry.text;
-    await postJson("/nutrition/log", {
-      date,
-      meal: {
-        type: "snack",
-        description: mealName,
-        notes: "",
-        kcal: parsed.macros.kcal || 0,
-        protein: parsed.macros.protein || 0,
-        carbs: parsed.macros.carbs || 0,
-        fat: parsed.macros.fat || 0,
-      },
-    });
-
-    if (parsed.micros) {
-      await postJson("/nutrition/micros", {
-        items: [{
-          meal_name: mealName,
-          kcal: parsed.macros.kcal || 0,
-          ...Object.fromEntries(MICRO_KEYS.map(k => [k, parsed.micros[k] || 0]))
-        }]
-      });
-    }
-
-    await firestore.removePendingAiEntry(date, entry);
-  };
-
-  const reanalyzePending = useMutation({
-    mutationFn: (entry) => resolvePendingEntry(entry),
-    onError: (err) => {
-      console.error("Pending AI entry analysis error:", err);
-      setAiError((err.message || "Analyse fehlgeschlagen.") + " Eintrag bleibt in der Warteliste — jederzeit erneut versuchbar.");
-    },
-    onSuccess: () => setAiError(""),
-    onSettled: () => {
-      qc.invalidateQueries({ queryKey: ["nutrition", date] });
-      qc.invalidateQueries({ queryKey: ["ai-pending", date] });
-    },
-  });
-
-  const handleAiLog = async (e) => {
-    e?.preventDefault();
-    if (!aiText.trim()) return;
-    setAiLoading(true);
-    setAiError("");
-    const rawText = aiText.trim();
-
-    try {
-      if (cloud) {
-        // 0. Katalog-Match zuerst — bekannte Sachen ("3x Stiegl Hell") haben
-        //    schon echte Makros gespeichert, brauchen keinen Vertex-Call.
-        const { qty, rest } = parseQuantityPrefix(rawText);
-        const match = findCatalogMatch(catalogItems, rest);
-        if (match) {
-          for (let i = 0; i < qty; i++) {
-            await postJson("/nutrition/log", {
-              date,
-              meal: {
-                type: match.meal_type || match.type || "meal",
-                description: match.name || match.description,
-                notes: "",
-                kcal: match.kcal || 0, protein: match.protein || 0,
-                carbs: match.carbs || 0, fat: match.fat || 0,
-                catalog_item_id: match.id,
-              },
-            });
-          }
-          // Verknüpfte Supplemente automatisch mitloggen
-          for (const suppId of (match.linked_supplement_ids || [])) {
-            const suppEntry = suppCatalog.find((s) => s.id === suppId);
-            if (!suppEntry) continue;
-            await postJson("/supplements/log", {
-              date,
-              intake: {
-                supplement_id: suppEntry.id,
-                dose: suppEntry.default_dose ?? 0,
-                unit: suppEntry.unit || "g",
-                time_of_day: suppEntry.default_time_of_day || "morning",
-                notes: `Auto via Meal-Katalog: ${match.name}`,
-              },
-            });
-          }
-          qc.invalidateQueries({ queryKey: ["nutrition", date] });
-          qc.invalidateQueries({ queryKey: ["week-logs"] });
-          qc.invalidateQueries({ queryKey: ["supp-log", date] });
-          qc.invalidateQueries({ queryKey: ["supp-stats", date] });
-          setAiText("");
-          return;
-        }
-
-        // 1. Optimistic Save — Text landet sofort als Journal/Notiz-Eintrag des
-        //    Tages, unabhängig davon ob Vertex AI danach erreichbar ist.
-        const firestore = await import("../../lib/db.firestore.js");
-        const entry = { id: `ai_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`, text: rawText, created_at: new Date().toISOString() };
-        await firestore.addPendingAiEntry(date, entry);
-        qc.invalidateQueries({ queryKey: ["ai-pending", date] });
-        setAiText("");
-
-        // 2. Analyse nachgelagert — Fehler hier verlieren den Text nicht mehr,
-        //    er bleibt als wartender Eintrag mit Retry-Button stehen.
-        try {
-          await resolvePendingEntry(entry);
-        } catch (analysisErr) {
-          console.error("AI Logging analysis error:", analysisErr);
-          setAiError((analysisErr.message || "Analyse fehlgeschlagen.") + " Text wurde als Notiz gespeichert — über \"Neu analysieren\" in der Warteliste erneut versuchen.");
-        } finally {
-          qc.invalidateQueries({ queryKey: ["nutrition", date] });
-          qc.invalidateQueries({ queryKey: ["ai-pending", date] });
-        }
-      } else {
-        // Local via Python server
-        await postJson("/nutrition/ai-log", { text: rawText, date });
-        qc.invalidateQueries({ queryKey: ["nutrition", date] });
-        setAiText("");
-      }
-    } catch (err) {
-      console.error("AI Logging error:", err);
-      setAiError(err.message || "Fehler beim KI-Logging.");
-    } finally {
-      setAiLoading(false);
     }
   };
 
