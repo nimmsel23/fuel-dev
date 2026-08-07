@@ -1,5 +1,19 @@
 Agents dürfen sich nicht auf den lokalen dev server versteifen; prod = firebase!
 
+
+
+~~Habits und Journal können aus dem Firebase Frontend verschwinden~~
+**erledigt (2026-08-07):** `routes.js` markiert `journal`/`habits` mit
+`cloudHidden: true`, `main.jsx` filtert Nav-Buttons + Hash-Routing im
+Cloud-Build (`isCloud || isClientBuild`) raus. Journal-Widget im Dashboard
+(Ernährungs-Tagebuch, `Dashboard/JournalWidget.jsx`) bleibt unverändert
+sichtbar. Lazy-Chunks (HabitVosView/JournalVosView) bleiben im Bundle,
+werden aber im Cloud-Frontend nie geladen.
+
+
+
+
+
 ~~main.jsx hat über 1000 Zeilen schon. müsste modularisiert werden.~~
 (Bereits erledigt: main.jsx hat nur noch 170 Zeilen, Tabs sind via routes.js in Lazy-Komponenten modularisiert!)
 

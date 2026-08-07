@@ -1,74 +1,17 @@
-import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { Sparkles, RotateCcw } from "lucide-react";
-import { postJson } from "@api";
+import { Sparkles, RotateCcw, RefreshCw } from "lucide-react";
+import { twMerge } from "tailwind-merge";
+import { useAiMealLogger } from "../hooks/useAiMealLogger.js";
 
-const isCloud = () =>
-  typeof window !== "undefined" &&
-  (window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com"));
-
-// Kompaktes Freitext-Log-Widget fürs Dashboard — leichte Variante des
-// vollen AI-Log-Flows in Log/LogView.jsx (kein Katalog-Match, kein
-// optimistisches Pending-Entry-Handling, kein Supplement-Auto-Log). Für
-// den schnellen "2 Eier mit Toast" Fall auf der Startseite, nicht als
-// Ersatz für den Log-Tab gedacht.
+// Kompaktes Freitext-Log-Widget fürs Dashboard. Nutzt denselben
+// useAiMealLogger-Hook wie der volle Log-Tab (Log/LogView.jsx) — also
+// gleicher Katalog-Match, gleiche Mikros-Schätzung, gleiches Pending-Entry-
+// Sicherheitsnetz. Unterschied ist nur die kompaktere Darstellung, nicht
+// mehr die zugrundeliegende Logik.
 export default function QuickAiLog({ date }) {
-  const qc = useQueryClient();
-  const [text, setText] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  async function handleSubmit(e) {
-    e?.preventDefault();
-    if (!text.trim()) return;
-    setLoading(true);
-    setError("");
-    const raw = text.trim();
-
-    try {
-      if (isCloud()) {
-        const [{ vertexAI }, { getGenerativeModel }, { withAiRetry }, firestore] = await Promise.all([
-          import("../lib/firebase.js"),
-          import("firebase/vertexai"),
-          import("../lib/aiRetry.js"),
-          import("../lib/db.firestore.js"),
-        ]);
-        const model = getGenerativeModel(vertexAI, {
-          model: "gemini-2.5-flash",
-          generationConfig: { responseMimeType: "application/json" },
-        });
-        const prompt = `Analysiere folgenden Freitext und extrahiere die Mahlzeit + geschätzte Makros. Gib AUSSCHLIESSLICH ein JSON-Objekt zurück:
-{"description":"Zusammenfassung","type":"breakfast|lunch|dinner|snack","kcal":<Zahl>,"protein":<Zahl>,"carbs":<Zahl>,"fat":<Zahl>}
-
-Text: ${raw}`;
-        const result = await withAiRetry(() => model.generateContent(prompt));
-        const item = JSON.parse(result.response.text());
-
-        const existing = await firestore.getNutritionLog(date);
-        const meal = {
-          id: `meal_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
-          ...item,
-          logged_at: new Date().toISOString(),
-        };
-        existing.meals = [...(existing.meals || []), meal];
-        await firestore.saveNutritionLog(date, existing);
-      } else {
-        await postJson("/nutrition/ai-log", { text: raw, date });
-      }
-
-      qc.invalidateQueries({ queryKey: ["nutrition", date] });
-      qc.invalidateQueries({ queryKey: ["week-logs"] });
-      setText("");
-    } catch (err) {
-      console.error("QuickAiLog error:", err);
-      setError(err.message || "Fehler beim KI-Logging.");
-    } finally {
-      setLoading(false);
-    }
-  }
+  const { text, setText, loading, error, submit, pendingEntries, reanalyzePending, cloud } = useAiMealLogger(date);
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur grid gap-3">
+    <form onSubmit={submit} className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur grid gap-3">
       <div className="flex items-center gap-2">
         <Sparkles className="h-5 w-5 text-violet-300" />
         <h2 className="text-lg font-semibold">Schnell loggen</h2>
@@ -91,13 +34,33 @@ Text: ${raw}`;
       {error && (
         <div className="flex items-center justify-between gap-3 rounded-xl border border-rose-500/20 bg-rose-500/10 p-3 text-xs text-rose-300">
           <span>{error}</span>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            className="flex shrink-0 items-center gap-1 rounded-full bg-rose-500/20 px-2 py-1 font-semibold hover:bg-rose-500/30"
-          >
-            <RotateCcw className="h-3 w-3" /> Retry
-          </button>
+          {text.trim() && (
+            <button
+              type="button"
+              onClick={() => submit()}
+              className="flex shrink-0 items-center gap-1 rounded-full bg-rose-500/20 px-2 py-1 font-semibold hover:bg-rose-500/30"
+            >
+              <RotateCcw className="h-3 w-3" /> Retry
+            </button>
+          )}
+        </div>
+      )}
+      {cloud && pendingEntries.length > 0 && (
+        <div className="grid gap-1.5">
+          {pendingEntries.map((entry) => (
+            <div key={entry.id} className="flex items-center justify-between gap-2 rounded-xl border border-amber-400/20 bg-amber-400/5 px-3 py-2 text-xs text-amber-200">
+              <span className="min-w-0 flex-1 truncate">{entry.text}</span>
+              <button
+                type="button"
+                onClick={() => reanalyzePending.mutate(entry)}
+                disabled={reanalyzePending.isPending && reanalyzePending.variables?.id === entry.id}
+                title="Neu analysieren"
+                className="flex shrink-0 items-center gap-1 rounded-full bg-amber-500/15 px-2 py-1 font-semibold hover:bg-amber-500/25"
+              >
+                <RefreshCw className={twMerge("h-3 w-3", reanalyzePending.isPending && reanalyzePending.variables?.id === entry.id && "animate-spin")} />
+              </button>
+            </div>
+          ))}
         </div>
       )}
     </form>
