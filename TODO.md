@@ -22,11 +22,20 @@ ausläuft — kein Nebenprojekt. Konkrete Stufen (staging-Port/-Service für v4,
 Rollout-Reihenfolge welche Endpoints zuerst wechseln) noch offen.
 
 **Offen:**
-- `backend/requirements.txt` neu (fastapi/sqlalchemy/psycopg2/httpx/...) —
-  noch nicht in ein venv installiert, v4 läuft lokal noch nicht.
 - Kein systemd-Service für v4 (weder dev noch staging noch prod).
 - Datenmigration fuel-dev-Store (File+SQLite) → Postgres nicht angegangen.
 - Rollout-Reihenfolge (welcher Endpoint zuerst v3→v4 wechselt) nicht entschieden.
+- Echte Postgres (statt SQLite-Dev-Fallback) nie aufgesetzt — `backend/docker-compose.yml` liegt bereit, ungenutzt.
+- `/opt`-Prod-Pfad für v4 noch nicht angelegt (Symlink-Idee vs. eigener Deploy — offen).
+
+**Erledigt (aus `~/fuel/TODO.md`, v4-Historie vor dem Merge):**
+- [x] Poetry-Projekt-Init, Kern-Deps (sqlalchemy/pydantic/google-genai/python-dotenv)
+- [x] SQLAlchemy-DB-Architektur mit Katalog-Tabelle
+- [x] Gemini-API-Integration für NLP-Makro-Extraktion
+- [x] Alle 9 Frontend-Views + Hooks auf FastAPI-Backend refactored (Legacy-Firestore-Code raus)
+- [x] Backend-Umbau auf `DailyJournal`-Architektur
+- [x] Frontend-Auslieferung direkt im FastAPI-Backend (SPA-Routing)
+- v4-Doku (`README.md`, `ARCHITECTURE.md`, `RESULTS.md`, `DEPENDENCY.md`, `ANLEITUNG.md`) liegt jetzt unter `backend/`.
 
 
 

@@ -2,6 +2,24 @@
 
 Session-Log mit datierten Ergebnis-Bullets.
 
+## 2026-08-07 (v4-Merge)
+
+- `~/fuel/` (Python/FastAPI + Postgres, v4.0.0-Frontend) komplett nach hierher
+  gemerged: `frontend/` + `backend/` (Code), plus Rest (`alembic/`, `main.py`,
+  `pyproject.toml`, `docker-compose.yml`, Docs, `scripts/`) unter `backend/`.
+  `.env` mit echtem `GEMINI_API_KEY` bewusst nicht kopiert (Credential-Leakage-Risiko).
+- v3↔v4 Cross-Reachability-Proxies gebaut: `src/server/routes/v4-proxy.mjs`
+  (`/v4/*`), `backend/api/endpoints/v3_proxy.py` (`/v3/*`) — reine Erreichbarkeit,
+  kein gemeinsamer Datenlayer.
+- `backend/core/config.py`: SQLite-Fallback-Pfad von relativ (`./backend.db`,
+  wanderte je nach Start-cwd) auf an `backend/` geankert gefixt.
+- v4 lokal end-to-end getestet: `uvicorn` auf :4000, `/health` ok, `/v3/health`
+  erreicht laufenden Node-Server über Proxy, `/` liefert gebautes v4-Frontend.
+- Historische v4-Ergebnisse aus `~/fuel/RESULTS.md` (2026-07-09/10): initiale
+  Projektstruktur, Refactoring aller 9 Frontend-Views auf FastAPI-Backend,
+  Umbau auf "Journal-First" `DailyJournal`-Modell, Mikronährstoff-Aggregation
+  optimiert (`micros_sum` pre-calculated), `water_ml`-Spaltentyp gefixt.
+
 ## 2026-07-18
 
 - **db-Layer-Cleanup (TODO.md):**

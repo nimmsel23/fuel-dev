@@ -239,3 +239,68 @@ Config: `~/.env/fuel.env` (`GEMINI_API_KEY`, `GEMINI_MODEL=gemini-2.5-flash`)
 - `fuel meal` CLI → schreibt via `/nutrition/log`
 - Export-Endpoint: `GET /nutrition/export?from=&to=` → CSV
 - Klienten-Auth für `/c/<id>/nutrition/…`
+
+---
+
+## v4 (Python/FastAPI + Postgres) — seit 2026-08-07
+
+Alles oben ist **v3** (Node/Fastify + altes React-Frontend, `src/`) — aktuell live,
+bleibt vorerst die Cloud/Firebase-Seite. `backend/` + `frontend/` sind **v4**, aus
+`~/fuel/` nach hierher gemerged: der eigentliche Nachfolger, kein Prototyp. v4 läuft
+lokal (kein Cloud-Deploy, kein Google-Auth), übernimmt schrittweise Prod-
+Verantwortung. Cross-Reachability zwischen beiden: `/v4/*` auf v3 proxied zu v4
+(`src/server/routes/v4-proxy.mjs`), `/v3/*` auf v4 proxied zu v3
+(`backend/api/endpoints/v3_proxy.py`) — reine Erreichbarkeit, kein gemeinsamer
+Datenlayer.
+
+Der Fuel Tracker (v4) wurde bewusst als simpel gehaltenes, modulares Python-Backend
+("Prod-like") konzipiert, das sich von historisch gewachsenen Node/Python-
+Mischarchitekturen verabschiedet.
+
+### Kern-Architektur
+
+1. **Python 3 Backend**: Verwaltet durch Poetry für striktes Dependency-Management (`backend/pyproject.toml`).
+2. **Relationales Datenmodell (PostgreSQL)**: Single-Point-of-Truth für alle getrackten Mahlzeiten (SQLite als reiner Dev-Fallback, an `backend/` geankert, siehe `backend/core/config.py`).
+3. **LLM als "Intelligenter Parser"**: Gemini API übersetzt natürlichen Text in harte Makro-Fakten statt einer internen Nährwert-Suchmaschine.
+
+### Verzeichnisstruktur
+
+```text
+fuel-dev/
+├── backend/                 # Python-Package (FastAPI + SQLAlchemy)
+│   ├── .agents/              AlphaOS Meta-Instruktionen
+│   ├── alembic/               DB-Migrations-Historie
+│   ├── api/                   FastAPI Router (food, supplements, journal, ..., v3_proxy)
+│   ├── core/                  Config/env-Loader + LLM-Logik
+│   ├── db/                    SQLAlchemy Engine, Session, Modelle
+│   ├── schemas/                Pydantic-Modelle (KI-Antwort-Schablonen)
+│   ├── main.py                 CLI-Einstiegspunkt
+│   ├── docker-compose.yml      Lokales PostgreSQL Setup
+│   └── pyproject.toml          Poetry-Konfiguration (separat von fuel-devs Root-pyproject.toml, das ist die `fuel`-CLI)
+└── frontend/                 # v4 React-Frontend (eigener Vite-Build, package.json v4.0.0)
+```
+
+### Datenfluss
+
+1. **User Input**: Freitext an `main.py` (z.B. *"Ich aß 3 Eier mit Speck"*).
+2. **NLP-Parsing (`backend/core/llm.py`)**: Text + Prompt an Gemini, `response_schema` erzwingt Pydantic-Format (`backend/schemas/food.py`).
+3. **Validierung**: Pydantic stellt korrekte Typisierung sicher (Zahlen für Makros, Arrays für Zutaten).
+4. **Persistierung (`backend/db/models/`)**: Typsicher als `FoodLog`/`DailyJournal` in PostgreSQL.
+
+### "Journal-First" Datenmodell (DailyJournal)
+
+Mit Blick auf einen späteren Übergang zu Firestore/NoSQL: `DailyJournal`
+(`backend/db/models/journal.py`) speichert Zeilen mit dem Datum als Primärschlüssel.
+Essen (`food_logs`) und Gewohnheiten/Supplements (`habits`) liegen als native
+JSON-Arrays (JSONB). Supplements sind eine Unterform von Habits (`type: "supplement"`).
+
+### Kalorien-Namenskonvention (`calories` vs. `kcal`)
+
+Um Namenskonflikte mit KDE-`KCal` zu vermeiden: Backend/API nutzt durchgängig
+`calories`, Frontend/UI mappt auf `kcal` für die Anzeige.
+
+### Frontend-Auslieferung (SPA Hosting)
+
+FastAPI dient gleichzeitig als Webserver fürs React-Frontend: `npm run build` in
+`frontend/` → `frontend/dist`, FastAPI liefert `/assets` statisch aus und leitet
+SPA-Routen per Catch-All auf `index.html`. Läuft lokal auf Port `4000`.
