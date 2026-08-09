@@ -7,7 +7,7 @@ STAGE="$HOME/fuel"
 NODE_DEST="/opt/fuel"
 PYTHON_DEST="/opt/fuel-python"
 BACKUP_DIR="/opt/fuel_backups"
-SERVICE="fuel-v2.service"
+SERVICE="fuel.service"
 
 msg() { printf '\033[1;32m%s\033[0m\n' "$*"; }
 warn() { printf '\033[1;33m%s\033[0m\n' "$*" >&2; }
