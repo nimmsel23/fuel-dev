@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """
 fuelctl — Universal System Control for Fuel Centre (Python Edition)
-Central control for Dev, Sync, and Local Prod (channel: local).
+Central control für: dev (v3 Node + v4 FastAPI, diese Maschine), prod
+(fuel.service, diese Maschine, /opt/fuel), cloud (Firebase Hosting,
+fuel-vos.web.app -- via `sync`, siehe fuelctl sync/deploy:cloud in package.json).
+"local" fällt als Bezeichnung weg, weil dev + prod ohnehin beide auf dieser
+Maschine laufen -- der einzige echte Gegenpol dazu ist "cloud".
 """
 
 import os
@@ -18,21 +22,40 @@ app = typer.Typer(help="Fuel Centre Universal Control", no_args_is_help=True)
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
+PROD_SERVICE = "fuel.service"  # systemd unit (vormals fuel-v2.service, umbenannt -- Kontrolle via fuel-prodctl, nicht hier)
+
+
+def _unit_port(service: str, fallback: str) -> str:
+    """Liest den Port live aus der systemd-Unit (Environment=PORT=X) statt ihn
+    hier als Konstante zu wiederholen -- ändert sich der Port in der Unit,
+    zeigt fuelctl automatisch den richtigen Wert statt zu lügen."""
+    try:
+        out = subprocess.run(
+            ["systemctl", "cat", f"{service}.service"], capture_output=True, text=True
+        ).stdout
+        import re
+        m = re.search(r"Environment=PORT=(\d+)", out)
+        if m:
+            return m.group(1)
+    except Exception:
+        pass
+    return fallback
+
+
+# PORT (dev) hat keine systemd-Unit (fuel-devctl startet im Vordergrund) --
+# hier bleibt die env-Var/Default die einzige Quelle.
 PORT = os.getenv("PORT", "9000")
-LOCAL_PORT = os.getenv("LOCAL_PORT", os.getenv("V2_PORT", "7000"))
+PROD_PORT = os.getenv("PROD_PORT") or _unit_port(PROD_SERVICE, "7000")
 CATALOG_PORT = "9050"
 
 HEALTH_URL = f"http://127.0.0.1:{PORT}/health"
-LOCAL_HEALTH_URL = f"http://127.0.0.1:{LOCAL_PORT}/health"
+PROD_HEALTH_URL = f"http://127.0.0.1:{PROD_PORT}/health"
 
 WORKDIR = Path(__file__).resolve().parent.parent
 BIN_DEVCTL = WORKDIR / "bin" / "fuel-devctl"
+BIN_PRODCTL = WORKDIR / "bin" / "fuel-prodctl"
 SYNC_SCRIPT = WORKDIR / "scripts" / "firestore-sync.mjs"
 CATALOG_SERVER_SCRIPT = WORKDIR / "fuel-catalog-server.py"
-DEPLOY_SCRIPT = WORKDIR / "deploy.sh"
-
-LOCAL_PROD_DIR = Path("/opt/fuel")
-LOCAL_SERVICE = "fuel-v2.service"  # systemd unit (legacy name, channel is "local")
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -56,16 +79,16 @@ def check_url(url: str) -> bool:
 
 @app.command()
 def status():
-    """Check all systems (Dev, Local Prod, Sync)."""
+    """Check all systems (Dev, Prod, Sync)."""
     # 1. Dev Stack
     subprocess.run([str(BIN_DEVCTL), "status"])
 
-    # 2. Local Prod
-    msg.divider("Fuel Centre · local channel (Desktop Prod)")
-    if check_url(LOCAL_HEALTH_URL):
-        msg.good(f"Fuel local is running on :{LOCAL_PORT}")
+    # 2. Prod
+    msg.divider("Fuel Centre · Prod (Desktop)")
+    if check_url(PROD_HEALTH_URL):
+        msg.good(f"Fuel prod is running on :{PROD_PORT}")
     else:
-        msg.warn(f"Fuel local is NOT responding on :{LOCAL_PORT}")
+        msg.warn(f"Fuel prod is NOT responding on :{PROD_PORT}")
 
     # 3. Catalog Server
     msg.divider("Catalog Server")
@@ -83,9 +106,19 @@ def status():
     else:
         msg.warn("Sync Watcher is idle")
 
-@app.command()
-def dev(action: str = typer.Argument("status", help="up, down, restart, status, logs, build")):
-    """Manage the development stack."""
+@app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
+def dev(
+    ctx: typer.Context,
+    action: str = typer.Argument("status", help="up, down, restart, status, logs, build, foreground"),
+):
+    """Manage the development stack (v3 Node + v4 FastAPI).
+
+    Extra flags pass through to fuel-devctl, e.g.:
+      fuelctl dev start --v4        (also start v4)
+      fuelctl dev status --no-v3    (only show v4)
+      fuelctl dev logs v4           (tail v4 logs)
+      fuelctl dev foreground v4     (foreground reload, v3 default)
+    """
     cmd_map = {
         "up": "start",
         "start": "start",
@@ -94,40 +127,41 @@ def dev(action: str = typer.Argument("status", help="up, down, restart, status, 
         "restart": "restart",
         "status": "status",
         "logs": "logs",
-        "build": "build"
+        "build": "build",
+        "foreground": "dev",
     }
     target = cmd_map.get(action)
     if target:
-        subprocess.run([str(BIN_DEVCTL), target])
+        subprocess.run([str(BIN_DEVCTL), target, *ctx.args])
     else:
         msg.fail(f"Unknown dev action: {action}")
 
-@app.command()
-def local(action: str = typer.Argument("status", help="deploy, restart, status, logs")):
-    """Manage the local channel (Desktop Prod, /opt/fuel)."""
-    if action == "status":
-        status()
-    elif action == "logs":
-        subprocess.run(["sudo", "journalctl", "-u", LOCAL_SERVICE, "-f"])
-    elif action == "restart":
-        msg.divider(f"Restarting {LOCAL_SERVICE}")
-        subprocess.run(["sudo", "systemctl", "restart", LOCAL_SERVICE])
-    elif action == "deploy":
-        msg.divider("Local channel deployment → /opt/fuel")
-        if not DEPLOY_SCRIPT.exists():
-            msg.fail(f"deploy.sh not found at {DEPLOY_SCRIPT}")
-            return
-        subprocess.run(["bash", str(DEPLOY_SCRIPT)], cwd=WORKDIR)
-    else:
-        msg.fail(f"Unknown local action: {action}")
+@app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
+def prod(
+    ctx: typer.Context,
+    action: str = typer.Argument("status", help="status, logs, restart, deploy, install"),
+):
+    """Manage the prod stack (fuel.service, /opt/fuel) -- delegiert 1:1 an fuel-prodctl."""
+    if not BIN_PRODCTL.exists():
+        msg.fail(f"fuel-prodctl not found at {BIN_PRODCTL}")
+        raise typer.Exit(1)
+    subprocess.run([str(BIN_PRODCTL), action, *ctx.args])
 
 
-# Backwards-compat alias: `fuelctl v2 …` → `fuelctl local …`
+# Backwards-compat aliases: `fuelctl local …` / `fuelctl v2 …` → `fuelctl prod …`
+# ("local" war die alte, verwirrende Bezeichnung -- es gibt nur dev + prod)
+@app.command(name="local", hidden=True)
+def local_alias(ctx: typer.Context, action: str = typer.Argument("status")):
+    """Deprecated: use `fuelctl prod` instead."""
+    msg.warn("`fuelctl local` is deprecated. Use `fuelctl prod` instead.")
+    prod(ctx, action)
+
+
 @app.command(name="v2", hidden=True)
-def v2_alias(action: str = typer.Argument("status")):
-    """Deprecated: use `fuelctl local` instead."""
-    msg.warn("`fuelctl v2` is deprecated. Use `fuelctl local` instead.")
-    local(action)
+def v2_alias(ctx: typer.Context, action: str = typer.Argument("status")):
+    """Deprecated: use `fuelctl prod` instead."""
+    msg.warn("`fuelctl v2` is deprecated. Use `fuelctl prod` instead.")
+    prod(ctx, action)
 
 @app.command()
 def sync(action: Optional[str] = typer.Argument(None, help="push, pull, watch")):

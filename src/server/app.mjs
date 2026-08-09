@@ -13,6 +13,7 @@ import supplementEstimateRoute from "./routes/supplement-estimate.mjs";
 import fuelRoute from "./routes/fuel.mjs";
 import pushRoute from "./routes/push.mjs";
 import coachRoute from "./routes/coach.mjs";
+import v4ProxyRoute from "./routes/v4-proxy.mjs";
 import staticRoute from "./routes/static.mjs";
 import { startPushScheduler } from "./services/push-scheduler.mjs";
 import { startFirestorePullScheduler } from "./lib/firestore-admin.mjs";
@@ -57,6 +58,7 @@ export function createApp() {
   app.register(fuelRoute);
   app.register(pushRoute);
   app.register(coachRoute);
+  app.register(v4ProxyRoute); // v3 → v4 (lokales Python-Backend), rein für Erreichbarkeit
   app.register(staticRoute); // staticRoute handles catch-all, must be last
 
   // Error handler

@@ -1,5 +1,42 @@
 Agents dürfen sich nicht auf den lokalen dev server versteifen; prod = firebase!
 
+## v3 → v4 Migration (2026-08-07, laufend)
+
+**Naming:** `src/` (Node/Fastify + altes React-Frontend) = **v3**, aktuell live
+(dev :9000, prod :7000 local + `fuel-vos.web.app` Firebase). `frontend/` +
+`backend/` (FastAPI + Postgres + neues React-Frontend, `frontend/package.json`
+= v4.0.0) = **v4**, aus `~/fuel/` reinkopiert (ohne `node_modules`/`dist`/
+`__pycache__`). v4 ist der **eigentliche Nachfolger**, kein Wegwerf-Prototyp —
+kein Rückbau von Postgres/SQLAlchemy, kein reiner Proxy-Layer.
+
+**Cross-Reachability (fertig):**
+- `src/server/routes/v4-proxy.mjs` — `/v4/*` auf v3 proxied zu `FUEL_V4_URL`
+  (default `http://127.0.0.1:4000`).
+- `backend/api/endpoints/v3_proxy.py` — `/v3/*` auf v4 proxied zu `FUEL_V3_URL`
+  (default `http://127.0.0.1:9000`, später auf Firebase umschaltbar).
+- Reine Erreichbarkeits-Routen, kein gemeinsamer Datenlayer.
+
+**Ziel: dev/staging/prod dupliziert sich für v4.** v4 übernimmt schrittweise
+Prod-Verantwortung von v3, parallel zur bestehenden v3-Pipeline, bis v3
+ausläuft — kein Nebenprojekt. Konkrete Stufen (staging-Port/-Service für v4,
+Rollout-Reihenfolge welche Endpoints zuerst wechseln) noch offen.
+
+**Offen:**
+- Kein systemd-Service für v4 (weder dev noch staging noch prod).
+- Datenmigration fuel-dev-Store (File+SQLite) → Postgres nicht angegangen.
+- Rollout-Reihenfolge (welcher Endpoint zuerst v3→v4 wechselt) nicht entschieden.
+- Echte Postgres (statt SQLite-Dev-Fallback) nie aufgesetzt — `backend/docker-compose.yml` liegt bereit, ungenutzt.
+- `/opt`-Prod-Pfad für v4 noch nicht angelegt (Symlink-Idee vs. eigener Deploy — offen).
+
+**Erledigt (aus `~/fuel/TODO.md`, v4-Historie vor dem Merge):**
+- [x] Poetry-Projekt-Init, Kern-Deps (sqlalchemy/pydantic/google-genai/python-dotenv)
+- [x] SQLAlchemy-DB-Architektur mit Katalog-Tabelle
+- [x] Gemini-API-Integration für NLP-Makro-Extraktion
+- [x] Alle 9 Frontend-Views + Hooks auf FastAPI-Backend refactored (Legacy-Firestore-Code raus)
+- [x] Backend-Umbau auf `DailyJournal`-Architektur
+- [x] Frontend-Auslieferung direkt im FastAPI-Backend (SPA-Routing)
+- v4-Doku (`README.md`, `ARCHITECTURE.md`, `RESULTS.md`, `DEPENDENCY.md`, `ANLEITUNG.md`) liegt jetzt unter `backend/`.
+
 
 
 ~~Habits und Journal können aus dem Firebase Frontend verschwinden~~

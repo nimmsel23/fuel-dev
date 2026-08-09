@@ -463,6 +463,13 @@ def _known_commands() -> set[str]:
     return names | {"--help", "-h"}
 
 
+# Stack-Control-Wörter (v3/v4-Betrieb via fuelctl) — sind keine Typer-Subcommands
+# hier (die gehören zu bin/fuelctl, einer separaten CLI) und keine Supplement-
+# IDs. Ohne diese Liste würde "fuel status"/"fuel dev" als bare Single-Word-
+# Item durchrutschen und als Freitext-Mahlzeit an Gemini gehen.
+STACK_CONTROL_WORDS = {"status", "dev", "local", "logs", "start", "stop", "restart", "build", "deploy", "health"}
+
+
 def main() -> None:
     # Zsh/Bash/Typer autocomplete handling
     if "_FUEL_COMPLETE" in os.environ:
@@ -514,6 +521,17 @@ def main() -> None:
         supps = [a for a in rest if a in supp_ids]
         other = [a for a in rest if a not in supp_ids]
         subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-supplement"), "log", *supps, *other, *date_flags])
+        return
+
+    # Stack-Control-Wörter (status/dev/local/logs/...) sind keine Supplement-IDs
+    # und keine registrierten Typer-Subcommands hier — ohne diesen Check würde
+    # "fuel status" oder "fuel dev" als Freitext-Mahlzeit an Gemini gehen
+    # ("status" als Essen loggen). Supplements haben Vorrang (oben), Mahlzeiten
+    # werden immer gequoted getippt ("Käsekrainer 330g"), Supplements bare
+    # (weil aus dem Katalog) — ein bare Single-Word-Treffer hier ist also so
+    # gut wie nie eine echte Mahlzeitbeschreibung.
+    if target in STACK_CONTROL_WORDS:
+        subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuelctl"), *rest])
         return
 
     # NL-Mahlzeitbeschreibung(en) → EIN Meal-Log. Mehrere Quoted-Args werden
