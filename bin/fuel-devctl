@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """
 fuel-devctl — Python-powered Fuel Centre Stack Control
-Replaces the legacy bash script with a more robust and stylish version.
+Controls: v3 (Node/Fastify, :9000) + v4 (Python/FastAPI, :4000, backend/).
+Adapted 2026-08-07 from fitness-dev/fitness-devctl's Node+Python dual-stack
+pattern — v4 hat noch keine systemd-Unit, wird also wie v3 auch über
+Popen+PIDFILE gesteuert, nicht über systemctl.
 """
 
 import os
@@ -28,6 +31,13 @@ DEV_DIR = Path(__file__).resolve().parent.parent
 LOGFILE = Path("/tmp/fuelctx-dev.log")
 PIDFILE = Path("/tmp/fuelctx-dev.pid")
 
+V4_PORT = os.getenv("FUEL_V4_PORT", "4000")
+V4_HEALTH_URL = f"http://127.0.0.1:{V4_PORT}/health"
+V4_DIR = DEV_DIR / "backend"
+V4_VENV_UVICORN = V4_DIR / ".venv" / "bin" / "uvicorn"
+V4_LOGFILE = Path("/tmp/fuel-v4-dev.log")
+V4_PIDFILE = Path("/tmp/fuel-v4-dev.pid")
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def gum_log(level: str, text: str):
@@ -47,6 +57,22 @@ def get_pid() -> Optional[int]:
         except ValueError:
             return None
     return None
+
+def get_v4_pid() -> Optional[int]:
+    if V4_PIDFILE.exists():
+        try:
+            return int(V4_PIDFILE.read_text().strip())
+        except ValueError:
+            return None
+    return None
+
+def is_v4_running() -> bool:
+    import urllib.request
+    try:
+        with urllib.request.urlopen(V4_HEALTH_URL, timeout=1):
+            return True
+    except Exception:
+        return False
 
 def is_running() -> bool:
     import urllib.request
@@ -93,111 +119,189 @@ def kill_leftover_processes() -> list[int]:
                 pass
     return killed
 
-# ── Commands ──────────────────────────────────────────────────────────────────
+# ── v4 Helpers ────────────────────────────────────────────────────────────────
 
-@app.command()
-def status():
-    """Check the status of the Fuel stack."""
-    msg.divider("System Status")
-    if is_running():
-        pid = get_pid()
-        msg.good(f"Fuel Stack is online on port {PORT}")
-        if pid:
-            msg.info(f"Main Process PID: {pid}")
-    else:
-        msg.warn(f"Stack is not responding on port {PORT}")
-
-@app.command()
-def start():
-    """Start the Fuel stack in the background."""
-    if is_running():
-        msg.warn(f"Stack is already running on port {PORT}")
+def _start_v4():
+    if is_v4_running():
+        msg.warn(f"v4 already running on port {V4_PORT}")
+        return
+    if not V4_VENV_UVICORN.exists():
+        msg.fail(f"v4 venv not found ({V4_VENV_UVICORN}) — run: python3 -m venv backend/.venv && backend/.venv/bin/pip install -r backend/requirements.txt")
         return
 
-    os.chdir(DEV_DIR)
-    
-    # Ensure logfile is fresh
-    try:
-        LOGFILE.touch()
-        with open(LOGFILE, "w") as f:
-            f.truncate(0)
-    except Exception as e:
-        msg.fail(f"Could not prepare logfile {LOGFILE}: {e}")
-        raise typer.Exit(1)
+    V4_LOGFILE.touch()
+    with open(V4_LOGFILE, "w") as f:
+        f.truncate(0)
 
-    gum_log("info", f"Starting stack in background (Logs: {LOGFILE})...")
-    
-    # Using start_new_session=True to detach from this terminal
+    gum_log("info", f"Starting v4 (FastAPI) in background (Logs: {V4_LOGFILE})...")
     proc = subprocess.Popen(
-        ["npm", "run", "dev"],
-        stdout=open(LOGFILE, "a"),
+        [str(V4_VENV_UVICORN), "backend.api.main:app", "--port", V4_PORT],
+        stdout=open(V4_LOGFILE, "a"),
         stderr=subprocess.STDOUT,
         cwd=DEV_DIR,
-        start_new_session=True
+        start_new_session=True,
     )
-    
-    PIDFILE.write_text(str(proc.pid))
-    
-    # Wait for startup
-    msg.info("Waiting for service to become healthy...")
+    V4_PIDFILE.write_text(str(proc.pid))
+
     for i in range(15):
         time.sleep(1)
-        if is_running():
-            msg.good("Stack is now online and healthy!")
+        if is_v4_running():
+            msg.good("v4 is now online and healthy!")
             return
         if i % 5 == 0 and i > 0:
-            msg.info(f"Still waiting ({i}s)...")
+            msg.info(f"Still waiting for v4 ({i}s)...")
+    msg.fail("v4 failed to start within 15 seconds. Please check logs.")
+    msg.info(f"Command: tail -n 20 {V4_LOGFILE}")
 
-    msg.fail("Stack failed to start within 15 seconds. Please check logs.")
-    msg.info(f"Command: tail -n 20 {LOGFILE}")
 
-@app.command()
-def stop():
-    """Stop the Fuel stack and all related processes."""
-    pid = get_pid()
-    
+def _stop_v4():
+    pid = get_v4_pid()
     if pid:
-        gum_log("warn", f"Terminating process group for PID {pid}...")
+        gum_log("warn", f"Terminating v4 process group for PID {pid}...")
         try:
             os.killpg(os.getpgid(pid), signal.SIGTERM)
             time.sleep(1)
-            # Check if still alive
             if os.path.exists(f"/proc/{pid}"):
                 os.killpg(os.getpgid(pid), signal.SIGKILL)
         except ProcessLookupError:
             pass
         except Exception as e:
-            msg.warn(f"Error while killing process group: {e}")
+            msg.warn(f"Error while killing v4 process group: {e}")
+    if V4_PIDFILE.exists():
+        V4_PIDFILE.unlink()
+    msg.good("v4 stopped.")
 
-    # Cleanup of leftover Node/Vite processes — scoped to this repo (see
-    # kill_leftover_processes() docstring for why this used to be too broad).
-    msg.info("Cleaning up leftover Node.js and Vite processes (scoped to this repo)...")
-    killed = kill_leftover_processes()
-    if killed:
-        msg.info(f"Killed {len(killed)} leftover process(es): {killed}")
-    
-    if PIDFILE.exists():
-        PIDFILE.unlink()
-        
-    msg.good("Fuel Stack stopped.")
+
+# ── Commands ──────────────────────────────────────────────────────────────────
 
 @app.command()
-def restart():
+def status(
+    v3: bool = typer.Option(True, help="Show v3 (Node, :9000)"),
+    v4: bool = typer.Option(True, help="Show v4 (FastAPI, :4000)"),
+):
+    """Check the status of the Fuel stack (v3 Node + v4 FastAPI)."""
+    msg.divider("System Status")
+    if v3:
+        if is_running():
+            pid = get_pid()
+            msg.good(f"v3 (Node) is online on port {PORT}" + (f" — PID {pid}" if pid else ""))
+        else:
+            msg.warn(f"v3 (Node) is not responding on port {PORT}")
+    if v4:
+        if is_v4_running():
+            pid = get_v4_pid()
+            msg.good(f"v4 (FastAPI) is online on port {V4_PORT}" + (f" — PID {pid}" if pid else ""))
+        else:
+            msg.warn(f"v4 (FastAPI) is not responding on port {V4_PORT}")
+
+@app.command()
+def start(
+    v3: bool = typer.Option(True, help="Start v3 (Node)"),
+    v4: bool = typer.Option(False, help="Also start v4 (FastAPI) — off by default, still WIP"),
+):
+    """Start the Fuel stack in the background."""
+    if v3:
+        if is_running():
+            msg.warn(f"v3 is already running on port {PORT}")
+        else:
+            os.chdir(DEV_DIR)
+
+            # Ensure logfile is fresh
+            try:
+                LOGFILE.touch()
+                with open(LOGFILE, "w") as f:
+                    f.truncate(0)
+            except Exception as e:
+                msg.fail(f"Could not prepare logfile {LOGFILE}: {e}")
+                raise typer.Exit(1)
+
+            gum_log("info", f"Starting v3 stack in background (Logs: {LOGFILE})...")
+
+            # Using start_new_session=True to detach from this terminal
+            proc = subprocess.Popen(
+                ["npm", "run", "dev"],
+                stdout=open(LOGFILE, "a"),
+                stderr=subprocess.STDOUT,
+                cwd=DEV_DIR,
+                start_new_session=True
+            )
+
+            PIDFILE.write_text(str(proc.pid))
+
+            # Wait for startup
+            msg.info("Waiting for v3 to become healthy...")
+            for i in range(15):
+                time.sleep(1)
+                if is_running():
+                    msg.good("v3 is now online and healthy!")
+                    break
+                if i % 5 == 0 and i > 0:
+                    msg.info(f"Still waiting ({i}s)...")
+            else:
+                msg.fail("v3 failed to start within 15 seconds. Please check logs.")
+                msg.info(f"Command: tail -n 20 {LOGFILE}")
+    if v4:
+        _start_v4()
+
+@app.command()
+def stop(
+    v3: bool = typer.Option(True, help="Stop v3 (Node)"),
+    v4: bool = typer.Option(True, help="Stop v4 (FastAPI)"),
+):
+    """Stop the Fuel stack and all related processes."""
+    if v3:
+        pid = get_pid()
+
+        if pid:
+            gum_log("warn", f"Terminating process group for PID {pid}...")
+            try:
+                os.killpg(os.getpgid(pid), signal.SIGTERM)
+                time.sleep(1)
+                # Check if still alive
+                if os.path.exists(f"/proc/{pid}"):
+                    os.killpg(os.getpgid(pid), signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            except Exception as e:
+                msg.warn(f"Error while killing process group: {e}")
+
+        # Cleanup of leftover Node/Vite processes — scoped to this repo (see
+        # kill_leftover_processes() docstring for why this used to be too broad).
+        msg.info("Cleaning up leftover Node.js and Vite processes (scoped to this repo)...")
+        killed = kill_leftover_processes()
+        if killed:
+            msg.info(f"Killed {len(killed)} leftover process(es): {killed}")
+
+        if PIDFILE.exists():
+            PIDFILE.unlink()
+        msg.good("v3 stopped.")
+    if v4:
+        _stop_v4()
+
+@app.command()
+def restart(
+    v3: bool = typer.Option(True, help="Restart v3 (Node)"),
+    v4: bool = typer.Option(False, help="Also restart v4 (FastAPI)"),
+):
     """Stop and then start the Fuel stack."""
-    stop()
+    stop(v3=v3, v4=v4)
     time.sleep(1)
-    start()
+    start(v3=v3, v4=v4)
 
 @app.command()
-def logs(n: int = typer.Option(50, "--lines", "-n", help="Number of lines to show initially")):
+def logs(
+    service: str = typer.Argument("v3", help="Which service: v3 | v4"),
+    n: int = typer.Option(50, "--lines", "-n", help="Number of lines to show initially"),
+):
     """Tail the stack logs."""
-    if not LOGFILE.exists():
-        msg.fail(f"Log file not found at {LOGFILE}")
+    target = V4_LOGFILE if service == "v4" else LOGFILE
+    if not target.exists():
+        msg.fail(f"Log file not found at {target}")
         return
 
-    msg.divider("Log Stream (Ctrl+C to stop)")
+    msg.divider(f"Log Stream ({service}, Ctrl+C to stop)")
     try:
-        subprocess.run(["tail", f"-n{n}", "-f", str(LOGFILE)])
+        subprocess.run(["tail", f"-n{n}", "-f", str(target)])
     except KeyboardInterrupt:
         print("\n")
         msg.info("Stopped tailing logs.")
@@ -209,9 +313,24 @@ def build():
     subprocess.run(["npm", "run", "build"], cwd=DEV_DIR)
 
 @app.command()
-def dev():
-    """Run the stack in the foreground (for debugging)."""
-    msg.divider("Foreground Mode")
+def dev(target: str = typer.Argument("v3", help="v3 | v4 — welcher Stack läuft im Vordergrund")):
+    """Run v3 (npm dev) or v4 (uvicorn --reload) in the foreground (for debugging)."""
+    if target == "v4":
+        if not V4_VENV_UVICORN.exists():
+            msg.fail(f"v4 venv not found ({V4_VENV_UVICORN}) — run: python3 -m venv backend/.venv && backend/.venv/bin/pip install -r backend/requirements.txt")
+            raise typer.Exit(1)
+        if is_v4_running():
+            msg.info("Stopping backgrounded v4 (port freed for foreground reload)...")
+            _stop_v4()
+        msg.divider("Foreground Mode (v4)")
+        try:
+            subprocess.run([str(V4_VENV_UVICORN), "backend.api.main:app", "--port", V4_PORT, "--reload"], cwd=DEV_DIR)
+        except KeyboardInterrupt:
+            print("\n")
+            msg.info("Foreground process stopped by user.")
+        return
+
+    msg.divider("Foreground Mode (v3)")
     try:
         subprocess.run(["npm", "run", "dev"], cwd=DEV_DIR)
     except KeyboardInterrupt:

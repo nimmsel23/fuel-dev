@@ -1,0 +1,165 @@
+#!/usr/bin/env python3
+"""
+fuel-prodctl — Fuel Prod Controller (system-scope service)
+
+Kontrolliert den tatsächlich laufenden Prod-Service, getrennt vom
+fuel-devctl-Stack (falls vorhanden). Deploy-Pfad laut deploy.sh:
+  ~/fuel-dev (dev, dieses Repo) -> ~/fuel (Staging, git-versioniert)
+  -> /opt/fuel (Node prod) + /opt/fuel-python (Python-Backend)
+
+  - fuel.service :7000  system-scope, Node aus /opt/fuel (sudo für restart/stop)
+    (vormals fuel-v2.service, umbenannt weil der Compose-/Unit-Name nie
+    "v2" tragen sollte -- kein zweiter Fuel-Service existiert)
+
+Deploy: ./deploy.sh (baut in ~/fuel-dev, staged nach ~/fuel, rsynct nach
+        /opt/fuel + /opt/fuel-python, restartet fuel.service)
+Install: fuel-prodctl install (schreibt/aktualisiert die systemd-Unit selbst, sudo)
+"""
+
+import subprocess
+from pathlib import Path
+
+import typer
+from wasabi import Printer
+
+msg = Printer()
+
+app = typer.Typer(help="Fuel Prod Controller", no_args_is_help=True)
+
+# fuel-prodctl liegt in bin/, deploy.sh eine Ebene höher im Repo-Root.
+DEV_DIR = Path(__file__).resolve().parent.parent
+
+PROD_SERVICE = "fuel.service"  # system-scope, sudo
+
+
+def _systemctl(action: str, unit: str) -> int:
+    return subprocess.run(["sudo", "systemctl", action, unit]).returncode
+
+
+@app.command()
+def status():
+    """Status des Prod-Service."""
+    result = subprocess.run(
+        ["systemctl", "is-active", PROD_SERVICE], capture_output=True, text=True
+    )
+    state = result.stdout.strip() or "unknown"
+    if state == "active":
+        msg.good(f"{PROD_SERVICE}: {state}")
+    else:
+        msg.fail(f"{PROD_SERVICE}: {state}")
+
+
+@app.command()
+def logs(
+    follow: bool = typer.Option(True, "-f/--no-follow", help="Follow log output"),
+    lines: int = typer.Option(50, "-n", help="Number of lines when not following"),
+):
+    """Live-Logs des Prod-Service (journalctl -f)."""
+    cmd = ["journalctl", "-u", PROD_SERVICE]
+    if follow:
+        cmd += ["-f", "--no-pager"]
+    else:
+        cmd += ["-n", str(lines), "--no-pager"]
+    subprocess.run(cmd)
+
+
+@app.command()
+def restart():
+    """Restartet den Prod-Service (sudo)."""
+    msg.info(f"Restarting {PROD_SERVICE} (sudo)")
+    rc = _systemctl("restart", PROD_SERVICE)
+    if rc == 0:
+        msg.good(f"{PROD_SERVICE} restarted")
+    else:
+        msg.fail(f"{PROD_SERVICE} restart failed (exit {rc})")
+        raise typer.Exit(rc)
+
+
+def _run_deploy_sh() -> int:
+    deploy_script = DEV_DIR / "deploy.sh"
+    if not deploy_script.exists():
+        msg.fail(f"deploy.sh not found in {DEV_DIR}")
+        raise typer.Exit(1)
+    return subprocess.run(["bash", str(deploy_script)], cwd=DEV_DIR).returncode
+
+
+# Unit-Inhalt direkt hier im Skript (kein externer .dotfiles-Verweis) -- ein
+# Skript, alles drin. Bei Änderungen: hier UND in /etc/systemd/system/fuel.service
+# gleichzeitig im Kopf behalten (install() gleicht das automatisch ab).
+UNIT_CONTENT = """[Unit]
+Description=Fuel Centre (Desktop Prod)
+After=network.target
+
+[Service]
+Type=simple
+User=alpha
+Group=alpha
+WorkingDirectory=/opt/fuel
+Environment=PORT=7000
+Environment=HOST=0.0.0.0
+Environment=FUEL_STATIC_DIR=/opt/fuel
+# Using npm run prod to ensure all environment variables from package.json are applied
+ExecStart=/usr/bin/npm run prod
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+"""
+UNIT_TARGET = Path("/etc/systemd/system/fuel.service")
+
+
+def _install_unit() -> None:
+    current = UNIT_TARGET.read_text() if UNIT_TARGET.exists() else None
+    if current == UNIT_CONTENT:
+        msg.good(f"{UNIT_TARGET} bereits aktuell.")
+        return
+
+    msg.info(f"Installiere Unit -> {UNIT_TARGET} (sudo)")
+    rc = subprocess.run(
+        ["sudo", "tee", str(UNIT_TARGET)],
+        input=UNIT_CONTENT, capture_output=True, text=True,
+    ).returncode
+    if rc != 0:
+        msg.fail(f"Schreiben fehlgeschlagen (exit {rc})")
+        raise typer.Exit(rc)
+    rc = subprocess.run(["sudo", "systemctl", "daemon-reload"]).returncode
+    if rc != 0:
+        msg.fail(f"daemon-reload fehlgeschlagen (exit {rc})")
+        raise typer.Exit(rc)
+    msg.good(f"{UNIT_TARGET} installiert + daemon-reload durchgeführt.")
+
+
+@app.command()
+def deploy(
+    install: bool = typer.Option(
+        False, "--install", help="Vorher die systemd-Unit installieren/aktualisieren"
+    )
+):
+    """Führt ./deploy.sh aus (Build in ~/fuel-dev, Staging nach ~/fuel, rsync nach /opt/fuel[-python], restart, sudo)."""
+    if install:
+        _install_unit()
+    rc = _run_deploy_sh()
+    if rc != 0:
+        raise typer.Exit(rc)
+
+
+@app.command(name="install")
+def install_cmd(
+    deploy: bool = typer.Option(
+        False, "--deploy", help="Danach direkt deployen (deploy.sh ausführen)"
+    )
+):
+    """Installiert/aktualisiert die fuel.service-Unit nach
+    /etc/systemd/system/ (sudo) und lädt systemd neu. Deployt NICHT automatisch
+    -- außer mit --deploy."""
+    _install_unit()
+    if deploy:
+        msg.info("Führe ./deploy.sh aus (Build + Staging + rsync + Restart, sudo)")
+        rc = _run_deploy_sh()
+        if rc != 0:
+            raise typer.Exit(rc)
+
+
+if __name__ == "__main__":
+    app()
