@@ -25,6 +25,8 @@ app = typer.Typer(help="Fuel Centre Stack Control (Python Edition)", no_args_is_
 
 PORT = os.getenv("PORT", "9000")
 HEALTH_URL = f"http://127.0.0.1:{PORT}/health"
+VITE_PORT = os.getenv("FUEL_VITE_PORT", "9001")
+VITE_URL = f"http://127.0.0.1:{VITE_PORT}/"
 DEV_DIR = Path(__file__).resolve().parent.parent
 LOGFILE = Path("/tmp/fuelctx-dev.log")
 PIDFILE = Path("/tmp/fuelctx-dev.pid")
@@ -78,6 +80,14 @@ def is_running() -> bool:
     import urllib.request
     try:
         with urllib.request.urlopen(HEALTH_URL, timeout=1):
+            return True
+    except:
+        return False
+
+def is_vite_running() -> bool:
+    import urllib.request
+    try:
+        with urllib.request.urlopen(VITE_URL, timeout=1):
             return True
     except:
         return False
@@ -191,11 +201,20 @@ def status(
     """Check the status of v3 and v4 in the local runtime."""
     msg.divider("System Status")
     if frontend:
-        if is_running():
+        node_ok = is_running()
+        vite_ok = is_vite_running()
+        if node_ok and vite_ok:
             pid = get_pid()
             msg.good(f"v3 (Node/Fastify entrypoint) is online on port {PORT}" + (f" — PID {pid}" if pid else ""))
+            msg.good(f"Vite UI is online on port {VITE_PORT}")
+        elif node_ok and not vite_ok:
+            pid = get_pid()
+            msg.warn(f"v3 (Node/Fastify entrypoint) is only partially online on port {PORT}" + (f" — PID {pid}" if pid else ""))
+            msg.warn(f"Vite UI is not responding on port {VITE_PORT}")
         else:
             msg.warn(f"v3 (Node/Fastify entrypoint) is not responding on port {PORT}")
+            if vite_ok:
+                msg.warn(f"Vite UI is online on port {VITE_PORT}, but the Node wrapper on :{PORT} is down")
     if backend:
         if is_backend_running():
             pid = get_backend_pid()
@@ -210,9 +229,15 @@ def start(
 ):
     """Start v3 and, if requested, v4."""
     if frontend:
-        if is_running():
-            msg.warn(f"v3 is already running on port {PORT}")
+        node_ok = is_running()
+        vite_ok = is_vite_running()
+        if node_ok and vite_ok:
+            msg.warn(f"v3 + Vite are already running on ports {PORT}/{VITE_PORT}")
         else:
+            if node_ok and not vite_ok:
+                msg.warn(f"v3 wrapper is up on :{PORT}, but Vite on :{VITE_PORT} is down — restarting the local dev stack")
+                stop(frontend=True, backend=False)
+                time.sleep(1)
             os.chdir(DEV_DIR)
 
             # Ensure logfile is fresh
@@ -238,16 +263,16 @@ def start(
             PIDFILE.write_text(str(proc.pid))
 
             # Wait for startup
-            msg.info("Waiting for v3 to become healthy...")
+            msg.info(f"Waiting for v3 (: {PORT}) and Vite (: {VITE_PORT}) to become healthy...")
             for i in range(15):
                 time.sleep(1)
-                if is_running():
-                    msg.good("v3 is now online and healthy!")
+                if is_running() and is_vite_running():
+                    msg.good("v3 + Vite are now online and healthy!")
                     break
                 if i % 5 == 0 and i > 0:
                     msg.info(f"Still waiting ({i}s)...")
             else:
-                msg.fail("v3 failed to start within 15 seconds. Please check logs.")
+                msg.fail("v3 dev stack failed to start within 15 seconds. Please check logs.")
                 msg.info(f"Command: tail -n 20 {LOGFILE}")
     if backend:
         _start_backend()
