@@ -68,6 +68,37 @@ def get_backend_pid() -> Optional[int]:
             return None
     return None
 
+def find_backend_pids() -> list[int]:
+    """Discover uvicorn/FastAPI processes that belong to this repo.
+
+    The backend pidfile can become meaningless when start/stop/status happen
+    across different PID namespaces. In that case the stored PID may point to
+    an unrelated process in the current namespace, so backend control must be
+    based on cwd/cmdline discovery instead of trusting the pidfile.
+    """
+    dev_dir_str = str(DEV_DIR)
+    backend_dir_str = str(BACKEND_DIR)
+    pids = []
+    for proc in psutil.process_iter(["pid", "name", "cmdline", "cwd"]):
+        try:
+            info = proc.info
+            name = (info.get("name") or "").lower()
+            cmdline = " ".join(info.get("cmdline") or [])
+            cmdline_l = cmdline.lower()
+            cwd = info.get("cwd") or ""
+            looks_like_backend = (
+                "uvicorn" in name
+                or "backend.api.main:app" in cmdline_l
+                or str(BACKEND_UVICORN).lower() in cmdline_l
+            )
+            if not looks_like_backend:
+                continue
+            if cwd.startswith(dev_dir_str) or dev_dir_str in cmdline or backend_dir_str in cmdline:
+                pids.append(int(info["pid"]))
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess, KeyError, TypeError, ValueError):
+            continue
+    return sorted(set(pids))
+
 def is_backend_running() -> bool:
     import urllib.request
     try:
@@ -174,8 +205,11 @@ def _start_backend():
 
 
 def _stop_backend():
-    pid = get_backend_pid()
-    if pid:
+    pids = find_backend_pids()
+    stale_pid = get_backend_pid()
+    if not pids and stale_pid:
+        msg.warn(f"Backend pidfile is stale or namespace-local (PID {stale_pid}); no matching backend process found.")
+    for pid in pids:
         gum_log("warn", f"Terminating backend process group for PID {pid}...")
         try:
             os.killpg(os.getpgid(pid), signal.SIGTERM)
@@ -217,15 +251,23 @@ def status(
                 msg.warn(f"Vite UI is online on port {VITE_PORT}, but the Node wrapper on :{PORT} is down")
     if backend:
         if is_backend_running():
-            pid = get_backend_pid()
-            msg.good(f"v4 (Python/FastAPI backend) is online on port {BACKEND_PORT}" + (f" — PID {pid}" if pid else ""))
+            pids = find_backend_pids()
+            if len(pids) == 1:
+                msg.good(f"v4 (Python/FastAPI backend) is online on port {BACKEND_PORT} — PID {pids[0]}")
+            elif pids:
+                msg.good(f"v4 (Python/FastAPI backend) is online on port {BACKEND_PORT} — PIDs {pids}")
+            else:
+                msg.good(f"v4 (Python/FastAPI backend) is online on port {BACKEND_PORT}")
         else:
             msg.warn(f"v4 (Python/FastAPI backend) is not responding on port {BACKEND_PORT}")
+            pids = find_backend_pids()
+            if pids:
+                msg.warn(f"Found backend process(es) for this repo, but health is down: {pids}")
 
 @app.command()
 def start(
     frontend: bool = typer.Option(True, "--v3/--no-v3", help="Start v3 Node/Fastify entrypoint (:9000)"),
-    backend: bool = typer.Option(False, "--v4/--no-v4", help="Also start v4 Python/FastAPI backend (:4000)"),
+    backend: bool = typer.Option(True, "--v4/--no-v4", help="Also start v4 Python/FastAPI backend (:4000)"),
 ):
     """Start v3 and, if requested, v4."""
     if frontend:
@@ -315,7 +357,7 @@ def stop(
 @app.command()
 def restart(
     frontend: bool = typer.Option(True, "--v3/--no-v3", help="Restart v3 Node/Fastify entrypoint (:9000)"),
-    backend: bool = typer.Option(False, "--v4/--no-v4", help="Also restart v4 Python/FastAPI backend (:4000)"),
+    backend: bool = typer.Option(True, "--v4/--no-v4", help="Also restart v4 Python/FastAPI backend (:4000)"),
 ):
     """Stop and then start v3 and v4."""
     stop(frontend=frontend, backend=backend)
