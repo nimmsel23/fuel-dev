@@ -33,17 +33,22 @@ if (typeof window !== "undefined") {
 function App() {
   const { activeTab, setActiveTab, activeDate, setActiveDate } = useApp();
   const [user, setUser] = React.useState(null);
+  const isCloud = window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com");
+  const isClientBuild = import.meta.env.VITE_APP_MODE === "client";
+  const isCloudFrontend = isCloud || isClientBuild;
 
-  // Fragt /coach/health einmalig ab: erreichbar → wir laufen lokal (Fastify-
-  // Backend vorhanden), server.mode sagt ob dev (:9000) oder prod (:7000,
-  // /opt/fuel). Unerreichbar (z.B. Cloud-Build ohne eigenes Backend) →
-  // localMode bleibt null, der Dev/Prod-Tab wird dann ausgeblendet.
   const [localMode, setLocalMode] = React.useState(null); // "dev" | "prod" | null
+  const [hasV4, setHasV4] = React.useState(false);
   React.useEffect(() => {
     let cancelled = false;
-    fetchJson("/coach/health")
-      .then((r) => { if (!cancelled) setLocalMode(r?.server?.mode || null); })
-      .catch(() => { if (!cancelled) setLocalMode(null); });
+    Promise.allSettled([
+      fetchJson("/coach/health"),
+      fetchJson("/v4/health"),
+    ]).then(([coachResult, v4Result]) => {
+      if (cancelled) return;
+      setLocalMode(coachResult.status === "fulfilled" ? (coachResult.value?.server?.mode || null) : null);
+      setHasV4(v4Result.status === "fulfilled" && v4Result.value?.status === "ok");
+    });
     return () => { cancelled = true; };
   }, []);
 
@@ -101,15 +106,18 @@ function App() {
   const totalCarbs = sumMetric(meals, "carbs");
   const totalFat = sumMetric(meals, "fat");
 
-  const isCloud = window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com");
-  const isClientBuild = import.meta.env.VITE_APP_MODE === "client";
-  const isCloudFrontend = isCloud || isClientBuild;
   const visibleTabs = TAB_CONFIG.filter((t) => !t.localOnly || localMode !== null).filter((t) => !(t.cloudHidden && isCloudFrontend));
+  const runtimeBadge = isCloudFrontend ? "Fuel Centre V3" : (hasV4 ? "Fuel Centre V3 / V4" : "Fuel Centre V3");
+  const runtimeTitle = isCloudFrontend
+    ? "Fuel Centre V3 (Firebase PWA)"
+    : (hasV4
+      ? `Fuel Centre V3 / V4 (${localMode === "prod" ? "Local Prod" : "Dev"})`
+      : `Fuel Centre V3 (${localMode === "prod" ? "Local Prod" : "Dev"})`);
 
   React.useEffect(() => {
     const tab = TAB_CONFIG.find((t) => t.key === activeTab);
-    document.title = tab?.label || ((isCloud || isClientBuild) ? "Fuel Centre V3 (Firebase PWA)" : "Fuel Centre V2 (Desktop Prod)");
-  }, [activeTab, isCloud, isClientBuild]);
+    document.title = tab?.label || runtimeTitle;
+  }, [activeTab, runtimeTitle]);
 
   const tabCtx = { nutrition, sup, suppCatalog, suppLog, journal, macroTrend, activeDate, setActiveDate, setActiveTab };
 
@@ -125,7 +133,7 @@ function App() {
               <div className="flex items-center gap-3 mb-2">
                 <p className="inline-flex items-center gap-2 rounded-full border border-orange-400/30 bg-orange-400/10 px-3 py-1 text-xs uppercase tracking-[0.25em] text-orange-200">
                   <Sparkles className="h-3.5 w-3.5" />
-                  {(isCloud || isClientBuild) ? "Fuel Centre V3" : "Fuel Centre V2"}
+                  {runtimeBadge}
                 </p>
                 {needRefresh && (
                   <button
