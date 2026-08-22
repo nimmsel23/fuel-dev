@@ -36,6 +36,7 @@ BACKEND_DIR = DEV_DIR / "backend"
 BACKEND_UVICORN = BACKEND_DIR / ".venv" / "bin" / "uvicorn"
 BACKEND_LOGFILE = Path("/tmp/fuel-backend-dev.log")
 BACKEND_PIDFILE = Path("/tmp/fuel-backend-dev.pid")
+BACKEND_HOST = os.getenv("FUEL_BACKEND_HOST", "127.0.0.1")
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -134,21 +135,30 @@ def _start_backend():
 
     gum_log("info", f"Starting backend (FastAPI) in background (Logs: {BACKEND_LOGFILE})...")
     proc = subprocess.Popen(
-        [str(BACKEND_UVICORN), "backend.api.main:app", "--port", BACKEND_PORT],
+        [str(BACKEND_UVICORN), "backend.api.main:app", "--host", BACKEND_HOST, "--port", BACKEND_PORT],
         stdout=open(BACKEND_LOGFILE, "a"),
         stderr=subprocess.STDOUT,
         cwd=DEV_DIR,
+        stdin=subprocess.DEVNULL,
         start_new_session=True,
     )
     BACKEND_PIDFILE.write_text(str(proc.pid))
 
     for i in range(15):
         time.sleep(1)
+        if proc.poll() is not None:
+            if BACKEND_PIDFILE.exists():
+                BACKEND_PIDFILE.unlink()
+            msg.fail(f"backend exited immediately with code {proc.returncode}. Please check logs.")
+            msg.info(f"Command: tail -n 20 {BACKEND_LOGFILE}")
+            return
         if is_backend_running():
             msg.good("backend is now online and healthy!")
             return
         if i % 5 == 0 and i > 0:
             msg.info(f"Still waiting for backend ({i}s)...")
+    if proc.poll() is not None and BACKEND_PIDFILE.exists():
+        BACKEND_PIDFILE.unlink()
     msg.fail("backend failed to start within 15 seconds. Please check logs.")
     msg.info(f"Command: tail -n 20 {BACKEND_LOGFILE}")
 
@@ -334,7 +344,7 @@ def dev(target: str = typer.Argument("v3", help="v3 | v4 — welcher Prozess lä
             _stop_backend()
         msg.divider("Foreground Mode (v4)")
         try:
-            subprocess.run([str(BACKEND_UVICORN), "backend.api.main:app", "--port", BACKEND_PORT, "--reload"], cwd=DEV_DIR)
+            subprocess.run([str(BACKEND_UVICORN), "backend.api.main:app", "--host", BACKEND_HOST, "--port", BACKEND_PORT, "--reload"], cwd=DEV_DIR)
         except KeyboardInterrupt:
             print("\n")
             msg.info("Foreground process stopped by user.")
