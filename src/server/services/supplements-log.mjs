@@ -3,6 +3,7 @@ import { readJsonFile, writeJsonFile } from "../lib/file-io.mjs";
 import { randomId } from "../../shared/utils/ids.mjs";
 import { SUPPLEMENTS_LOG_DIR } from "../config/paths.mjs";
 import { pushSupplementLog } from "../lib/firestore-admin.mjs";
+import { addDeletedIntakeId, getDeletedIntakeIds, removeDeletedIntakeId } from "./log-tombstones.mjs";
 
 function getLogPath(date) {
   return path.join(SUPPLEMENTS_LOG_DIR, `${date}.json`);
@@ -13,14 +14,19 @@ export function loadLog(date) {
   const log = readJsonFile(filePath, {
     date,
     intakes: [],
+    deleted_intake_ids: [],
   });
   if (!log.intakes) log.intakes = [];
+  if (!Array.isArray(log.deleted_intake_ids)) {
+    log.deleted_intake_ids = getDeletedIntakeIds(date);
+  }
   return log;
 }
 
 export function saveLog(log) {
   const filePath = getLogPath(log.date);
   log.updated_at = new Date().toISOString();
+  log.deleted_intake_ids = Array.from(new Set([...(log.deleted_intake_ids || []), ...getDeletedIntakeIds(log.date)]));
   writeJsonFile(filePath, log);
   // Fire-and-forget push
   pushSupplementLog(log.date, log).catch(() => {});
@@ -48,6 +54,8 @@ export function addIntake(log, intakeInput) {
   };
 
   log.intakes.push(intake);
+  removeDeletedIntakeId(log.date, intake.id);
+  log.deleted_intake_ids = (log.deleted_intake_ids || []).filter((id) => id !== intake.id);
   return intake;
 }
 
@@ -71,6 +79,8 @@ export function deleteIntake(log, intakeId) {
   const idx = log.intakes.findIndex((i) => i.id === intakeId);
   if (idx >= 0) {
     log.intakes.splice(idx, 1);
+    addDeletedIntakeId(log.date, intakeId);
+    log.deleted_intake_ids = Array.from(new Set([...(log.deleted_intake_ids || []), intakeId]));
     return true;
   }
   return false;

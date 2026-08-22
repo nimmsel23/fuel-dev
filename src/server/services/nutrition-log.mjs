@@ -3,6 +3,7 @@ import { readJsonFile, writeJsonFile } from "../lib/file-io.mjs";
 import { randomId } from "../../shared/utils/ids.mjs";
 import { isISODate, todayISO, sanitizeMetric } from "../../shared/utils/validation.mjs";
 import { NUTRITION_DIR } from "../config/paths.mjs";
+import { deleteMeal as deleteMealRow, getMealsForDate, getWater, upsertMeal, upsertWater } from "./nutrition-db.mjs";
 
 function getLogPath(date) {
   return path.join(NUTRITION_DIR, `${date}.json`);
@@ -16,6 +17,18 @@ export function loadLog(date) {
 
 export function saveLog(log) {
   writeJsonFile(getLogPath(log.date), log);
+  const existing = getMealsForDate(log.date);
+  const currentIds = new Set((log.meals || []).filter((m) => m.id).map((m) => m.id));
+  for (const row of existing) {
+    if (!currentIds.has(row.id)) deleteMealRow(row.id);
+  }
+  for (const meal of log.meals || []) {
+    if (!meal.id) continue;
+    upsertMeal({ ...meal, date: log.date });
+  }
+  if ((log.water_ml || 0) !== getWater(log.date)) {
+    upsertWater(log.date, log.water_ml || 0);
+  }
 }
 
 export function addMeal(log, mealInput) {
