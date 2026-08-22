@@ -3,26 +3,30 @@ Agents dürfen sich nicht auf den lokalen dev server versteifen; prod = firebase
 ## v3 → v4 Migration (2026-08-07, laufend)
 
 **Naming:** `src/` (Node/Fastify + altes React-Frontend) = **v3**, aktuell live
-(dev :9000, prod :7000 local + `fuel-vos.web.app` Firebase). `frontend/` +
-`backend/` (FastAPI + Postgres + neues React-Frontend, `frontend/package.json`
-= v4.0.0) = **v4**, aus `~/fuel/` reinkopiert (ohne `node_modules`/`dist`/
-`__pycache__`). v4 ist der **eigentliche Nachfolger**, kein Wegwerf-Prototyp —
-kein Rückbau von Postgres/SQLAlchemy, kein reiner Proxy-Layer.
+(dev `:9000`, Desktop-Prod via `fuel.service` auf `:7000`, plus `fuel-vos.web.app`
+für Firebase). `frontend/` + `backend/` (FastAPI + Postgres + neues React-Frontend,
+`frontend/package.json` = v4.0.0) = **v4**, aus `~/fuel/` reinkopiert (ohne
+`node_modules`/`dist`/`__pycache__`). v4 ist der **eigentliche Nachfolger**, kein
+Wegwerf-Prototyp — kein Rückbau von Postgres/SQLAlchemy, kein reiner Proxy-Layer.
 
 **Cross-Reachability (fertig):**
 - `src/server/routes/v4-proxy.mjs` — `/v4/*` auf v3 proxied zu `FUEL_V4_URL`
   (default `http://127.0.0.1:4000`).
 - `backend/api/endpoints/v3_proxy.py` — `/v3/*` auf v4 proxied zu `FUEL_V3_URL`
   (default `http://127.0.0.1:9000`, später auf Firebase umschaltbar).
+- Ergebnis: v3 und v4 können sich im Übergang gegenseitig erreichen; v4 kann also
+  bereits Frontend + eigene API tragen und im Zweifelsfall Legacy an v3 zurückreichen.
 - Reine Erreichbarkeits-Routen, kein gemeinsamer Datenlayer.
 
 **Ziel: dev/staging/prod dupliziert sich für v4.** v4 übernimmt schrittweise
 Prod-Verantwortung von v3, parallel zur bestehenden v3-Pipeline, bis v3
-ausläuft — kein Nebenprojekt. Konkrete Stufen (staging-Port/-Service für v4,
-Rollout-Reihenfolge welche Endpoints zuerst wechseln) noch offen.
+ausläuft — kein Nebenprojekt. Aktuell ist der Desktop-Prod-Entry-Point aber noch
+v3 (`fuel.service`), obwohl v4 bereits Frontend + API bündeln kann. Konkrete
+Stufen (welcher Entry-Point wann kippt, welche Endpoints zuerst wechseln)
+sind noch offen.
 
 **Offen:**
-- Kein systemd-Service für v4 (weder dev noch staging noch prod).
+- Kein eigener systemd-Service/Prod-Entry-Point für v4.
 - Datenmigration fuel-dev-Store (File+SQLite) → Postgres nicht angegangen.
 - Rollout-Reihenfolge (welcher Endpoint zuerst v3→v4 wechselt) nicht entschieden.
 - Echte Postgres (statt SQLite-Dev-Fallback) nie aufgesetzt — `backend/docker-compose.yml` liegt bereit, ungenutzt.

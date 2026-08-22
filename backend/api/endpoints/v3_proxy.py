@@ -1,9 +1,8 @@
 """v4 (dieses FastAPI-Backend) -> v3 (Node-Server).
 
-Reine Erreichbarkeits-Route fuer die Migration (Strangler-Fig) -- kein
-gemeinsamer Datenlayer, v4 behaelt seine eigene Postgres-Anbindung fuer
-alles was hier schon implementiert ist. v3 hat (anders als v4) eine
-Cloud-Instanz auf Firebase -- Ziel ist per Env umschaltbar.
+Die Gegenrichtung existiert ebenfalls über /v4/* im Node-Server. Diese Route
+ist für den Übergang gedacht: v4 trägt bereits eigene API + Frontend-Auslieferung,
+kann aber Legacy im Zweifel an v3 zurückdelegieren. Kein gemeinsamer Datenlayer.
 """
 import os
 import httpx

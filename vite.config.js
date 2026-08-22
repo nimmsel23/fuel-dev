@@ -67,6 +67,7 @@ export default defineConfig(async () => {
 
         "@api":     resolve(__dirname, "src/client/lib/api.local.js"),
         "@db":      resolve(__dirname, "src/client/lib/db/index.js"),
+        "@firebase-config": resolve(__dirname, "src/client/lib/firebase.config.vitalos.js"),
         "@utils":   resolve(__dirname, "src/client/lib/db/index.js"),
         "@fuel":    resolve(__dirname, "src/client"),
       },
@@ -92,7 +93,7 @@ export default defineConfig(async () => {
     },
     server: {
       host: "127.0.0.1",
-      port: 9001,
+      port: 5901,
       hmr: false,
       proxy: {
         "/nutrition": "http://127.0.0.1:9000",

@@ -1,24 +1,24 @@
 # Fuel Centre — Deployment & App-Architektur
 
-Dieses Dokument beschreibt die Trennung zwischen der **Firebase PWA (V3)** und der **Desktop Produktion (V2)**.
+Dieses Dokument beschreibt den aktuellen Übergang zwischen **v3** (Node/Fastify)
+und **v4** (Python/FastAPI).
 
-## 1. Die zwei Welten
+## 1. Die zwei Laufzeit-Schichten
 
-Fuel Centre operiert in zwei getrennten Umgebungen mit unterschiedlichen Schwerpunkten.
+Fuel Centre operiert aktuell mit zwei koexistierenden Schichten.
 
-### Firebase PWA (V3)
-- **Status:** Die moderne, AI-gestützte Version für das Handy (Cloud).
-- **Umgebung:** Firebase Hosting (`fuel-aos.web.app`)
-- **Daten:** Google Firestore (Cloud-Schnittstelle).
-- **Features:** Schnelles AI-Logging, Heatmap, Dashboard.
-- **Build-Befehl:** `fuelctl dev build v3` (Erzeugt `dist-firebase/`)
+### v3
+- **Rolle:** Aktueller Node/Fastify-Entry-Point und Kompatibilitäts-Layer.
+- **Dev:** `:9000`
+- **Desktop-Prod:** `fuel.service` auf `:7000`, WorkingDirectory `/opt/fuel`
+- **Cloud:** Firebase Hosting (`fuel-vos.web.app`)
+- **Besonderheit:** Kann `/v4/*` an das Python-Backend weiterreichen.
 
-### Desktop Produktion (V2)
-- **Status:** Die komplette Backend-Version mit Katalog-Management (Enhancement).
-- **Umgebung:** Lokaler Node.js Server (Port 7000), Pfad: `/opt/fuel`
-- **Daten:** Lokale JSON-Dateien (`data/`) & SQLite.
-- **Features:** Vollständiges Backend, Inhaltsstoff-Suche, lokaler Katalog-Master.
-- **Start:** `npm run prod` im Ordner `/opt/fuel`.
+### v4
+- **Rolle:** Eigentliche Nachfolger-Architektur mit FastAPI + React-Frontend.
+- **Dev:** `:4000`
+- **Code:** `backend/` + `frontend/`
+- **Besonderheit:** Servt sein eigenes gebautes Frontend und kann `/v3/*` zurück an v3 weiterreichen.
 
 ---
 
@@ -34,14 +34,21 @@ Eine Inbox-Funktion für die schnelle Erfassung von Rohdaten zur späteren Katal
 
 ---
 
-## 3. Deployment-Prozess (V3)
+## 3. Deployment-Prozess
 
-Das Deployment nach Firebase erfolgt automatisch bei Änderungen am Frontend (via Git-Hook).
+### Desktop lokal
+- `fuelctl dev deploy`: `~/fuel-dev -> ~/.local/fuel`
+- `fuelctl prod deploy`: `~/.local/fuel -> /opt/fuel` plus `/opt/fuel-python`
 
-1.  **Manueller Build:** `fuelctl dev build v3`
+Aktueller Desktop-Prod-Zustand:
+- der laufende systemd-Entry-Point ist noch **v3** (`fuel.service`)
+- v4 wird bereits nach `/opt/fuel-python` mitdeployt, ist aber noch nicht der aktive Prod-Service
+
+### Firebase
+Das Deployment nach Firebase erfolgt getrennt für die Cloud-Seite.
+
+1.  **Manueller Build:** `fuelctl dev build`
 2.  **Manueller Deploy:** `firebase deploy --only hosting`
-
-*Hinweis: Firebase ist so konfiguriert, dass es ausschließlich aus dem Verzeichnis `dist-firebase/` veröffentlicht.*
 
 ---
 
@@ -49,6 +56,6 @@ Das Deployment nach Firebase erfolgt automatisch bei Änderungen am Frontend (vi
 
 Das Tool `fuelctl` dient als Master-Controller für die lokale Umgebung.
 
-- **`fuelctl status`**: Zeigt den Zustand von Dev (9000), V2 (7000) und dem Sync-Watcher an.
-- **`fuelctl dev up`**: Startet das lokale Entwicklungslabor (Port 9000).
-- **`fuelctl sync`**: Manueller Datenabgleich zwischen V2 (Lokal) und V3 (Cloud).
+- **`fuelctl status`**: Zeigt den Zustand der lokalen Runtime-Schichten und des Sync-Watchers an.
+- **`fuelctl dev up`**: Startet die lokale Runtime.
+- **`fuelctl sync`**: Manueller Datenabgleich für die Cloud-/Firestore-Seite.

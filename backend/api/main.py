@@ -11,7 +11,7 @@ app.include_router(journal.router, prefix="/journal", tags=["Journal"])
 app.include_router(nutrition_query.router, prefix="/nutrition", tags=["Nutrition Query"])
 app.include_router(frames.router, prefix="/nutrition", tags=["Frames"])
 app.include_router(fasting.router, prefix="/nutrition", tags=["Fasting"])
-app.include_router(v3_proxy.router, prefix="/v3", tags=["v3 Proxy"])  # v4 -> v3 (Node), reine Erreichbarkeit
+app.include_router(v3_proxy.router, prefix="/v3", tags=["v3 Proxy"])  # v4 -> v3 Rückweg für Legacy-/Übergangsrouten
 
 @app.get("/health")
 def health_check():
@@ -41,4 +41,3 @@ def serve_spa(catchall: str):
     if os.path.exists(index_file):
         return FileResponse(index_file)
     return {"error": "Frontend build not found"}
-

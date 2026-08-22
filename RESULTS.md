@@ -10,7 +10,8 @@ Session-Log mit datierten Ergebnis-Bullets.
   `.env` mit echtem `GEMINI_API_KEY` bewusst nicht kopiert (Credential-Leakage-Risiko).
 - v3↔v4 Cross-Reachability-Proxies gebaut: `src/server/routes/v4-proxy.mjs`
   (`/v4/*`), `backend/api/endpoints/v3_proxy.py` (`/v3/*`) — reine Erreichbarkeit,
-  kein gemeinsamer Datenlayer.
+  kein gemeinsamer Datenlayer. Der Übergang ist bidirektional: v3 kann an v4
+  weiterreichen, und v4 kann Legacy im Zweifel an v3 zurückdelegieren.
 - `backend/core/config.py`: SQLite-Fallback-Pfad von relativ (`./backend.db`,
   wanderte je nach Start-cwd) auf an `backend/` geankert gefixt.
 - v4 lokal end-to-end getestet: `uvicorn` auf :4000, `/health` ok, `/v3/health`

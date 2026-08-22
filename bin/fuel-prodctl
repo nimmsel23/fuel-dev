@@ -4,16 +4,14 @@ fuel-prodctl — Fuel Prod Controller (system-scope service)
 
 Kontrolliert den tatsächlich laufenden Prod-Service, getrennt vom
 fuel-devctl-Stack (falls vorhanden). Deploy-Pfad laut deploy.sh:
-  ~/fuel-dev (dev, dieses Repo) -> ~/fuel (Staging, git-versioniert)
+  ~/fuel-dev (dev) -> ~/.local/fuel (staging, git-versioniert)
   -> /opt/fuel (Node prod) + /opt/fuel-python (Python-Backend)
 
   - fuel.service :7000  system-scope, Node aus /opt/fuel (sudo für restart/stop)
     (vormals fuel-v2.service, umbenannt weil der Compose-/Unit-Name nie
     "v2" tragen sollte -- kein zweiter Fuel-Service existiert)
 
-Deploy: ./deploy.sh (baut in ~/fuel-dev, staged nach ~/fuel, rsynct nach
-        /opt/fuel + /opt/fuel-python, restartet fuel.service)
-Install: fuel-prodctl install (schreibt/aktualisiert die systemd-Unit selbst, sudo)
+Deploy/Install-Logik liegt in deploy.sh; dieser Controller delegiert nur.
 """
 
 import subprocess
@@ -75,59 +73,12 @@ def restart():
         raise typer.Exit(rc)
 
 
-def _run_deploy_sh() -> int:
+def _run_deploy_sh(*args: str) -> int:
     deploy_script = DEV_DIR / "deploy.sh"
     if not deploy_script.exists():
         msg.fail(f"deploy.sh not found in {DEV_DIR}")
         raise typer.Exit(1)
-    return subprocess.run(["bash", str(deploy_script)], cwd=DEV_DIR).returncode
-
-
-# Unit-Inhalt direkt hier im Skript (kein externer .dotfiles-Verweis) -- ein
-# Skript, alles drin. Bei Änderungen: hier UND in /etc/systemd/system/fuel.service
-# gleichzeitig im Kopf behalten (install() gleicht das automatisch ab).
-UNIT_CONTENT = """[Unit]
-Description=Fuel Centre (Desktop Prod)
-After=network.target
-
-[Service]
-Type=simple
-User=alpha
-Group=alpha
-WorkingDirectory=/opt/fuel
-Environment=PORT=7000
-Environment=HOST=0.0.0.0
-Environment=FUEL_STATIC_DIR=/opt/fuel
-# Using npm run prod to ensure all environment variables from package.json are applied
-ExecStart=/usr/bin/npm run prod
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-"""
-UNIT_TARGET = Path("/etc/systemd/system/fuel.service")
-
-
-def _install_unit() -> None:
-    current = UNIT_TARGET.read_text() if UNIT_TARGET.exists() else None
-    if current == UNIT_CONTENT:
-        msg.good(f"{UNIT_TARGET} bereits aktuell.")
-        return
-
-    msg.info(f"Installiere Unit -> {UNIT_TARGET} (sudo)")
-    rc = subprocess.run(
-        ["sudo", "tee", str(UNIT_TARGET)],
-        input=UNIT_CONTENT, capture_output=True, text=True,
-    ).returncode
-    if rc != 0:
-        msg.fail(f"Schreiben fehlgeschlagen (exit {rc})")
-        raise typer.Exit(rc)
-    rc = subprocess.run(["sudo", "systemctl", "daemon-reload"]).returncode
-    if rc != 0:
-        msg.fail(f"daemon-reload fehlgeschlagen (exit {rc})")
-        raise typer.Exit(rc)
-    msg.good(f"{UNIT_TARGET} installiert + daemon-reload durchgeführt.")
+    return subprocess.run(["bash", str(deploy_script), *args], cwd=DEV_DIR).returncode
 
 
 @app.command()
@@ -136,10 +87,11 @@ def deploy(
         False, "--install", help="Vorher die systemd-Unit installieren/aktualisieren"
     )
 ):
-    """Führt ./deploy.sh aus (Build in ~/fuel-dev, Staging nach ~/fuel, rsync nach /opt/fuel[-python], restart, sudo)."""
+    """Deployt ~/.local/fuel nach /opt/fuel[-python]; optional inkl. Unit-Install."""
+    args = ["prod"]
     if install:
-        _install_unit()
-    rc = _run_deploy_sh()
+        args.append("--install")
+    rc = _run_deploy_sh(*args)
     if rc != 0:
         raise typer.Exit(rc)
 
@@ -150,15 +102,13 @@ def install_cmd(
         False, "--deploy", help="Danach direkt deployen (deploy.sh ausführen)"
     )
 ):
-    """Installiert/aktualisiert die fuel.service-Unit nach
-    /etc/systemd/system/ (sudo) und lädt systemd neu. Deployt NICHT automatisch
-    -- außer mit --deploy."""
-    _install_unit()
+    """Installiert/aktualisiert die fuel.service-Unit via deploy.sh."""
     if deploy:
-        msg.info("Führe ./deploy.sh aus (Build + Staging + rsync + Restart, sudo)")
-        rc = _run_deploy_sh()
-        if rc != 0:
-            raise typer.Exit(rc)
+        rc = _run_deploy_sh("prod", "--install")
+    else:
+        rc = _run_deploy_sh("prod", "--install-only")
+    if rc != 0:
+        raise typer.Exit(rc)
 
 
 if __name__ == "__main__":

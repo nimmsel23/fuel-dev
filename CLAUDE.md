@@ -80,7 +80,7 @@ npm install
 npm run dev          # nodemon + vite dev (Port 9000 + 5173)
 npm run build:local  # Vite build → coach mode (für /opt/fuel)
 npm run build:cloud  # Vite build → client mode → dist-firebase/
-npm run prod         # node server.mjs auf 0.0.0.0:9000 (das Prod-:7000 served fuel-v2.service aus /opt/fuel)
+npm run prod         # node server.mjs auf 0.0.0.0:9000 (Desktop-Prod läuft aktuell ebenfalls über die Node-Schicht, aber auf :7000 aus /opt/fuel)
 npm start            # bare server port 9000
 npm run ui:dev       # Vite dev only (kein Backend)
 
@@ -259,7 +259,7 @@ Deaktivieren falls nötig: `systemctl --user disable --now fuel-catalog-verify.t
 
 ## Build & Deploy
 
-### local channel (Fastify + SQLite → /opt/fuel)
+### local channel (aktueller Desktop-Entry-Point: v3/Node)
 ```bash
 npm run dev          # nodemon + vite, watches src/ + server.mjs
 npm run build:local  # Vite → ./opt-fuel target (VITE_APP_MODE=coach)
@@ -269,7 +269,11 @@ npm run deploy:local # = ./deploy.sh — versioned backup → rsync → build �
 fuelctl local deploy # Python-Wrapper, ruft deploy.sh
 ```
 
-**`deploy.sh`** macht: versionierten Backup nach `/opt/fuel_backups/fuel_<ts>`, rsync von Repo-Root nach `/opt/fuel`, `npm install + build`, `systemctl restart fuel-v2.service`. Excludes: `.git`, `node_modules`, `data`, `dist-firebase`, `.firebase`, `.claude`.
+**`deploy.sh`** macht aktuell zweistufig: `staging` synced `~/fuel-dev` nach
+`~/.local/fuel`; `prod` synced von dort nach `/opt/fuel` und `/opt/fuel-python`.
+Der laufende systemd-Entry-Point ist dabei derzeit noch `fuel.service` aus
+`/opt/fuel`. Das Python-Backend wird mitdeployt, ist aber noch nicht der aktive
+Prod-Service.
 
 **Environment Variables (local):**
 - `PORT` (default 9000)
