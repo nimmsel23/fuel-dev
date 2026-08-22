@@ -42,6 +42,7 @@ module.exports = defineConfig(({ mode }) => {
         // "@fitness-db/index.firestore.js" (habit-app/journal-app importieren ihn direkt).
         // Der spezifischere Key muss zuerst stehen, da Vite Alias-Keys als Prefix matcht.
         "@fitness-db/index.firestore.js": resolveSibling(["../fitness-app/src/lib/db/index.firestore.js", "../fitness-dev/src/lib/db/index.firestore.js"], "@fitness-db/index.firestore.js"),
+        "@fitness-db/shared/utils.js": resolveSibling(["../fitness-app/src/lib/db/shared/utils.js", "../fitness-dev/src/lib/db/shared/utils.js"], "@fitness-db/shared/utils.js"),
         "@fitness-db": resolveSibling(["../fitness-app/src/lib/db/index.firestore.js", "../fitness-dev/src/lib/db/index.firestore.js"], "@fitness-db"),
         "@fuel": resolve(__dirname, "src/client"),
       },
