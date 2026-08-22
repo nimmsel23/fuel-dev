@@ -1,6 +1,6 @@
-// v3 (dieser Node-Server) → v4 (Python/FastAPI-Backend, lokal, kein Cloud-Deploy).
-// Reine Erreichbarkeits-Route für die Migration (Strangler-Fig) — kein
-// gemeinsamer Datenlayer, v4 bleibt bei seiner eigenen Postgres-Anbindung.
+// v3 (dieser Node-Server / aktuelle äußere Runtime-Schicht) → v4
+// (Python/FastAPI-Backend). Gegenrichtung existiert ebenfalls über /v3/* im
+// FastAPI-Backend. Das ist Übergangs-Reichweite, kein gemeinsamer Datenlayer.
 const V4_TARGET = process.env.FUEL_V4_URL || "http://127.0.0.1:4000";
 
 export default async function v4ProxyRoute(app) {

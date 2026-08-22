@@ -244,14 +244,20 @@ Config: `~/.env/fuel.env` (`GEMINI_API_KEY`, `GEMINI_MODEL=gemini-2.5-flash`)
 
 ## v4 (Python/FastAPI + Postgres) — seit 2026-08-07
 
-Alles oben ist **v3** (Node/Fastify + altes React-Frontend, `src/`) — aktuell live,
-bleibt vorerst die Cloud/Firebase-Seite. `backend/` + `frontend/` sind **v4**, aus
-`~/fuel/` nach hierher gemerged: der eigentliche Nachfolger, kein Prototyp. v4 läuft
-lokal (kein Cloud-Deploy, kein Google-Auth), übernimmt schrittweise Prod-
-Verantwortung. Cross-Reachability zwischen beiden: `/v4/*` auf v3 proxied zu v4
-(`src/server/routes/v4-proxy.mjs`), `/v3/*` auf v4 proxied zu v3
-(`backend/api/endpoints/v3_proxy.py`) — reine Erreichbarkeit, kein gemeinsamer
-Datenlayer.
+Alles oben ist **v3** (Node/Fastify + altes React-Frontend, `src/`) — aktuell der
+äußere Runtime-/Kompatibilitäts-Layer. In Dev läuft v3 auf `:9000`; in Desktop-Prod
+ist `fuel.service` derzeit ebenfalls noch v3 (`/opt/fuel`, Port `7000`). `backend/`
++ `frontend/` sind **v4**, aus `~/fuel/` nach hierher gemerged: der eigentliche
+Nachfolger, kein Prototyp. v4 läuft lokal auf `:4000`, servt sein eigenes gebautes
+`frontend/dist` und kann im Übergangszustand Legacy-Fälle zurück an v3 delegieren.
+
+Die Migrationslogik ist **bidirektional**:
+- `/v4/*` auf v3 proxied zu v4 (`src/server/routes/v4-proxy.mjs`)
+- `/v3/*` auf v4 proxied zu v3 (`backend/api/endpoints/v3_proxy.py`)
+
+Das ist reine Erreichbarkeit im Übergang, kein gemeinsamer Datenlayer. v4 behält
+seine eigene Postgres-/SQLite-Seite; v3 behält seine bestehende Node/Firebase-
+Kompatibilität.
 
 Der Fuel Tracker (v4) wurde bewusst als simpel gehaltenes, modulares Python-Backend
 ("Prod-like") konzipiert, das sich von historisch gewachsenen Node/Python-
@@ -303,4 +309,6 @@ Um Namenskonflikte mit KDE-`KCal` zu vermeiden: Backend/API nutzt durchgängig
 
 FastAPI dient gleichzeitig als Webserver fürs React-Frontend: `npm run build` in
 `frontend/` → `frontend/dist`, FastAPI liefert `/assets` statisch aus und leitet
-SPA-Routen per Catch-All auf `index.html`. Läuft lokal auf Port `4000`.
+SPA-Routen per Catch-All auf `index.html`. Lokal läuft das auf Port `4000`. In der
+aktuellen Prod-Topologie served aber noch nicht FastAPI den Haupteinstieg; dort ist
+weiter v3/Node der Entry-Point und kann bei Bedarf an v4 weiterreichen.

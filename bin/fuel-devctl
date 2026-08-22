@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """
 fuel-devctl — Python-powered Fuel Centre Stack Control
-Controls: frontend server (:9000) + backend API (:4000, backend/).
-The old v3/v4 naming was misleading in the control layer. The backend has no
-systemd unit yet and is managed via Popen+PIDFILE.
+Controls: v3 (Node/Fastify entrypoint, :9000) + v4 (Python/FastAPI backend, :4000).
+The backend has no systemd unit yet and is managed via Popen+PIDFILE.
 """
 
 import os
@@ -176,33 +175,33 @@ def _stop_backend():
 
 @app.command()
 def status(
-    frontend: bool = typer.Option(True, "--frontend/--no-frontend", help="Show frontend server (:9000)"),
-    backend: bool = typer.Option(True, "--backend/--no-backend", help="Show backend API (:4000)"),
+    frontend: bool = typer.Option(True, "--v3/--no-v3", help="Show v3 Node/Fastify entrypoint (:9000)"),
+    backend: bool = typer.Option(True, "--v4/--no-v4", help="Show v4 Python/FastAPI backend (:4000)"),
 ):
-    """Check the status of the local frontend server and backend API."""
+    """Check the status of v3 and v4 in the local runtime."""
     msg.divider("System Status")
     if frontend:
         if is_running():
             pid = get_pid()
-            msg.good(f"frontend server is online on port {PORT}" + (f" — PID {pid}" if pid else ""))
+            msg.good(f"v3 (Node/Fastify entrypoint) is online on port {PORT}" + (f" — PID {pid}" if pid else ""))
         else:
-            msg.warn(f"frontend server is not responding on port {PORT}")
+            msg.warn(f"v3 (Node/Fastify entrypoint) is not responding on port {PORT}")
     if backend:
         if is_backend_running():
             pid = get_backend_pid()
-            msg.good(f"backend API is online on port {BACKEND_PORT}" + (f" — PID {pid}" if pid else ""))
+            msg.good(f"v4 (Python/FastAPI backend) is online on port {BACKEND_PORT}" + (f" — PID {pid}" if pid else ""))
         else:
-            msg.warn(f"backend API is not responding on port {BACKEND_PORT}")
+            msg.warn(f"v4 (Python/FastAPI backend) is not responding on port {BACKEND_PORT}")
 
 @app.command()
 def start(
-    frontend: bool = typer.Option(True, "--frontend/--no-frontend", help="Start frontend server (:9000)"),
-    backend: bool = typer.Option(False, "--backend/--no-backend", help="Also start backend API (:4000)"),
+    frontend: bool = typer.Option(True, "--v3/--no-v3", help="Start v3 Node/Fastify entrypoint (:9000)"),
+    backend: bool = typer.Option(False, "--v4/--no-v4", help="Also start v4 Python/FastAPI backend (:4000)"),
 ):
-    """Start the local frontend server and, if requested, the backend API."""
+    """Start v3 and, if requested, v4."""
     if frontend:
         if is_running():
-            msg.warn(f"frontend server is already running on port {PORT}")
+            msg.warn(f"v3 is already running on port {PORT}")
         else:
             os.chdir(DEV_DIR)
 
@@ -215,7 +214,7 @@ def start(
                 msg.fail(f"Could not prepare logfile {LOGFILE}: {e}")
                 raise typer.Exit(1)
 
-            gum_log("info", f"Starting frontend server in background (Logs: {LOGFILE})...")
+            gum_log("info", f"Starting v3 in background (Logs: {LOGFILE})...")
 
             # Using start_new_session=True to detach from this terminal
             proc = subprocess.Popen(
@@ -229,26 +228,26 @@ def start(
             PIDFILE.write_text(str(proc.pid))
 
             # Wait for startup
-            msg.info("Waiting for frontend server to become healthy...")
+            msg.info("Waiting for v3 to become healthy...")
             for i in range(15):
                 time.sleep(1)
                 if is_running():
-                    msg.good("frontend server is now online and healthy!")
+                    msg.good("v3 is now online and healthy!")
                     break
                 if i % 5 == 0 and i > 0:
                     msg.info(f"Still waiting ({i}s)...")
             else:
-                msg.fail("frontend server failed to start within 15 seconds. Please check logs.")
+                msg.fail("v3 failed to start within 15 seconds. Please check logs.")
                 msg.info(f"Command: tail -n 20 {LOGFILE}")
     if backend:
         _start_backend()
 
 @app.command()
 def stop(
-    frontend: bool = typer.Option(True, "--frontend/--no-frontend", help="Stop frontend server (:9000)"),
-    backend: bool = typer.Option(True, "--backend/--no-backend", help="Stop backend API (:4000)"),
+    frontend: bool = typer.Option(True, "--v3/--no-v3", help="Stop v3 Node/Fastify entrypoint (:9000)"),
+    backend: bool = typer.Option(True, "--v4/--no-v4", help="Stop v4 Python/FastAPI backend (:4000)"),
 ):
-    """Stop the local frontend server and backend API."""
+    """Stop v3 and v4."""
     if frontend:
         pid = get_pid()
 
@@ -274,27 +273,27 @@ def stop(
 
         if PIDFILE.exists():
             PIDFILE.unlink()
-        msg.good("frontend server stopped.")
+        msg.good("v3 stopped.")
     if backend:
         _stop_backend()
 
 @app.command()
 def restart(
-    frontend: bool = typer.Option(True, "--frontend/--no-frontend", help="Restart frontend server (:9000)"),
-    backend: bool = typer.Option(False, "--backend/--no-backend", help="Also restart backend API (:4000)"),
+    frontend: bool = typer.Option(True, "--v3/--no-v3", help="Restart v3 Node/Fastify entrypoint (:9000)"),
+    backend: bool = typer.Option(False, "--v4/--no-v4", help="Also restart v4 Python/FastAPI backend (:4000)"),
 ):
-    """Stop and then start the local frontend server and backend API."""
+    """Stop and then start v3 and v4."""
     stop(frontend=frontend, backend=backend)
     time.sleep(1)
     start(frontend=frontend, backend=backend)
 
 @app.command()
 def logs(
-    service: str = typer.Argument("frontend", help="Which service: frontend | backend"),
+    service: str = typer.Argument("v3", help="Which service: v3 | v4"),
     n: int = typer.Option(50, "--lines", "-n", help="Number of lines to show initially"),
 ):
     """Tail the stack logs."""
-    target = BACKEND_LOGFILE if service == "backend" else LOGFILE
+    target = BACKEND_LOGFILE if service == "v4" else LOGFILE
     if not target.exists():
         msg.fail(f"Log file not found at {target}")
         return
@@ -324,16 +323,16 @@ def deploy():
         raise typer.Exit(rc)
 
 @app.command()
-def dev(target: str = typer.Argument("frontend", help="frontend | backend — welcher Prozess läuft im Vordergrund")):
-    """Run the frontend server or backend API in the foreground (for debugging)."""
-    if target == "backend":
+def dev(target: str = typer.Argument("v3", help="v3 | v4 — welcher Prozess läuft im Vordergrund")):
+    """Run v3 or v4 in the foreground (for debugging)."""
+    if target == "v4":
         if not BACKEND_UVICORN.exists():
             msg.fail(f"backend venv not found ({BACKEND_UVICORN}) — run: python3 -m venv backend/.venv && backend/.venv/bin/pip install -r backend/requirements.txt")
             raise typer.Exit(1)
         if is_backend_running():
             msg.info("Stopping backgrounded backend (port freed for foreground reload)...")
             _stop_backend()
-        msg.divider("Foreground Mode (backend)")
+        msg.divider("Foreground Mode (v4)")
         try:
             subprocess.run([str(BACKEND_UVICORN), "backend.api.main:app", "--port", BACKEND_PORT, "--reload"], cwd=DEV_DIR)
         except KeyboardInterrupt:
@@ -341,7 +340,7 @@ def dev(target: str = typer.Argument("frontend", help="frontend | backend — we
             msg.info("Foreground process stopped by user.")
         return
 
-    msg.divider("Foreground Mode (frontend)")
+    msg.divider("Foreground Mode (v3)")
     try:
         subprocess.run(["npm", "run", "dev"], cwd=DEV_DIR)
     except KeyboardInterrupt:

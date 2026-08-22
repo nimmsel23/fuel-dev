@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 fuelctl — Universal System Control for Fuel Centre (Python Edition)
-Central control für: dev (frontend server + backend API, diese Maschine), prod
+Central control für: dev (v3 entrypoint + v4 backend, diese Maschine), prod
 (fuel.service, diese Maschine, /opt/fuel), cloud (Firebase Hosting,
 fuel-vos.web.app -- via `sync`, siehe fuelctl sync/deploy:cloud in package.json).
 "local" fällt als Bezeichnung weg, weil dev + prod ohnehin beide auf dieser
@@ -111,13 +111,13 @@ def dev(
     ctx: typer.Context,
     action: str = typer.Argument("status", help="up, down, restart, status, logs, build, deploy, foreground"),
 ):
-    """Manage the development stack (frontend server + backend API).
+    """Manage the development stack (v3 entrypoint + v4 backend).
 
     Extra flags pass through to fuel-devctl, e.g.:
-      fuelctl dev start --backend        (also start backend)
-      fuelctl dev status --no-frontend   (only show backend)
-      fuelctl dev logs backend           (tail backend logs)
-      fuelctl dev foreground backend     (foreground reload for backend)
+      fuelctl dev start --v4        (also start v4)
+      fuelctl dev status --no-v3    (only show v4)
+      fuelctl dev logs v4           (tail v4 logs)
+      fuelctl dev foreground v4     (foreground reload for v4)
     """
     cmd_map = {
         "up": "start",
