@@ -93,8 +93,14 @@ export default defineConfig(async () => {
     },
     server: {
       host: "127.0.0.1",
-      port: 5901,
-      hmr: false,
+      port: 9001,
+      strictPort: true,
+      hmr: {
+        host: "127.0.0.1",
+        port: 9001,
+        clientPort: 9001,
+        protocol: "ws",
+      },
       proxy: {
         "/nutrition": "http://127.0.0.1:9000",
         "/supplements": "http://127.0.0.1:9000",

@@ -34,6 +34,41 @@ msg() { printf '\033[1;32m%s\033[0m\n' "$*"; }
 warn() { printf '\033[1;33m%s\033[0m\n' "$*" >&2; }
 die() { printf '\033[1;31m%s\033[0m\n' "$*" >&2; exit 1; }
 
+require_file() {
+  local path="$1"
+  local label="${2:-$1}"
+  [[ -f "$path" ]] || die "❌ Missing $label at $path"
+  msg "✅ $label present: $path"
+}
+
+wait_for_http() {
+  local url="$1"
+  local label="$2"
+  local attempts="${3:-15}"
+  local sleep_s="${4:-1}"
+  local body=""
+  local i
+
+  for ((i = 1; i <= attempts; i++)); do
+    if body="$(curl -fsS --max-time 2 "$url" 2>/dev/null)"; then
+      msg "✅ $label healthy: $url"
+      printf '%s\n' "$body"
+      return 0
+    fi
+    sleep "$sleep_s"
+  done
+
+  die "❌ $label did not become healthy: $url"
+}
+
+print_systemd_failure_context() {
+  local unit="$1"
+  warn "⚠️ systemd status for $unit"
+  sudo systemctl status "$unit" --no-pager || true
+  warn "⚠️ recent journal for $unit"
+  sudo journalctl -u "$unit" -n 40 --no-pager || true
+}
+
 read -r -d '' UNIT_CONTENT <<'EOF' || true
 [Unit]
 Description=Fuel Centre (Desktop Prod)
@@ -128,6 +163,11 @@ if [[ "$TARGET" == "staging" ]]; then
     warn "⚠️ $STAGE ist kein Git-Repo — Staging-Historie nicht versioniert"
   fi
 
+  msg "🩺 Verifying staged artifacts"
+  require_file "$STAGE/dist/index.html" "Node staging dist"
+  require_file "$STAGE/frontend/dist/index.html" "Python frontend dist"
+  require_file "$STAGE/backend/requirements.txt" "Python backend requirements"
+
   msg "✅ Staging deployment complete."
   exit 0
 fi
@@ -218,6 +258,24 @@ fi
 "$PYTHON_DEST/backend/.venv/bin/pip" install -q -r "$PYTHON_DEST/backend/requirements.txt"
 
 warn "⚠️ Kein systemd-Service für Python bisher — Start/Stop weiterhin über fuel-devctl (Popen+PIDFILE), kein automatischer Restart hier."
+
+msg "🩺 Verifying production runtime"
+if systemctl list-unit-files "$SERVICE" >/dev/null 2>&1; then
+  if ! sudo systemctl is-active --quiet "$SERVICE"; then
+    print_systemd_failure_context "$SERVICE"
+    die "❌ $SERVICE is not active after deploy"
+  fi
+fi
+
+if ! wait_for_http "http://127.0.0.1:7000/health" "Prod Node health" >/dev/null; then
+  print_systemd_failure_context "$SERVICE"
+  die "❌ Prod Node healthcheck failed"
+fi
+
+if ! wait_for_http "http://127.0.0.1:7000/v4/health" "Prod v4 proxy health" >/dev/null; then
+  warn "⚠️ Node prod is up, but /v4/health failed."
+  die "❌ Prod v4 proxy healthcheck failed"
+fi
 
 msg "✅ backend/ (Python) + frontend/ (React) deployed to $PYTHON_DEST."
 msg "✅ Deployment complete."

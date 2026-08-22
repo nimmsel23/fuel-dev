@@ -6,10 +6,13 @@ import { firebaseConfig } from "./firebase.config.js";
 
 const alreadyInit = getApps().length > 0
 const app = alreadyInit ? getApp() : initializeApp(firebaseConfig);
+const isClientBuild = import.meta.env.VITE_APP_MODE === "client";
 
 // App Check: seit Juli 2026 von Google für Firebase AI Logic (Vertex AI) erzwungen —
 // ohne Debug-Token (dev) bzw. reCAPTCHA-Provider (prod) schlagen Vertex-AI-Calls mit 403 fehl.
-if (!alreadyInit) {
+// Im lokalen Coach-Build läuft Vertex über das lokale Backend; dort erzeugt
+// App Check nur 403-Noise im Browser, weil kein Cloud-Client-Flow aktiv ist.
+if (!alreadyInit && isClientBuild) {
   if (import.meta.env.DEV) {
     self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
   }

@@ -20,6 +20,14 @@ export default async function v4ProxyRoute(app) {
       if (contentType) reply.header("content-type", contentType);
       return text;
     } catch (err) {
+      if (targetPath === "/health") {
+        return {
+          ok: false,
+          status: "down",
+          target: V4_TARGET,
+          detail: err.message,
+        };
+      }
       reply.code(502);
       return { error: "v4 backend nicht erreichbar", detail: err.message };
     }
