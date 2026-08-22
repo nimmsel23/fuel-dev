@@ -30,6 +30,7 @@ HEALTH_URL = f"http://127.0.0.1:{PORT}/health"
 DEV_DIR = Path(__file__).resolve().parent.parent
 LOGFILE = Path("/tmp/fuelctx-dev.log")
 PIDFILE = Path("/tmp/fuelctx-dev.pid")
+DEPLOY_SCRIPT = DEV_DIR / "deploy.sh"
 
 V4_PORT = os.getenv("FUEL_V4_PORT", "4000")
 V4_HEALTH_URL = f"http://127.0.0.1:{V4_PORT}/health"
@@ -311,6 +312,17 @@ def build():
     """Run the production build for the UI."""
     msg.info("Running UI build...")
     subprocess.run(["npm", "run", "build"], cwd=DEV_DIR)
+
+
+@app.command()
+def deploy():
+    """Builds in ~/fuel-dev and syncs the result to ~/.local/fuel."""
+    if not DEPLOY_SCRIPT.exists():
+        msg.fail(f"deploy.sh not found in {DEV_DIR}")
+        raise typer.Exit(1)
+    rc = subprocess.run(["bash", str(DEPLOY_SCRIPT), "staging"], cwd=DEV_DIR).returncode
+    if rc != 0:
+        raise typer.Exit(rc)
 
 @app.command()
 def dev(target: str = typer.Argument("v3", help="v3 | v4 — welcher Stack läuft im Vordergrund")):

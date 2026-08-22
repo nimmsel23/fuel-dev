@@ -2,63 +2,145 @@
 # deploy.sh — Fuel Deployment: fuel-dev (dev) → ~/.local/fuel (staging) → /opt (prod)
 set -euo pipefail
 
-SOURCE="$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")" && pwd)"
+TARGET="${1:-staging}"
+shift || true
+SCRIPT_DIR="$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")" && pwd)"
+DEV_SOURCE="$SCRIPT_DIR"
 STAGE="$HOME/.local/fuel"
 NODE_DEST="/opt/fuel"
 PYTHON_DEST="/opt/fuel-python"
 BACKUP_DIR="/opt/fuel_backups"
 SERVICE="fuel.service"
+UNIT_TARGET="/etc/systemd/system/fuel.service"
+INSTALL_UNIT=false
+INSTALL_ONLY=false
+
+for arg in "$@"; do
+  case "$arg" in
+    --install)
+      INSTALL_UNIT=true
+      ;;
+    --install-only)
+      INSTALL_UNIT=true
+      INSTALL_ONLY=true
+      ;;
+    *)
+      die "Invalid argument '$arg'. Supported: --install | --install-only"
+      ;;
+  esac
+done
 
 msg() { printf '\033[1;32m%s\033[0m\n' "$*"; }
 warn() { printf '\033[1;33m%s\033[0m\n' "$*" >&2; }
 die() { printf '\033[1;31m%s\033[0m\n' "$*" >&2; exit 1; }
 
-msg "🚀 Starting Fuel Deployment"
+read -r -d '' UNIT_CONTENT <<'EOF' || true
+[Unit]
+Description=Fuel Centre (Desktop Prod)
+After=network.target
 
-# ── 0. Build in SOURCE ────────────────────────────────────────────────────────
-# Cross-Repo-Aliase (@habits, @journal, @fitness/constants) lösen nur relativ
-# zu $SOURCE auf (Sibling-Repos liegen neben $SOURCE). Nach dem Build ist
-# dist/ standalone gebündelt — Stage/Prod brauchen die Sibling-Repos danach
-# nicht mehr.
-msg "🔨 Building Node UI in $SOURCE"
-(cd "$SOURCE" && npm run build:local > /dev/null)
+[Service]
+Type=simple
+User=alpha
+Group=alpha
+WorkingDirectory=/opt/fuel
+Environment=PORT=7000
+Environment=HOST=0.0.0.0
+Environment=FUEL_STATIC_DIR=/opt/fuel
+ExecStart=/usr/bin/npm run prod
+Restart=always
+RestartSec=10
 
-msg "🔨 Building frontend/ (React, für den Python-Server)"
-(cd "$SOURCE/frontend" && npm run build > /dev/null)
+[Install]
+WantedBy=multi-user.target
+EOF
 
-# ── 1. Staging: fuel-dev → ~/.local/fuel (git-versioniert, auto-commit) ─────
-msg "📦 Staging: $SOURCE → $STAGE"
-mkdir -p "$STAGE"
-rsync -a --delete \
-  --exclude ".git" \
-  --exclude "node_modules" \
-  --exclude ".venv" --exclude "__pycache__" --exclude "*.pyc" \
-  --exclude "data" \
-  --exclude "dev-dist" \
-  --exclude ".firebase" \
-  --exclude ".archiv" \
-  --exclude "*.bak" \
-  --exclude ".claude" \
-  --exclude "*.log" \
-  --exclude ".env" --exclude ".env.*" \
-  "$SOURCE/" "$STAGE/"
+install_prod_unit() {
+  local current
+  current="$(sudo cat "$UNIT_TARGET" 2>/dev/null || true)"
+  if [[ "$current" == "$UNIT_CONTENT" ]]; then
+    msg "✅ $UNIT_TARGET bereits aktuell."
+    return
+  fi
 
-if [[ -d "$STAGE/.git" ]]; then
-  (
-    cd "$STAGE"
-    git add -A
-    if ! git diff --cached --quiet; then
-      git commit -q -m "deploy: sync from fuel-dev $(date +%Y-%m-%dT%H:%M:%S)"
-      msg "✅ ~/.local/fuel committed ($(git rev-parse --short HEAD))"
-    else
-      msg "ℹ️  ~/.local/fuel unverändert, kein neuer Commit"
-    fi
-  )
+  msg "🧩 Installing systemd unit to $UNIT_TARGET"
+  printf '%s\n' "$UNIT_CONTENT" | sudo tee "$UNIT_TARGET" >/dev/null
+  sudo systemctl daemon-reload
+  msg "✅ Installed $UNIT_TARGET and reloaded systemd."
+}
+
+if [[ "$TARGET" == "staging" ]]; then
+  SOURCE="$DEV_SOURCE"
+elif [[ "$TARGET" == "prod" ]]; then
+  SOURCE="$STAGE"
 else
-  warn "⚠️ $STAGE ist kein Git-Repo — Staging-Historie nicht versioniert"
+  die "Invalid target '$TARGET'. Use: staging | prod"
 fi
 
-# ── 2. Prod: Node ($STAGE → $NODE_DEST) ──────────────────────────────────────
+[[ -f "$SOURCE/package.json" ]] || die "Deployment source '$SOURCE' is not a Fuel checkout"
+
+msg "🚀 Starting Fuel Deployment to $TARGET"
+msg "📍 Using source checkout $SOURCE"
+
+if [[ "$TARGET" == "staging" && ( "$INSTALL_UNIT" == true || "$INSTALL_ONLY" == true ) ]]; then
+  die "--install and --install-only are only supported for target 'prod'"
+fi
+
+if [[ "$TARGET" == "staging" ]]; then
+  # Cross-Repo-Aliase (@habits, @journal, @fitness/constants) lösen nur relativ
+  # zu $SOURCE auf (Sibling-Repos liegen neben fuel-dev). Nach dem Build ist
+  # dist/ standalone gebündelt — Stage/Prod brauchen die Sibling-Repos danach
+  # nicht mehr.
+  msg "🔨 Building Node UI in $SOURCE"
+  (cd "$SOURCE" && npm run build:local > /dev/null)
+
+  msg "🔨 Building frontend/ (React, für den Python-Server)"
+  (cd "$SOURCE/frontend" && npm run build > /dev/null)
+
+  msg "📦 Staging: $SOURCE → $STAGE"
+  mkdir -p "$STAGE"
+  rsync -a --delete \
+    --exclude ".git" \
+    --exclude "node_modules" \
+    --exclude ".venv" --exclude "__pycache__" --exclude "*.pyc" \
+    --exclude "data" \
+    --exclude "dev-dist" \
+    --exclude ".firebase" \
+    --exclude ".archiv" \
+    --exclude "*.bak" \
+    --exclude ".claude" \
+    --exclude "*.log" \
+    --exclude ".env" --exclude ".env.*" \
+    "$SOURCE/" "$STAGE/"
+
+  if [[ -d "$STAGE/.git" ]]; then
+    (
+      cd "$STAGE"
+      git add -A
+      if ! git diff --cached --quiet; then
+        git commit -q -m "deploy: sync from fuel-dev $(date +%Y-%m-%dT%H:%M:%S)"
+        msg "✅ ~/.local/fuel committed ($(git rev-parse --short HEAD))"
+      else
+        msg "ℹ️  ~/.local/fuel unverändert, kein neuer Commit"
+      fi
+    )
+  else
+    warn "⚠️ $STAGE ist kein Git-Repo — Staging-Historie nicht versioniert"
+  fi
+
+  msg "✅ Staging deployment complete."
+  exit 0
+fi
+
+if [[ "$INSTALL_UNIT" == true ]]; then
+  install_prod_unit
+  if [[ "$INSTALL_ONLY" == true ]]; then
+    msg "✅ Prod unit install complete."
+    exit 0
+  fi
+fi
+
+# ── 2. Prod: ~/.local/fuel → /opt ────────────────────────────────────────────
 
 timestamp=$(date +%Y%m%d_%H%M%S)
 backup_path="$BACKUP_DIR/fuel_$timestamp"
@@ -75,12 +157,12 @@ if [[ ! -d "$NODE_DEST" ]]; then
   sudo chown "$(id -u):$(id -g)" "$NODE_DEST"
 fi
 
-msg "📦 Syncing Node code $STAGE → $NODE_DEST"
+msg "📦 Syncing Node code $SOURCE → $NODE_DEST"
 sudo rsync -av --delete \
   --exclude "catalogs" \
   --exclude "backend" \
   --exclude "frontend" \
-  "$STAGE/" "$NODE_DEST/"
+  "$SOURCE/" "$NODE_DEST/"
 
 # Laufzeit-Daten NICHT kopieren, sondern symlinken (Katalog-JSONs sind
 # git-tracked, aber prod schreibt live per POST /nutrition/catalog rein —
@@ -113,15 +195,15 @@ if [[ ! -d "$PYTHON_DEST" ]]; then
   sudo chown "$(id -u):$(id -g)" "$PYTHON_DEST"
 fi
 
-msg "📦 Syncing backend/ (Python) $STAGE/backend → $PYTHON_DEST/backend"
+msg "📦 Syncing backend/ (Python) $SOURCE/backend → $PYTHON_DEST/backend"
 rsync -av --delete \
   --exclude ".venv" --exclude "__pycache__" --exclude "*.pyc" \
   --exclude ".env" --exclude "logs" \
-  "$STAGE/backend/" "$PYTHON_DEST/backend/"
-msg "📦 Syncing frontend/ (React) $STAGE/frontend → $PYTHON_DEST/frontend"
+  "$SOURCE/backend/" "$PYTHON_DEST/backend/"
+msg "📦 Syncing frontend/ (React) $SOURCE/frontend → $PYTHON_DEST/frontend"
 rsync -av --delete \
   --exclude "node_modules" \
-  "$STAGE/frontend/" "$PYTHON_DEST/frontend/"
+  "$SOURCE/frontend/" "$PYTHON_DEST/frontend/"
 
 # Laufzeit-Daten: DATABASE_URL zeigt (siehe backend/core/config.py) per
 # Default auf die laufende Postgres (fuel_tracker_db, :5432) — ein Netzwerk-
