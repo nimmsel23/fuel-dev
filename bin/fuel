@@ -1,19 +1,29 @@
 #!/usr/bin/env python3
-"""Thin entry point — Logik lebt in fuel/dispatch.py.
+"""Fuel entry point.
 
-Existiert weiterhin als ausführbares Script (nicht nur als uv-Entry-Point),
-weil AlphaOS-PATH-Konvention auf `<pillar>/bin/*` als Executables setzt statt
-auf eine venv-Aktivierung. `fuel.dispatch` selbst hängt außerdem per
-subprocess von diesem Pfad ab (ruft `bin/fuel-meal` / `bin/fuel-supplement`).
+Control-Kommandos (`fuel dev ...`, `fuel prod ...`, `fuel status`, ...)
+delegieren an `fuelctl`, damit `fuel` und `fuelctl` nicht auseinanderlaufen.
+Die eigentliche Logging-CLI bleibt weiter in `fuel.dispatch`.
 """
+import subprocess
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from fuel.dispatch import main
+BIN_DIR = Path(__file__).resolve().parent
+CONTROL_COMMANDS = {"status", "dev", "prod", "sync", "catalog", "local", "v2"}
+
+
+def _delegate_to_fuelctl() -> int:
+    return subprocess.run([str(BIN_DIR / "fuelctl"), *sys.argv[1:]]).returncode
 
 if __name__ == "__main__":
     try:
+        if len(sys.argv) > 1 and sys.argv[1] in CONTROL_COMMANDS:
+            raise SystemExit(_delegate_to_fuelctl())
+
+        sys.path.insert(0, str(BIN_DIR.parent))
+        from fuel.dispatch import main
+
         main()
     except KeyboardInterrupt:
         print("\nAbbruch.")

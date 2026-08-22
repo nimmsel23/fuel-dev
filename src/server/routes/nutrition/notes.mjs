@@ -8,18 +8,16 @@ const journalSchema = z.object({
 });
 
 export default async function journalRoute(app) {
-  // GET /nutrition/journal
-  app.get("/nutrition/journal", async (req, reply) => {
+  const getNotes = async (req, reply) => {
     const date = (req.query.date || todayISO()).toString();
     if (!isISODate(date)) {
       return reply.status(400).send({ ok: false, error: "Invalid date" });
     }
     const content = readEntry(date);
     return reply.send({ ok: true, date, content });
-  });
+  };
 
-  // POST /nutrition/journal
-  app.post("/nutrition/journal", async (req, reply) => {
+  const postNotes = async (req, reply) => {
     try {
       const parsed = journalSchema.safeParse(req.body || {});
       if (!parsed.success) {
@@ -35,7 +33,15 @@ export default async function journalRoute(app) {
       console.error(error);
       return reply.status(500).send({ ok: false, error: "Internal server error" });
     }
-  });
+  };
+
+  // Historisch hieß das hier /nutrition/journal, der Client fragt aber
+  // längst /nutrition/notes an. Beide Pfade bleiben gültig.
+  app.get("/nutrition/journal", getNotes);
+  app.get("/nutrition/notes", getNotes);
+
+  app.post("/nutrition/journal", postNotes);
+  app.post("/nutrition/notes", postNotes);
 
   // GET /nutrition/journal/list
   app.get("/nutrition/journal/list", async (req, reply) => {
