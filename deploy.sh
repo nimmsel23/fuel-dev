@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# deploy.sh — Fuel Deployment: fuel-dev (dev) → ~/fuel (staging) → /opt (prod)
+# deploy.sh — Fuel Deployment: fuel-dev (dev) → ~/.local/fuel (staging) → /opt (prod)
 set -euo pipefail
 
 SOURCE="$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")" && pwd)"
-STAGE="$HOME/fuel"
+STAGE="$HOME/.local/fuel"
 NODE_DEST="/opt/fuel"
 PYTHON_DEST="/opt/fuel-python"
 BACKUP_DIR="/opt/fuel_backups"
@@ -26,7 +26,7 @@ msg "🔨 Building Node UI in $SOURCE"
 msg "🔨 Building frontend/ (React, für den Python-Server)"
 (cd "$SOURCE/frontend" && npm run build > /dev/null)
 
-# ── 1. Staging: fuel-dev → ~/fuel (git-versioniert, auto-commit) ────────────
+# ── 1. Staging: fuel-dev → ~/.local/fuel (git-versioniert, auto-commit) ─────
 msg "📦 Staging: $SOURCE → $STAGE"
 mkdir -p "$STAGE"
 rsync -a --delete \
@@ -49,9 +49,9 @@ if [[ -d "$STAGE/.git" ]]; then
     git add -A
     if ! git diff --cached --quiet; then
       git commit -q -m "deploy: sync from fuel-dev $(date +%Y-%m-%dT%H:%M:%S)"
-      msg "✅ ~/fuel committed ($(git rev-parse --short HEAD))"
+      msg "✅ ~/.local/fuel committed ($(git rev-parse --short HEAD))"
     else
-      msg "ℹ️  ~/fuel unverändert, kein neuer Commit"
+      msg "ℹ️  ~/.local/fuel unverändert, kein neuer Commit"
     fi
   )
 else
