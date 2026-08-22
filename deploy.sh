@@ -11,7 +11,9 @@ NODE_DEST="/opt/fuel"
 PYTHON_DEST="/opt/fuel-python"
 BACKUP_DIR="/opt/fuel_backups"
 SERVICE="fuel.service"
+PY_SERVICE="fuel-python.service"
 UNIT_TARGET="/etc/systemd/system/fuel.service"
+PY_UNIT_TARGET="/etc/systemd/system/fuel-python.service"
 INSTALL_UNIT=false
 INSTALL_ONLY=false
 
@@ -90,6 +92,25 @@ RestartSec=10
 WantedBy=multi-user.target
 EOF
 
+read -r -d '' PY_UNIT_CONTENT <<'EOF' || true
+[Unit]
+Description=Fuel Centre Python Backend (Desktop Prod)
+After=network.target
+
+[Service]
+Type=simple
+User=alpha
+Group=alpha
+WorkingDirectory=/opt/fuel-python
+Environment=DATABASE_URL=sqlite:////home/alpha/.aos/fuel/nutrition/nutrition.db
+ExecStart=/opt/fuel-python/backend/.venv/bin/uvicorn backend.api.main:app --host 127.0.0.1 --port 4000
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
 install_prod_unit() {
   local current
   current="$(sudo cat "$UNIT_TARGET" 2>/dev/null || true)"
@@ -100,8 +121,15 @@ install_prod_unit() {
 
   msg "🧩 Installing systemd unit to $UNIT_TARGET"
   printf '%s\n' "$UNIT_CONTENT" | sudo tee "$UNIT_TARGET" >/dev/null
+  current="$(sudo cat "$PY_UNIT_TARGET" 2>/dev/null || true)"
+  if [[ "$current" != "$PY_UNIT_CONTENT" ]]; then
+    msg "🧩 Installing systemd unit to $PY_UNIT_TARGET"
+    printf '%s\n' "$PY_UNIT_CONTENT" | sudo tee "$PY_UNIT_TARGET" >/dev/null
+  else
+    msg "✅ $PY_UNIT_TARGET bereits aktuell."
+  fi
   sudo systemctl daemon-reload
-  msg "✅ Installed $UNIT_TARGET and reloaded systemd."
+  msg "✅ Installed prod units and reloaded systemd."
 }
 
 if [[ "$TARGET" == "staging" ]]; then
@@ -257,7 +285,12 @@ if [[ ! -d "$PYTHON_DEST/backend/.venv" ]]; then
 fi
 "$PYTHON_DEST/backend/.venv/bin/pip" install -q -r "$PYTHON_DEST/backend/requirements.txt"
 
-warn "⚠️ Kein systemd-Service für Python bisher — Start/Stop weiterhin über fuel-devctl (Popen+PIDFILE), kein automatischer Restart hier."
+if systemctl list-unit-files "$PY_SERVICE" >/dev/null 2>&1; then
+  msg "🔄 Restarting $PY_SERVICE"
+  sudo systemctl restart "$PY_SERVICE"
+else
+  warn "⚠️ $PY_SERVICE not found. Run deploy.sh prod --install once to install it."
+fi
 
 msg "🩺 Verifying production runtime"
 if systemctl list-unit-files "$SERVICE" >/dev/null 2>&1; then
@@ -267,9 +300,21 @@ if systemctl list-unit-files "$SERVICE" >/dev/null 2>&1; then
   fi
 fi
 
+if systemctl list-unit-files "$PY_SERVICE" >/dev/null 2>&1; then
+  if ! sudo systemctl is-active --quiet "$PY_SERVICE"; then
+    print_systemd_failure_context "$PY_SERVICE"
+    die "❌ $PY_SERVICE is not active after deploy"
+  fi
+fi
+
 if ! wait_for_http "http://127.0.0.1:7000/health" "Prod Node health" >/dev/null; then
   print_systemd_failure_context "$SERVICE"
   die "❌ Prod Node healthcheck failed"
+fi
+
+if ! wait_for_http "http://127.0.0.1:4000/health" "Prod Python health" >/dev/null; then
+  print_systemd_failure_context "$PY_SERVICE"
+  die "❌ Prod Python healthcheck failed"
 fi
 
 if ! wait_for_http "http://127.0.0.1:7000/v4/health" "Prod v4 proxy health" >/dev/null; then
