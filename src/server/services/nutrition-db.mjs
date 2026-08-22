@@ -176,6 +176,13 @@ export function getMealsForDate(date) {
   });
 }
 
+export function getMealDates() {
+  return getDb()
+    .prepare("SELECT date FROM meals GROUP BY date ORDER BY date DESC")
+    .all()
+    .map((row) => row.date);
+}
+
 export function upsertWater(date, waterMl) {
   getDb().prepare(`
     INSERT INTO daily_water (date, water_ml) VALUES (?, ?)

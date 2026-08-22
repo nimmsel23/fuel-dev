@@ -26,6 +26,7 @@
 import fs   from "fs";
 import path from "path";
 import { createRequire } from "module";
+import { todayISO } from "../../shared/utils/validation.mjs";
 
 const require = createRequire(import.meta.url);
 
@@ -36,7 +37,7 @@ const SA_PATH = process.env.FUEL_FIRESTORE_SA
 const UID = process.env.FUEL_CLOUD_UID || null;
 
 // How many days back the hourly pull looks (today + N-1 previous days).
-const PULL_DAYS = 2;
+const PULL_DAYS = Math.max(1, Math.min(Number(process.env.FUEL_FIRESTORE_PULL_DAYS || 90), 365));
 const PULL_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 
 /** @type {import("firebase-admin/firestore").Firestore | null} */
@@ -63,6 +64,7 @@ export function getSyncStatus() {
     saPath: SA_PATH,
     saExists: fs.existsSync(SA_PATH),
     connected: Boolean(getDb()),
+    pullDays: PULL_DAYS,
     pullIntervalMs: PULL_INTERVAL_MS,
     ..._status,
   };
@@ -100,8 +102,9 @@ function getDb() {
 
 function recentDates(n) {
   const dates = [];
+  const base = new Date(`${todayISO()}T12:00:00`);
   for (let i = 0; i < n; i++) {
-    const d = new Date();
+    const d = new Date(base);
     d.setDate(d.getDate() - i);
     dates.push(d.toISOString().slice(0, 10));
   }
@@ -208,6 +211,20 @@ export async function pushNutritionLog(date, meals, waterMl) {
   }
 }
 
+export async function pushNutritionJournal(date, content) {
+  const db = getDb();
+  if (!db) return;
+  try {
+    const now = new Date().toISOString();
+    await db.collection("nutrition").doc(UID).collection("journal").doc(date)
+      .set({ date, content, updated_at: now }, { merge: true });
+    markPushOk();
+  } catch (e) {
+    console.error("[firestore-admin] pushNutritionJournal failed:", e.message);
+    markPushError(e.message);
+  }
+}
+
 /**
  * Push a single day's supplement log to Firestore.
  * Called fire-and-forget after every intake mutation.
@@ -261,6 +278,7 @@ async function doPullRecentLogs(db) {
   const { upsertMeal, upsertWater }   = await import("../services/nutrition-db.mjs");
   const { loadLog, saveLog }          = await import("../services/supplements-log.mjs");
   const { enrichNutritionLog }        = await import("../services/nutrition-enrichment.mjs");
+  const { writeEntry }                = await import("../services/nutrition-notes.mjs");
 
   const dates = recentDates(PULL_DAYS);
 
@@ -326,6 +344,16 @@ async function doPullRecentLogs(db) {
       }
     } catch (e) {
       console.error(`[firestore-admin] pull supplements/logs/${date} failed:`, e.message);
+    }
+
+    try {
+      const journalSnap = await db.collection("nutrition").doc(UID).collection("journal").doc(date).get();
+      if (journalSnap.exists) {
+        const remote = journalSnap.data();
+        writeEntry(date, remote.content || "");
+      }
+    } catch (e) {
+      console.error(`[firestore-admin] pull nutrition/journal/${date} failed:`, e.message);
     }
   }
 }

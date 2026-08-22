@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { readEntry, writeEntry, listEntries } from "../../services/nutrition-notes.mjs";
+import { pushNutritionJournal } from "../../lib/firestore-admin.mjs";
 import { isISODate, todayISO } from "../../../shared/utils/validation.mjs";
 
 const journalSchema = z.object({
@@ -13,7 +14,7 @@ export default async function journalRoute(app) {
     if (!isISODate(date)) {
       return reply.status(400).send({ ok: false, error: "Invalid date" });
     }
-    const content = readEntry(date);
+    const content = readEntry(date, req.paths.nutritionJournal);
     return reply.send({ ok: true, date, content });
   };
 
@@ -27,7 +28,9 @@ export default async function journalRoute(app) {
       if (!isISODate(date)) {
         return reply.status(400).send({ ok: false, error: "Invalid date" });
       }
-      writeEntry(date, parsed.data.content || "");
+      const content = parsed.data.content || "";
+      writeEntry(date, content, req.paths.nutritionJournal);
+      pushNutritionJournal(date, content).catch(() => {});
       return reply.send({ ok: true, date });
     } catch (error) {
       console.error(error);
@@ -45,7 +48,7 @@ export default async function journalRoute(app) {
 
   // GET /nutrition/journal/list
   app.get("/nutrition/journal/list", async (req, reply) => {
-    const entries = listEntries();
+    const entries = listEntries(req.paths.nutritionJournal);
     return reply.send({ ok: true, entries });
   });
 }

@@ -5,7 +5,7 @@ import fs from "fs";
 import { loadCatalog, addOrUpdateItem } from "../../services/nutrition-catalog.mjs";
 import { estimateMicros } from "../../services/nutrition-estimate-micros.mjs";
 import { getMicrosForMeal, saveMicrosForMeal } from "../../services/nutrition-micros.mjs";
-import { upsertMeal, deleteMeal as deleteMealRow, upsertWater, getMealsForDate } from "../../services/nutrition-db.mjs";
+import { upsertMeal, deleteMeal as deleteMealRow, upsertWater, getMealsForDate, getMealDates, getWater } from "../../services/nutrition-db.mjs";
 
 const logPostSchema = z.object({
   date: z.string().optional(),
@@ -43,6 +43,15 @@ function loadLog(date, nutritionDir) {
     } catch { /* fall through */ }
   }
   return { date, meals: [], water_ml: 0 };
+}
+
+function loadReadLog(date, nutritionDir) {
+  const meals = getMealsForDate(date);
+  const waterMl = getWater(date);
+  if (meals.length > 0 || waterMl > 0) {
+    return { date, meals, water_ml: waterMl };
+  }
+  return loadLog(date, nutritionDir);
 }
 
 function saveLog(log, nutritionDir) {
@@ -210,22 +219,22 @@ export default async function logRoute(app) {
   app.get("/nutrition/log", async (req, reply) => {
     const date = (req.query.date || todayISO()).toString();
     if (!isISODate(date)) return reply.status(400).send({ ok: false, error: "Invalid date" });
-    return reply.send({ ok: true, data: loadLog(date, req.paths.nutrition) });
+    return reply.send({ ok: true, data: loadReadLog(date, req.paths.nutrition) });
   });
 
   app.get("/nutrition/history", async (req, reply) => {
     const limitCount = parseInt(req.query.limit || "30");
     const nutritionDir = req.paths.nutrition;
-    const files = fs.readdirSync(nutritionDir)
+    const legacyDates = fs.readdirSync(nutritionDir)
       .filter((f) => f.match(/^\d{4}-\d{2}-\d{2}\.json$/))
-      .sort()
-      .reverse()
-      .slice(0, limitCount);
-
-    const history = files.map((f) => {
-      const data = JSON.parse(fs.readFileSync(path.join(nutritionDir, f), "utf-8"));
-      return { date: f.replace(".json", ""), ...data };
-    }).filter((log) => (log.meals || []).length > 0);
+      .map((f) => f.replace(".json", ""));
+    const dates = Array.from(new Set([...getMealDates(), ...legacyDates])).sort().reverse();
+    const history = [];
+    for (const date of dates) {
+      const log = loadReadLog(date, nutritionDir);
+      if ((log.meals || []).length > 0) history.push(log);
+      if (history.length >= limitCount) break;
+    }
 
     return reply.send({ ok: true, history });
   });
