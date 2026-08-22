@@ -22,6 +22,30 @@ import { fetchJson } from "@api";
 
 const qc = new QueryClient();
 
+function localToday() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function parseHashState() {
+  const raw = window.location.hash.replace(/^#\/?/, "");
+  if (!raw) return { tab: null, date: null };
+
+  const [tab = null, rawDate = null] = raw.split("/");
+  if (!tab) return { tab: null, date: null };
+
+  if (!rawDate) return { tab, date: null };
+  if (rawDate === "today") return { tab, date: localToday() };
+  if (/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) return { tab, date: rawDate };
+
+  return { tab, date: null };
+}
+
+function buildHashState(tab, date) {
+  if (!tab) return "#";
+  if (!date) return `#${tab}`;
+  return `#${tab}/${date === localToday() ? "today" : date}`;
+}
+
 if (typeof window !== "undefined") {
   window.fuelDebug = {
     version: "3.0.0",
@@ -74,14 +98,17 @@ function App() {
     });
   }, []);
 
-  // URL Hashing for Tabs
+  // URL Hashing for Tab + Datum
   React.useEffect(() => {
     const handleHashChange = () => {
-      const hash = window.location.hash.replace("#", "");
+      const { tab: hashTab, date } = parseHashState();
       const isCloudNow = window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com") || import.meta.env.VITE_APP_MODE === "client";
-      const tab = TAB_CONFIG.find((t) => t.key === hash);
+      const tab = TAB_CONFIG.find((t) => t.key === hashTab);
       if (tab && !(tab.cloudHidden && isCloudNow)) {
-        setActiveTab(hash);
+        setActiveTab(hashTab);
+      }
+      if (date) {
+        setActiveDate(date);
       }
     };
 
@@ -90,13 +117,16 @@ function App() {
 
     window.addEventListener("hashchange", handleHashChange);
     return () => window.removeEventListener("hashchange", handleHashChange);
-  }, [setActiveTab]);
+  }, [setActiveDate, setActiveTab]);
 
   React.useEffect(() => {
     if (activeTab) {
-      window.location.hash = activeTab;
+      const nextHash = buildHashState(activeTab, activeDate);
+      if (window.location.hash !== nextHash) {
+        window.location.hash = nextHash;
+      }
     }
-  }, [activeTab]);
+  }, [activeDate, activeTab]);
 
   const { nutrition, sup, suppCatalog, suppLog, journal, macroTrend } = useAppData(activeDate);
 
