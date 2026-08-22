@@ -6,6 +6,7 @@ import { loadCatalog, addOrUpdateItem } from "../../services/nutrition-catalog.m
 import { estimateMicros } from "../../services/nutrition-estimate-micros.mjs";
 import { getMicrosForMeal, saveMicrosForMeal } from "../../services/nutrition-micros.mjs";
 import { upsertMeal, deleteMeal as deleteMealRow, upsertWater, getMealsForDate, getMealDates, getWater } from "../../services/nutrition-db.mjs";
+import { callV4 } from "../../lib/v4-bridge.mjs";
 
 const logPostSchema = z.object({
   date: z.string().optional(),
@@ -219,11 +220,21 @@ export default async function logRoute(app) {
   app.get("/nutrition/log", async (req, reply) => {
     const date = (req.query.date || todayISO()).toString();
     if (!isISODate(date)) return reply.status(400).send({ ok: false, error: "Invalid date" });
+    try {
+      const bridged = await callV4(`/nutrition/log?date=${encodeURIComponent(date)}`);
+      if (bridged.ok) return reply.send(bridged.data);
+      if (bridged.status < 500) return reply.status(bridged.status).send(bridged.data);
+    } catch {}
     return reply.send({ ok: true, data: loadReadLog(date, req.paths.nutrition) });
   });
 
   app.get("/nutrition/history", async (req, reply) => {
     const limitCount = parseInt(req.query.limit || "30");
+    try {
+      const bridged = await callV4(`/nutrition/history?limit=${encodeURIComponent(limitCount)}`);
+      if (bridged.ok) return reply.send(bridged.data);
+      if (bridged.status < 500) return reply.status(bridged.status).send(bridged.data);
+    } catch {}
     const nutritionDir = req.paths.nutrition;
     const legacyDates = fs.readdirSync(nutritionDir)
       .filter((f) => f.match(/^\d{4}-\d{2}-\d{2}\.json$/))
@@ -240,6 +251,11 @@ export default async function logRoute(app) {
   });
 
   app.patch("/nutrition/log", async (req, reply) => {
+    try {
+      const bridged = await callV4("/nutrition/log", { method: "PATCH", body: req.body || {} });
+      if (bridged.ok) return reply.send(bridged.data);
+      if (bridged.status < 500) return reply.status(bridged.status).send(bridged.data);
+    } catch {}
     try {
       const parsed = logPatchSchema.safeParse(req.body || {});
       if (!parsed.success) return reply.status(400).send({ ok: false, error: "Invalid data" });
@@ -283,6 +299,11 @@ export default async function logRoute(app) {
   });
 
   app.post("/nutrition/log", async (req, reply) => {
+    try {
+      const bridged = await callV4("/nutrition/log", { method: "POST", body: req.body || {} });
+      if (bridged.ok) return reply.send(bridged.data);
+      if (bridged.status < 500) return reply.status(bridged.status).send(bridged.data);
+    } catch {}
     try {
       const parsed = logPostSchema.safeParse(req.body || {});
       if (!parsed.success) return reply.status(400).send({ ok: false, error: "Invalid data" });
