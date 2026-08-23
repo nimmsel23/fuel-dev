@@ -99,12 +99,12 @@ function normalizeMealName(n) {
 }
 
 // Cloud-Äquivalent zu autoUpsertCatalog() im lokalen Fastify-Backend
-// (src/server/routes/nutrition/log.mjs) — existierte dort schon, aber nie
-// hier, weshalb freihändig geloggte Meals im Cloud-Channel nie im Katalog
-// landeten und die "Food-Verlauf"-Card (FoodCatalog.jsx, filtert auf
-// last_used_at) für Cloud-User immer leer blieb. Nur für Meals OHNE
-// catalog_id — ein bereits aus dem Katalog geloggtes Meal ist definitionsgemäß
-// schon drin und wird hier nicht angefasst.
+// (src/server/routes/nutrition/log.mjs) — baut den Meal-Katalog automatisch
+// aus geloggten Meals auf, statt dass er nur manuell kuratiert wächst. Nur
+// für Meals OHNE catalog_id — ein bereits aus dem Katalog geloggtes Meal ist
+// definitionsgemäß schon drin. Getrennt von der Food-Verlauf-Card (die zeigt
+// die echte Log-Chronik aus /nutrition/history, nicht den Katalog) — dieser
+// Upsert dient nur der Katalog-Kuratierung, nicht dem Verlauf.
 async function autoUpsertCatalog(meal) {
   if (!meal?.description || meal.catalog_id) return;
   try {

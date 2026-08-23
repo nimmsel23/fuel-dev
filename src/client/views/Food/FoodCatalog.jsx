@@ -87,15 +87,71 @@ export default function FoodCatalog({ activeDate }) {
     staleTime: 300_000,
   });
   const suppCatalog = suppCatalogData?.items || [];
-  const recentCatalog = catalog.filter((item) => item.last_used_at).slice(0, 8);
-  const recentIds = new Set(recentCatalog.map((item) => item.id));
-  const remainingCatalog = catalog.filter((item) => !recentIds.has(item.id));
-  const catalogGroups = remainingCatalog.reduce((groups, item) => {
+  const catalogGroups = catalog.reduce((groups, item) => {
     const key = item.category || item.kind || "meal";
     if (!groups[key]) groups[key] = [];
     groups[key].push(item);
     return groups;
   }, {});
+
+  // Food-Verlauf: echte Chronik aus den tatsächlichen Tages-Logs (nicht aus
+  // dem Katalog) — jedes geloggte Meal einzeln, unabhängig davon ob es aus
+  // dem Katalog kam oder freihändig eingegeben wurde, keine Dedupe-Logik.
+  // Gleicher Query-Key/Fetch wie History/HistoryView.jsx (geteilter Cache).
+  const { data: historyData } = useQuery({
+    queryKey: ["nutrition-history"],
+    queryFn: () => fetchJson("/nutrition/history?limit=100"),
+    staleTime: 0,
+  });
+  const historyMeals = (historyData?.history || [])
+    .flatMap((day) => (day.meals || []).map((m) => ({ ...m, _date: day.date })))
+    .sort((a, b) => (b.logged_at || b.time || "").localeCompare(a.logged_at || a.time || ""))
+    .slice(0, 20);
+
+  const repeatHistoryMeal = useMutation({
+    mutationFn: (meal) => postJson("/nutrition/log", {
+      date: activeDate,
+      meal: {
+        type: meal.type, description: meal.description, notes: meal.notes || "",
+        kcal: meal.kcal, protein: meal.protein, carbs: meal.carbs, fat: meal.fat,
+        catalog_id: meal.catalog_id || null,
+      },
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["nutrition", activeDate] });
+      qc.invalidateQueries({ queryKey: ["week-logs"] });
+      qc.invalidateQueries({ queryKey: ["nutrition-history"] });
+      qc.invalidateQueries({ queryKey: ["nutrition-catalog"] });
+    },
+  });
+
+  function HistoryMealCard({ meal }) {
+    return (
+      <div className="rounded-2xl border border-white/5 bg-slate-950/60 p-4 hover:border-emerald-400/30 hover:bg-emerald-400/5 transition-all">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="truncate font-bold text-slate-100">{meal.description}</div>
+            <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+              {MEAL_LABEL[meal.type] || meal.type} · {meal._date}
+            </div>
+            <div className="mt-2 flex gap-3 text-sm font-medium text-slate-400">
+              <span className="text-emerald-300">{meal.kcal} kcal</span>
+              <span>P {meal.protein}g</span>
+              <span>C {meal.carbs}g</span>
+              <span>F {meal.fat}g</span>
+            </div>
+          </div>
+          <button type="button"
+            onClick={() => repeatHistoryMeal.mutate(meal)}
+            disabled={repeatHistoryMeal.isPending}
+            className="shrink-0 inline-flex items-center gap-1.5 rounded-xl bg-emerald-400 px-3 py-2 text-xs font-bold text-slate-950 hover:bg-emerald-300 transition active:scale-95 disabled:opacity-50">
+            <Play className="h-3 w-3 fill-current" />
+            Nochmal
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   function CatalogCard({ item, compact = false }) {
     const lastUsedLabel = formatLastUsed(item.last_used_at);
@@ -271,7 +327,7 @@ export default function FoodCatalog({ activeDate }) {
 
   return (
     <>
-      {recentCatalog.length > 0 && (
+      {historyMeals.length > 0 && (
         <div className="mb-6 rounded-3xl border border-emerald-400/15 bg-emerald-400/5 p-6 shadow-glow">
           <div className="mb-5 flex items-center justify-between gap-3">
             <div>
@@ -279,15 +335,15 @@ export default function FoodCatalog({ activeDate }) {
                 <UtensilsCrossed className="h-4 w-4" />
                 Food-Verlauf
               </div>
-              <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-100">Zuletzt geloggte Foods</h2>
-              <p className="mt-2 text-sm text-slate-400">Eigene Verlauf-Card im Food-Tab für schnellen Reuse der zuletzt verwendeten Einträge.</p>
+              <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-100">Jedes geloggte Meal</h2>
+              <p className="mt-2 text-sm text-slate-400">Echte Chronik aus der Log-Historie — jeder Eintrag einzeln, neueste zuerst.</p>
             </div>
             <span className="rounded-full border border-white/10 bg-slate-950/70 px-4 py-1.5 text-sm font-medium text-slate-400">
-              {recentCatalog.length} zuletzt genutzt
+              {historyMeals.length} Einträge
             </span>
           </div>
           <div className="grid gap-3 xl:grid-cols-2">
-            {recentCatalog.map((item) => <CatalogCard key={item.id} item={item} compact />)}
+            {historyMeals.map((meal) => <HistoryMealCard key={`${meal._date}_${meal.id}`} meal={meal} />)}
           </div>
         </div>
       )}
