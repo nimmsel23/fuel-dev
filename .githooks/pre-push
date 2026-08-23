@@ -14,11 +14,14 @@ pushed_refs="$(cat)"
 
 # Reminder: der volle Release-Flow (fuel-dev dev -> vitalos/fuel-app master ->
 # vitalos-Pointer-Bump) läuft bereits automatisiert über
-# ~/vitalos/bin/fuel-release (bzw. vos-release fuel). Manuelles Pushen von
-# master hier ist meist nur der halbe Weg — Hinweis statt Blockade.
+# ~/vitalos/bin/fuel-release (bzw. vos-release fuel). Der kritische Moment ist
+# der Push von dev — direkt danach folgt sonst von Hand: Merge in
+# vitalos/fuel-app master, Push, Submodule-Pointer in vitalos bumpen. Deshalb
+# hier auf "dev" triggern, nicht erst auf "master" (das waere schon der
+# vorletzte Schritt der manuellen Kette).
 while read -r local_ref local_sha remote_ref remote_sha; do
   [ -z "$local_ref" ] && continue
-  if [ "${local_ref#refs/heads/}" = "master" ]; then
+  if [ "${local_ref#refs/heads/}" = "dev" ]; then
     echo "💡 Tipp: für den kompletten dev->master->vitalos-Flow gibt es ~/vitalos/bin/fuel-release (vos-release fuel --help)." >&2
     break
   fi
