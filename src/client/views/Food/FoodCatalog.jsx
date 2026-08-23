@@ -273,16 +273,16 @@ export default function FoodCatalog({ activeDate }) {
             <div>
               <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-emerald-300">
                 <UtensilsCrossed className="h-4 w-4" />
-                Verlauf
+                Food-Verlauf
               </div>
-              <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-100">Zuletzt wiederverwendet</h2>
-              <p className="mt-2 text-sm text-slate-400">Direkter Schnellzugriff auf die zuletzt geloggten Foods.</p>
+              <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-100">Zuletzt geloggte Foods</h2>
+              <p className="mt-2 text-sm text-slate-400">Eigene Verlauf-Card im Food-Tab für schnellen Reuse der zuletzt verwendeten Einträge.</p>
             </div>
             <span className="rounded-full border border-white/10 bg-slate-950/70 px-4 py-1.5 text-sm font-medium text-slate-400">
               {recentCatalog.length} zuletzt genutzt
             </span>
           </div>
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid gap-3 xl:grid-cols-2">
             {recentCatalog.map((item) => <CatalogCard key={item.id} item={item} compact />)}
           </div>
         </div>
