@@ -187,6 +187,7 @@ export default function LogView({ date, nutrition, notes }) {
     }),
     onSuccess: (_data, item) => {
       qc.invalidateQueries({ queryKey: ["nutrition", date] });
+      qc.invalidateQueries({ queryKey: ["nutrition-catalog"] });
       setJournalSuggestions((prev) => prev.filter((s) => s !== item));
     },
   });
@@ -248,6 +249,7 @@ export default function LogView({ date, nutrition, notes }) {
       qc.invalidateQueries({ queryKey: ["nutrition", date] });
       if (moveDate) qc.invalidateQueries({ queryKey: ["nutrition", moveDate] });
       qc.invalidateQueries({ queryKey: ["week-logs"] });
+      qc.invalidateQueries({ queryKey: ["nutrition-catalog"] });
       setForm(emptyForm());
       setMoveDate("");
     },
@@ -297,6 +299,7 @@ export default function LogView({ date, nutrition, notes }) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["nutrition", date] });
       qc.invalidateQueries({ queryKey: ["week-logs"] });
+      qc.invalidateQueries({ queryKey: ["nutrition-catalog"] });
     },
   });
 

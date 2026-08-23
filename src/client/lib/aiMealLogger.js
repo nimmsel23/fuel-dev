@@ -72,6 +72,15 @@ export async function analyzeMealText(promptText) {
   const prompt = `Analysiere folgende Mahlzeit/Lebensmittel und schätze die Makronährstoffe sowie die absoluten Mikronährstoffe (Vitamine, Mineralstoffe) so exakt wie möglich.
 Gib IMMER eine Makro-Schätzung ab, auch bei ungenauer/unvollständiger Beschreibung — nutze plausible Standardportionen statt die Werte wegzulassen.
 Ordne außerdem "type" zu (breakfast/lunch/dinner/snack), falls aus dem Text oder der Tageszeit ableitbar, sonst "snack".
+
+Bei bekannten Markenprodukten (z.B. "2 Oreo Cookies", "Milka Schokolade", Fast-Food-Menüs):
+nutze dein Wissen über die tatsächliche Nährwerttabelle/Verpackungsangabe des Produkts, nicht
+eine grobe generische Schätzung für "Kekse"/"Schokolade" o.ä. Rechne die angegebene Stückzahl
+korrekt auf Basis der bekannten Portionsgröße hoch (z.B. "2 Cookies" = 2x Einzelportion laut
+Verpackung, nicht 2x eine geschätzte Durchschnittsportion). Bist du dir bei der exakten
+Herstellerangabe unsicher, sag das nicht extra — schätze trotzdem, aber möglichst nah an
+real bekannten Werten für dieses konkrete Produkt statt an einer Gattungs-Faustregel.
+
 Eingabe: "${promptText}"`;
 
   const result = await withAiRetry(() => model.generateContent(prompt));

@@ -38,6 +38,11 @@ export function useAiMealLogger(date) {
     qc.invalidateQueries({ queryKey: ["supp-log", date] });
     qc.invalidateQueries({ queryKey: ["supp-stats", date] });
     qc.invalidateQueries({ queryKey: ["ai-pending", date] });
+    // Freihändig geloggte Meals landen serverseitig automatisch im Katalog
+    // (autoUpsertCatalog in api.cloud.js / log.mjs) — ohne diese Invalidierung
+    // bleibt die "Food-Verlauf"-Card im Food-Tab auf dem gecachten Stand
+    // stehen, obwohl der neue Eintrag bereits gespeichert ist.
+    qc.invalidateQueries({ queryKey: ["nutrition-catalog"] });
   };
 
   const resolvePendingEntry = async (entry) => {
