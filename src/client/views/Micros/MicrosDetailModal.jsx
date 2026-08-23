@@ -32,6 +32,17 @@ export default function MicrosDetailModal({ nutrient, week, weekData, onClose })
     .sort((a, b) => b.value - a.value);
   const activeDayTotal = dayBreakdown[activeDate]?.[key] ?? 0;
 
+  // Top-Beiträge über die GANZE Woche (nicht nur den angeklickten Tag) — ohne
+  // das lässt sich ein einzelner Ausreißer (z.B. eine Gemini-Mikros-Schätzung,
+  // die für ein Meal völlig unplausible 1200mg Omega-3 liefert und damit den
+  // Wochenschnitt verzerrt) nur durch Tag-für-Tag-Durchklicken finden.
+  const weekTopContributions = dates
+    .flatMap((date) => (mealBreakdown[date] || []).map((entry) => ({ ...entry, date, value: entry.micros?.[key] ?? 0 })))
+    .filter((entry) => entry.value > 0)
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 8);
+  const weekMax = weekTopContributions[0]?.value || 0;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={onClose}>
       <div
@@ -109,6 +120,39 @@ export default function MicrosDetailModal({ nutrient, week, weekData, onClose })
           <p className="mt-3 text-[11px] text-slate-600">
             Gestrichelte Linie = DACH-Tagesreferenz ({status?.dach ?? "—"} {unit}). Balken anklicken für Beiträge dieses Tages.
           </p>
+
+          {weekTopContributions.length > 0 && (
+            <div className="mt-5 border-t border-white/10 pt-4">
+              <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Top-Beiträge diese Woche
+              </h4>
+              <ul className="space-y-1.5">
+                {weekTopContributions.map((entry, i) => {
+                  const pct = weekMax > 0 ? Math.round((entry.value / weekMax) * 100) : 0;
+                  return (
+                    <li key={i}
+                      role="button"
+                      onClick={() => setSelectedDate(entry.date)}
+                      className={`flex items-center gap-3 rounded-lg px-3 py-2 cursor-pointer transition ${entry.date === activeDate ? "bg-violet-400/10 ring-1 ring-violet-400/30" : "bg-white/5 hover:bg-white/10"}`}>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm text-slate-200">
+                          {entry.kind === "supplement" ? "💊 " : "🍽 "}{entry.name}
+                          <span className="ml-2 text-[10px] font-normal text-slate-500">{entry.date.slice(5).split("-").reverse().join(".")}</span>
+                        </div>
+                        <div className="h-1 mt-1 rounded-full bg-white/10 overflow-hidden">
+                          <div className="h-full rounded-full bg-amber-400/70" style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                      <div className="shrink-0 text-right text-sm font-medium text-slate-200">
+                        {entry.value} {unit}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+              <p className="mt-2 text-[11px] text-slate-600">Sortiert nach höchstem Einzelbeitrag — Balken/Klick springt zum jeweiligen Tag unten.</p>
+            </div>
+          )}
 
           <div className="mt-5 border-t border-white/10 pt-4">
             <div className="mb-2 flex items-center justify-between">
