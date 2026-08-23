@@ -1,5 +1,5 @@
 import { lazy } from "react";
-import { Flame, UtensilsCrossed, NotebookPen, CheckSquare, BookOpen, Pill, Microscope, Settings2, History, TerminalSquare } from "lucide-react";
+import { Flame, UtensilsCrossed, NotebookPen, BookOpen, Pill, Microscope, Settings2, History, TerminalSquare } from "lucide-react";
 
 const BUILD_IS_LOCAL = import.meta.env.VITE_APP_MODE !== "client" && import.meta.env.MODE !== "firebase";
 const BUILD_IS_SHELL = import.meta.env.MODE === "firebase";
@@ -28,20 +28,14 @@ export const TAB_CONFIG = [
   },
   ...(!BUILD_IS_SHELL ? [{
     // Seit 2026-08-07 (TODO.md): im Firebase-Frontend (cloud) ausgeblendet —
-    // Habit/Journal-VOS-Tabs sind Cross-Repo-Import aus habits-dev/journal-dev,
-    // nicht Teil des Ernährungs-Tagebuchs. Das bleibt via JournalWidget im
-    // Dashboard weiterhin ladbar (siehe DashboardView.jsx).
+    // Journal-VOS-Tab ist Cross-Repo-Import aus journal-dev, nicht Teil des
+    // Ernährungs-Tagebuchs. Das bleibt via JournalWidget im Dashboard
+    // weiterhin ladbar (siehe DashboardView.jsx). Habits-Tab wurde entfernt
+    // (2026-08-23) — fuel-dev braucht habits-dev nicht als Dependency.
     key: "journal",
     label: "Journal",
     Icon: BookOpen,
     View: lazy(() => import("./views/JournalVosView.jsx")),
-    getProps: (ctx) => ({ date: ctx.activeDate }),
-    cloudHidden: true,
-  }, {
-    key: "habits",
-    label: "Habits",
-    Icon: CheckSquare,
-    View: lazy(() => import("./views/HabitVosView.jsx")),
     getProps: (ctx) => ({ date: ctx.activeDate }),
     cloudHidden: true,
   }] : []),

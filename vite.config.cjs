@@ -11,6 +11,10 @@ function resolveSibling(candidates, label) {
   throw new Error(`[vite.config.cjs] Kein Sibling-Pfad gefunden für ${label}: ${candidates.join(", ")}`);
 }
 
+function resolvePackageEntry(specifier) {
+  return require.resolve(specifier, { paths: [__dirname] });
+}
+
 module.exports = defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const appMode = process.env.VITE_APP_MODE || env.VITE_APP_MODE || "coach";
@@ -31,6 +35,10 @@ module.exports = defineConfig(({ mode }) => {
         "@api":    resolve(__dirname, appMode === "client" ? "src/client/lib/api.cloud.js" : "src/client/lib/api.local.js"),
         "@db":     resolve(__dirname, "src/client/lib/db/index.js"),
         "@utils":  resolve(__dirname, "src/client/lib/db/index.js"),
+        // fuel selbst hat keinen Habits-Tab mehr (entfernt 2026-08-23), aber
+        // journal-dev/JournalTimeline.jsx importiert @habits für Habit-Icons
+        // in der Journal-Timeline — Alias bleibt nötig, solange @journal
+        // journal-devs Source direkt mitbündelt.
         "@habits": resolveSibling(["../habit-app/src", "../habits-dev/src"], "@habits"),
         "@habits-db": resolveSibling(["../habit-app/src/db", "../habits-dev/src/db"], "@habits-db"),
         "@journal": resolveSibling(["../journal-app/src", "../journal-dev/src"], "@journal"),
@@ -39,12 +47,26 @@ module.exports = defineConfig(({ mode }) => {
         "@fitness/constants": resolveSibling(["../fitness-app/src/constants", "../fitness-dev/src/constants"], "@fitness/constants"),
         // Cloud-Build (Client) → fitness' Firestore-db-Variante. Beide Keys zeigen auf
         // dieselbe Datei: bare "@fitness-db" (fuel selbst) und der explizite Subpath
-        // "@fitness-db/index.firestore.js" (habit-app/journal-app importieren ihn direkt).
+        // "@fitness-db/index.firestore.js" (journal-app importiert ihn direkt).
         // Der spezifischere Key muss zuerst stehen, da Vite Alias-Keys als Prefix matcht.
         "@fitness-db/index.firestore.js": resolveSibling(["../fitness-app/src/lib/db/index.firestore.js", "../fitness-dev/src/lib/db/index.firestore.js"], "@fitness-db/index.firestore.js"),
         "@fitness-db/shared/utils.js": resolveSibling(["../fitness-app/src/lib/db/shared/utils.js", "../fitness-dev/src/lib/db/shared/utils.js"], "@fitness-db/shared/utils.js"),
         "@fitness-db": resolveSibling(["../fitness-app/src/lib/db/index.firestore.js", "../fitness-dev/src/lib/db/index.firestore.js"], "@fitness-db"),
         "@fuel": resolve(__dirname, "src/client"),
+        // Sibling repos import bare packages from outside this package root.
+        // Pin them to fuel's installed copies so Rollup resolves one shared instance.
+        "react/jsx-runtime": resolvePackageEntry("react/jsx-runtime"),
+        "react/jsx-dev-runtime": resolvePackageEntry("react/jsx-dev-runtime"),
+        "react-dom/client": resolvePackageEntry("react-dom/client"),
+        "react-dom": resolvePackageEntry("react-dom"),
+        "react": resolvePackageEntry("react"),
+        "firebase/app": resolvePackageEntry("firebase/app"),
+        "firebase/auth": resolvePackageEntry("firebase/auth"),
+        "firebase/firestore": resolvePackageEntry("firebase/firestore"),
+        "firebase/functions": resolvePackageEntry("firebase/functions"),
+        "firebase/storage": resolvePackageEntry("firebase/storage"),
+        "lucide-react": resolvePackageEntry("lucide-react"),
+        "@tanstack/react-query": resolvePackageEntry("@tanstack/react-query"),
       },
     },
     plugins: [

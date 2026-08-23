@@ -29,6 +29,10 @@ async function resolveCrossAppAliases() {
     return crossAppAliases();
   } catch {
     return {
+      // fuel selbst hat keinen Habits-Tab mehr (entfernt 2026-08-23), aber
+      // journal-dev/JournalTimeline.jsx importiert @habits für Habit-Icons
+      // in der Journal-Timeline — Alias bleibt nötig, solange @journal
+      // journal-devs Source direkt mitbündelt.
       "@habits":  resolveSibling(["../habit-app/src", "../habits-dev/src"], "@habits"),
       "@habits-db": resolveSibling(["../habit-app/src/db", "../habits-dev/src/db"], "@habits-db"),
       "@journal": resolveSibling(["../journal-app/src", "../journal-dev/src"], "@journal"),
@@ -36,7 +40,7 @@ async function resolveCrossAppAliases() {
       "@relax":   resolveSibling(["../relax-app/src", "../relax-dev/src"], "@relax"),
       "@fitness/constants": resolveSibling(["../fitness-app/src/constants", "../fitness-dev/src/constants"], "@fitness/constants"),
       // Bare "@fitness-db" löst über Directory-Resolution weiter auf index.js (LOKALE Variante).
-      // habits-dev/journal-dev importieren zusätzlich den Subpath "@fitness-db/index.firestore.js" explizit —
+      // journal-dev importiert zusätzlich den Subpath "@fitness-db/index.firestore.js" explizit —
       // dafür muss der Alias auf das Verzeichnis zeigen, nicht direkt auf eine Datei.
       "@fitness-db": resolveSibling(["../fitness-app/src/lib/db", "../fitness-dev/src/lib/db"], "@fitness-db"),
     };

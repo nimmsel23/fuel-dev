@@ -1,11 +1,12 @@
 const path = require("path")
 const fs = require("fs")
 
-// fuel-app importiert habit-app/journal-app via @habits/@journal-Alias (siehe
-// vite.config.cjs) — Tailwind muss deren Dateien mitscannen, sonst werden dort
-// verwendete Utility-Klassen im embedded Build rausgepurged. Siblings liegen je
-// nach Checkout-Kontext unter -dev (Home-Root) oder -app (vitalos-Submodule) —
-// hartkodierte Home-Pfade brechen in CI (vitalos-Checkout kennt kein ~/habits-dev).
+// fuel-app importiert journal-app via @journal-Alias (siehe vite.config.cjs) —
+// Tailwind muss dessen Dateien mitscannen, sonst werden dort verwendete
+// Utility-Klassen im embedded Build rausgepurged. journal-dev selbst importiert
+// wiederum habits-dev (Habit-Icons in der Journal-Timeline), daher auch dessen
+// Glob. Siblings liegen je nach Checkout-Kontext unter -dev (Home-Root) oder
+// -app (vitalos-Submodule) — hartkodierte Home-Pfade brechen in CI.
 function siblingGlob(devName, appName) {
   const appPath = path.resolve(__dirname, "..", appName)
   const dir = fs.existsSync(appPath) ? appPath : path.resolve(__dirname, "..", devName)
@@ -17,8 +18,8 @@ module.exports = {
   content: [
     "./index.html",
     "./src/**/*.{js,jsx}",
-    siblingGlob("habits-dev", "habit-app"),
     siblingGlob("journal-dev", "journal-app"),
+    siblingGlob("habits-dev", "habit-app"),
   ],
   theme: {
     extend: {
