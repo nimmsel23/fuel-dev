@@ -1,6 +1,6 @@
 {
-  "name": "Nutrition Journal",
-  "short_name": "Nutri",
+  "name": "Fuel Centre",
+  "short_name": "Fuel",
   "description": "Offlinefähiges Nutrition Journal für Coach- und Privatnutzung",
   "start_url": "./",
   "display": "standalone",
