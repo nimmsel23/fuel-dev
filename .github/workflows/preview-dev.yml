@@ -38,8 +38,8 @@ jobs:
 
       - name: fuel-dev auf den ausgelösten Commit setzen
         run: |
-          cd fuel-dev
           SHA="${{ github.event.pull_request.head.sha || github.sha }}"
+          cd fuel-app
           git fetch origin "$SHA"
           git checkout "$SHA"
 
@@ -54,11 +54,11 @@ jobs:
       - name: Firebase config bereitstellen (fuel-dev/firebase.config.js ist gitignored)
         run: |
           if [ -n "$FIREBASE_CONFIG" ]; then
-            echo "$FIREBASE_CONFIG" > fuel-dev/firebase.config.js
+            echo "$FIREBASE_CONFIG" > fuel-app/firebase.config.js
             echo "$FIREBASE_CONFIG" > fitness-dev/firebase.config.js
             echo "$FIREBASE_CONFIG" > journal-dev/firebase.config.js
-          elif [ ! -f fuel-dev/firebase.config.js ]; then
-            cp firebase.config.js fuel-dev/firebase.config.js
+          elif [ ! -f fuel-app/firebase.config.js ]; then
+            cp firebase.config.js fuel-app/firebase.config.js
             cp firebase.config.js fitness-dev/firebase.config.js
             cp firebase.config.js journal-dev/firebase.config.js
           fi
@@ -66,7 +66,7 @@ jobs:
           FIREBASE_CONFIG: ${{ secrets.FIREBASE_CONFIG }}
 
       - name: Build Fuel
-        run: npm run build:firebase --workspace=fuel-dev
+        run: npm run build:firebase --workspace=fuel-app
 
       - name: Deploy Preview Channel
         id: firebase_deploy
@@ -75,7 +75,7 @@ jobs:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_FITNESS_AOS || secrets.FIREBASE_SERVICE_ACCOUNT }}
           projectId: fitness-aos
-          entryPoint: fuel-dev
+          entryPoint: fuel-app
           channelId: ${{ github.event_name != 'pull_request' && 'dev' || '' }}
           expires: 24h
 
