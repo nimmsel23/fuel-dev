@@ -8,6 +8,22 @@
 
 cd "$(git rev-parse --show-toplevel)"
 
+# stdin einmal einlesen — git übergibt die gepushten Refs nur einmal, zwei
+# separate `while read`-Schleifen würden sich die Zeilen streitig machen.
+pushed_refs="$(cat)"
+
+# Reminder: der volle Release-Flow (fuel-dev dev -> vitalos/fuel-app master ->
+# vitalos-Pointer-Bump) läuft bereits automatisiert über
+# ~/vitalos/bin/fuel-release (bzw. vos-release fuel). Manuelles Pushen von
+# master hier ist meist nur der halbe Weg — Hinweis statt Blockade.
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ -z "$local_ref" ] && continue
+  if [ "${local_ref#refs/heads/}" = "master" ]; then
+    echo "💡 Tipp: für den kompletten dev->master->vitalos-Flow gibt es ~/vitalos/bin/fuel-release (vos-release fuel --help)." >&2
+    break
+  fi
+done <<< "$pushed_refs"
+
 # dist-firebase/ ist Build-Output — nie selbst ein Deploy-Grund, sonst
 # triggert der Hook sich bei jedem Push auf sich selbst.
 SKIP='\.(md|bak)$|^dist-firebase/'
@@ -31,7 +47,7 @@ while read -r local_ref local_sha remote_ref remote_sha; do
   if echo "$relevant" | grep -Eq "$TRIGGER"; then
     should_deploy=true
   fi
-done
+done <<< "$pushed_refs"
 
 if [ "$should_deploy" != true ]; then
   exit 0
