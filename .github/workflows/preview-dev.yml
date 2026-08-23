@@ -65,6 +65,9 @@ jobs:
         env:
           FIREBASE_CONFIG: ${{ secrets.FIREBASE_CONFIG }}
 
+      - name: Build Fitness KB data
+        run: npm run build:kb-data --workspace=fitness-app
+
       - name: Build Fuel
         run: npm run build:firebase --workspace=fuel-app
 
