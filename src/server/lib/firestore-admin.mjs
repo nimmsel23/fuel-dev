@@ -26,6 +26,7 @@
 import fs   from "fs";
 import path from "path";
 import { createRequire } from "module";
+import { todayISO } from "../../shared/utils/validation.mjs";
 
 const require = createRequire(import.meta.url);
 
@@ -36,7 +37,7 @@ const SA_PATH = process.env.FUEL_FIRESTORE_SA
 const UID = process.env.FUEL_CLOUD_UID || null;
 
 // How many days back the hourly pull looks (today + N-1 previous days).
-const PULL_DAYS = 2;
+const PULL_DAYS = Math.max(1, Math.min(Number(process.env.FUEL_FIRESTORE_PULL_DAYS || 90), 365));
 const PULL_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 
 /** @type {import("firebase-admin/firestore").Firestore | null} */
@@ -63,6 +64,7 @@ export function getSyncStatus() {
     saPath: SA_PATH,
     saExists: fs.existsSync(SA_PATH),
     connected: Boolean(getDb()),
+    pullDays: PULL_DAYS,
     pullIntervalMs: PULL_INTERVAL_MS,
     ..._status,
   };
@@ -100,8 +102,9 @@ function getDb() {
 
 function recentDates(n) {
   const dates = [];
+  const base = new Date(`${todayISO()}T12:00:00`);
   for (let i = 0; i < n; i++) {
-    const d = new Date();
+    const d = new Date(base);
     d.setDate(d.getDate() - i);
     dates.push(d.toISOString().slice(0, 10));
   }
@@ -197,13 +200,29 @@ export async function pushNutritionLog(date, meals, waterMl) {
   const db = getDb();
   if (!db) return;
   try {
+    const { getNutritionDeletedIds } = await import("../services/nutrition-db.mjs");
     const now = new Date().toISOString();
+    const deleted_meal_ids = getNutritionDeletedIds(date);
     await db.collection("nutrition").doc(UID).collection("logs").doc(date)
-      .set({ meals, water_ml: waterMl, updated_at: now }, { merge: false });
+      .set({ meals, water_ml: waterMl, deleted_meal_ids, updated_at: now }, { merge: false });
     console.log(`[firestore-admin] 📤 nutrition/logs/${date} (${meals.length} meals)`);
     markPushOk();
   } catch (e) {
     console.error("[firestore-admin] pushNutritionLog failed:", e.message);
+    markPushError(e.message);
+  }
+}
+
+export async function pushNutritionJournal(date, content) {
+  const db = getDb();
+  if (!db) return;
+  try {
+    const now = new Date().toISOString();
+    await db.collection("nutrition").doc(UID).collection("journal").doc(date)
+      .set({ date, content, updated_at: now }, { merge: true });
+    markPushOk();
+  } catch (e) {
+    console.error("[firestore-admin] pushNutritionJournal failed:", e.message);
     markPushError(e.message);
   }
 }
@@ -258,9 +277,11 @@ async function pullRecentLogs() {
 
 async function doPullRecentLogs(db) {
   // Lazy-import services to avoid circular deps at module load time.
-  const { upsertMeal, upsertWater }   = await import("../services/nutrition-db.mjs");
+  const { upsertMeal, upsertWater, deleteMealsByIds, getNutritionDeletedIds }   = await import("../services/nutrition-db.mjs");
   const { loadLog, saveLog }          = await import("../services/supplements-log.mjs");
   const { enrichNutritionLog }        = await import("../services/nutrition-enrichment.mjs");
+  const { writeEntry }                = await import("../services/nutrition-notes.mjs");
+  const { addDeletedIntakeIds, getDeletedIntakeIds } = await import("../services/log-tombstones.mjs");
 
   const dates = recentDates(PULL_DAYS);
 
@@ -271,12 +292,19 @@ async function doPullRecentLogs(db) {
       if (nutSnap.exists) {
         const remote = nutSnap.data();
         const remoteAt = remote.updated_at ? new Date(remote.updated_at).getTime() : 0;
+        const remoteDeletedIds = Array.isArray(remote.deleted_meal_ids) ? remote.deleted_meal_ids : [];
+        const localDeletedIds = getNutritionDeletedIds(date);
+        const mergedDeletedIds = Array.from(new Set([...remoteDeletedIds, ...localDeletedIds]));
 
         // Enrich (catalog-match / macro-sanity / micro-lookup+estimate)
         // before writing – so the local DB already gets the filled-in data.
         const { meals: enrichedMeals, changed } = await enrichNutritionLog(
-          (remote.meals || []).map((m) => ({ ...m, date }))
+          (remote.meals || [])
+            .filter((m) => !mergedDeletedIds.includes(m.id))
+            .map((m) => ({ ...m, date }))
         );
+
+        deleteMealsByIds(date, mergedDeletedIds);
 
         // Upsert each meal individually – no array overwrite, no data loss.
         for (const meal of enrichedMeals) {
@@ -297,6 +325,9 @@ async function doPullRecentLogs(db) {
         if (changed) {
           await pushNutritionLog(date, enrichedMeals, remote.water_ml ?? 0);
           console.log(`[firestore-admin] ✨ nutrition/logs/${date} enriched + pushed back`);
+        } else if (mergedDeletedIds.length !== remoteDeletedIds.length) {
+          await pushNutritionLog(date, enrichedMeals, remote.water_ml ?? 0);
+          console.log(`[firestore-admin] 🪦 nutrition/logs/${date} tombstones pushed back`);
         }
       }
     } catch (e) {
@@ -309,15 +340,23 @@ async function doPullRecentLogs(db) {
       if (suppSnap.exists) {
         const remote = suppSnap.data();
         const local  = loadLog(date);
+        const remoteDeletedIds = Array.isArray(remote.deleted_intake_ids) ? remote.deleted_intake_ids : [];
+        const localDeletedIds = getDeletedIntakeIds(date);
+        const mergedDeletedIds = Array.from(new Set([...remoteDeletedIds, ...localDeletedIds]));
 
         const remoteAt = remote.updated_at ? new Date(remote.updated_at).getTime() : 0;
         const localAt  = local.updated_at  ? new Date(local.updated_at).getTime()  : 0;
 
         if (remoteAt >= localAt) {
-          // Merge: keep local intakes that aren't in remote (by id), then add remote ones.
-          const remoteIds = new Set((remote.intakes || []).map(i => i.id));
-          const localOnly = (local.intakes || []).filter(i => !remoteIds.has(i.id));
-          const merged = { ...remote, intakes: [...(remote.intakes || []), ...localOnly] };
+          addDeletedIntakeIds(date, remoteDeletedIds);
+          const remoteIntakes = (remote.intakes || []).filter((i) => !mergedDeletedIds.includes(i.id));
+          const remoteIds = new Set(remoteIntakes.map(i => i.id));
+          const localOnly = (local.intakes || []).filter(i => !remoteIds.has(i.id) && !mergedDeletedIds.includes(i.id));
+          const merged = {
+            ...remote,
+            intakes: [...remoteIntakes, ...localOnly],
+            deleted_intake_ids: mergedDeletedIds,
+          };
           saveLog(merged);
           console.log(`[firestore-admin] 📥 supplements/logs/${date} (${merged.intakes.length} intakes)`);
         } else {
@@ -326,6 +365,16 @@ async function doPullRecentLogs(db) {
       }
     } catch (e) {
       console.error(`[firestore-admin] pull supplements/logs/${date} failed:`, e.message);
+    }
+
+    try {
+      const journalSnap = await db.collection("nutrition").doc(UID).collection("journal").doc(date).get();
+      if (journalSnap.exists) {
+        const remote = journalSnap.data();
+        writeEntry(date, remote.content || "");
+      }
+    } catch (e) {
+      console.error(`[firestore-admin] pull nutrition/journal/${date} failed:`, e.message);
     }
   }
 }

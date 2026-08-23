@@ -9,6 +9,19 @@ function mealPath(id, ext = ".yaml") {
   return path.join(NUTRITION_MEALS_DIR, `${id}${ext}`);
 }
 
+function normalizeName(name) {
+  return String(name || "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function sortCatalogItems(items) {
+  return items.sort((a, b) => {
+    const aRecent = a.last_used_at || a.updated_at || "";
+    const bRecent = b.last_used_at || b.updated_at || "";
+    if (aRecent !== bRecent) return bRecent.localeCompare(aRecent);
+    return (a.name || "").localeCompare(b.name || "");
+  });
+}
+
 export function loadCatalog() {
   if (!fs.existsSync(NUTRITION_MEALS_DIR)) fs.mkdirSync(NUTRITION_MEALS_DIR, { recursive: true });
   
@@ -42,7 +55,7 @@ export function loadCatalog() {
       console.warn(`[nutrition-catalog] skip corrupt file ${file}:`, e.message);
     }
   }
-  return { items: items.sort((a, b) => (a.name || "").localeCompare(b.name || "")) };
+  return { items: sortCatalogItems(items) };
 }
 
 export function loadMeal(id) {
@@ -148,13 +161,11 @@ export function normalizeMeal(input, existingId = null) {
     default_addon_ids:     input.default_addon_ids || [],
     linked_supplement_ids: input.linked_supplement_ids || [],
     source:                input.source || "manual",
+    use_count:             Math.max(1, Number(input.use_count || 1)),
+    last_used_at:          input.last_used_at || input.updated_at || new Date().toISOString(),
     created_at:            input.created_at || new Date().toISOString(),
     updated_at:            new Date().toISOString(),
   };
-}
-
-function normalizeName(name) {
-  return String(name || "").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
 export function addOrUpdateItem(catalog, input) {
@@ -171,3 +182,41 @@ export function addOrUpdateItem(catalog, input) {
 
 // Legacy compat — catalog.items is built on the fly, no save needed
 export function saveCatalog(_catalog) { /* no-op: individual files are saved directly */ }
+
+export function upsertLoggedMeal(catalog, mealInput) {
+  const mealName = mealInput?.description || mealInput?.name;
+  const inputName = normalizeName(mealName);
+  if (!inputName) return null;
+
+  const existing = catalog.items.find(
+    (i) => (mealInput?.catalog_id && i.id === mealInput.catalog_id) || normalizeName(i.name) === inputName
+  );
+  const lastUsedAt = mealInput?.time || mealInput?.logged_at || new Date().toISOString();
+  const next = normalizeMeal({
+    ...existing,
+    id: existing?.id || mealInput?.catalog_id,
+    kind: existing?.kind || "meal",
+    category: existing?.category || mealInput?.type || existing?.meal_type || "meal",
+    name: mealName,
+    alias: existing?.alias || null,
+    meal_type: mealInput?.type || existing?.meal_type || "meal",
+    description: mealInput?.description || mealInput?.name || existing?.description || "",
+    notes: mealInput?.notes ?? existing?.notes ?? "",
+    kcal: mealInput?.kcal ?? mealInput?.calories ?? existing?.kcal ?? 0,
+    protein: mealInput?.protein ?? existing?.protein ?? 0,
+    carbs: mealInput?.carbs ?? existing?.carbs ?? 0,
+    fat: mealInput?.fat ?? existing?.fat ?? 0,
+    yield_g: existing?.yield_g || null,
+    components: existing?.components || [],
+    addons: existing?.addons || [],
+    default_addon_ids: existing?.default_addon_ids || [],
+    linked_supplement_ids: existing?.linked_supplement_ids || [],
+    source: existing?.source || mealInput?.source || "logged",
+    use_count: (existing?.use_count || 0) + 1,
+    last_used_at: lastUsedAt,
+    created_at: existing?.created_at,
+  }, existing?.id || mealInput?.catalog_id || null);
+  if (!next) return null;
+  saveMeal(next);
+  return next;
+}

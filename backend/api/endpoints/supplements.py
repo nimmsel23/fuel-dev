@@ -15,9 +15,12 @@ router = APIRouter()
 
 class SupplementLogRequest(BaseModel):
     date: str | None = None
-    name: str
-    dose: float
-    unit: str
+    intake: dict | None = None
+    delete_id: str | None = None
+    supplement_id: str | None = None
+    name: str | None = None
+    dose: float | None = None
+    unit: str | None = None
     time_of_day: str | None = None
     notes: str | None = None
 
@@ -31,6 +34,42 @@ class SupplementLogPatchRequest(BaseModel):
 @router.post("/log")
 def log_supplement(request: SupplementLogRequest, db: Session = Depends(get_db)):
     target_date = request.date or date.today().isoformat()
+    intake_input = request.intake or {
+        "supplement_id": request.supplement_id,
+        "name": request.name,
+        "dose": request.dose,
+        "unit": request.unit,
+        "time_of_day": request.time_of_day,
+        "notes": request.notes,
+    }
+
+    if request.delete_id:
+        journal = db.query(DailyJournal).filter(DailyJournal.date == target_date).first()
+        if journal:
+            before = len(journal.habits)
+            journal.habits = [h for h in journal.habits if h.get("id") != request.delete_id]
+            if len(journal.habits) != before:
+                flag_modified(journal, "habits")
+                db.commit()
+                db.refresh(journal)
+                intakes = [h for h in journal.habits if h.get("type") == "supplement"]
+                return {"ok": True, "data": {"date": target_date, "intakes": intakes}}
+
+        journals = db.query(DailyJournal).all()
+        for journal in journals:
+            before = len(journal.habits)
+            journal.habits = [h for h in journal.habits if h.get("id") != request.delete_id]
+            if len(journal.habits) != before:
+                flag_modified(journal, "habits")
+                db.commit()
+                db.refresh(journal)
+                intakes = [h for h in journal.habits if h.get("type") == "supplement"]
+                return {"ok": True, "data": {"date": journal.date, "intakes": intakes}}
+        raise HTTPException(status_code=404, detail="Intake not found")
+
+    if not intake_input.get("supplement_id") and not intake_input.get("name"):
+        raise HTTPException(status_code=400, detail="intake missing")
+
     journal = db.query(DailyJournal).filter(DailyJournal.date == target_date).first()
 
     if not journal:
@@ -39,32 +78,36 @@ def log_supplement(request: SupplementLogRequest, db: Session = Depends(get_db))
         db.commit()
         db.refresh(journal)
 
-    # Catalog-Match nur fuer die supplement_id (Dedup/Stats-Key) — Client schickt
-    # bereits fertige Werte, kein Server-seitiges Default-Filling noetig.
-    catalog_item = db.query(SupplementCatalogItem).filter(SupplementCatalogItem.name == request.name).first()
+    catalog_item = None
+    if intake_input.get("supplement_id"):
+        catalog_item = db.query(SupplementCatalogItem).filter(SupplementCatalogItem.id == intake_input["supplement_id"]).first()
+    if not catalog_item and intake_input.get("name"):
+        catalog_item = db.query(SupplementCatalogItem).filter(SupplementCatalogItem.name == intake_input["name"]).first()
 
     habit_dict = {
         "id": f"supp_{int(datetime.now(timezone.utc).timestamp() * 1000)}",
         "type": "supplement",
-        "supplement_id": catalog_item.id if catalog_item else None,
-        "name": request.name,
-        "dose": request.dose,
-        "unit": request.unit,
-        "time_of_day": request.time_of_day or "any",
-        "notes": request.notes or "",
+        "supplement_id": intake_input.get("supplement_id") or (catalog_item.id if catalog_item else None),
+        "name": intake_input.get("name") or (catalog_item.name if catalog_item else None),
+        "dose": intake_input.get("dose") if intake_input.get("dose") is not None else 0,
+        "unit": intake_input.get("unit") or (catalog_item.unit if catalog_item else "mg"),
+        "time_of_day": intake_input.get("time_of_day") or "any",
+        "notes": intake_input.get("notes") or "",
     }
     journal.habits.append(habit_dict)
     flag_modified(journal, "habits")
 
     if not journal.micros_sum:
         journal.micros_sum = {}
-    journal.micros_sum[request.name] = journal.micros_sum.get(request.name, 0) + request.dose
-    flag_modified(journal, "micros_sum")
+    if habit_dict["name"]:
+        journal.micros_sum[habit_dict["name"]] = journal.micros_sum.get(habit_dict["name"], 0) + habit_dict["dose"]
+        flag_modified(journal, "micros_sum")
 
     db.commit()
     db.refresh(journal)
 
-    return {"status": "success", "supplement": habit_dict}
+    intakes = [h for h in journal.habits if h.get("type") == "supplement"]
+    return {"ok": True, "supplement": habit_dict, "data": {"date": target_date, "intakes": intakes}}
 
 
 @router.get("/log")
@@ -74,7 +117,7 @@ def get_supplement_logs(date: str = Query(default_factory=lambda: date.today().i
     habits = journal.habits if journal else []
     intakes = [h for h in habits if h.get("type") == "supplement"]
 
-    return {"status": "success", "data": {"date": date, "intakes": intakes}}
+    return {"ok": True, "data": {"date": date, "intakes": intakes}}
 
 
 @router.delete("/log/{delete_id}")

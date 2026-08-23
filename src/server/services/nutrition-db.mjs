@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import { NUTRITION_DB_PATH } from "../config/paths.mjs";
 import { MICRO_KEYS } from "../../shared/config/dach.mjs";
 import { pushNutritionLog } from "../lib/firestore-admin.mjs";
+import { addDeletedMealId, addDeletedMealIds, getDeletedMealIds, removeDeletedMealId } from "./log-tombstones.mjs";
 
 let db = null;
 
@@ -150,6 +151,7 @@ export function upsertMeal(meal) {
     micros_json: meal.micros ? JSON.stringify(meal.micros) : null,
     logged_at: meal.logged_at ?? meal.time ?? null,
   });
+  removeDeletedMealId(meal.date, meal.id);
   // Fire-and-forget push
   const date = meal.date;
   pushNutritionLog(date, getMealsForDate(date), getWater(date)).catch(() => {});
@@ -159,8 +161,27 @@ export function deleteMeal(id) {
   const row = getDb().prepare("SELECT date FROM meals WHERE id = ?").get(id);
   const result = getDb().prepare("DELETE FROM meals WHERE id = ?").run(id);
   // Fire-and-forget push
-  if (row?.date) pushNutritionLog(row.date, getMealsForDate(row.date), getWater(row.date)).catch(() => {});
+  if (row?.date) {
+    addDeletedMealId(row.date, id);
+    pushNutritionLog(row.date, getMealsForDate(row.date), getWater(row.date)).catch(() => {});
+  }
   return result;
+}
+
+export function deleteMealsByIds(date, ids = []) {
+  const unique = Array.from(new Set((ids || []).filter(Boolean)));
+  if (unique.length === 0) return 0;
+  const stmt = getDb().prepare("DELETE FROM meals WHERE date = ? AND id = ?");
+  const runMany = getDb().transaction((mealIds) => {
+    let count = 0;
+    for (const id of mealIds) {
+      count += stmt.run(date, id).changes;
+    }
+    return count;
+  });
+  const count = runMany(unique);
+  addDeletedMealIds(date, unique);
+  return count;
 }
 
 export function getMealsForDate(date) {
@@ -176,6 +197,13 @@ export function getMealsForDate(date) {
   });
 }
 
+export function getMealDates() {
+  return getDb()
+    .prepare("SELECT date FROM meals GROUP BY date ORDER BY date DESC")
+    .all()
+    .map((row) => row.date);
+}
+
 export function upsertWater(date, waterMl) {
   getDb().prepare(`
     INSERT INTO daily_water (date, water_ml) VALUES (?, ?)
@@ -188,6 +216,10 @@ export function upsertWater(date, waterMl) {
 export function getWater(date) {
   const row = getDb().prepare("SELECT water_ml FROM daily_water WHERE date = ?").get(date);
   return row ? row.water_ml : 0;
+}
+
+export function getNutritionDeletedIds(date) {
+  return getDeletedMealIds(date);
 }
 
 // ── Ingredients (wger cache) ──────────────────────────────────────────────────

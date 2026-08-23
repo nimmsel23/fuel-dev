@@ -2,10 +2,11 @@ import { z } from "zod";
 import { isISODate, todayISO } from "../../../shared/utils/validation.mjs";
 import path from "path";
 import fs from "fs";
-import { loadCatalog, addOrUpdateItem } from "../../services/nutrition-catalog.mjs";
+import { loadCatalog, addOrUpdateItem, upsertLoggedMeal } from "../../services/nutrition-catalog.mjs";
 import { estimateMicros } from "../../services/nutrition-estimate-micros.mjs";
 import { getMicrosForMeal, saveMicrosForMeal } from "../../services/nutrition-micros.mjs";
-import { upsertMeal, deleteMeal as deleteMealRow, upsertWater, getMealsForDate } from "../../services/nutrition-db.mjs";
+import { upsertMeal, deleteMeal as deleteMealRow, upsertWater, getMealsForDate, getMealDates, getWater } from "../../services/nutrition-db.mjs";
+import { callV4 } from "../../lib/v4-bridge.mjs";
 
 const logPostSchema = z.object({
   date: z.string().optional(),
@@ -43,6 +44,15 @@ function loadLog(date, nutritionDir) {
     } catch { /* fall through */ }
   }
   return { date, meals: [], water_ml: 0 };
+}
+
+function loadReadLog(date, nutritionDir) {
+  const meals = getMealsForDate(date);
+  const waterMl = getWater(date);
+  if (meals.length > 0 || waterMl > 0) {
+    return { date, meals, water_ml: waterMl };
+  }
+  return loadLog(date, nutritionDir);
 }
 
 function saveLog(log, nutritionDir) {
@@ -184,25 +194,27 @@ function normalizeMealName(name) {
 // "gemini", damit der wöchentliche fuel-catalog-verify-Timer (Haiku+
 // WebSearch) sie im Zweifelsfall gegen echte Herstellerangaben recherchiert.
 function autoUpsertCatalog(m) {
-  if (m.catalog_id || !m.description) return;
+  if (!m?.description && !m?.name) return;
   try {
     const catalog = loadCatalog();
-    const nameNorm = normalizeMealName(m.description);
+    const synced = upsertLoggedMeal(catalog, m);
+    if (synced) return synced;
+    const nameNorm = normalizeMealName(m.description || m.name);
     const existing = catalog.items.find((i) => normalizeMealName(i.name) === nameNorm);
-    if (existing) return;
-    addOrUpdateItem(catalog, {
-      name: m.description,
-      description: m.description,
+    if (existing) return existing;
+    return addOrUpdateItem(catalog, {
+      name: m.description || m.name,
+      description: m.description || m.name,
       meal_type: m.type || "meal",
       notes: m.notes || "",
-      kcal: m.kcal || 0,
+      kcal: m.kcal || m.calories || 0,
       protein: m.protein || 0,
       carbs: m.carbs || 0,
       fat: m.fat || 0,
-      source: "gemini",
+      source: "logged",
     });
   } catch (e) {
-    console.warn(`[nutrition-catalog] auto-upsert failed for "${m.description}":`, e.message);
+    console.warn(`[nutrition-catalog] auto-upsert failed for "${m.description || m.name}":`, e.message);
   }
 }
 
@@ -210,27 +222,45 @@ export default async function logRoute(app) {
   app.get("/nutrition/log", async (req, reply) => {
     const date = (req.query.date || todayISO()).toString();
     if (!isISODate(date)) return reply.status(400).send({ ok: false, error: "Invalid date" });
-    return reply.send({ ok: true, data: loadLog(date, req.paths.nutrition) });
+    try {
+      const bridged = await callV4(`/nutrition/log?date=${encodeURIComponent(date)}`);
+      if (bridged.ok) return reply.send(bridged.data);
+      if (bridged.status < 500) return reply.status(bridged.status).send(bridged.data);
+    } catch {}
+    return reply.send({ ok: true, data: loadReadLog(date, req.paths.nutrition) });
   });
 
   app.get("/nutrition/history", async (req, reply) => {
     const limitCount = parseInt(req.query.limit || "30");
+    try {
+      const bridged = await callV4(`/nutrition/history?limit=${encodeURIComponent(limitCount)}`);
+      if (bridged.ok) return reply.send(bridged.data);
+      if (bridged.status < 500) return reply.status(bridged.status).send(bridged.data);
+    } catch {}
     const nutritionDir = req.paths.nutrition;
-    const files = fs.readdirSync(nutritionDir)
+    const legacyDates = fs.readdirSync(nutritionDir)
       .filter((f) => f.match(/^\d{4}-\d{2}-\d{2}\.json$/))
-      .sort()
-      .reverse()
-      .slice(0, limitCount);
-
-    const history = files.map((f) => {
-      const data = JSON.parse(fs.readFileSync(path.join(nutritionDir, f), "utf-8"));
-      return { date: f.replace(".json", ""), ...data };
-    }).filter((log) => (log.meals || []).length > 0);
+      .map((f) => f.replace(".json", ""));
+    const dates = Array.from(new Set([...getMealDates(), ...legacyDates])).sort().reverse();
+    const history = [];
+    for (const date of dates) {
+      const log = loadReadLog(date, nutritionDir);
+      if ((log.meals || []).length > 0) history.push(log);
+      if (history.length >= limitCount) break;
+    }
 
     return reply.send({ ok: true, history });
   });
 
   app.patch("/nutrition/log", async (req, reply) => {
+    try {
+      const bridged = await callV4("/nutrition/log", { method: "PATCH", body: req.body || {} });
+      if (bridged.ok) {
+        if (req.body?.meal) autoUpsertCatalog(req.body.meal);
+        return reply.send(bridged.data);
+      }
+      if (bridged.status < 500) return reply.status(bridged.status).send(bridged.data);
+    } catch {}
     try {
       const parsed = logPatchSchema.safeParse(req.body || {});
       if (!parsed.success) return reply.status(400).send({ ok: false, error: "Invalid data" });
@@ -274,6 +304,14 @@ export default async function logRoute(app) {
   });
 
   app.post("/nutrition/log", async (req, reply) => {
+    try {
+      const bridged = await callV4("/nutrition/log", { method: "POST", body: req.body || {} });
+      if (bridged.ok) {
+        if (req.body?.meal) autoUpsertCatalog(req.body.meal);
+        return reply.send(bridged.data);
+      }
+      if (bridged.status < 500) return reply.status(bridged.status).send(bridged.data);
+    } catch {}
     try {
       const parsed = logPostSchema.safeParse(req.body || {});
       if (!parsed.success) return reply.status(400).send({ ok: false, error: "Invalid data" });

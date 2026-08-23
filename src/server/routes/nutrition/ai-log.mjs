@@ -1,7 +1,7 @@
 import { callGemini, extractJson } from "../../services/gemini.mjs";
 import { loadLog, saveLog, addMeal } from "../../services/nutrition-log.mjs";
 import { writeEntry } from "../../services/nutrition-notes.mjs";
-import { loadCatalog, saveCatalog } from "../../services/nutrition-catalog.mjs";
+import { loadCatalog, saveCatalog, addOrUpdateItem, upsertLoggedMeal } from "../../services/nutrition-catalog.mjs";
 import { saveMicrosForMeal, MICRO_KEYS } from "../../services/nutrition-micros.mjs";
 import { todayISO } from "../../../shared/utils/validation.mjs";
 
@@ -29,11 +29,11 @@ export default async function aiLogRoute(app) {
         const log = loadLog(date);
         addMeal(log, result.meal);
         saveLog(log);
+        upsertLoggedMeal(loadCatalog(), result.meal);
         return reply.send({ ok: true, type: "meal" });
       } else if (result.type === "catalog") {
         const catalog = loadCatalog();
-        const id = mealName.toLowerCase().replace(/ /g, "_");
-        catalog.items.push({ ...result.meal, id });
+        addOrUpdateItem(catalog, { ...result.meal, source: "gemini" });
         saveCatalog(catalog);
         return reply.send({ ok: true, type: "catalog" });
       } else {

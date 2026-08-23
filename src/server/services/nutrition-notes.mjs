@@ -2,29 +2,30 @@ import fs from "fs";
 import path from "path";
 import { NUTRITION_JOURNAL_DIR } from "../config/paths.mjs";
 
-function getPath(date) {
-  return path.join(NUTRITION_JOURNAL_DIR, `${date}.md`);
+function getPath(date, journalDir = NUTRITION_JOURNAL_DIR) {
+  return path.join(journalDir, `${date}.md`);
 }
 
-export function readEntry(date) {
-  const filePath = getPath(date);
+export function readEntry(date, journalDir = NUTRITION_JOURNAL_DIR) {
+  const filePath = getPath(date, journalDir);
   if (fs.existsSync(filePath)) {
     return fs.readFileSync(filePath, "utf-8");
   }
   return "";
 }
 
-export function writeEntry(date, content) {
-  const filePath = getPath(date);
+export function writeEntry(date, content, journalDir = NUTRITION_JOURNAL_DIR) {
+  const filePath = getPath(date, journalDir);
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, content, "utf-8");
 }
 
-export function listEntries() {
-  if (!fs.existsSync(NUTRITION_JOURNAL_DIR)) {
+export function listEntries(journalDir = NUTRITION_JOURNAL_DIR) {
+  if (!fs.existsSync(journalDir)) {
     return [];
   }
   return fs
-    .readdirSync(NUTRITION_JOURNAL_DIR)
+    .readdirSync(journalDir)
     .filter((f) => f.endsWith(".md"))
     .sort()
     .reverse()

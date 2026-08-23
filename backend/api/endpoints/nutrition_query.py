@@ -31,6 +31,18 @@ from backend.db.models.journal import DailyJournal
 router = APIRouter()
 
 
+def _normalize_meal_for_client(meal: dict) -> dict:
+    kcal = meal.get("kcal", meal.get("calories", 0)) or 0
+    logged_at = meal.get("logged_at") or meal.get("time")
+    return {
+        **meal,
+        "kcal": kcal,
+        "calories": kcal,
+        "time": meal.get("time") or logged_at,
+        "logged_at": logged_at,
+    }
+
+
 # ============ 3a: Weekly Micros vs. DACH ============
 
 def _iso_week_dates(year: int, week: int) -> list[str]:
@@ -113,7 +125,7 @@ def get_history(limit: int = Query(30, ge=1, le=365), db: Session = Depends(get_
     history = [
         {
             "date": j.date,
-            "meals": j.food_logs,
+            "meals": [_normalize_meal_for_client(meal) for meal in (j.food_logs or [])],
             "water_ml": j.water_ml,
         }
         for j in journals
