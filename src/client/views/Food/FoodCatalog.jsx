@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { twMerge } from "tailwind-merge";
-import { Play, Trash2, Pencil, UtensilsCrossed, Pill } from "lucide-react";
+import { Play, Trash2, Pencil, UtensilsCrossed, Pill, BookmarkPlus, BookmarkCheck, X } from "lucide-react";
 import { fetchJson, postJson, deleteJson } from "@api";
 import CatalogItemEditor from "./CatalogItemEditor.jsx";
 
@@ -43,11 +43,34 @@ function renderSourceLabel(item) {
   return item.source || "Katalog";
 }
 
+const VERLAUF_DISMISSED_KEY = "fuel_verlauf_dismissed";
+
+function loadDismissed() {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(VERLAUF_DISMISSED_KEY) || "[]"));
+  } catch {
+    return new Set();
+  }
+}
+
 export default function FoodCatalog({ activeDate }) {
   const qc = useQueryClient();
   const [catalogAddonSelection, setCatalogAddonSelection] = useState({});
   const [catalogGrams, setCatalogGrams] = useState({});
   const [editingItem, setEditingItem] = useState(null);
+  // Food-Verlauf ist eine Inbox, keine Chronik: nur Items zeigen, die noch
+  // nicht im Katalog sind UND nicht bewusst verworfen wurden. Dismiss ist rein
+  // client-seitig (localStorage) — löscht nichts am eigentlichen Log-Eintrag,
+  // blendet ihn nur aus der Inbox aus.
+  const [dismissed, setDismissed] = useState(loadDismissed);
+  function dismiss(mealId) {
+    setDismissed((cur) => {
+      const next = new Set(cur);
+      next.add(mealId);
+      localStorage.setItem(VERLAUF_DISMISSED_KEY, JSON.stringify([...next]));
+      return next;
+    });
+  }
 
   function gramsFor(item) {
     return catalogGrams[item.id] ?? item.yield_g ?? "";
@@ -80,6 +103,8 @@ export default function FoodCatalog({ activeDate }) {
     staleTime: 0,
   });
   const catalog = catalogData?.items || [];
+  const normalizeName = (n) => String(n || "").trim().toLowerCase().replace(/\s+/g, " ");
+  const catalogNames = new Set(catalog.map((i) => normalizeName(i.name)));
 
   const { data: suppCatalogData } = useQuery({
     queryKey: ["supp-catalog"],
@@ -94,17 +119,20 @@ export default function FoodCatalog({ activeDate }) {
     return groups;
   }, {});
 
-  // Food-Verlauf: echte Chronik aus den tatsächlichen Tages-Logs (nicht aus
-  // dem Katalog) — jedes geloggte Meal einzeln, unabhängig davon ob es aus
-  // dem Katalog kam oder freihändig eingegeben wurde, keine Dedupe-Logik.
-  // Gleicher Query-Key/Fetch wie History/HistoryView.jsx (geteilter Cache).
+  // Food-Verlauf ist eine Inbox, keine Chronik (die volle Log-Historie lebt
+  // im Historie-Tab, HistoryView.jsx): nur die letzten ~30 geloggten Tage
+  // scannen, dann rausfiltern was schon im Katalog ist (per Name-Match) oder
+  // bewusst verworfen wurde — übrig bleibt nur, was tatsächlich noch eine
+  // Entscheidung braucht. Kleineres Limit als HistoryView.jsx (dort 100),
+  // weil hier nur der jüngste "Posteingang" relevant ist, nicht die Tiefe.
   const { data: historyData } = useQuery({
-    queryKey: ["nutrition-history"],
-    queryFn: () => fetchJson("/nutrition/history?limit=100"),
+    queryKey: ["nutrition-history-inbox"],
+    queryFn: () => fetchJson("/nutrition/history?limit=30"),
     staleTime: 0,
   });
   const historyMeals = (historyData?.history || [])
     .flatMap((day) => (day.meals || []).map((m) => ({ ...m, _date: day.date })))
+    .filter((m) => !m.catalog_id && !catalogNames.has(normalizeName(m.description)) && !dismissed.has(m.id))
     .sort((a, b) => (b.logged_at || b.time || "").localeCompare(a.logged_at || a.time || ""))
     .slice(0, 20);
 
@@ -125,7 +153,31 @@ export default function FoodCatalog({ activeDate }) {
     },
   });
 
+  // Bewusste Kuratierung: der Verlauf zeigt jedes geloggte Meal ungefiltert
+  // (auch mehrfach, auch Ausreißer) — der Katalog soll aber nur enthalten,
+  // was der User gezielt für wiederverwendbar befindet. Deshalb kein weiterer
+  // Auto-Upsert hier, sondern ein expliziter Button pro Eintrag.
+  const addHistoryMealToCatalog = useMutation({
+    mutationFn: (meal) => postJson("/nutrition/catalog", {
+      item: {
+        kind: "meal",
+        category: meal.type || "meal",
+        name: meal.description,
+        description: meal.description,
+        meal_type: meal.type || "meal",
+        notes: meal.notes || "",
+        kcal: meal.kcal || 0,
+        protein: meal.protein || 0,
+        carbs: meal.carbs || 0,
+        fat: meal.fat || 0,
+        source: "manual",
+      },
+    }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["nutrition-catalog"] }),
+  });
+
   function HistoryMealCard({ meal }) {
+    const alreadyInCatalog = catalogNames.has(normalizeName(meal.description));
     return (
       <div className="rounded-2xl border border-white/5 bg-slate-950/60 p-4 hover:border-emerald-400/30 hover:bg-emerald-400/5 transition-all">
         <div className="flex items-start justify-between gap-3">
@@ -141,13 +193,35 @@ export default function FoodCatalog({ activeDate }) {
               <span>F {meal.fat}g</span>
             </div>
           </div>
-          <button type="button"
-            onClick={() => repeatHistoryMeal.mutate(meal)}
-            disabled={repeatHistoryMeal.isPending}
-            className="shrink-0 inline-flex items-center gap-1.5 rounded-xl bg-emerald-400 px-3 py-2 text-xs font-bold text-slate-950 hover:bg-emerald-300 transition active:scale-95 disabled:opacity-50">
-            <Play className="h-3 w-3 fill-current" />
-            Nochmal
-          </button>
+          <div className="flex shrink-0 flex-col items-stretch gap-1.5">
+            <button type="button"
+              onClick={() => repeatHistoryMeal.mutate(meal)}
+              disabled={repeatHistoryMeal.isPending}
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-400 px-3 py-2 text-xs font-bold text-slate-950 hover:bg-emerald-300 transition active:scale-95 disabled:opacity-50">
+              <Play className="h-3 w-3 fill-current" />
+              Nochmal
+            </button>
+            <button type="button"
+              onClick={() => !alreadyInCatalog && addHistoryMealToCatalog.mutate(meal)}
+              disabled={addHistoryMealToCatalog.isPending || alreadyInCatalog}
+              title={alreadyInCatalog ? "Bereits im Katalog" : "Zum Katalog hinzufügen"}
+              className={twMerge(
+                "inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition active:scale-95 disabled:opacity-70",
+                alreadyInCatalog
+                  ? "bg-white/5 text-slate-500"
+                  : "bg-orange-400 text-slate-950 hover:bg-orange-300",
+              )}>
+              {alreadyInCatalog ? <BookmarkCheck className="h-3 w-3" /> : <BookmarkPlus className="h-3 w-3" />}
+              {alreadyInCatalog ? "Im Katalog" : "Zum Katalog"}
+            </button>
+            <button type="button"
+              onClick={() => dismiss(meal.id)}
+              title="Aus der Inbox entfernen (löscht nicht den Log-Eintrag)"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-white/5 px-3 py-2 text-xs font-bold text-slate-500 hover:bg-white/10 hover:text-slate-300 transition active:scale-95">
+              <X className="h-3 w-3" />
+              Verwerfen
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -335,11 +409,11 @@ export default function FoodCatalog({ activeDate }) {
                 <UtensilsCrossed className="h-4 w-4" />
                 Food-Verlauf
               </div>
-              <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-100">Jedes geloggte Meal</h2>
-              <p className="mt-2 text-sm text-slate-400">Echte Chronik aus der Log-Historie — jeder Eintrag einzeln, neueste zuerst.</p>
+              <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-100">Noch nicht kuratiert</h2>
+              <p className="mt-2 text-sm text-slate-400">Freihändig geloggte Meals, die noch nicht im Katalog sind — zum Katalog hinzufügen oder verwerfen. Volle Log-Historie: Historie-Tab.</p>
             </div>
             <span className="rounded-full border border-white/10 bg-slate-950/70 px-4 py-1.5 text-sm font-medium text-slate-400">
-              {historyMeals.length} Einträge
+              {historyMeals.length} offen
             </span>
           </div>
           <div className="grid gap-3 xl:grid-cols-2">
