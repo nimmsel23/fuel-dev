@@ -124,6 +124,19 @@ Die App ist für Firebase Hosting optimiert und funktioniert in der Cloud ohne e
 
 Die App erkennt automatisch, ob sie auf `*.web.app` läuft, und nutzt dann Firestore statt der lokalen API.
 
+Für GitHub Actions gilt zusätzlich:
+- `fuel-dev` ist die Preview-/CI-Linie
+- `vitalos/fuel-app` ist die Live-/Release-Linie mit lokalem `pre-push`-Deploy
+- Fuel wird im CI über das `vitalos`-Meta-Repo gebaut, nicht in einem nackten
+  Einzel-Checkout
+- im Meta-Repo liegt Fuel unter `fuel-app/`, Fitness unter `fitness-app/`,
+  Journal unter `journal-app/`
+- vor dem Fuel-Firebase-Build muss `npm run build:kb-data --workspace=fitness-app`
+  laufen, weil Fuel Fitness-KB-Code mit Generated-Dateien mitbenutzt
+
+Die Firebase-spezifische Doku steht in [FIREBASE.md](FIREBASE.md), die
+ausführlichere Deploy-/Runtime-Doku in [DEPLOYMENT.md](DEPLOYMENT.md).
+
 ### Daten-Synchronisation
 
 Um lokale Kataloge und Logs mit der Cloud abzugleichen:
@@ -133,7 +146,7 @@ npm run sync:push   # Lokal -> Firestore
 npm run sync:pull   # Firestore -> Lokal
 ```
 
-Detaillierte Infos zur Cloud-Anbindung findest du in [FIRESTORE.md](FIRESTORE.md).
+Detaillierte Infos zur Cloud-Anbindung findest du in [FIREBASE.md](FIREBASE.md).
 
 ## PWA-Status
 
