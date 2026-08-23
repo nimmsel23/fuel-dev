@@ -21,7 +21,9 @@ export function useAiMealLogger(date) {
   const { data: catalogData } = useQuery({
     queryKey: ["nutrition-catalog"],
     queryFn: () => fetchJson("/nutrition/catalog"),
-    staleTime: 60_000,
+    // Katalog ist bereits der persistierte Stand (Firestore/Datei) — kein
+    // client-seitiges Caching nötig, immer frisch laden (siehe FoodCatalog.jsx).
+    staleTime: 0,
   });
   const catalogItems = catalogData?.items || [];
 

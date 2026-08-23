@@ -73,7 +73,11 @@ export default function FoodCatalog({ activeDate }) {
   const { data: catalogData } = useQuery({
     queryKey: ["nutrition-catalog"],
     queryFn: () => fetchJson("/nutrition/catalog"),
-    staleTime: 60_000,
+    // Katalog ist bereits der persistierte Stand (Firestore/Datei) — kein
+    // client-seitiges Caching nötig, das nur zusätzliches Staleness-Risiko
+    // schafft (siehe Food-Verlauf-Bug: gecachter Stand hinkte trotz
+    // korrektem Server-Write hinterher). Immer frisch laden.
+    staleTime: 0,
   });
   const catalog = catalogData?.items || [];
 
