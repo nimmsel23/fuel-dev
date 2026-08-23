@@ -5,15 +5,14 @@ real ankommt.
 
 ## 1. Die reale Trennung der Firebase-Linien
 
-Es gibt aktuell **zwei verschiedene Firebase-Linien** mit unterschiedlicher
-Verantwortung:
+Es gibt aktuell zwei relevante Linien mit unterschiedlicher Verantwortung:
 
 ### `fuel-dev`
 
 - Branch `dev`
-- Preview-Deploy per GitHub Actions
-- dient der CI-/Preview-Linie
-- baut im `vitalos`-Meta-Repo
+- Dev-Checkout
+- Quelle für lokale Desktop-Deploys
+- Ausgangspunkt für Änderungen, die später in den Release-Pfad weitergereicht werden
 
 ### `vitalos/fuel-app`
 
@@ -23,9 +22,10 @@ Verantwortung:
 - `.githooks/pre-push` führt bei relevanten Änderungen auf `master`
   automatisch `npm run firebase` aus
 - Fehlschlag bricht den Push ab
+- der Top-Level-Wrapper dafür ist `fuel-release`
 
 Kurz:
-- `fuel-dev` = Preview/CI
+- `fuel-dev` = Dev + localhost
 - `fuel-app` = Live/Release
 
 ## 2. Zwei verschiedene Deploy-Wege
@@ -49,6 +49,12 @@ Das ist der lokale direkte Hosting-Deploy aus `~/fuel-dev`.
 
 Für den eigentlichen Release-Flow ist aber vor allem `vitalos/fuel-app` auf
 `master` relevant, weil dort der Live-Deploy per `pre-push`-Hook hängt.
+
+Der bequeme Wrapper dafür ist:
+
+```bash
+fuel-release
+```
 
 ### GitHub Actions
 
@@ -175,8 +181,30 @@ Wenn Firebase/CI für Fuel bricht, zuerst genau diese Punkte prüfen:
 2. Nutzt er dort `fuel-app/`, `fitness-app/`, `journal-app/`?
 3. Baut er `fitness-app build:kb-data` vor dem Fuel-Build?
 4. Baut er Fuel über `--workspace=fuel-app`?
-5. Ist klar getrennt, ob gerade die Preview-Linie (`fuel-dev`) oder die
+5. Ist klar getrennt, ob gerade die Dev-/localhost-Linie (`fuel-dev`) oder die
    Live-Linie (`vitalos/fuel-app`) gemeint ist?
 6. Ist bei Shell-/Meta-Repo-Builds der Alias `@fitness/lib` vorhanden?
+7. Ist für den eigentlichen Release-Pfad `fuel-release` bzw. der Push in
+   `vitalos/fuel-app` gemeint statt irgendein CI-Preview-Lauf?
 
 Alles Weitere erst danach.
+
+## 9. What Could Possibly Go Wrong
+
+- `fuel-dev` und `vitalos/fuel-app` werden gedanklich vermischt
+- im Meta-Repo werden versehentlich `fuel-dev/`, `fitness-dev/` oder
+  `journal-dev/` statt `fuel-app/`, `fitness-app/`, `journal-app/` verwendet
+- `fitness-app build:kb-data` fehlt vor dem Fuel-Build
+- man hält einen CI-Preview-Lauf für den eigentlichen Live-Release
+- der Release wird am `pre-push`-Hook von `vitalos/fuel-app` vorbei organisiert
+
+## 10. Nicht Verändern
+
+Die folgenden Invarianten sind Teil des funktionierenden Release-Pfads und
+sollten nicht leichtfertig umgebaut werden:
+
+- `@vos/cross-app-aliases` als SSOT für Cross-Repo-Aliase
+- die Trennung `fuel-dev` = Dev/localhost und `vitalos/fuel-app` = Live/Release
+- der Meta-Repo-Pfad `fuel-app/` statt Home-Checkout-Namen im CI
+- `fitness-app build:kb-data` als Vorbedingung des Fuel-Firebase-Builds
+- `core.hooksPath=.githooks` plus `pre-push`-Deploy in `vitalos/fuel-app`

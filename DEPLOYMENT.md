@@ -64,6 +64,8 @@ Die Wrapper-Rollen sind:
   systemweiten Units
 - `fuelctl`: höherer Dispatcher; reicht `dev` an `fuel-devctl` und `prod` an
   `fuel-prodctl` weiter
+- `fuel-release`: Top-Level-Release-Wrapper für die Weitergabe Richtung
+  Firebase-Release-Linie
 
 Lokale Ports:
 - Dev Node / v3: `http://127.0.0.1:9000`
@@ -90,11 +92,12 @@ Das Deployment nach Firebase erfolgt getrennt für die Cloud-Seite.
 ### Firebase via GitHub Actions
 
 Wichtig zur Zuständigkeit:
-- `fuel-dev` ist die Preview-/CI-Linie
+- `fuel-dev` ist die Dev-/localhost-Linie
 - `vitalos/fuel-app` ist die Live-/Release-Linie für Firebase
 - `vitalos/fuel-app` hat lokal weiter den aktiven `pre-push`-Hook, der auf
   `master` bei relevanten Änderungen automatisch `npm run firebase` ausführt
   und den Push bei Fehlern abbricht
+- `fuel-release` stößt genau diesen Release-Pfad bequem von oben an
 
 Die GitHub-Actions für Fuel bauen **nicht** in einem nackten Checkout dieses
 Repos, sondern im `vitalos`-Meta-Repo.
@@ -161,3 +164,20 @@ Das Tool `fuelctl` dient als Master-Controller für die lokale Umgebung.
 - **`fuelctl status`**: Zeigt den Zustand der lokalen Runtime-Schichten und des Sync-Watchers an.
 - **`fuelctl dev up`**: Startet die lokale Runtime.
 - **`fuelctl sync`**: Manueller Datenabgleich für die Cloud-/Firestore-Seite.
+
+## 5. What Could Possibly Go Wrong
+
+- `deploy.sh prod` wird direkt gegen `~/fuel-dev` gedacht, obwohl es aus
+  `~/.local/fuel` liest
+- `~/.local/fuel` wird für den Live-Prod-Stand gehalten
+- `fuel-devctl` und `fuel-prodctl` werden verwechselt
+- `fuel-release` wird mit einem lokalen Desktop-Deploy verwechselt
+- Cross-Repo-Builds brechen, wenn `@vos/cross-app-aliases` oder die Meta-Repo-
+  Pfade implizit verändert werden
+
+## 6. Nicht Verändern
+
+- die zweistufige Kette `~/fuel-dev -> ~/.local/fuel -> /opt/fuel`
+- die Rollenverteilung `fuel-devctl` / `fuel-prodctl` / `fuelctl`
+- `@vos/cross-app-aliases` als SSOT für Cross-Repo-Auflösung
+- die Trennung zwischen localhost-Deploy und Firebase-Release

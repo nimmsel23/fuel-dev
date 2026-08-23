@@ -125,8 +125,9 @@ Die App ist für Firebase Hosting optimiert und funktioniert in der Cloud ohne e
 Die App erkennt automatisch, ob sie auf `*.web.app` läuft, und nutzt dann Firestore statt der lokalen API.
 
 Für GitHub Actions gilt zusätzlich:
-- `fuel-dev` ist die Preview-/CI-Linie
+- `fuel-dev` ist die Dev-/localhost-Linie
 - `vitalos/fuel-app` ist die Live-/Release-Linie mit lokalem `pre-push`-Deploy
+- `fuel-release` ist der Top-Level-Wrapper für diesen Release-Pfad
 - Fuel wird im CI über das `vitalos`-Meta-Repo gebaut, nicht in einem nackten
   Einzel-Checkout
 - im Meta-Repo liegt Fuel unter `fuel-app/`, Fitness unter `fitness-app/`,
@@ -136,6 +137,12 @@ Für GitHub Actions gilt zusätzlich:
 
 Die Firebase-spezifische Doku steht in [FIREBASE.md](FIREBASE.md), die
 ausführlichere Deploy-/Runtime-Doku in [DEPLOYMENT.md](DEPLOYMENT.md).
+
+Kurz zu den Invarianten:
+- localhost/Desktop kommt aus den Home-`*-dev`-Repos
+- Firebase-Live-Release kommt aus `vitalos/*-app`
+- `@vos/cross-app-aliases` ist dabei nicht optional, sondern Teil der
+  funktionierenden Cross-Repo-Topologie
 
 ### Daten-Synchronisation
 
