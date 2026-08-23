@@ -94,6 +94,58 @@ export async function fetchJson(path) {
   throw new Error(`fetchJson: unmapped cloud path: ${path}`);
 }
 
+function normalizeMealName(n) {
+  return String(n || "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+// Cloud-Äquivalent zu autoUpsertCatalog() im lokalen Fastify-Backend
+// (src/server/routes/nutrition/log.mjs) — existierte dort schon, aber nie
+// hier, weshalb freihändig geloggte Meals im Cloud-Channel nie im Katalog
+// landeten und die "Food-Verlauf"-Card (FoodCatalog.jsx, filtert auf
+// last_used_at) für Cloud-User immer leer blieb. Nur für Meals OHNE
+// catalog_id — ein bereits aus dem Katalog geloggtes Meal ist definitionsgemäß
+// schon drin und wird hier nicht angefasst.
+async function autoUpsertCatalog(meal) {
+  if (!meal?.description || meal.catalog_id) return;
+  try {
+    const items = await firestore.getNutritionCatalog();
+    const inputName = normalizeMealName(meal.description);
+    const idx = items.findIndex((i) => normalizeMealName(i.name) === inputName);
+    const nowIso = meal.logged_at || meal.time || new Date().toISOString();
+    if (idx >= 0) {
+      items[idx] = {
+        ...items[idx],
+        use_count: (items[idx].use_count || 0) + 1,
+        last_used_at: nowIso,
+        updated_at: new Date().toISOString(),
+      };
+    } else {
+      items.push({
+        id: `meal_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+        kind: "meal",
+        category: meal.type || "meal",
+        name: meal.description,
+        meal_type: meal.type || "meal",
+        description: meal.description,
+        notes: meal.notes || "",
+        kcal: meal.kcal || 0,
+        protein: meal.protein || 0,
+        carbs: meal.carbs || 0,
+        fat: meal.fat || 0,
+        source: "logged",
+        use_count: 1,
+        last_used_at: nowIso,
+        created_at: nowIso,
+        updated_at: nowIso,
+      });
+    }
+    const ref = doc(firestore.db, "nutrition", firestore.getUid(), "meta", "catalog");
+    await setDoc(ref, { items, updated_at: firestore.serverTimestamp() });
+  } catch (e) {
+    console.warn(`[nutrition-catalog] auto-upsert failed for "${meal.description}":`, e);
+  }
+}
+
 export async function postJson(path, body) {
   const normPath = normalizePath(path);
 
@@ -121,14 +173,16 @@ export async function postJson(path, body) {
         }];
       }
     } else if (body.meal) {
+      const loggedAt = body.meal.logged_at || body.meal.time || new Date().toISOString();
       existing.meals = [...(existing.meals || []), {
         ...body.meal,
         id: body.meal.id || `meal_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
         // "time" ist das lokale (Fastify/SQLite) Feld für die echte Essenszeit
         // (LogView.jsx toLoggedAt()) — hier auf logged_at mappen, damit beide
         // Channels dieselbe vom User gesetzte Zeit übernehmen statt "jetzt".
-        logged_at: body.meal.logged_at || body.meal.time || new Date().toISOString(),
+        logged_at: loggedAt,
       }];
+      await autoUpsertCatalog({ ...body.meal, logged_at: loggedAt });
     }
     await firestore.saveNutritionLog(body.date, existing);
     return { ok: true };
