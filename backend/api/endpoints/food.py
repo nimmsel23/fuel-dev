@@ -35,6 +35,60 @@ class NutritionCatalogPost(BaseModel):
     item: MealCatalogUpsert
 
 
+def _normalize_catalog_name(name: str | None) -> str:
+    return " ".join(str(name or "").strip().lower().split())
+
+
+def _upsert_logged_meal_catalog(db: Session, meal: dict) -> None:
+    meal_name = (meal.get("description") or meal.get("name") or "").strip()
+    if not meal_name:
+        return
+
+    item = None
+    catalog_id = meal.get("catalog_id") or meal.get("catalog_item_id")
+    if catalog_id:
+        item = db.query(MealCatalogItem).filter(MealCatalogItem.id == catalog_id).first()
+    if not item:
+        item = next(
+            (
+                row for row in db.query(MealCatalogItem).all()
+                if _normalize_catalog_name(row.name) == _normalize_catalog_name(meal_name)
+            ),
+            None,
+        )
+
+    now = datetime.now(timezone.utc)
+    if not item:
+        item = MealCatalogItem(
+            id=catalog_id or generate_meal_id(meal_name, db),
+            kind="meal",
+            category=meal.get("type") or "meal",
+            name=meal_name,
+            description=meal.get("description") or meal_name,
+            kcal=meal.get("kcal", meal.get("calories", 0)) or 0,
+            protein=meal.get("protein", 0) or 0,
+            carbs=meal.get("carbs", 0) or 0,
+            fat=meal.get("fat", 0) or 0,
+            source=meal.get("source") or "logged",
+            created_at=now,
+            updated_at=now,
+        )
+        db.add(item)
+        return
+
+    item.category = item.category or meal.get("type") or "meal"
+    item.meal_type = meal.get("type") or item.meal_type
+    item.name = meal_name
+    item.description = meal.get("description") or meal_name
+    item.notes = meal.get("notes", item.notes or "")
+    item.kcal = meal.get("kcal", meal.get("calories", item.kcal or 0)) or 0
+    item.protein = meal.get("protein", item.protein or 0) or 0
+    item.carbs = meal.get("carbs", item.carbs or 0) or 0
+    item.fat = meal.get("fat", item.fat or 0) or 0
+    item.source = item.source or meal.get("source") or "logged"
+    item.updated_at = now
+
+
 def _normalize_meal_for_client(meal: dict) -> dict:
     kcal = meal.get("kcal", meal.get("calories", 0)) or 0
     logged_at = meal.get("logged_at") or meal.get("time")
@@ -175,6 +229,7 @@ def log_food(request: FoodLogRequest, db: Session = Depends(get_db)):
     # anfügen und flaggen
     journal.food_logs.append(meal_dict)
     flag_modified(journal, "food_logs")
+    _upsert_logged_meal_catalog(db, meal_dict)
 
     # Firestore-Optimierung: Micros sofort auf Dokumentebene summieren
     if not journal.micros_sum:
@@ -203,7 +258,7 @@ def get_food_logs(date: str = Query(default_factory=lambda: date.today().isoform
 
 @router.get("/catalog")
 def list_meal_catalog(db: Session = Depends(get_db)):
-    items = db.query(MealCatalogItem).order_by(MealCatalogItem.name).all()
+    items = db.query(MealCatalogItem).order_by(MealCatalogItem.updated_at.desc(), MealCatalogItem.name.asc()).all()
     return {"ok": True, "items": [MealCatalogItemOut.model_validate(i).model_dump() for i in items]}
 
 
@@ -292,6 +347,7 @@ def patch_meal_log(request: FoodLogPatchRequest, db: Session = Depends(get_db)):
         journal.food_logs[meal_idx] = updated_meal
         flag_modified(journal, "food_logs")
 
+    _upsert_logged_meal_catalog(db, updated_meal)
     db.commit()
     return {"ok": True, "meal": updated_meal}
 

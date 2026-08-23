@@ -2,7 +2,7 @@ import { z } from "zod";
 import { isISODate, todayISO } from "../../../shared/utils/validation.mjs";
 import path from "path";
 import fs from "fs";
-import { loadCatalog, addOrUpdateItem } from "../../services/nutrition-catalog.mjs";
+import { loadCatalog, addOrUpdateItem, upsertLoggedMeal } from "../../services/nutrition-catalog.mjs";
 import { estimateMicros } from "../../services/nutrition-estimate-micros.mjs";
 import { getMicrosForMeal, saveMicrosForMeal } from "../../services/nutrition-micros.mjs";
 import { upsertMeal, deleteMeal as deleteMealRow, upsertWater, getMealsForDate, getMealDates, getWater } from "../../services/nutrition-db.mjs";
@@ -194,25 +194,27 @@ function normalizeMealName(name) {
 // "gemini", damit der wöchentliche fuel-catalog-verify-Timer (Haiku+
 // WebSearch) sie im Zweifelsfall gegen echte Herstellerangaben recherchiert.
 function autoUpsertCatalog(m) {
-  if (m.catalog_id || !m.description) return;
+  if (!m?.description && !m?.name) return;
   try {
     const catalog = loadCatalog();
-    const nameNorm = normalizeMealName(m.description);
+    const synced = upsertLoggedMeal(catalog, m);
+    if (synced) return synced;
+    const nameNorm = normalizeMealName(m.description || m.name);
     const existing = catalog.items.find((i) => normalizeMealName(i.name) === nameNorm);
-    if (existing) return;
-    addOrUpdateItem(catalog, {
-      name: m.description,
-      description: m.description,
+    if (existing) return existing;
+    return addOrUpdateItem(catalog, {
+      name: m.description || m.name,
+      description: m.description || m.name,
       meal_type: m.type || "meal",
       notes: m.notes || "",
-      kcal: m.kcal || 0,
+      kcal: m.kcal || m.calories || 0,
       protein: m.protein || 0,
       carbs: m.carbs || 0,
       fat: m.fat || 0,
-      source: "gemini",
+      source: "logged",
     });
   } catch (e) {
-    console.warn(`[nutrition-catalog] auto-upsert failed for "${m.description}":`, e.message);
+    console.warn(`[nutrition-catalog] auto-upsert failed for "${m.description || m.name}":`, e.message);
   }
 }
 
@@ -253,7 +255,10 @@ export default async function logRoute(app) {
   app.patch("/nutrition/log", async (req, reply) => {
     try {
       const bridged = await callV4("/nutrition/log", { method: "PATCH", body: req.body || {} });
-      if (bridged.ok) return reply.send(bridged.data);
+      if (bridged.ok) {
+        if (req.body?.meal) autoUpsertCatalog(req.body.meal);
+        return reply.send(bridged.data);
+      }
       if (bridged.status < 500) return reply.status(bridged.status).send(bridged.data);
     } catch {}
     try {
@@ -301,7 +306,10 @@ export default async function logRoute(app) {
   app.post("/nutrition/log", async (req, reply) => {
     try {
       const bridged = await callV4("/nutrition/log", { method: "POST", body: req.body || {} });
-      if (bridged.ok) return reply.send(bridged.data);
+      if (bridged.ok) {
+        if (req.body?.meal) autoUpsertCatalog(req.body.meal);
+        return reply.send(bridged.data);
+      }
       if (bridged.status < 500) return reply.status(bridged.status).send(bridged.data);
     } catch {}
     try {

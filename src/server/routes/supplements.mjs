@@ -3,6 +3,7 @@ import { loadCatalog, saveCatalog, addOrUpdateSupplement, deleteSupplement } fro
 import { loadLog, saveLog, addIntake, updateIntake, deleteIntake } from "../services/supplements-log.mjs";
 import { isISODate, todayISO } from "../../shared/utils/validation.mjs";
 import { SUPPLEMENTS_LOG_DIR } from "../config/paths.mjs";
+import { callV4 } from "../lib/v4-bridge.mjs";
 import fs from "fs";
 import path from "path";
 
@@ -111,6 +112,11 @@ export default async function supplementsRoute(app) {
     if (!isISODate(date)) {
       return reply.status(400).send({ ok: false, error: "Invalid date" });
     }
+    try {
+      const bridged = await callV4(`/supplements/log?date=${encodeURIComponent(date)}`);
+      if (bridged.ok) return reply.send(bridged.data);
+      if (bridged.status < 500) return reply.status(bridged.status).send(bridged.data);
+    } catch {}
     const log = loadLog(date);
     return reply.send({ ok: true, data: log });
   });
@@ -127,6 +133,20 @@ export default async function supplementsRoute(app) {
       if (!isISODate(date)) {
         return reply.status(400).send({ ok: false, error: "Invalid date" });
       }
+
+      try {
+        const catalog = loadCatalog();
+        const intake = parsed.data.intake ? {
+          ...parsed.data.intake,
+          name: parsed.data.intake.name || catalog.items.find((item) => item.id === parsed.data.intake.supplement_id)?.name,
+        } : undefined;
+        const bridged = await callV4("/supplements/log", {
+          method: "POST",
+          body: { date, intake, delete_id: parsed.data.delete_id },
+        });
+        if (bridged.ok) return reply.send(bridged.data);
+        if (bridged.status < 500) return reply.status(bridged.status).send(bridged.data);
+      } catch {}
 
       const log = loadLog(date);
 
@@ -162,6 +182,15 @@ export default async function supplementsRoute(app) {
         return reply.status(400).send({ ok: false, error: "Invalid date" });
       }
 
+      try {
+        const bridged = await callV4("/supplements/log", {
+          method: "PATCH",
+          body: { date, intake_id: parsed.data.intake_id, updates: parsed.data.updates },
+        });
+        if (bridged.ok) return reply.send(bridged.data);
+        if (bridged.status < 500) return reply.status(bridged.status).send(bridged.data);
+      } catch {}
+
       const log = loadLog(date);
       const updated = updateIntake(log, parsed.data.intake_id, parsed.data.updates);
       if (!updated) {
@@ -186,6 +215,13 @@ export default async function supplementsRoute(app) {
 
       const { days, anchor } = parsed.data;
       const anchorDate = anchor && isISODate(anchor) ? anchor : todayISO();
+
+      try {
+        const bridged = await callV4(`/supplements/stats?days=${encodeURIComponent(days)}&anchor=${encodeURIComponent(anchorDate)}`);
+        if (bridged.ok) return reply.send(bridged.data);
+        if (bridged.status < 500) return reply.status(bridged.status).send(bridged.data);
+      } catch {}
+
       const startDate = new Date(anchorDate);
       startDate.setDate(startDate.getDate() - days + 1);
 
