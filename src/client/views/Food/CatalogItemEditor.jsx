@@ -238,7 +238,7 @@ export default function CatalogItemEditor({ item, open, onOpenChange }) {
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
-                  <div className="mt-2 grid grid-cols-4 gap-2">
+                  <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
                     <input type="number" className={smallInputCls} placeholder="Kcal" value={a.kcal}
                       onChange={(e) => updateAddon(a.id, { kcal: Number(e.target.value) || 0 })} />
                     <input type="number" className={smallInputCls} placeholder="Protein" value={a.protein}

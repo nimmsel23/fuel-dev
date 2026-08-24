@@ -463,7 +463,7 @@ export default function LogView({ date, nutrition, notes }) {
             </Field>
           </div>
 
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[["kcal", "kcal"], ["protein", "Prot g"], ["carbs", "Carb g"], ["fat", "Fett g"]].map(([k, lbl]) => (
               <Field key={k} label={lbl}>
                 <input type="number" min="0" className={inputCls} value={form[k]}
