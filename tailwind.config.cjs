@@ -28,15 +28,6 @@ module.exports = {
       },
       fontFamily: {
         sans: ["Inter", "system-ui", "sans-serif"],
-        display: ["Fraunces", "ui-serif", "serif"],
-        ticket: ['"Space Mono"', "ui-monospace", "monospace"],
-      },
-      colors: {
-        paper: {
-          50: "#faf6ec",
-          100: "#f2ead6",
-          200: "#e6d8b8",
-        },
       },
     },
   },
