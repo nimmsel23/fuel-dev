@@ -72,6 +72,26 @@ const MEAL_TYPES = [
 const MEAL_LABEL = Object.fromEntries(MEAL_TYPES.map(({ value, label }) => [value, label]));
 
 const inputCls = "w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-slate-100";
+const numCls = twMerge(inputCls, "font-ticket tabular-nums tracking-tight");
+
+// Zwei "Ösen" oben an einer Ticket-Karte — rein dekorativ, macht aus der
+// generischen abgerundeten Card einen physischen Order-Zettel.
+function Grommets() {
+  return (
+    <>
+      <span className="ticket-grommet -top-[5px] left-4" aria-hidden />
+      <span className="ticket-grommet -top-[5px] right-4" aria-hidden />
+    </>
+  );
+}
+
+function Kicker({ children, tone = "text-orange-300/80" }) {
+  return (
+    <span className={twMerge("font-ticket text-[10px] uppercase tracking-[0.28em]", tone)}>
+      {children}
+    </span>
+  );
+}
 
 // HH:MM in lokaler Zeit — Basis für die Zeitwahl im Formular. Meals wurden
 // bisher serverseitig immer mit "jetzt" gestempelt, unabhängig davon wann
@@ -108,7 +128,7 @@ function toLoggedAt(date, hhmm) {
 function Field({ label, children }) {
   return (
     <label className="grid gap-2 text-sm text-slate-300">
-      <span className="text-xs uppercase tracking-[0.18em] text-slate-500">{label}</span>
+      <span className="font-ticket text-[10px] uppercase tracking-[0.22em] text-amber-200/50">{label}</span>
       {children}
     </label>
   );
@@ -305,18 +325,24 @@ export default function LogView({ date, nutrition, notes }) {
 
   return (
     <div className="grid gap-8 lg:grid-cols-2">
-      {/* Left Column: Food Logging */}
+      {/* Left Column: Küchenzettel-Rail */}
       <section className="space-y-6">
-        <div className="flex items-center gap-3">
-          <UtensilsCrossed className="h-6 w-6 text-orange-300" />
-          <h2 className="text-2xl font-bold tracking-tight">Ernährung</h2>
+        <div>
+          <Kicker>Order Rail · {date}</Kicker>
+          <div className="mt-1 flex items-center gap-3">
+            <UtensilsCrossed className="h-6 w-6 text-orange-300" />
+            <h2 className="font-display text-3xl font-black tracking-tight text-orange-50">Ernährung</h2>
+          </div>
         </div>
 
         {/* AI Logger — Hybrid (Lokal & Vertex AI in Firebase) */}
-        <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur shadow-glow">
-            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+        <div className="grain-ember relative rounded-2xl rounded-t-sm border border-orange-400/20 bg-gradient-to-b from-orange-950/40 to-slate-950/60 p-5 pt-6 shadow-glow">
+            <Grommets />
+            <div className="ticket-perf -mx-5 mb-4" />
+            <h2 className="mb-4 flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-violet-300" />
-              AI Logger
+              <span className="font-display text-xl font-semibold text-orange-50">Schnellzettel</span>
+              <span className="ml-auto font-ticket text-[10px] uppercase tracking-[0.22em] text-violet-300/70">AI</span>
             </h2>
             <form onSubmit={handleAiLog}>
               <textarea
@@ -331,7 +357,7 @@ export default function LogView({ date, nutrition, notes }) {
                   disabled={aiLoading || !aiText.trim()}
                   className="flex-1 bg-sky-300 text-slate-950 rounded-full py-3 font-bold disabled:opacity-50 hover:bg-sky-200 transition-colors shadow-lg active:scale-[0.98]"
                 >
-                  {aiLoading ? "Verarbeite..." : "Loggen"}
+                  {aiLoading ? "Verarbeite..." : "An die Küche"}
                 </button>
                 <button
                   type="button"
@@ -393,14 +419,16 @@ export default function LogView({ date, nutrition, notes }) {
 
         {/* Manuelles Log-Formular */}
         <div className={twMerge(
-          "rounded-3xl border p-5 space-y-4 transition-all duration-300",
+          "relative rounded-2xl rounded-t-sm border p-5 pt-6 space-y-4 transition-all duration-300",
           isEditing ? "border-orange-400 shadow-[0_0_20px_rgba(251,146,60,0.2)] bg-orange-400/5 ring-1 ring-orange-400/20" : "border-white/10 bg-white/5 backdrop-blur"
         )}>
+          <Grommets />
+          <div className="ticket-perf -mx-5 mb-1 opacity-70" />
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               {isEditing ? <Pencil className="h-4 w-4 text-orange-400" /> : <UtensilsCrossed className="h-4 w-4 text-slate-400" />}
-              <h3 className={twMerge("text-sm font-semibold uppercase tracking-widest", isEditing ? "text-orange-400" : "text-slate-400")}>
-                {isEditing ? "Eintrag bearbeiten" : "Mahlzeit loggen"}
+              <h3 className={twMerge("font-ticket text-xs font-semibold uppercase tracking-[0.2em]", isEditing ? "text-orange-400" : "text-slate-400")}>
+                {isEditing ? "Zettel bearbeiten" : "Handbestellung"}
               </h3>
             </div>
             {isEditing && (
@@ -466,7 +494,7 @@ export default function LogView({ date, nutrition, notes }) {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[["kcal", "kcal"], ["protein", "Prot g"], ["carbs", "Carb g"], ["fat", "Fett g"]].map(([k, lbl]) => (
               <Field key={k} label={lbl}>
-                <input type="number" min="0" className={inputCls} value={form[k]}
+                <input type="number" min="0" className={numCls} value={form[k]}
                   onChange={(e) => { setScanBaseline(null); set(k)(e); }} />
               </Field>
             ))}
@@ -489,7 +517,7 @@ export default function LogView({ date, nutrition, notes }) {
                   ? "bg-slate-800 text-slate-500 cursor-not-allowed"
                   : "bg-orange-400 text-slate-950 hover:bg-orange-300 active:scale-[0.98]"
               )}>
-              {saveMeal.isPending ? "Speichert…" : isEditing ? "Änderungen speichern" : "Mahlzeit loggen"}
+              {saveMeal.isPending ? "Speichert…" : isEditing ? "Änderungen speichern" : "Auf die Rail"}
             </button>
             <button
               onClick={() => saveCatalog.mutate()}
@@ -504,15 +532,19 @@ export default function LogView({ date, nutrition, notes }) {
           </div>
         </div>
 
-        {/* Geloggte Mahlzeiten Liste (Heutiges Log) */}
+        {/* Geloggte Mahlzeiten — Order-Rail: jeder Eintrag ein Ticket-Stub */}
         {meals.length > 0 && (
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur mt-6">
+          <div className="relative rounded-2xl rounded-t-sm border border-white/10 bg-white/5 p-5 pt-6 backdrop-blur mt-6">
+            <Grommets />
+            <div className="ticket-perf -mx-5 mb-4" />
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <UtensilsCrossed className="h-5 w-5 text-orange-300" />
-                Heutiges Log ({meals.length})
-              </h3>
-              <div className="text-xs text-slate-400 text-right">
+              <div>
+                <Kicker tone="text-slate-500">Rail · heute</Kicker>
+                <h3 className="mt-0.5 font-display text-lg font-bold text-slate-100">
+                  {meals.length} {meals.length === 1 ? "Ticket" : "Tickets"}
+                </h3>
+              </div>
+              <div className="font-ticket text-xs text-slate-400 text-right">
                 <span className="font-bold text-orange-300">{formatMetric(sumMetric(meals, "kcal"))} kcal</span>
                 <div className="mt-0.5 space-x-2">
                   <span className="text-emerald-300">P {formatMetric(sumMetric(meals, "protein"))}g</span>
@@ -521,24 +553,31 @@ export default function LogView({ date, nutrition, notes }) {
                 </div>
               </div>
             </div>
-            <div className="space-y-2">
-              {meals.map((m) => (
+            <div className="space-y-2.5">
+              {meals.map((m, idx) => (
                 <div key={m.id}
+                  style={{ animationDelay: `${Math.min(idx, 10) * 35}ms` }}
                   className={twMerge(
-                    "flex items-center justify-between rounded-2xl border px-4 py-3 transition",
+                    "animate-ticket-in flex items-center gap-3 rounded-xl border px-4 py-3 transition",
                     form.id === m.id
                       ? "border-orange-400/40 bg-orange-400/5"
                       : "border-white/5 bg-slate-900/40 hover:bg-slate-900/70"
                   )}>
+                  <span className="shrink-0 -rotate-2 rounded border border-white/10 bg-slate-950/70 px-1.5 py-0.5 font-ticket text-[10px] text-slate-500">
+                    {hhmmFromISO(m.time || m.logged_at)}
+                  </span>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate font-medium text-slate-100">{m.description}</div>
-                    <div className="mt-0.5 text-xs text-slate-500">
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="truncate font-medium text-slate-100">{m.description}</span>
+                      <span className="h-px min-w-[10px] flex-1 border-t border-dashed border-white/15" aria-hidden />
+                      <span className="shrink-0 font-ticket text-sm font-bold text-orange-300">{m.kcal}<span className="text-[10px] text-orange-300/60"> kcal</span></span>
+                    </div>
+                    <div className="mt-0.5 font-ticket text-[11px] text-slate-500">
                       {MEAL_LABEL[m.type] || m.type}
-                      {" · "}<span className="text-orange-300">{m.kcal} kcal</span>
                       {" · "}P {m.protein}g · C {m.carbs}g · F {m.fat}g
                     </div>
                   </div>
-                  <div className="ml-3 flex gap-2 shrink-0">
+                  <div className="flex gap-2 shrink-0">
                     <button onClick={() => repeatMeal.mutate(m)}
                       disabled={repeatMeal.isPending && repeatMeal.variables?.id === m.id}
                       title="Nochmal loggen"
@@ -593,44 +632,48 @@ export default function LogView({ date, nutrition, notes }) {
         )}
       </section>
 
-      {/* Right Column: Notizen */}
+      {/* Right Column: Journal-Seite */}
       <section className="space-y-6">
-        <div className="flex items-center gap-3">
-          <NotebookPen className="h-6 w-6 text-sky-300" />
-          <h2 className="text-2xl font-bold tracking-tight">Tagebuch</h2>
+        <div>
+          <Kicker tone="text-teal-700/70">Seite · {date}</Kicker>
+          <div className="mt-1 flex items-center gap-3">
+            <NotebookPen className="h-6 w-6 text-sky-300" />
+            <h2 className="font-display text-3xl font-black italic tracking-tight text-paper-50">Tagebuch</h2>
+          </div>
         </div>
 
-        <form onSubmit={handleNotesSave} className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur shadow-glow">
-          <div className="mb-4 flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 text-emerald-400">
+        <form onSubmit={handleNotesSave} className="overflow-hidden rounded-2xl border border-paper-200/30 bg-paper-100 shadow-glow">
+          <div className="flex items-center gap-3 border-b border-[#78481866]/20 bg-paper-50 px-5 py-4">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-700/15 to-teal-700/15 text-emerald-800">
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
             </div>
-            <h2 className="text-xl font-bold text-white tracking-wide">Notizen</h2>
+            <h2 className="font-display text-xl font-semibold italic text-stone-800">Notizen</h2>
           </div>
-          <textarea 
-            className="min-h-[500px] w-full rounded-2xl border border-white/10 bg-slate-950/70 p-4 text-slate-100 placeholder-slate-500 focus:ring-2 focus:ring-sky-400/50 outline-none transition-all" 
-            value={text} 
-            onChange={(e) => setText(e.target.value)} 
-            placeholder="Was hat dich heute bewegt? Training, Schlaf, Befinden..."
+          <textarea
+            className="paper-ruled min-h-[460px] w-full p-5 pt-2 font-display text-[17px] italic leading-[32px] text-stone-800 placeholder-stone-500/60 outline-none transition-all focus:bg-paper-50/60"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Was hat dich heute bewegt? Training, Schlaf, Befinden…"
           />
-          
-          <button disabled={loading} className="mt-4 w-full rounded-full bg-sky-300 py-4 font-bold text-slate-950 disabled:opacity-60 hover:bg-sky-200 transition-colors shadow-lg active:scale-[0.98]">
-            {loading ? "Speichere..." : "Notizen speichern"}
-          </button>
-
-          {cloud && (
-            <button
-              type="button"
-              onClick={handleJournalCheck}
-              disabled={journalCheckLoading || !text.trim()}
-              className="mt-2 w-full flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 py-3 text-sm font-semibold text-slate-300 hover:bg-white/10 disabled:opacity-50 transition-colors"
-            >
-              <ScanSearch className="h-4 w-4" />
-              {journalCheckLoading ? "Gleiche ab..." : "Mit Log abgleichen"}
+          <div className="space-y-2 bg-paper-50 p-5 pt-4">
+            <button disabled={loading} className="w-full rounded-full bg-stone-800 py-4 font-bold text-paper-50 disabled:opacity-60 hover:bg-stone-700 transition-colors shadow-lg active:scale-[0.98]">
+              {loading ? "Speichere..." : "Notizen speichern"}
             </button>
-          )}
+
+            {cloud && (
+              <button
+                type="button"
+                onClick={handleJournalCheck}
+                disabled={journalCheckLoading || !text.trim()}
+                className="w-full flex items-center justify-center gap-2 rounded-full border border-stone-800/15 bg-transparent py-3 text-sm font-semibold text-stone-700 hover:bg-stone-800/5 disabled:opacity-50 transition-colors"
+              >
+                <ScanSearch className="h-4 w-4" />
+                {journalCheckLoading ? "Gleiche ab..." : "Mit Log abgleichen"}
+              </button>
+            )}
+          </div>
         </form>
 
         {journalCheckError && (
