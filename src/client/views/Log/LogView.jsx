@@ -517,8 +517,7 @@ export default function LogView({ date, nutrition, notes }) {
         </div>
 
         {/* Geloggte Mahlzeiten — drei wählbare Ansichten */}
-        {meals.length > 0 && (
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur mt-6">
+        <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur mt-6">
             <div className="mb-4 flex items-center justify-between gap-3">
               <h3 className="text-lg font-semibold flex items-center gap-2">
                 <UtensilsCrossed className="h-5 w-5 text-orange-300" />
@@ -539,7 +538,11 @@ export default function LogView({ date, nutrition, notes }) {
               </div>
             </div>
 
-            {log_view_mode === "dashboard" ? (
+            {meals.length === 0 ? (
+              <div className="py-8 text-center text-sm text-slate-500">
+                Noch keine Mahlzeit heute geloggt.
+              </div>
+            ) : log_view_mode === "dashboard" ? (
               <MealListDashboard
                 meals={meals}
                 mealLabel={MEAL_LABEL}
@@ -590,8 +593,7 @@ export default function LogView({ date, nutrition, notes }) {
                 />
               </>
             )}
-          </div>
-        )}
+        </div>
 
         {/* Wartende AI-Logger-Einträge: Text ist gesichert, Gemini-Analyse steht (noch) aus */}
         {cloud && pendingAiEntries.length > 0 && (
