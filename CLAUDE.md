@@ -497,7 +497,6 @@ Gemeinsam ist nur `src/client/` UI (Views, Hooks, Components) — kein Backend-C
 | Was existiert | Ziel |
 |---|---|
 | `fuel_cli/` (catalog, gemini, compose, log, http) | → `fuel_agent/` umbenennen |
-| `fuel-catalog-server.py` (aiohttp) | → `fuel_agent/server.py` |
 | `bin/gemini-*` Standalone-Scripts | → in `fuel_agent/gemini.py` integrieren |
 | Fastify `server.mjs` | → organisch schrumpfen während Python wächst |
 | `fuel_routes.yaml` | bleibt als SSOT für Endpoints |
