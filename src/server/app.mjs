@@ -1,5 +1,7 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import swagger from "@fastify/swagger";
+import swaggerUi from "@fastify/swagger-ui";
 import { PORT, HOST } from "../shared/config/constants.mjs";
 import { initializePaths, getPaths, GLOBAL_DATA_DIR, CATALOGS_DIR } from "./config/paths.mjs";
 import { normalizeRoutedPath } from "../shared/utils/validation.mjs";
@@ -41,6 +43,17 @@ export function createApp() {
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     credentials: false,
   });
+
+  // Swagger/OpenAPI — auto-generated from registered routes (most have no
+  // JSON schema yet, so this gives paths+methods for free; schemas can be
+  // added per-route later for richer param docs). v4 (FastAPI) gets this
+  // for free at :4000/docs — this mirrors it for v3.
+  app.register(swagger, {
+    openapi: {
+      info: { title: "Fuel Centre API (v3/Node)", version: "3.0.0" },
+    },
+  });
+  app.register(swaggerUi, { routePrefix: "/docs" });
 
   // Path normalization hook (handles /c/<clientId>/ prefixes)
   app.addHook("preHandler", (req, _reply, done) => {
