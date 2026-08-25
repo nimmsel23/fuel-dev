@@ -198,6 +198,48 @@ export function addOrUpdateItem(catalog, input) {
 // Legacy compat — catalog.items is built on the fly, no save needed
 export function saveCatalog(_catalog) { /* no-op: individual files are saved directly */ }
 
+// Schreibt einen von Firestore gepullten Catalog-Eintrag direkt als YAML,
+// ohne den saveMeal()-Push-Loop (sonst pusht jeder Pull sofort wieder
+// dasselbe Item zurück nach Firestore). Nur wirklich neue (lokal unbekannte)
+// Items lösen die Haiku-Verifikation aus — sonst würde jeder Pull-Zyklus
+// für ältere, nie lokal verifizierte Cloud-Items erneut Haiku-Calls feuern.
+export function importMealFromRemote(item, { isNew }) {
+  if (!fs.existsSync(NUTRITION_MEALS_DIR)) fs.mkdirSync(NUTRITION_MEALS_DIR, { recursive: true });
+  // normalizeMeal statt Rohdaten schreiben — Firestore-Log-Einträge können
+  // kcal/protein etc. als String enthalten (Cloud-seitiger Auto-Catalog-Bug),
+  // normalizeMeal(...) coerct auf Number und füllt fehlende Felder konsistent.
+  const normalized = normalizeMeal(item, item.id);
+  normalized.updated_at = item.updated_at || normalized.updated_at;
+  normalized.verified_at = item.verified_at || null;
+  const p = mealPath(normalized.id, ".yaml");
+  fs.writeFileSync(p, YAML.stringify(normalized, { indent: 2 }), "utf-8");
+
+  const pJson = mealPath(normalized.id, ".json");
+  if (fs.existsSync(pJson)) {
+    try { fs.renameSync(pJson, `${pJson}.deleted`); } catch {}
+  }
+  for (const ext of [".yaml", ".yml", ".json"]) {
+    const tomb = mealPath(normalized.id, `${ext}.deleted`);
+    if (fs.existsSync(tomb)) { try { fs.unlinkSync(tomb); } catch {} }
+  }
+
+  if (isNew && !normalized.verified_at) {
+    verifyCatalogItemAsync(normalized.id);
+  }
+}
+
+// Begräbt eine ID ohne dass lokal je ein File existiert — für Duplikate,
+// die beim Catalog-Pull erkannt werden (z.B. ein Cloud-seitig auto-angelegter
+// "logged"-Eintrag, der unter anderer ID dasselbe Gericht wie ein bereits
+// vorhandener "manual"-Eintrag beschreibt). Ein leeres Tombstone-File reicht,
+// listDeletedMealIds() liest nur den Dateinamen, nicht den Inhalt — und
+// pushNutritionCatalog() zieht die ID dadurch dauerhaft aus dem Merge raus.
+export function tombstoneMealId(id) {
+  if (!fs.existsSync(NUTRITION_MEALS_DIR)) fs.mkdirSync(NUTRITION_MEALS_DIR, { recursive: true });
+  const tomb = mealPath(id, ".yaml.deleted");
+  if (!fs.existsSync(tomb)) fs.writeFileSync(tomb, "", "utf-8");
+}
+
 export function upsertLoggedMeal(catalog, mealInput) {
   const mealName = mealInput?.description || mealInput?.name;
   const inputName = normalizeName(mealName);

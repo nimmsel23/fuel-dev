@@ -1,0 +1,25 @@
+id: meal_msfo2oai_efhc9f
+kind: meal
+category: meal
+name: McDonald’s Double Cheeseburger Menü mit mittlere Pommes und Cola und extra
+  Double Cheeseburger
+alias: null
+meal_type: snack
+description: McDonald’s Double Cheeseburger Menü mit mittlere Pommes und Cola
+  und extra Double Cheeseburger
+notes: ""
+kcal: 1398
+protein: 56
+carbs: 151
+fat: 62
+yield_g: null
+components: []
+addons: []
+default_addon_ids: []
+linked_supplement_ids: []
+source: manual
+use_count: 1
+last_used_at: 2026-08-25T12:17:30.300Z
+created_at: 2026-08-25T12:17:30.300Z
+updated_at: 2026-08-25T12:17:30.300Z
+verified_at: null

@@ -1,0 +1,23 @@
+id: meal_mt8ip2aq_0k43nk
+kind: meal
+category: meal
+name: Ziegen-Schnittkäse Natur
+alias: null
+meal_type: breakfast
+description: Ziegen-Schnittkäse Natur
+notes: ""
+kcal: 362
+protein: 27
+carbs: 0.5
+fat: 28
+yield_g: 100
+components: []
+addons: []
+default_addon_ids: []
+linked_supplement_ids: []
+source: manual
+use_count: 1
+last_used_at: 2026-08-25T12:17:30.306Z
+created_at: 2026-08-25T12:17:30.306Z
+updated_at: 2026-08-25T12:17:30.306Z
+verified_at: null

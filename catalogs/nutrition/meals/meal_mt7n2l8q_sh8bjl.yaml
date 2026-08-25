@@ -1,0 +1,21 @@
+updated_at: '2026-08-25T12:15:08.269827Z'
+created_at: 2026-08-24 19:38:32.882000+00:00
+meal_type: lunch
+kcal: 279.5
+carbs: 25.0
+kind: meal
+use_count: 1
+fat: 14.9
+protein: 10.0
+name: 3 Käsleberkäsesemmeln
+last_used_at: 2026-08-24 19:38:32.882000+00:00
+description: 3 Käsleberkäsesemmeln
+source: manual
+notes: 'Offizielle Herstellerangabe (https://fddb.info/db/de/lebensmittel/billa_kaeseleberkaese-semmel/index.html)
+  pro 100g: {''kcal'': 215, ''protein'': 7.7, ''carbs'': 19.2, ''fat'': 11.5}. Billa
+  Käseleberkäse-Semmel, berechnet aus Portionsdaten pro Stück (279 kcal). 3 Stück
+  = 390g Gesamtmenge, ~837 kcal.'
+id: meal_mt7n2l8q_sh8bjl
+category: lunch
+yield_g: 130.0
+verified_at: '2026-08-25T12:15:08.269827Z'

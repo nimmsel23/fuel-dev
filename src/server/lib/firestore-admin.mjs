@@ -27,6 +27,7 @@ import fs   from "fs";
 import path from "path";
 import { createRequire } from "module";
 import { todayISO } from "../../shared/utils/validation.mjs";
+import logger from "./logger.mjs";
 
 const require = createRequire(import.meta.url);
 
@@ -75,11 +76,11 @@ function getDb() {
   _initAttempted = true;
 
   if (!UID) {
-    console.log("[firestore-admin] FUEL_CLOUD_UID not set – Firestore sync disabled.");
+    logger.info("[firestore-admin] FUEL_CLOUD_UID not set – Firestore sync disabled.");
     return null;
   }
   if (!fs.existsSync(SA_PATH)) {
-    console.warn(`[firestore-admin] Service-account not found at ${SA_PATH} – Firestore sync disabled.`);
+    logger.warn(`[firestore-admin] Service-account not found at ${SA_PATH} – Firestore sync disabled.`);
     return null;
   }
 
@@ -90,9 +91,9 @@ function getDb() {
       admin.initializeApp({ credential: admin.credential.cert(sa) });
     }
     _db = admin.firestore();
-    console.log(`[firestore-admin] ✅ Firestore Admin ready (uid=${UID})`);
+    logger.info(`[firestore-admin] ✅ Firestore Admin ready (uid=${UID})`);
   } catch (e) {
-    console.warn("[firestore-admin] Init failed:", e.message);
+    logger.warn("[firestore-admin] Init failed:", e.message);
     _db = null;
   }
   return _db;
@@ -162,10 +163,10 @@ export async function pushNutritionCatalog(items) {
 
     const mergedItems = Array.from(merged.values());
     await ref.set({ items: mergedItems, updated_at: new Date().toISOString() }, { merge: false });
-    console.log(`[firestore-admin] 📤 nutrition/meta/catalog (${mergedItems.length} items, merged)`);
+    logger.info(`[firestore-admin] 📤 nutrition/meta/catalog (${mergedItems.length} items, merged)`);
     markPushOk();
   } catch (e) {
-    console.error("[firestore-admin] pushNutritionCatalog failed:", e.message);
+    logger.error("[firestore-admin] pushNutritionCatalog failed:", e.message);
     markPushError(e.message);
   }
 }
@@ -180,10 +181,10 @@ export async function pushSupplementsCatalog(items) {
   try {
     await db.collection("supplements").doc(UID).collection("meta").doc("catalog")
       .set({ items, updated_at: new Date().toISOString() }, { merge: false });
-    console.log(`[firestore-admin] 📤 supplements/meta/catalog (${items.length} items)`);
+    logger.info(`[firestore-admin] 📤 supplements/meta/catalog (${items.length} items)`);
     markPushOk();
   } catch (e) {
-    console.error("[firestore-admin] pushSupplementsCatalog failed:", e.message);
+    logger.error("[firestore-admin] pushSupplementsCatalog failed:", e.message);
     markPushError(e.message);
   }
 }
@@ -205,10 +206,10 @@ export async function pushNutritionLog(date, meals, waterMl) {
     const deleted_meal_ids = getNutritionDeletedIds(date);
     await db.collection("nutrition").doc(UID).collection("logs").doc(date)
       .set({ meals, water_ml: waterMl, deleted_meal_ids, updated_at: now }, { merge: false });
-    console.log(`[firestore-admin] 📤 nutrition/logs/${date} (${meals.length} meals)`);
+    logger.info(`[firestore-admin] 📤 nutrition/logs/${date} (${meals.length} meals)`);
     markPushOk();
   } catch (e) {
-    console.error("[firestore-admin] pushNutritionLog failed:", e.message);
+    logger.error("[firestore-admin] pushNutritionLog failed:", e.message);
     markPushError(e.message);
   }
 }
@@ -222,7 +223,7 @@ export async function pushNutritionJournal(date, content) {
       .set({ date, content, updated_at: now }, { merge: true });
     markPushOk();
   } catch (e) {
-    console.error("[firestore-admin] pushNutritionJournal failed:", e.message);
+    logger.error("[firestore-admin] pushNutritionJournal failed:", e.message);
     markPushError(e.message);
   }
 }
@@ -241,10 +242,10 @@ export async function pushSupplementLog(date, log) {
     const now = new Date().toISOString();
     await db.collection("supplements").doc(UID).collection("logs").doc(date)
       .set({ ...log, updated_at: now }, { merge: false });
-    console.log(`[firestore-admin] 📤 supplements/logs/${date} (${log.intakes?.length ?? 0} intakes)`);
+    logger.info(`[firestore-admin] 📤 supplements/logs/${date} (${log.intakes?.length ?? 0} intakes)`);
     markPushOk();
   } catch (e) {
-    console.error("[firestore-admin] pushSupplementLog failed:", e.message);
+    logger.error("[firestore-admin] pushSupplementLog failed:", e.message);
     markPushError(e.message);
   }
 }
@@ -264,14 +265,95 @@ async function pullRecentLogs() {
   const db = getDb();
   if (!db) return;
 
+  const startedAt = new Date();
+  logger.info(`[firestore-admin] 🔽 pull cycle #${_status.pullCount + 1} started (last ${PULL_DAYS} days)`);
   try {
     await doPullRecentLogs(db);
     _status.lastPullAt = new Date().toISOString();
     _status.lastPullError = null;
     _status.pullCount += 1;
+    logger.info(`[firestore-admin] ✅ pull cycle #${_status.pullCount} done in ${Date.now() - startedAt.getTime()}ms`);
   } catch (e) {
     _status.lastPullError = e.message;
+    logger.error(`[firestore-admin] ❌ pull cycle failed: ${e.message}`);
     throw e;
+  }
+}
+
+/**
+ * Pull the Firestore meal catalog into the local catalogs/nutrition/meals/
+ * YAML files. Push-only until now (see pushNutritionCatalog) — meant a
+ * catalog entry added via the Cloud/GUI while the local server was running
+ * never showed up locally (e.g. the "Ziegenkäse" case, 2026-08-25).
+ *
+ * One-directional merge, remote → local:
+ *   - remote items missing locally, or newer than the local copy, are written
+ *   - local tombstones always win (a local deletion is never resurrected)
+ *   - only genuinely new items (unknown locally before this pull) trigger the
+ *     Haiku catalog-verify pass, so re-pulling an already-known item never
+ *     re-fires it
+ *   - a remote item whose *name* already matches a different local id is a
+ *     duplicate (e.g. Cloud auto-creates a "logged" catalog entry on save,
+ *     which can collide with a manually-added entry for the same meal) — the
+ *     duplicate id is graveyarded (tombstoned) instead of written as a second
+ *     local file
+ *   - anything normalizeMeal() changed on import (type coercion, dedup) is
+ *     out of sync with Firestore's raw copy, so the corrected local catalog
+ *     is pushed straight back — same push-after-enrichment pattern already
+ *     used for logs in doPullRecentLogs()
+ */
+export async function pullNutritionCatalog(db) {
+  const { loadCatalog, listDeletedMealIds, importMealFromRemote, tombstoneMealId } = await import("../services/nutrition-catalog.mjs");
+
+  const ref = db.collection("nutrition").doc(UID).collection("meta").doc("catalog");
+  const snap = await ref.get();
+  if (!snap.exists) return;
+
+  const normalizeName = (s) => String(s || "").trim().toLowerCase().replace(/\s+/g, " ");
+
+  const remoteItems = snap.data().items || [];
+  const local = loadCatalog();
+  const localById = new Map(local.items.map((it) => [it.id, it]));
+  const localByName = new Map(local.items.map((it) => [normalizeName(it.name), it]));
+  const deletedIds = new Set(listDeletedMealIds());
+
+  let imported = 0;
+  let graveyarded = 0;
+  for (const remote of remoteItems) {
+    if (!remote?.id || deletedIds.has(remote.id)) continue;
+
+    const existingById = localById.get(remote.id);
+    const nameKey = normalizeName(remote.name || remote.description);
+    const existingByName = existingById || localByName.get(nameKey);
+
+    // Same dish, different id already known locally under a different id →
+    // duplicate, bury the incoming id instead of writing a second file.
+    if (existingByName && existingByName.id !== remote.id) {
+      tombstoneMealId(remote.id);
+      deletedIds.add(remote.id);
+      graveyarded += 1;
+      continue;
+    }
+
+    const remoteNewer = !existingById || !existingById.updated_at || !remote.updated_at
+      || new Date(remote.updated_at) > new Date(existingById.updated_at);
+    if (!remoteNewer) continue;
+    importMealFromRemote(remote, { isNew: !existingById });
+    imported += 1;
+  }
+
+  if (imported > 0) {
+    logger.info(`[firestore-admin] 📥 nutrition/meta/catalog (${imported}/${remoteItems.length} items imported)`);
+  }
+  if (graveyarded > 0) {
+    logger.info(`[firestore-admin] 🪦 nutrition/meta/catalog (${graveyarded} duplicate id(s) graveyarded)`);
+  }
+
+  // Push back whatever normalizeMeal() coerced/deduped so Firestore converges
+  // to the same corrected state instead of keeping the raw/duplicate data
+  // forever (mirrors the log-enrichment push-back below).
+  if (imported > 0 || graveyarded > 0) {
+    await pushNutritionCatalog(loadCatalog().items);
   }
 }
 
@@ -282,6 +364,12 @@ async function doPullRecentLogs(db) {
   const { enrichNutritionLog }        = await import("../services/nutrition-enrichment.mjs");
   const { writeEntry }                = await import("../services/nutrition-notes.mjs");
   const { addDeletedIntakeIds, getDeletedIntakeIds } = await import("../services/log-tombstones.mjs");
+
+  try {
+    await pullNutritionCatalog(db);
+  } catch (e) {
+    logger.error("[firestore-admin] pull nutrition/meta/catalog failed:", e.message);
+  }
 
   const dates = recentDates(PULL_DAYS);
 
@@ -319,19 +407,19 @@ async function doPullRecentLogs(db) {
           upsertWater(date, remote.water_ml);
         }
 
-        console.log(`[firestore-admin] 📥 nutrition/logs/${date} (${remote.meals?.length ?? 0} meals)`);
+        logger.info(`[firestore-admin] 📥 nutrition/logs/${date} (${remote.meals?.length ?? 0} meals)`);
 
         // Enrichment added data Firestore didn't have – push it straight back.
         if (changed) {
           await pushNutritionLog(date, enrichedMeals, remote.water_ml ?? 0);
-          console.log(`[firestore-admin] ✨ nutrition/logs/${date} enriched + pushed back`);
+          logger.info(`[firestore-admin] ✨ nutrition/logs/${date} enriched + pushed back`);
         } else if (mergedDeletedIds.length !== remoteDeletedIds.length) {
           await pushNutritionLog(date, enrichedMeals, remote.water_ml ?? 0);
-          console.log(`[firestore-admin] 🪦 nutrition/logs/${date} tombstones pushed back`);
+          logger.info(`[firestore-admin] 🪦 nutrition/logs/${date} tombstones pushed back`);
         }
       }
     } catch (e) {
-      console.error(`[firestore-admin] pull nutrition/logs/${date} failed:`, e.message);
+      logger.error(`[firestore-admin] pull nutrition/logs/${date} failed:`, e.message);
     }
 
     // ── Supplement log ─────────────────────────────────────────────────────
@@ -358,13 +446,13 @@ async function doPullRecentLogs(db) {
             deleted_intake_ids: mergedDeletedIds,
           };
           saveLog(merged);
-          console.log(`[firestore-admin] 📥 supplements/logs/${date} (${merged.intakes.length} intakes)`);
+          logger.info(`[firestore-admin] 📥 supplements/logs/${date} (${merged.intakes.length} intakes)`);
         } else {
-          console.log(`[firestore-admin] ⏭  supplements/logs/${date} local is newer, skipping pull`);
+          logger.info(`[firestore-admin] ⏭  supplements/logs/${date} local is newer, skipping pull`);
         }
       }
     } catch (e) {
-      console.error(`[firestore-admin] pull supplements/logs/${date} failed:`, e.message);
+      logger.error(`[firestore-admin] pull supplements/logs/${date} failed:`, e.message);
     }
 
     try {
@@ -374,7 +462,7 @@ async function doPullRecentLogs(db) {
         writeEntry(date, remote.content || "");
       }
     } catch (e) {
-      console.error(`[firestore-admin] pull nutrition/journal/${date} failed:`, e.message);
+      logger.error(`[firestore-admin] pull nutrition/journal/${date} failed:`, e.message);
     }
   }
 }
@@ -399,15 +487,15 @@ export function startFirestorePullScheduler() {
 
   // Initial pull after 5 s so the server is fully up first.
   setTimeout(() => pullRecentLogs().catch(e =>
-    console.error("[firestore-admin] startup pull failed:", e.message)
+    logger.error("[firestore-admin] startup pull failed:", e.message)
   ), 5_000);
 
   // Hourly pull.
   setInterval(() => pullRecentLogs().catch(e =>
-    console.error("[firestore-admin] hourly pull failed:", e.message)
+    logger.error("[firestore-admin] hourly pull failed:", e.message)
   ), PULL_INTERVAL_MS);
 
-  console.log(`[firestore-admin] 🔄 Hourly pull scheduler started (every ${PULL_INTERVAL_MS / 60000} min, last ${PULL_DAYS} days)`);
+  logger.info(`[firestore-admin] 🔄 Hourly pull scheduler started (every ${PULL_INTERVAL_MS / 60000} min, last ${PULL_DAYS} days)`);
 }
 
 export { getDb, UID };

@@ -1,0 +1,20 @@
+kind: meal
+last_used_at: 2026-08-23 09:59:58.221000+00:00
+fat: 7.0
+id: meal_mt5myokr_lo6dlp
+notes: 'Offizielle Herstellerangabe (https://smartlabel.mondelezinternational.com)
+  pro 100g: {''kcal'': 483, ''protein'': 3.4, ''carbs'': 72.4, ''fat'': 24.1}. Standardportion
+  2 Cookies = 29g, Quelle: Mondelēz International SmartLabel (offizielle Hersteller-Nährwertangaben)'
+kcal: 140.1
+updated_at: '2026-08-25T12:14:34.985394Z'
+description: 2 Oreo Cookies
+created_at: 2026-08-23 09:59:58.221000+00:00
+source: manual
+meal_type: snack
+protein: 1.0
+category: snack
+carbs: 21.0
+name: 2 Oreo Cookies
+use_count: 1
+yield_g: 29.0
+verified_at: '2026-08-25T12:14:34.985394Z'
