@@ -1,16 +1,27 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { NotebookPen, UtensilsCrossed, Pencil, Trash2, Sparkles, AlertTriangle, RefreshCw, Check, X, ScanSearch, CopyPlus, Clock } from "lucide-react";
+import { NotebookPen, UtensilsCrossed, Pencil, Sparkles, AlertTriangle, RefreshCw, Check, X, ScanSearch, Clock, AlignJustify, LayoutGrid, GitCommitVertical } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 import { postJson, patchJson } from "@api";
 import { vertexAI } from "../../lib/firebase.js";
 import { getGenerativeModel } from "firebase/vertexai";
 import { withAiRetry } from "../../lib/aiRetry.js";
 import { useAiMealLogger } from "../../hooks/useAiMealLogger.js";
+import { useSettings } from "../../store.js";
 import FoodSearch from "../../components/FoodSearch.jsx";
 import ScannerModal from "./components/ScannerModal.jsx";
+import MealListMinimal from "./components/MealListMinimal.jsx";
+import MealListDashboard from "./components/MealListDashboard.jsx";
+import MealListTimeline from "./components/MealListTimeline.jsx";
+import { computeMacroGoals } from "../Settings/GoalsSection.jsx";
 import { Camera, RotateCcw } from "lucide-react";
 import { sumMetric, formatMetric } from "../../../shared/utils/utils.js";
+
+const LOG_VIEW_MODES = [
+  { value: "minimal", label: "Liste", icon: AlignJustify },
+  { value: "dashboard", label: "Dashboard", icon: LayoutGrid },
+  { value: "timeline", label: "Timeline", icon: GitCommitVertical },
+];
 
 // Vergleicht Journal-Freitext gegen die bereits geloggten Mahlzeiten des Tages
 // und liefert nur eindeutig erwähnte, aber nicht geloggte Ernährungs-Infos zurück.
@@ -116,6 +127,7 @@ function Field({ label, children }) {
 
 export default function LogView({ date, nutrition, notes }) {
   const qc = useQueryClient();
+  const { kcal_goal, protein_goal, carb_ratio, log_view_mode, setSetting } = useSettings();
   const [text, setText] = useState(notes || "");
   const [loading, setLoading] = useState(false);
   
@@ -504,66 +516,80 @@ export default function LogView({ date, nutrition, notes }) {
           </div>
         </div>
 
-        {/* Geloggte Mahlzeiten Liste (Heutiges Log) */}
+        {/* Geloggte Mahlzeiten — drei wählbare Ansichten */}
         {meals.length > 0 && (
           <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur mt-6">
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-4 flex items-center justify-between gap-3">
               <h3 className="text-lg font-semibold flex items-center gap-2">
                 <UtensilsCrossed className="h-5 w-5 text-orange-300" />
                 Heutiges Log ({meals.length})
               </h3>
-              <div className="text-xs text-slate-400 text-right">
-                <span className="font-bold text-orange-300">{formatMetric(sumMetric(meals, "kcal"))} kcal</span>
-                <div className="mt-0.5 space-x-2">
-                  <span className="text-emerald-300">P {formatMetric(sumMetric(meals, "protein"))}g</span>
-                  <span className="text-sky-300">C {formatMetric(sumMetric(meals, "carbs"))}g</span>
-                  <span className="text-violet-300">F {formatMetric(sumMetric(meals, "fat"))}g</span>
-                </div>
+              <div className="flex gap-1 rounded-full border border-white/10 bg-slate-950/50 p-1">
+                {LOG_VIEW_MODES.map(({ value, label, icon: Icon }) => (
+                  <button key={value}
+                    onClick={() => setSetting("log_view_mode", value)}
+                    title={label}
+                    className={twMerge(
+                      "flex h-7 w-7 items-center justify-center rounded-full transition",
+                      log_view_mode === value ? "bg-orange-400 text-slate-950" : "text-slate-500 hover:text-slate-200"
+                    )}>
+                    <Icon className="h-3.5 w-3.5" />
+                  </button>
+                ))}
               </div>
             </div>
-            <div className="space-y-2">
-              {meals.map((m) => (
-                <div key={m.id}
-                  className={twMerge(
-                    "flex items-center justify-between rounded-2xl border px-4 py-3 transition",
-                    form.id === m.id
-                      ? "border-orange-400/40 bg-orange-400/5"
-                      : "border-white/5 bg-slate-900/40 hover:bg-slate-900/70"
-                  )}>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate font-medium text-slate-100">{m.description}</div>
-                    <div className="mt-0.5 text-xs text-slate-500">
-                      {MEAL_LABEL[m.type] || m.type}
-                      {" · "}<span className="text-orange-300">{m.kcal} kcal</span>
-                      {" · "}P {m.protein}g · C {m.carbs}g · F {m.fat}g
-                    </div>
-                  </div>
-                  <div className="ml-3 flex gap-2 shrink-0">
-                    <button onClick={() => repeatMeal.mutate(m)}
-                      disabled={repeatMeal.isPending && repeatMeal.variables?.id === m.id}
-                      title="Nochmal loggen"
-                      className="rounded-lg border border-white/10 bg-white/5 p-2 text-slate-400 hover:text-emerald-400 hover:bg-emerald-400/10 transition">
-                      <CopyPlus className="h-3.5 w-3.5" />
-                    </button>
-                    <button onClick={() => loadForEdit(m)}
-                      title="Bearbeiten"
-                      className={twMerge(
-                        "rounded-lg border p-2 transition",
-                        form.id === m.id
-                          ? "border-orange-400 bg-orange-400 text-slate-950"
-                          : "border-white/10 bg-white/5 text-slate-400 hover:text-orange-400 hover:bg-orange-400/10"
-                      )}>
-                      <Pencil className="h-3.5 w-3.5" />
-                    </button>
-                    <button onClick={() => deleteMeal.mutate(m.id)}
-                      title="Löschen"
-                      className="rounded-lg border border-white/10 bg-white/5 p-2 text-slate-400 hover:text-red-400 hover:bg-red-400/10 transition">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+
+            {log_view_mode === "dashboard" ? (
+              <MealListDashboard
+                meals={meals}
+                mealLabel={MEAL_LABEL}
+                formId={form.id}
+                onRepeat={(m) => repeatMeal.mutate(m)}
+                onEdit={loadForEdit}
+                onDelete={(id) => deleteMeal.mutate(id)}
+                repeatPendingId={repeatMeal.isPending ? repeatMeal.variables?.id : null}
+                totals={{
+                  kcal: sumMetric(meals, "kcal"),
+                  protein: sumMetric(meals, "protein"),
+                  carbs: sumMetric(meals, "carbs"),
+                  fat: sumMetric(meals, "fat"),
+                }}
+                goals={{ kcal_goal, protein_goal, ...computeMacroGoals({ kcal_goal, protein_goal, carb_ratio }) }}
+                getTime={(m) => hhmmFromISO(m.time || m.logged_at)}
+              />
+            ) : log_view_mode === "timeline" ? (
+              <MealListTimeline
+                meals={meals}
+                mealLabel={MEAL_LABEL}
+                formId={form.id}
+                onRepeat={(m) => repeatMeal.mutate(m)}
+                onEdit={loadForEdit}
+                onDelete={(id) => deleteMeal.mutate(id)}
+                repeatPendingId={repeatMeal.isPending ? repeatMeal.variables?.id : null}
+                getTime={(m) => hhmmFromISO(m.time || m.logged_at)}
+                nowLabel={nowHHMM()}
+              />
+            ) : (
+              <>
+                <div className="mb-2 text-xs text-slate-400 text-right">
+                  <span className="font-bold text-orange-300">{formatMetric(sumMetric(meals, "kcal"))} kcal</span>
+                  <div className="mt-0.5 space-x-2">
+                    <span className="text-emerald-300">P {formatMetric(sumMetric(meals, "protein"))}g</span>
+                    <span className="text-sky-300">C {formatMetric(sumMetric(meals, "carbs"))}g</span>
+                    <span className="text-violet-300">F {formatMetric(sumMetric(meals, "fat"))}g</span>
                   </div>
                 </div>
-              ))}
-            </div>
+                <MealListMinimal
+                  meals={meals}
+                  mealLabel={MEAL_LABEL}
+                  formId={form.id}
+                  onRepeat={(m) => repeatMeal.mutate(m)}
+                  onEdit={loadForEdit}
+                  onDelete={(id) => deleteMeal.mutate(id)}
+                  repeatPendingId={repeatMeal.isPending ? repeatMeal.variables?.id : null}
+                />
+              </>
+            )}
           </div>
         )}
 

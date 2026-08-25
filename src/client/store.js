@@ -51,6 +51,9 @@ export const useSettings = create(
       supplement_push_midday_time: "13:00",
       supplement_push_evening_time: "19:00",
       supplement_push_night_time: "21:00",
+      // Welche der drei Log-Ansichten (Liste/Dashboard/Timeline) im Log-Tab
+      // gerendert wird — siehe LogView.jsx + Log/components/MealList*.jsx.
+      log_view_mode: "minimal",
       setSetting: (key, val) => {
         set({ [key]: val });
         // Im Hintergrund zu Firestore syncen, falls eingeloggt
@@ -87,6 +90,7 @@ export const useSettings = create(
               supplement_push_midday_time: current.supplement_push_midday_time,
               supplement_push_evening_time: current.supplement_push_evening_time,
               supplement_push_night_time: current.supplement_push_night_time,
+              log_view_mode: current.log_view_mode,
             }).catch(err => console.error("Cloud sync failed:", err));
           }
         });
