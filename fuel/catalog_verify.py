@@ -54,7 +54,11 @@ def _load_unverified(limit: int) -> list[Path]:
             data = yaml.safe_load(f.read_text())
         except yaml.YAMLError:
             continue
-        if (data or {}).get("source") == "gemini":
+        data = data or {}
+        # verified_at fehlt bei allen vor 2026-08-25 angelegten Einträgen
+        # (Feld existiert erst seit der inline-Verifikation beim Catalog-Save) —
+        # source:gemini bleibt als Fallback-Kriterium für diese Altbestände.
+        if not data.get("verified_at") or data.get("source") == "gemini":
             out.append(f)
         if len(out) >= limit:
             break
@@ -73,9 +77,15 @@ def _verify_one(path: Path) -> str:
         logger.warning(f"{path.stem}: Haiku-Call fehlgeschlagen ({res['error']})")
         return "error"
 
+    now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
     parsed = claude_cli._extract_json(res["text"])
     if not parsed or not parsed.get("found"):
         logger.info(f"{path.stem}: keine offizielle Quelle gefunden")
+        # verified_at trotzdem setzen — sonst würde jeder erneute Log-Vorgang
+        # (saveMeal-Aufruf) denselben erfolglosen Haiku-Call erneut auslösen.
+        data["verified_at"] = now
+        path.write_text(yaml.dump(data, allow_unicode=True, sort_keys=False, default_flow_style=False))
         return "no_match"
 
     per_100g = parsed.get("per_100g") or {}
@@ -99,11 +109,28 @@ def _verify_one(path: Path) -> str:
     data["yield_g"] = yield_g
     data["source"] = "manual"
     data["notes"] = f"Offizielle Herstellerangabe ({source_url}) pro 100g: {per_100g}. {note}".strip()
-    data["updated_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    data["updated_at"] = now
+    data["verified_at"] = now
 
     path.write_text(yaml.dump(data, allow_unicode=True, sort_keys=False, default_flow_style=False))
     logger.success(f"{path.stem}: korrigiert auf {kcal} kcal (Quelle: {source_url})")
     return "corrected"
+
+
+@app.command("verify-one")
+def verify_one_cmd(item_id: str):
+    """Prüft einen einzelnen, frisch angelegten Catalog-Eintrag sofort —
+    wird vom Node-Server (nutrition-catalog.mjs:saveMeal) nach jedem Save
+    im Hintergrund aufgerufen, statt auf den Wochen-Batch zu warten."""
+    if not claude_cli.available():
+        print(json.dumps({"result": "error", "error": "claude CLI nicht gefunden"}))
+        raise typer.Exit(1)
+    path = REPO_CATALOG_DIR / f"{item_id}.yaml"
+    if not path.exists():
+        print(json.dumps({"result": "error", "error": "not_found"}))
+        raise typer.Exit(1)
+    result = _verify_one(path)
+    print(json.dumps({"result": result}))
 
 
 @app.command()

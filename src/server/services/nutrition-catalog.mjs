@@ -4,6 +4,7 @@ import YAML from "yaml";
 import { NUTRITION_MEALS_DIR } from "../config/paths.mjs";
 import { slugifyId } from "../../shared/utils/ids.mjs";
 import { pushNutritionCatalog } from "../lib/firestore-admin.mjs";
+import { verifyCatalogItemAsync } from "./nutrition-catalog-verify.mjs";
 
 function mealPath(id, ext = ".yaml") {
   return path.join(NUTRITION_MEALS_DIR, `${id}${ext}`);
@@ -101,6 +102,13 @@ export function saveMeal(item) {
   const catalog = loadCatalog();
   pushNutritionCatalog(catalog.items).catch(() => {});
 
+  // Neuer oder noch nie geprüfter Eintrag → Haiku+WebSearch-Verifikation
+  // im Hintergrund anstoßen (verify-one setzt verified_at, kein Retrigger
+  // bei jedem erneuten Loggen desselben Meals).
+  if (!item.verified_at) {
+    verifyCatalogItemAsync(item.id);
+  }
+
   return item;
 }
 
@@ -165,6 +173,10 @@ export function normalizeMeal(input, existingId = null) {
     last_used_at:          input.last_used_at || input.updated_at || new Date().toISOString(),
     created_at:            input.created_at || new Date().toISOString(),
     updated_at:            new Date().toISOString(),
+    // Haiku+WebSearch-Verifikation gegen Herstellerangaben — null bis zum
+    // ersten erfolgreichen Check (verify-one setzt das Datum, egal ob Treffer
+    // oder nicht, damit nicht bei jedem erneuten Loggen erneut geprüft wird).
+    verified_at:           input.verified_at || null,
   };
 }
 
@@ -175,7 +187,10 @@ export function addOrUpdateItem(catalog, input) {
   );
   const item = normalizeMeal(input, existing?.id);
   if (!item) return null;
-  if (existing) item.created_at = existing.created_at;
+  if (existing) {
+    item.created_at = existing.created_at;
+    item.verified_at = existing.verified_at || null;
+  }
   saveMeal(item);
   return item;
 }
