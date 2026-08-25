@@ -1,7 +1,7 @@
 import { CopyPlus, Pencil, Trash2 } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 
-function StatTile({ label, value, unit, goal, color }) {
+export function StatTile({ label, value, unit, goal, color }) {
   const pct = goal > 0 ? Math.min(100, Math.round((value / goal) * 100)) : 0;
   return (
     <div className="rounded-2xl border border-white/10 bg-slate-950/40 px-2.5 py-2.5">
@@ -19,18 +19,20 @@ function StatTile({ label, value, unit, goal, color }) {
 // Farbsegmente). Eine von drei wählbaren Log-Ansichten (siehe LogView).
 export default function MealListDashboard({
   meals, mealLabel, formId, onRepeat, onEdit, onDelete, repeatPendingId,
-  totals, goals, getTime,
+  totals, goals, getTime, showTotals = true,
 }) {
   return (
     <div>
-      <div className="grid grid-cols-4 gap-2">
-        <StatTile label="Kcal" value={totals.kcal} unit="" goal={goals.kcal_goal} color="#fb923c" />
-        <StatTile label="Protein" value={totals.protein} unit="g" goal={goals.protein_goal} color="#34d399" />
-        <StatTile label="Carbs" value={totals.carbs} unit="g" goal={goals.carbs_goal} color="#38bdf8" />
-        <StatTile label="Fett" value={totals.fat} unit="g" goal={goals.fat_goal} color="#a78bfa" />
-      </div>
+      {showTotals && (
+        <div className="grid grid-cols-4 gap-2">
+          <StatTile label="Kcal" value={totals.kcal} unit="" goal={goals.kcal_goal} color="#fb923c" />
+          <StatTile label="Protein" value={totals.protein} unit="g" goal={goals.protein_goal} color="#34d399" />
+          <StatTile label="Carbs" value={totals.carbs} unit="g" goal={goals.carbs_goal} color="#38bdf8" />
+          <StatTile label="Fett" value={totals.fat} unit="g" goal={goals.fat_goal} color="#a78bfa" />
+        </div>
+      )}
 
-      <div className="mt-4 grid grid-cols-[44px_1fr_60px_50px] items-center gap-2 border-b border-white/10 pb-2 text-[9.5px] uppercase tracking-[0.12em] text-slate-500">
+      <div className={twMerge("grid grid-cols-[44px_1fr_60px_50px] items-center gap-2 border-b border-white/10 pb-2 text-[9.5px] uppercase tracking-[0.12em] text-slate-500", showTotals && "mt-4")}>
         <span></span>
         <span>Mahlzeit</span>
         <span className="text-center">Makros</span>

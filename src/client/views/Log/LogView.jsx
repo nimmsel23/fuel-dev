@@ -11,7 +11,7 @@ import { useSettings } from "../../store.js";
 import FoodSearch from "../../components/FoodSearch.jsx";
 import ScannerModal from "./components/ScannerModal.jsx";
 import MealListMinimal from "./components/MealListMinimal.jsx";
-import MealListDashboard from "./components/MealListDashboard.jsx";
+import MealListDashboard, { StatTile } from "./components/MealListDashboard.jsx";
 import MealListTimeline from "./components/MealListTimeline.jsx";
 import { computeMacroGoals } from "../Settings/GoalsSection.jsx";
 import { Camera, RotateCcw } from "lucide-react";
@@ -315,17 +315,36 @@ export default function LogView({ date, nutrition, notes }) {
     },
   });
 
-  return (
-    <div className="grid gap-8 lg:grid-cols-2">
-      {/* Left Column: Food Logging */}
-      <section className="space-y-6">
-        <div className="flex items-center gap-3">
-          <UtensilsCrossed className="h-6 w-6 text-orange-300" />
-          <h2 className="text-2xl font-bold tracking-tight">Ernährung</h2>
-        </div>
+  const totals = {
+    kcal: sumMetric(meals, "kcal"),
+    protein: sumMetric(meals, "protein"),
+    carbs: sumMetric(meals, "carbs"),
+    fat: sumMetric(meals, "fat"),
+  };
+  const goals = { kcal_goal, protein_goal, ...computeMacroGoals({ kcal_goal, protein_goal, carb_ratio }) };
 
-        {/* AI Logger — Hybrid (Lokal & Vertex AI in Firebase) */}
-        <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur shadow-glow">
+  // Umschalter steuert nicht nur die Meal-Liste, sondern die gesamte
+  // Spaltenstruktur des Tabs (siehe LOG_VIEW_MODES-Verzweigung unten).
+  const viewSwitcher = (
+    <div className="flex gap-1 rounded-full border border-white/10 bg-slate-950/50 p-1">
+      {LOG_VIEW_MODES.map(({ value, label, icon: Icon }) => (
+        <button key={value}
+          onClick={() => setSetting("log_view_mode", value)}
+          className={twMerge(
+            "flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition",
+            log_view_mode === value ? "bg-orange-400 text-slate-950" : "text-slate-500 hover:text-slate-200"
+          )}>
+          <Icon className="h-3.5 w-3.5" />
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+
+  const loggingBlock = (
+    <>
+      {/* AI Logger — Hybrid (Lokal & Vertex AI in Firebase) */}
+      <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur shadow-glow">
             <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-violet-300" />
               AI Logger
@@ -515,110 +534,262 @@ export default function LogView({ date, nutrition, notes }) {
             </button>
           </div>
         </div>
+    </>
+  );
 
-        {/* Geloggte Mahlzeiten — drei wählbare Ansichten */}
-        <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur mt-6">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <UtensilsCrossed className="h-5 w-5 text-orange-300" />
-                Heutiges Log ({meals.length})
-              </h3>
-              <div className="flex gap-1 rounded-full border border-white/10 bg-slate-950/50 p-1">
-                {LOG_VIEW_MODES.map(({ value, label, icon: Icon }) => (
-                  <button key={value}
-                    onClick={() => setSetting("log_view_mode", value)}
-                    title={label}
-                    className={twMerge(
-                      "flex h-7 w-7 items-center justify-center rounded-full transition",
-                      log_view_mode === value ? "bg-orange-400 text-slate-950" : "text-slate-500 hover:text-slate-200"
-                    )}>
-                    <Icon className="h-3.5 w-3.5" />
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {meals.length === 0 ? (
-              <div className="py-8 text-center text-sm text-slate-500">
-                Noch keine Mahlzeit heute geloggt.
-              </div>
-            ) : log_view_mode === "dashboard" ? (
-              <MealListDashboard
-                meals={meals}
-                mealLabel={MEAL_LABEL}
-                formId={form.id}
-                onRepeat={(m) => repeatMeal.mutate(m)}
-                onEdit={loadForEdit}
-                onDelete={(id) => deleteMeal.mutate(id)}
-                repeatPendingId={repeatMeal.isPending ? repeatMeal.variables?.id : null}
-                totals={{
-                  kcal: sumMetric(meals, "kcal"),
-                  protein: sumMetric(meals, "protein"),
-                  carbs: sumMetric(meals, "carbs"),
-                  fat: sumMetric(meals, "fat"),
-                }}
-                goals={{ kcal_goal, protein_goal, ...computeMacroGoals({ kcal_goal, protein_goal, carb_ratio }) }}
-                getTime={(m) => hhmmFromISO(m.time || m.logged_at)}
-              />
-            ) : log_view_mode === "timeline" ? (
-              <MealListTimeline
-                meals={meals}
-                mealLabel={MEAL_LABEL}
-                formId={form.id}
-                onRepeat={(m) => repeatMeal.mutate(m)}
-                onEdit={loadForEdit}
-                onDelete={(id) => deleteMeal.mutate(id)}
-                repeatPendingId={repeatMeal.isPending ? repeatMeal.variables?.id : null}
-                getTime={(m) => hhmmFromISO(m.time || m.logged_at)}
-                nowLabel={nowHHMM()}
-              />
-            ) : (
-              <>
-                <div className="mb-2 text-xs text-slate-400 text-right">
-                  <span className="font-bold text-orange-300">{formatMetric(sumMetric(meals, "kcal"))} kcal</span>
-                  <div className="mt-0.5 space-x-2">
-                    <span className="text-emerald-300">P {formatMetric(sumMetric(meals, "protein"))}g</span>
-                    <span className="text-sky-300">C {formatMetric(sumMetric(meals, "carbs"))}g</span>
-                    <span className="text-violet-300">F {formatMetric(sumMetric(meals, "fat"))}g</span>
-                  </div>
-                </div>
-                <MealListMinimal
+  const mealListInner = meals.length === 0 ? (
+    <div className="py-8 text-center text-sm text-slate-500">
+      Noch keine Mahlzeit heute geloggt.
+    </div>
+  ) : log_view_mode === "dashboard" ? (
+    <MealListDashboard
+      meals={meals}
+      mealLabel={MEAL_LABEL}
+      formId={form.id}
+      onRepeat={(m) => repeatMeal.mutate(m)}
+      onEdit={loadForEdit}
+      onDelete={(id) => deleteMeal.mutate(id)}
+      repeatPendingId={repeatMeal.isPending ? repeatMeal.variables?.id : null}
+      totals={totals}
+      goals={goals}
+      getTime={(m) => hhmmFromISO(m.time || m.logged_at)}
+      showTotals={false}
+    />
+  ) : log_view_mode === "timeline" ? (
+    <MealListTimeline
+      meals={meals}
+      mealLabel={MEAL_LABEL}
+      formId={form.id}
+      onRepeat={(m) => repeatMeal.mutate(m)}
+      onEdit={loadForEdit}
+      onDelete={(id) => deleteMeal.mutate(id)}
+      repeatPendingId={repeatMeal.isPending ? repeatMeal.variables?.id : null}
+      getTime={(m) => hhmmFromISO(m.time || m.logged_at)}
+      nowLabel={nowHHMM()}
+    />
+  ) : (
+    <>
+      <div className="mb-2 text-xs text-slate-400 text-right">
+        <span className="font-bold text-orange-300">{formatMetric(sumMetric(meals, "kcal"))} kcal</span>
+        <div className="mt-0.5 space-x-2">
+          <span className="text-emerald-300">P {formatMetric(sumMetric(meals, "protein"))}g</span>
+          <span className="text-sky-300">C {formatMetric(sumMetric(meals, "carbs"))}g</span>
+          <span className="text-violet-300">F {formatMetric(sumMetric(meals, "fat"))}g</span>
+        </div>
+      </div>
+      <MealListMinimal
                   meals={meals}
                   mealLabel={MEAL_LABEL}
                   formId={form.id}
                   onRepeat={(m) => repeatMeal.mutate(m)}
                   onEdit={loadForEdit}
                   onDelete={(id) => deleteMeal.mutate(id)}
-                  repeatPendingId={repeatMeal.isPending ? repeatMeal.variables?.id : null}
-                />
-              </>
-            )}
-        </div>
+        repeatPendingId={repeatMeal.isPending ? repeatMeal.variables?.id : null}
+      />
+    </>
+  );
 
-        {/* Wartende AI-Logger-Einträge: Text ist gesichert, Gemini-Analyse steht (noch) aus */}
-        {cloud && pendingAiEntries.length > 0 && (
-          <div className="rounded-3xl border border-amber-400/20 bg-amber-400/5 p-5 backdrop-blur">
-            <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-amber-300">
-              <AlertTriangle className="h-4 w-4" />
-              Wartet auf Analyse ({pendingAiEntries.length})
-            </h3>
-            <div className="space-y-2">
-              {pendingAiEntries.map((entry) => (
-                <div key={entry.id} className="flex items-center justify-between gap-3 rounded-2xl border border-white/5 bg-slate-900/40 px-4 py-3">
-                  <div className="min-w-0 flex-1 truncate text-sm text-slate-200">{entry.text}</div>
+  const mealListBlock = (
+    <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h3 className="text-lg font-semibold flex items-center gap-2">
+          <UtensilsCrossed className="h-5 w-5 text-orange-300" />
+          Heutiges Log ({meals.length})
+        </h3>
+        {log_view_mode === "minimal" && viewSwitcher}
+      </div>
+      {mealListInner}
+    </div>
+  );
+
+  const pendingAiBlock = cloud && pendingAiEntries.length > 0 && (
+    <div className="rounded-3xl border border-amber-400/20 bg-amber-400/5 p-5 backdrop-blur">
+      <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-amber-300">
+        <AlertTriangle className="h-4 w-4" />
+        Wartet auf Analyse ({pendingAiEntries.length})
+      </h3>
+      <div className="space-y-2">
+        {pendingAiEntries.map((entry) => (
+          <div key={entry.id} className="flex items-center justify-between gap-3 rounded-2xl border border-white/5 bg-slate-900/40 px-4 py-3">
+            <div className="min-w-0 flex-1 truncate text-sm text-slate-200">{entry.text}</div>
+            <button
+              onClick={() => reanalyzePending.mutate(entry)}
+              disabled={reanalyzePending.isPending && reanalyzePending.variables?.id === entry.id}
+              title="Neu analysieren"
+              className="flex shrink-0 items-center gap-1.5 rounded-full bg-amber-500/15 px-3 py-1.5 text-xs font-semibold text-amber-300 hover:bg-amber-500/25 transition-colors">
+              <RefreshCw className={twMerge("h-3.5 w-3.5", reanalyzePending.isPending && reanalyzePending.variables?.id === entry.id && "animate-spin")} />
+              Neu analysieren
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const journalBlock = (
+    <>
+      <form onSubmit={handleNotesSave} className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur shadow-glow">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 text-emerald-400">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold text-white tracking-wide">Notizen</h2>
+        </div>
+        <textarea
+          className={twMerge(
+            "w-full rounded-2xl border border-white/10 bg-slate-950/70 p-4 text-slate-100 placeholder-slate-500 focus:ring-2 focus:ring-sky-400/50 outline-none transition-all",
+            log_view_mode === "minimal" ? "min-h-[500px]" : "min-h-[160px]"
+          )}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Was hat dich heute bewegt? Training, Schlaf, Befinden..."
+        />
+
+        <button disabled={loading} className="mt-4 w-full rounded-full bg-sky-300 py-4 font-bold text-slate-950 disabled:opacity-60 hover:bg-sky-200 transition-colors shadow-lg active:scale-[0.98]">
+          {loading ? "Speichere..." : "Notizen speichern"}
+        </button>
+
+        {cloud && (
+          <button
+            type="button"
+            onClick={handleJournalCheck}
+            disabled={journalCheckLoading || !text.trim()}
+            className="mt-2 w-full flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 py-3 text-sm font-semibold text-slate-300 hover:bg-white/10 disabled:opacity-50 transition-colors"
+          >
+            <ScanSearch className="h-4 w-4" />
+            {journalCheckLoading ? "Gleiche ab..." : "Mit Log abgleichen"}
+          </button>
+        )}
+      </form>
+
+      {journalCheckError && (
+        <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400">
+          {journalCheckError}
+        </div>
+      )}
+
+      {journalSuggestions.length > 0 && (
+        <div className="rounded-3xl border border-sky-400/20 bg-sky-400/5 p-5 backdrop-blur">
+          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-sky-300">
+            <ScanSearch className="h-4 w-4" />
+            Im Journal erwähnt, aber nicht geloggt
+          </h3>
+          <div className="space-y-2">
+            {journalSuggestions.map((item, idx) => (
+              <div key={`${item.name}-${idx}`} className="flex items-center justify-between gap-3 rounded-2xl border border-white/5 bg-slate-900/40 px-4 py-3">
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-medium text-slate-100">{item.name}</div>
+                  <div className="mt-0.5 text-xs text-slate-500">
+                    <span className="text-orange-300">{item.kcal || 0} kcal</span>
+                    {" · "}P {item.protein || 0}g · C {item.carbs || 0}g · F {item.fat || 0}g
+                  </div>
+                </div>
+                <div className="flex shrink-0 gap-2">
                   <button
-                    onClick={() => reanalyzePending.mutate(entry)}
-                    disabled={reanalyzePending.isPending && reanalyzePending.variables?.id === entry.id}
-                    title="Neu analysieren"
-                    className="flex shrink-0 items-center gap-1.5 rounded-full bg-amber-500/15 px-3 py-1.5 text-xs font-semibold text-amber-300 hover:bg-amber-500/25 transition-colors">
-                    <RefreshCw className={twMerge("h-3.5 w-3.5", reanalyzePending.isPending && reanalyzePending.variables?.id === entry.id && "animate-spin")} />
-                    Neu analysieren
+                    onClick={() => acceptJournalSuggestion.mutate(item)}
+                    disabled={acceptJournalSuggestion.isPending}
+                    title="Übernehmen"
+                    className="rounded-lg border border-emerald-400/30 bg-emerald-400/10 p-2 text-emerald-300 hover:bg-emerald-400/20 transition">
+                    <Check className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setJournalSuggestions((prev) => prev.filter((s) => s !== item))}
+                    title="Verwerfen"
+                    className="rounded-lg border border-white/10 bg-white/5 p-2 text-slate-400 hover:text-red-400 hover:bg-red-400/10 transition">
+                    <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
-        )}
+        </div>
+      )}
+    </>
+  );
+
+  // Dashboard-Modus: Tagesbilanz-Kacheln laufen über die volle Breite,
+  // statt in der Meal-Card versteckt zu sein (showTotals=false oben).
+  const dashboardTotalsRow = (
+    <div className="grid grid-cols-4 gap-3">
+      <StatTile label="Kcal" value={totals.kcal} unit="" goal={goals.kcal_goal} color="#fb923c" />
+      <StatTile label="Protein" value={totals.protein} unit="g" goal={goals.protein_goal} color="#34d399" />
+      <StatTile label="Carbs" value={totals.carbs} unit="g" goal={goals.carbs_goal} color="#38bdf8" />
+      <StatTile label="Fett" value={totals.fat} unit="g" goal={goals.fat_goal} color="#a78bfa" />
+    </div>
+  );
+
+  if (log_view_mode === "dashboard") {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <UtensilsCrossed className="h-6 w-6 text-orange-300" />
+            <h2 className="text-2xl font-bold tracking-tight">Dashboard</h2>
+          </div>
+          {viewSwitcher}
+        </div>
+        {dashboardTotalsRow}
+        <div className="grid gap-8 lg:grid-cols-2">
+          <section className="space-y-6">
+            <details className="group rounded-3xl border border-white/10 bg-white/5 backdrop-blur open:pb-2">
+              <summary className="cursor-pointer list-none p-5 text-sm font-semibold uppercase tracking-widest text-slate-400 group-open:text-orange-300">
+                + Mahlzeit loggen
+              </summary>
+              <div className="space-y-6 px-5 pb-5">{loggingBlock}</div>
+            </details>
+            {mealListBlock}
+            {pendingAiBlock}
+          </section>
+          <section className="space-y-6">
+            <div className="flex items-center gap-3">
+              <NotebookPen className="h-6 w-6 text-sky-300" />
+              <h2 className="text-2xl font-bold tracking-tight">Tagebuch</h2>
+            </div>
+            {journalBlock}
+          </section>
+        </div>
+      </div>
+    );
+  }
+
+  if (log_view_mode === "timeline") {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <UtensilsCrossed className="h-6 w-6 text-orange-300" />
+            <h2 className="text-2xl font-bold tracking-tight">Timeline</h2>
+          </div>
+          {viewSwitcher}
+        </div>
+        <details className="group rounded-3xl border border-white/10 bg-white/5 backdrop-blur">
+          <summary className="cursor-pointer list-none p-5 text-sm font-semibold uppercase tracking-widest text-slate-400 group-open:text-orange-300">
+            + Mahlzeit loggen
+          </summary>
+          <div className="space-y-6 px-5 pb-5">{loggingBlock}</div>
+        </details>
+        {mealListBlock}
+        {pendingAiBlock}
+        <div className="grid gap-6 lg:grid-cols-2">
+          {journalBlock}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-8 lg:grid-cols-2">
+      {/* Left Column: Food Logging */}
+      <section className="space-y-6">
+        <div className="flex items-center gap-3">
+          <UtensilsCrossed className="h-6 w-6 text-orange-300" />
+          <h2 className="text-2xl font-bold tracking-tight">Ernährung</h2>
+        </div>
+        {loggingBlock}
+        {mealListBlock}
+        {pendingAiBlock}
       </section>
 
       {/* Right Column: Notizen */}
@@ -627,82 +798,7 @@ export default function LogView({ date, nutrition, notes }) {
           <NotebookPen className="h-6 w-6 text-sky-300" />
           <h2 className="text-2xl font-bold tracking-tight">Tagebuch</h2>
         </div>
-
-        <form onSubmit={handleNotesSave} className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur shadow-glow">
-          <div className="mb-4 flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 text-emerald-400">
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-            </div>
-            <h2 className="text-xl font-bold text-white tracking-wide">Notizen</h2>
-          </div>
-          <textarea 
-            className="min-h-[500px] w-full rounded-2xl border border-white/10 bg-slate-950/70 p-4 text-slate-100 placeholder-slate-500 focus:ring-2 focus:ring-sky-400/50 outline-none transition-all" 
-            value={text} 
-            onChange={(e) => setText(e.target.value)} 
-            placeholder="Was hat dich heute bewegt? Training, Schlaf, Befinden..."
-          />
-          
-          <button disabled={loading} className="mt-4 w-full rounded-full bg-sky-300 py-4 font-bold text-slate-950 disabled:opacity-60 hover:bg-sky-200 transition-colors shadow-lg active:scale-[0.98]">
-            {loading ? "Speichere..." : "Notizen speichern"}
-          </button>
-
-          {cloud && (
-            <button
-              type="button"
-              onClick={handleJournalCheck}
-              disabled={journalCheckLoading || !text.trim()}
-              className="mt-2 w-full flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 py-3 text-sm font-semibold text-slate-300 hover:bg-white/10 disabled:opacity-50 transition-colors"
-            >
-              <ScanSearch className="h-4 w-4" />
-              {journalCheckLoading ? "Gleiche ab..." : "Mit Log abgleichen"}
-            </button>
-          )}
-        </form>
-
-        {journalCheckError && (
-          <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400">
-            {journalCheckError}
-          </div>
-        )}
-
-        {journalSuggestions.length > 0 && (
-          <div className="rounded-3xl border border-sky-400/20 bg-sky-400/5 p-5 backdrop-blur">
-            <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-sky-300">
-              <ScanSearch className="h-4 w-4" />
-              Im Journal erwähnt, aber nicht geloggt
-            </h3>
-            <div className="space-y-2">
-              {journalSuggestions.map((item, idx) => (
-                <div key={`${item.name}-${idx}`} className="flex items-center justify-between gap-3 rounded-2xl border border-white/5 bg-slate-900/40 px-4 py-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate font-medium text-slate-100">{item.name}</div>
-                    <div className="mt-0.5 text-xs text-slate-500">
-                      <span className="text-orange-300">{item.kcal || 0} kcal</span>
-                      {" · "}P {item.protein || 0}g · C {item.carbs || 0}g · F {item.fat || 0}g
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 gap-2">
-                    <button
-                      onClick={() => acceptJournalSuggestion.mutate(item)}
-                      disabled={acceptJournalSuggestion.isPending}
-                      title="Übernehmen"
-                      className="rounded-lg border border-emerald-400/30 bg-emerald-400/10 p-2 text-emerald-300 hover:bg-emerald-400/20 transition">
-                      <Check className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      onClick={() => setJournalSuggestions((prev) => prev.filter((s) => s !== item))}
-                      title="Verwerfen"
-                      className="rounded-lg border border-white/10 bg-white/5 p-2 text-slate-400 hover:text-red-400 hover:bg-red-400/10 transition">
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        {journalBlock}
       </section>
     </div>
   );
