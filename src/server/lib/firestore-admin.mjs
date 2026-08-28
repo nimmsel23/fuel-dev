@@ -490,12 +490,52 @@ export function startFirestorePullScheduler() {
     logger.error("[firestore-admin] startup pull failed:", e.message)
   ), 5_000);
 
-  // Hourly pull.
+  // Hourly pull — fallback net for logs/journal/supplements, which have no
+  // realtime listener (too many docs to watch cheaply).
   setInterval(() => pullRecentLogs().catch(e =>
     logger.error("[firestore-admin] hourly pull failed:", e.message)
   ), PULL_INTERVAL_MS);
 
   logger.info(`[firestore-admin] 🔄 Hourly pull scheduler started (every ${PULL_INTERVAL_MS / 60000} min, last ${PULL_DAYS} days)`);
+
+  startCatalogRealtimeSync();
+}
+
+/**
+ * Realtime catalog sync — the meal catalog is a single doc, so unlike logs
+ * it's cheap to watch with onSnapshot instead of waiting up to an hour.
+ * A Cloud/mobile edit now reaches the local catalog within seconds instead
+ * of on the next hourly cycle (the original "catalog blieb stale" bug).
+ * Skips the snapshot that fires immediately on subscribe (that's just the
+ * current state, already covered by the startup pull above) and any pull
+ * triggered by our own write-back inside pullNutritionCatalog().
+ */
+function startCatalogRealtimeSync() {
+  const db = getDb();
+  const ref = db.collection("nutrition").doc(UID).collection("meta").doc("catalog");
+
+  let sawInitial = false;
+  let pulling = false;
+
+  ref.onSnapshot(
+    (snap) => {
+      if (!sawInitial) {
+        sawInitial = true;
+        return;
+      }
+      if (snap.metadata.hasPendingWrites) return; // our own push, not a remote change
+      if (pulling) return;
+
+      pulling = true;
+      logger.info("[firestore-admin] 🔔 remote catalog change detected — pulling");
+      pullNutritionCatalog(db)
+        .catch(e => logger.error("[firestore-admin] realtime catalog pull failed:", e.message))
+        .finally(() => { pulling = false; });
+    },
+    (e) => logger.error("[firestore-admin] catalog onSnapshot error:", e.message)
+  );
+
+  logger.info("[firestore-admin] 🔔 Realtime catalog listener attached");
 }
 
 export { getDb, UID };
