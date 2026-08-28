@@ -226,6 +226,26 @@ export function importMealFromRemote(item, { isNew }) {
   if (isNew && !normalized.verified_at) {
     verifyCatalogItemAsync(normalized.id);
   }
+
+  if (isNew) {
+    estimateMicrosAsync(normalized.name, normalized.kcal);
+  }
+}
+
+// Fire-and-forget: schätzt Mikros für ein frisch importiertes Catalog-Item
+// per Gemini und cacht sie in SQLite (meal_micros) unter dem Item-Namen —
+// SQLite bleibt die finale Instanz für Mikros, unabhängig davon ob das
+// Item lokal manuell angelegt oder von Firestore gepullt wurde.
+function estimateMicrosAsync(name, kcal) {
+  import("./nutrition-estimate-micros.mjs").then(({ estimateMicros }) => {
+    estimateMicros(name).then((micros) => {
+      if (micros && Object.keys(micros).length > 0) {
+        import("./nutrition-micros.mjs").then(({ saveMicrosForMeal }) => {
+          saveMicrosForMeal(name, kcal || micros.kcal || 0, micros, "gemini-catalog-import");
+        });
+      }
+    });
+  });
 }
 
 // Begräbt eine ID ohne dass lokal je ein File existiert — für Duplikate,
