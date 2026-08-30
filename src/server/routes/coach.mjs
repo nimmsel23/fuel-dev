@@ -3,7 +3,7 @@ import path from "path";
 import { PORT } from "../../shared/config/constants.mjs";
 import { getSyncStatus, pushNutritionCatalog, pushSupplementsCatalog, pullNow } from "../lib/firestore-admin.mjs";
 import { loadCatalog as loadNutritionCatalog } from "../services/nutrition-catalog.mjs";
-import { loadCatalog as loadSupplementsCatalog } from "../services/supplements-catalog.mjs";
+import { loadCatalogForUser as loadSupplementsCatalog } from "../services/supplements-catalog.mjs";
 
 const START_TIME = Date.now();
 
@@ -25,7 +25,7 @@ export default async function coachRoute(app) {
     let nutritionCount = 0;
     let supplementsCount = 0;
     try { nutritionCount = loadNutritionCatalog(req.paths.nutrition, { uid: req.uid }).items.length; } catch { /* left at 0 */ }
-    try { supplementsCount = loadSupplementsCatalog().items.length; } catch { /* left at 0 */ }
+    try { supplementsCount = loadSupplementsCatalog(req.paths.supplements, { uid: req.uid }).items.length; } catch { /* left at 0 */ }
 
     return reply.send({
       ok: true,
@@ -44,13 +44,16 @@ export default async function coachRoute(app) {
 
   app.post("/coach/sync/push", async (req, reply) => {
     const nutCat = loadNutritionCatalog(req.paths.nutrition, { uid: req.uid });
-    const suppCat = loadSupplementsCatalog();
+    const suppCat = loadSupplementsCatalog(req.paths.supplements, { uid: req.uid });
     await pushNutritionCatalog(nutCat.items, {
       uid: req.uid,
       deletedIds: nutCat.deleted_ids || [],
       sourcePath: path.join(req.paths.nutrition, "catalog.json"),
     });
-    await pushSupplementsCatalog(suppCat.items);
+    await pushSupplementsCatalog(suppCat.items, {
+      uid: req.uid,
+      sourcePath: path.join(req.paths.supplements, "catalog.json"),
+    });
     return reply.send({
       ok: true,
       pushed: { nutrition: nutCat.items.length, supplements: suppCat.items.length },

@@ -128,6 +128,16 @@ function userNutritionDir(uid = UID) {
   return path.join(GLOBAL_DATA_DIR, "users", uid, "nutrition");
 }
 
+function userSupplementsDir(uid = UID) {
+  if (!uid || uid === "default") return null;
+  return path.join(GLOBAL_DATA_DIR, "users", uid, "supplements");
+}
+
+function userSupplementsLogDir(uid = UID) {
+  const supplementsDir = userSupplementsDir(uid);
+  return supplementsDir ? path.join(supplementsDir, "logs") : null;
+}
+
 // ── PUSH ─────────────────────────────────────────────────────────────────────
 
 /**
@@ -194,13 +204,25 @@ export async function pushNutritionCatalog(items, options = {}) {
  * Push the full supplements catalog to Firestore.
  * Called fire-and-forget after every supplement catalog mutation.
  */
-export async function pushSupplementsCatalog(items) {
+export async function pushSupplementsCatalog(items, options = {}) {
   const db = getDb();
   if (!db) return;
   try {
-    await db.collection("supplements").doc(UID).collection("meta").doc("catalog")
+    const uid = options.uid || UID;
+    const sourcePath = options.sourcePath || "repo:catalogs/supplements/catalog.yaml";
+    if (!uid || uid === "default") {
+      logger.info(
+        `[firestore-admin] scope=catalog direction=push uid=default ` +
+        `target=supplements path=${sourcePath} result=skip reason=local_only`
+      );
+      return;
+    }
+    await db.collection("supplements").doc(uid).collection("meta").doc("catalog")
       .set({ items, updated_at: new Date().toISOString() }, { merge: false });
-    logger.info(`[firestore-admin] 📤 supplements/meta/catalog (${items.length} items)`);
+    logger.info(
+      `[firestore-admin] scope=catalog direction=push uid=${uid} ` +
+      `target=supplements path=firestore:supplements/${uid}/meta/catalog result=ok count=${items.length}`
+    );
     markPushOk();
   } catch (e) {
     logger.error("[firestore-admin] pushSupplementsCatalog failed:", e.message);
@@ -254,14 +276,25 @@ export async function pushNutritionJournal(date, content) {
  * @param {string} date – YYYY-MM-DD
  * @param {object} log  – { date, intakes: [...] }
  */
-export async function pushSupplementLog(date, log) {
+export async function pushSupplementLog(date, log, options = {}) {
   const db = getDb();
   if (!db) return;
   try {
+    const uid = options.uid || UID;
+    if (!uid || uid === "default") {
+      logger.info(
+        `[firestore-admin] scope=runtime direction=push uid=default ` +
+        `target=supplements/logs/${date} result=skip reason=local_only`
+      );
+      return;
+    }
     const now = new Date().toISOString();
-    await db.collection("supplements").doc(UID).collection("logs").doc(date)
+    await db.collection("supplements").doc(uid).collection("logs").doc(date)
       .set({ ...log, updated_at: now }, { merge: false });
-    logger.info(`[firestore-admin] 📤 supplements/logs/${date} (${log.intakes?.length ?? 0} intakes)`);
+    logger.info(
+      `[firestore-admin] scope=runtime direction=push uid=${uid} ` +
+      `target=supplements/logs/${date} result=ok count=${log.intakes?.length ?? 0}`
+    );
     markPushOk();
   } catch (e) {
     logger.error("[firestore-admin] pushSupplementLog failed:", e.message);
@@ -388,6 +421,33 @@ export async function pullNutritionCatalog(db) {
   }
 }
 
+export async function pullSupplementsCatalog(db) {
+  const { loadCatalogForUser, saveCatalogFromRemote } = await import("../services/supplements-catalog.mjs");
+  const supplementsDir = userSupplementsDir();
+  if (!supplementsDir) return;
+
+  const ref = db.collection("supplements").doc(UID).collection("meta").doc("catalog");
+  const snap = await ref.get();
+  if (!snap.exists) return;
+
+  const remote = snap.data();
+  const local = loadCatalogForUser(supplementsDir, { uid: UID });
+  const remoteItems = Array.isArray(remote.items) ? remote.items : [];
+  const localAt = local.updated_at ? new Date(local.updated_at).getTime() : 0;
+  const remoteAt = remote.updated_at ? new Date(remote.updated_at).getTime() : 0;
+
+  if (remoteAt < localAt && local.items?.length) {
+    logger.info(`[firestore-admin] scope=catalog direction=pull uid=${UID} target=supplements path=${path.join(supplementsDir, "catalog.json")} result=skip reason=local_newer`);
+    return;
+  }
+
+  saveCatalogFromRemote({ ...local, ...remote, items: remoteItems }, supplementsDir, { uid: UID });
+  logger.info(
+    `[firestore-admin] scope=catalog direction=pull uid=${UID} ` +
+    `target=supplements path=${path.join(supplementsDir, "catalog.json")} result=ok count=${remoteItems.length}`
+  );
+}
+
 async function doPullRecentLogs(db) {
   // Lazy-import services to avoid circular deps at module load time.
   const { upsertMeal, upsertWater, deleteMealsByIds, getNutritionDeletedIds }   = await import("../services/nutrition-db.mjs");
@@ -400,6 +460,11 @@ async function doPullRecentLogs(db) {
     await pullNutritionCatalog(db);
   } catch (e) {
     logger.error("[firestore-admin] pull nutrition/meta/catalog failed:", e.message);
+  }
+  try {
+    await pullSupplementsCatalog(db);
+  } catch (e) {
+    logger.error("[firestore-admin] pull supplements/meta/catalog failed:", e.message);
   }
 
   const dates = recentDates(PULL_DAYS);
@@ -460,16 +525,17 @@ async function doPullRecentLogs(db) {
       const suppSnap = await db.collection("supplements").doc(UID).collection("logs").doc(date).get();
       if (suppSnap.exists) {
         const remote = suppSnap.data();
-        const local  = loadLog(date);
+        const supplementsLogDir = userSupplementsLogDir();
+        const local  = loadLog(date, supplementsLogDir || undefined);
         const remoteDeletedIds = Array.isArray(remote.deleted_intake_ids) ? remote.deleted_intake_ids : [];
-        const localDeletedIds = getDeletedIntakeIds(date);
+        const localDeletedIds = getDeletedIntakeIds(date, supplementsLogDir || undefined);
         const mergedDeletedIds = Array.from(new Set([...remoteDeletedIds, ...localDeletedIds]));
 
         const remoteAt = remote.updated_at ? new Date(remote.updated_at).getTime() : 0;
         const localAt  = local.updated_at  ? new Date(local.updated_at).getTime()  : 0;
 
         if (remoteAt >= localAt) {
-          addDeletedIntakeIds(date, remoteDeletedIds);
+          addDeletedIntakeIds(date, remoteDeletedIds, supplementsLogDir || undefined);
           const remoteIntakes = (remote.intakes || []).filter((i) => !mergedDeletedIds.includes(i.id));
           const remoteIds = new Set(remoteIntakes.map(i => i.id));
           const localOnly = (local.intakes || []).filter(i => !remoteIds.has(i.id) && !mergedDeletedIds.includes(i.id));
@@ -478,10 +544,16 @@ async function doPullRecentLogs(db) {
             intakes: [...remoteIntakes, ...localOnly],
             deleted_intake_ids: mergedDeletedIds,
           };
-          saveLog(merged);
-          logger.info(`[firestore-admin] 📥 supplements/logs/${date} (${merged.intakes.length} intakes)`);
+          saveLog(merged, supplementsLogDir || undefined, UID);
+          logger.info(
+            `[firestore-admin] scope=runtime direction=pull uid=${UID} ` +
+            `target=supplements/logs/${date} result=ok count=${merged.intakes.length}`
+          );
         } else {
-          logger.info(`[firestore-admin] ⏭  supplements/logs/${date} local is newer, skipping pull`);
+          logger.info(
+            `[firestore-admin] scope=runtime direction=pull uid=${UID} ` +
+            `target=supplements/logs/${date} result=skip reason=local_newer`
+          );
         }
       }
     } catch (e) {

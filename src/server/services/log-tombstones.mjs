@@ -16,12 +16,12 @@ function writeJson(filePath, data) {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
 }
 
-function nutritionTombPath(date) {
-  return path.join(NUTRITION_DIR, `${date}.deleted.json`);
+function nutritionTombPath(date, nutritionDir = NUTRITION_DIR) {
+  return path.join(nutritionDir, `${date}.deleted.json`);
 }
 
-function supplementsTombPath(date) {
-  return path.join(SUPPLEMENTS_LOG_DIR, `${date}.deleted.json`);
+function supplementsTombPath(date, supplementsLogDir = SUPPLEMENTS_LOG_DIR) {
+  return path.join(supplementsLogDir, `${date}.deleted.json`);
 }
 
 function loadIds(filePath, key) {
@@ -41,34 +41,34 @@ function saveIds(filePath, key, ids) {
   });
 }
 
-export function getDeletedMealIds(date) {
-  return loadIds(nutritionTombPath(date), "deleted_meal_ids");
+export function getDeletedMealIds(date, nutritionDir = NUTRITION_DIR) {
+  return loadIds(nutritionTombPath(date, nutritionDir), "deleted_meal_ids");
 }
 
-export function addDeletedMealIds(date, ids) {
-  saveIds(nutritionTombPath(date), "deleted_meal_ids", [...getDeletedMealIds(date), ...(ids || [])]);
+export function addDeletedMealIds(date, ids, nutritionDir = NUTRITION_DIR) {
+  saveIds(nutritionTombPath(date, nutritionDir), "deleted_meal_ids", [...getDeletedMealIds(date, nutritionDir), ...(ids || [])]);
 }
 
-export function addDeletedMealId(date, id) {
-  addDeletedMealIds(date, [id]);
+export function addDeletedMealId(date, id, nutritionDir = NUTRITION_DIR) {
+  addDeletedMealIds(date, [id], nutritionDir);
 }
 
-export function removeDeletedMealId(date, id) {
-  saveIds(nutritionTombPath(date), "deleted_meal_ids", getDeletedMealIds(date).filter((x) => x !== id));
+export function removeDeletedMealId(date, id, nutritionDir = NUTRITION_DIR) {
+  saveIds(nutritionTombPath(date, nutritionDir), "deleted_meal_ids", getDeletedMealIds(date, nutritionDir).filter((x) => x !== id));
 }
 
-export function getDeletedIntakeIds(date) {
-  return loadIds(supplementsTombPath(date), "deleted_intake_ids");
+export function getDeletedIntakeIds(date, supplementsLogDir = SUPPLEMENTS_LOG_DIR) {
+  return loadIds(supplementsTombPath(date, supplementsLogDir), "deleted_intake_ids");
 }
 
-export function addDeletedIntakeIds(date, ids) {
-  saveIds(supplementsTombPath(date), "deleted_intake_ids", [...getDeletedIntakeIds(date), ...(ids || [])]);
+export function addDeletedIntakeIds(date, ids, supplementsLogDir = SUPPLEMENTS_LOG_DIR) {
+  saveIds(supplementsTombPath(date, supplementsLogDir), "deleted_intake_ids", [...getDeletedIntakeIds(date, supplementsLogDir), ...(ids || [])]);
 }
 
-export function addDeletedIntakeId(date, id) {
-  addDeletedIntakeIds(date, [id]);
+export function addDeletedIntakeId(date, id, supplementsLogDir = SUPPLEMENTS_LOG_DIR) {
+  addDeletedIntakeIds(date, [id], supplementsLogDir);
 }
 
-export function removeDeletedIntakeId(date, id) {
-  saveIds(supplementsTombPath(date), "deleted_intake_ids", getDeletedIntakeIds(date).filter((x) => x !== id));
+export function removeDeletedIntakeId(date, id, supplementsLogDir = SUPPLEMENTS_LOG_DIR) {
+  saveIds(supplementsTombPath(date, supplementsLogDir), "deleted_intake_ids", getDeletedIntakeIds(date, supplementsLogDir).filter((x) => x !== id));
 }
