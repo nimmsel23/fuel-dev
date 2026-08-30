@@ -20,6 +20,15 @@ import staticRoute from "./routes/static.mjs";
 import { startPushScheduler } from "./services/push-scheduler.mjs";
 import { startFirestorePullScheduler } from "./lib/firestore-admin.mjs";
 
+function serverMode() {
+  return String(PORT) === "7000" ? "prod" : "dev";
+}
+
+function firestoreSyncEnabled() {
+  const override = String(process.env.FUEL_ENABLE_FIRESTORE_SYNC || "").trim().toLowerCase();
+  if (override) return ["1", "true", "yes", "on"].includes(override);
+  return serverMode() === "prod";
+}
 
 export function createApp() {
   // Initialize data directories
@@ -91,5 +100,12 @@ export async function startServer() {
 
   // Background schedulers
   startPushScheduler(GLOBAL_DATA_DIR, CATALOGS_DIR);
-  startFirestorePullScheduler();
+  if (firestoreSyncEnabled()) {
+    startFirestorePullScheduler();
+  } else {
+    console.log(
+      `[firestore-admin] sync disabled for mode=${serverMode()} port=${PORT} ` +
+      `override=${process.env.FUEL_ENABLE_FIRESTORE_SYNC || "" || "auto"}`
+    );
+  }
 }
