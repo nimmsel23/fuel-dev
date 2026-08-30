@@ -163,7 +163,10 @@ export async function pushNutritionCatalog(items) {
 
     const mergedItems = Array.from(merged.values());
     await ref.set({ items: mergedItems, updated_at: new Date().toISOString() }, { merge: false });
-    logger.info(`[firestore-admin] 📤 nutrition/meta/catalog (${mergedItems.length} items, merged)`);
+    logger.info(
+      `[firestore-admin] scope=catalog direction=push uid=${UID} ` +
+      `target=nutrition path=firestore:nutrition/${UID}/meta/catalog result=ok count=${mergedItems.length}`
+    );
     markPushOk();
   } catch (e) {
     logger.error("[firestore-admin] pushNutritionCatalog failed:", e.message);
@@ -343,10 +346,16 @@ export async function pullNutritionCatalog(db) {
   }
 
   if (imported > 0) {
-    logger.info(`[firestore-admin] 📥 nutrition/meta/catalog (${imported}/${remoteItems.length} items imported)`);
+    logger.info(
+      `[firestore-admin] scope=catalog direction=pull uid=${UID} ` +
+      `target=nutrition path=repo:catalogs/nutrition/meals result=ok imported=${imported} total=${remoteItems.length}`
+    );
   }
   if (graveyarded > 0) {
-    logger.info(`[firestore-admin] 🪦 nutrition/meta/catalog (${graveyarded} duplicate id(s) graveyarded)`);
+    logger.info(
+      `[firestore-admin] scope=catalog direction=pull uid=${UID} ` +
+      `target=nutrition path=repo:catalogs/nutrition/meals result=graveyarded count=${graveyarded}`
+    );
   }
 
   // Push back whatever normalizeMeal() coerced/deduped so Firestore converges
@@ -523,7 +532,7 @@ function startCatalogRealtimeSync() {
         sawInitial = true;
         return;
       }
-      if (snap.metadata.hasPendingWrites) return; // our own push, not a remote change
+      if (snap.metadata?.hasPendingWrites) return; // our own push, not a remote change
       if (pulling) return;
 
       pulling = true;
