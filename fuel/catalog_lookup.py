@@ -7,6 +7,7 @@ Per-Unit-Makros nutzen, null Gemini-Calls verbrauchen.
 from __future__ import annotations
 
 import json
+import os
 import re
 import unicodedata
 from datetime import datetime, timezone
@@ -20,6 +21,8 @@ from . import log as _log
 _log.setup()
 
 REPO_CATALOG_DIR = Path(__file__).resolve().parent.parent / "catalogs" / "nutrition" / "meals"
+FUEL_DATA_DIR = Path(os.getenv("AOS_FUEL_DATA_DIR", str(Path.home() / ".aos" / "fuel"))).expanduser()
+DEFAULT_UID = os.getenv("FUEL_CLOUD_UID", "default")
 
 # Wörter, die in Catalog-Namen typisch für "schlechte" Einträge mit Mengen sind
 _QUANTITY_NOISE = re.compile(r"\d+\s*(g|gr|gramm|ml|stk|stück|x)\b", re.IGNORECASE)
@@ -53,13 +56,29 @@ def _normalize_singular(s: str) -> str:
     return " ".join(_singularize(t) for t in _normalize(s).split())
 
 
+def active_uid() -> str:
+    return os.getenv("FUEL_UID") or os.getenv("FUEL_ACTIVE_UID") or DEFAULT_UID
+
+
+def user_data_dir(uid: str | None = None) -> Path:
+    chosen_uid = uid or active_uid()
+    if chosen_uid == "default":
+        return FUEL_DATA_DIR
+    target = FUEL_DATA_DIR / "users" / chosen_uid
+    target.mkdir(parents=True, exist_ok=True)
+    return target
+
+
+def user_catalog_path(uid: str | None = None) -> Path:
+    return user_data_dir(uid) / "nutrition" / "catalog.json"
+
+
 def _load_catalog_from_repo() -> list[dict]:
-    """Lädt den Meal-Catalog aus den Einzel-Files (SSOT). catalog.json ist
-    seit 2026-08-01 nur noch ein generierter Export davon (siehe
-    firestore.py::_export_catalog_json) — kein eigenständiger Datenpfad mehr,
-    also auch keine separate Legacy-Merge-Logik mehr nötig. Tombstones
-    (*.yaml.deleted) sind hier automatisch ausgeschlossen, weil sie nicht auf
-    ".yaml"/".json" enden.
+    """Lädt den Meal-Catalog aus dem Repo nur noch als Compat-Fallback.
+
+    Die aktive Fuel-SSOT liegt seit der User-Scope-Umstellung unter
+    ~/.aos/fuel/users/<uid>/nutrition/catalog.json. Repo-Meal-Files bleiben
+    nur noch für Alt-Konsumenten und manuelle Rückgewinnung lesbar.
     """
     items: list[dict] = []
     if not REPO_CATALOG_DIR.exists():
@@ -86,14 +105,22 @@ def _load_catalog_from_repo() -> list[dict]:
     return items
 
 
-def load_meals() -> list[dict]:
-    """Lädt Meal-Catalog direkt aus dem Repo + legacy zentraler catalog.json.
+def load_meals(uid: str | None = None) -> list[dict]:
+    """Lädt den aktiven Meal-Catalog bevorzugt aus dem user-spezifischen JSON.
 
-    Kein API-Call mehr: save_meal() schreibt in dasselbe Verzeichnis, aus
-    dem hier gelesen wird. Ein laufender Node-Server kann in einem völlig
-    anderen Arbeitsverzeichnis laufen (z.B. /opt/fuel bei Prod) — über die
-    API zu lesen hätte frisch gespeicherte Einträge dort nie gefunden.
+    Repo-Catalog bleibt nur Lesefallback, damit Alt-Artefakte den aktiven
+    User-Catalog nicht mehr versehentlich übersteuern.
     """
+    path = user_catalog_path(uid)
+    if path.exists():
+      try:
+          data = json.loads(path.read_text())
+          items = data.get("items") if isinstance(data, dict) else []
+          if isinstance(items, list):
+              return items
+      except Exception as e:
+          logger.warning(f"user catalog read failed for {path}: {e}")
+    logger.info(f"catalog compat fallback → repo path for uid={uid or active_uid()}")
     return _load_catalog_from_repo()
 
 
@@ -143,7 +170,7 @@ def _score_match(query_norm: str, item: dict) -> float:
     return score
 
 
-def find_meal(query: str, *, min_score: float = 40.0) -> dict | None:
+def find_meal(query: str, *, min_score: float = 40.0, uid: str | None = None) -> dict | None:
     """Sucht best-passenden Meal-Eintrag. None wenn kein guter Match.
 
     min_score=40 entspricht etwa "query in name" oder mittlerem Token-Overlap.
@@ -151,7 +178,7 @@ def find_meal(query: str, *, min_score: float = 40.0) -> dict | None:
     """
     if not query or not query.strip():
         return None
-    items = load_meals()
+    items = load_meals(uid)
     if not items:
         return None
     q_norm = _normalize_singular(query)
@@ -173,22 +200,24 @@ def _slugify(name: str) -> str:
     return re.sub(r"_+", "_", s).strip("_")[:60] or "meal"
 
 
-def save_meal(name: str, macros: dict[str, float], *, source: str = "gemini") -> str:
-    """Schreibt einen neuen Meal-Catalog-Eintrag direkt als YAML-Datei.
+def save_meal(name: str, macros: dict[str, float], *, source: str = "gemini", uid: str | None = None) -> str:
+    """Schreibt einen neuen Meal-Catalog-Eintrag in den user-spezifischen Catalog."""
 
-    Kein HTTP-Call an den Node-Server — das Python-CLI-Tool schreibt direkt
-    in dasselbe Repo-Verzeichnis, aus dem find_meal()/load_meals() auch lesen
-    (REPO_CATALOG_DIR). Damit landen neu von Gemini identifizierte Produkte
-    garantiert im git-Repo statt in einem laufenden Server-Prozess, dessen
-    Arbeitsverzeichnis auch der Deploy-Zielordner (/opt/fuel) sein kann.
-    """
-    import yaml
-
-    REPO_CATALOG_DIR.mkdir(parents=True, exist_ok=True)
+    catalog_path = user_catalog_path(uid)
+    catalog_path.parent.mkdir(parents=True, exist_ok=True)
+    raw = {"items": [], "deleted_ids": []}
+    if catalog_path.exists():
+        try:
+            loaded = json.loads(catalog_path.read_text())
+            if isinstance(loaded, dict):
+                raw = loaded
+        except Exception as e:
+            logger.warning(f"user catalog parse failed for {catalog_path}: {e}")
     base_id = f"meal_{_slugify(name)}"
     item_id = base_id
     n = 2
-    while (REPO_CATALOG_DIR / f"{item_id}.yaml").exists():
+    existing_ids = {item.get("id") for item in raw.get("items", []) if isinstance(item, dict)}
+    while item_id in existing_ids:
         item_id = f"{base_id}_{n}"
         n += 1
 
@@ -214,10 +243,12 @@ def save_meal(name: str, macros: dict[str, float], *, source: str = "gemini") ->
         "created_at": now,
         "updated_at": now,
     }
-    (REPO_CATALOG_DIR / f"{item_id}.yaml").write_text(
-        yaml.dump(entry, allow_unicode=True, sort_keys=False, default_flow_style=False)
-    )
-    logger.info(f"catalog gespeichert: {item_id} ({name})")
+    items = [item for item in raw.get("items", []) if isinstance(item, dict) and item.get("id") != item_id]
+    items.append(entry)
+    raw["items"] = items
+    raw["deleted_ids"] = [deleted_id for deleted_id in raw.get("deleted_ids", []) if deleted_id != item_id]
+    catalog_path.write_text(json.dumps(raw, ensure_ascii=False, indent=2) + "\n")
+    logger.info(f"catalog gespeichert uid={uid or active_uid()}: {item_id} ({name})")
     return item_id
 
 

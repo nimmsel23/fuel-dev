@@ -1,0 +1,23 @@
+id: meal_mtbrihef_nacmho
+kind: meal
+category: lunch
+name: Omelette aus 5 Eiern mit 50g Gemüsereis
+alias: null
+meal_type: lunch
+description: Omelette aus 5 Eiern mit 50g Gemüsereis
+notes: ''
+kcal: 445
+protein: 31.5
+carbs: 17.5
+fat: 25.5
+yield_g: null
+components: []
+addons: []
+default_addon_ids: []
+linked_supplement_ids: []
+source: logged
+use_count: 1
+last_used_at: 2026-08-27 16:53:57.587000+00:00
+created_at: 2026-08-27 16:53:57.587000+00:00
+updated_at: 2026-08-27 16:53:57.587000+00:00
+verified_at: '2026-08-28T07:51:00.091219Z'
