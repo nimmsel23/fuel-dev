@@ -23,12 +23,20 @@ export function loadLog(date, supplementsLogDir = SUPPLEMENTS_LOG_DIR) {
   return log;
 }
 
-export function saveLog(log, supplementsLogDir = SUPPLEMENTS_LOG_DIR, uid = "default") {
+function writeLogFile(log, supplementsLogDir = SUPPLEMENTS_LOG_DIR) {
   const filePath = getLogPath(log.date, supplementsLogDir);
   log.updated_at = new Date().toISOString();
   log.deleted_intake_ids = Array.from(new Set([...(log.deleted_intake_ids || []), ...getDeletedIntakeIds(log.date, supplementsLogDir)]));
   writeJsonFile(filePath, log);
+}
+
+export function saveLog(log, supplementsLogDir = SUPPLEMENTS_LOG_DIR, uid = "default") {
+  writeLogFile(log, supplementsLogDir);
   pushSupplementLog(log.date, log, { uid }).catch(() => {});
+}
+
+export function saveLogFromRemote(log, supplementsLogDir = SUPPLEMENTS_LOG_DIR) {
+  writeLogFile(log, supplementsLogDir);
 }
 
 export function addIntake(log, intakeInput, supplementsLogDir = SUPPLEMENTS_LOG_DIR) {

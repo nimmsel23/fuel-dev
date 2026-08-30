@@ -32,6 +32,18 @@ export function getAllClients() {
     .filter(Boolean);
 }
 
+export function getAllClientUids() {
+  const uids = new Set();
+  for (const client of getAllClients()) {
+    const primary = client?.firebase_uid;
+    if (primary && primary !== "default") uids.add(primary);
+    for (const uid of client?.firebase_uids || []) {
+      if (uid && uid !== "default") uids.add(uid);
+    }
+  }
+  return Array.from(uids).sort();
+}
+
 export function getUidForClient(clientId) {
   const info = getClientInfo(clientId);
   return info?.firebase_uid || "default";
