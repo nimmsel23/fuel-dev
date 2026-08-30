@@ -74,7 +74,7 @@ def _mtime_ms(p: Path) -> int:
 
 def simple_hash(obj: Any) -> str:
     return hashlib.sha1(
-        json.dumps(obj, sort_keys=True, ensure_ascii=False).encode()
+        json.dumps(obj, sort_keys=True, ensure_ascii=False, default=_json_default).encode()
     ).hexdigest()[:12]
 
 
@@ -96,6 +96,65 @@ def _supplements_catalog_path(data_dir: Path) -> Path:
     return data_dir / "supplements" / "catalog.json"
 
 
+def _nutrition_catalog_path(data_dir: Path) -> Path:
+    return data_dir / "nutrition" / "catalog.json"
+
+
+def _legacy_nutrition_catalog_items() -> list[dict]:
+    items: list[dict] = []
+    seen_ids: set[str] = set()
+
+    meals_dir = ROOT / "catalogs" / "nutrition" / "meals"
+    if meals_dir.exists():
+        for ext in ("yaml", "yml", "json"):
+            for f in meals_dir.glob(f"*.{ext}"):
+                iid = f.stem
+                if iid in seen_ids and ext == "json":
+                    continue
+                try:
+                    raw = f.read_text(encoding="utf-8")
+                    item = json.loads(raw) if ext == "json" else yaml.safe_load(raw)
+                    if item:
+                        items.append(item)
+                        seen_ids.add(iid)
+                except Exception as e:
+                    logger.error(f"Fehler beim Laden von Meal-File {f.name}: {e}")
+
+    nutrition_dir = ROOT / "catalogs" / "nutrition"
+    for legacy_name in ("catalog.yaml", "catalog.json"):
+        legacy_path = nutrition_dir / legacy_name
+        if legacy_path.exists():
+            try:
+                raw = legacy_path.read_text(encoding="utf-8")
+                data = json.loads(raw) if legacy_name.endswith(".json") else yaml.safe_load(raw)
+                legacy_items = data.get("items") if isinstance(data, dict) else data
+                if isinstance(legacy_items, list):
+                    for item in legacy_items:
+                        iid = item.get("id")
+                        if iid and iid not in seen_ids:
+                            items.append(item)
+                            seen_ids.add(iid)
+                    break
+            except Exception as e:
+                logger.error(f"Fehler beim Laden von legacy catalog {legacy_name}: {e}")
+
+    return items
+
+
+def _load_local_nutrition_catalog_items(data_dir: Path) -> list[dict]:
+    local_path = _nutrition_catalog_path(data_dir)
+    local_items = _read_json(local_path, {"items": []}).get("items", [])
+    if local_items:
+        return local_items
+    legacy_items = _legacy_nutrition_catalog_items()
+    if legacy_items:
+        logger.warning(
+            f"fuel-sync scope=catalog source=legacy-repo uid={data_dir.name} "
+            f"path={local_path} result=fallback count={len(legacy_items)}"
+        )
+    return legacy_items
+
+
 # ── Datei-Helfer ──────────────────────────────────────────────────────────────
 
 def _read_json(path: Path, default: Any) -> Any:
@@ -110,7 +169,16 @@ def _read_json(path: Path, default: Any) -> Any:
 
 def _write_json(path: Path, data: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    path.write_text(
+        json.dumps(data, ensure_ascii=False, indent=2, default=_json_default),
+        encoding="utf-8",
+    )
+
+
+def _json_default(value: Any) -> Any:
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return str(value)
 
 
 def _strip_firestore_fields(obj: dict) -> dict:
@@ -277,24 +345,23 @@ def _export_catalog_json(items: list[dict]) -> None:
 
 def sync_nutrition_catalog(direction: str, uid: str, data_dir: Path) -> dict:
     fs = get_fs()
-    local_items = []
-    seen_ids = set()
+    local_catalog_path = _nutrition_catalog_path(data_dir)
 
-    meals_dir = ROOT / "catalogs" / "nutrition" / "meals"
-    if meals_dir.exists():
-        for ext in ("yaml", "yml", "json"):
-            for f in meals_dir.glob(f"*.{ext}"):
-                iid = f.stem
-                if iid in seen_ids and ext == "json":
-                    continue
-                try:
-                    raw = f.read_text(encoding="utf-8")
-                    item = json.loads(raw) if ext == "json" else yaml.safe_load(raw)
-                    if item:
-                        local_items.append(item)
-                        seen_ids.add(iid)
-                except Exception as e:
-                    logger.error(f"Fehler beim Laden von Meal-File {f.name}: {e}")
+    if direction == "pull":
+        doc_ref = fs.collection("nutrition").document(uid).collection("meta").document("catalog")
+        snap = doc_ref.get()
+        remote_items = snap.to_dict().get("items", []) if snap.exists else []
+        _write_json(
+            local_catalog_path,
+            {"items": [_strip_firestore_fields(item) for item in remote_items]},
+        )
+        logger.info(
+            f"fuel-sync scope=catalog direction=pull uid={uid} "
+            f"path={local_catalog_path} result=ok count={len(remote_items)}"
+        )
+        return {"catalog_items": len(remote_items)}
+
+    local_items = _load_local_nutrition_catalog_items(data_dir)
 
     doc_ref = fs.collection("nutrition").document(uid).collection("meta").document("catalog")
     snap = doc_ref.get()
@@ -317,28 +384,15 @@ def sync_nutrition_catalog(direction: str, uid: str, data_dir: Path) -> dict:
         # in Firestore auf (_merge_by_id kann nur hinzufügen, nie entfernen).
         merged_items = [_strip_firestore_fields(item) for item in local_items]
         doc_ref.set({"items": merged_items})  # kein merge=True — echtes Overwrite
-    elif direction == "pull":
-        # SSOT bleiben die Einzel-YAMLs. Neue/geänderte Remote-Items werden
-        # direkt als eigene .yaml-Files in meals_dir geschrieben statt in
-        # eine zentrale catalog.json — so greifen Tombstones (.deleted) auch
-        # beim Pull, und Node + Python sehen denselben Datenstand.
-        meals_dir.mkdir(parents=True, exist_ok=True)
-        for item in remote_items:
-            iid = item.get("id")
-            if not iid or iid in seen_ids:
-                continue
-            clean = _strip_firestore_fields(item)
-            (meals_dir / f"{iid}.yaml").write_text(
-                yaml.safe_dump(clean, allow_unicode=True, sort_keys=False), encoding="utf-8"
-            )
-            local_items.append(clean)
-            seen_ids.add(iid)
-        merged_items = local_items
     else:
         merged_items = _merge_by_id(local_items, remote_items)
         doc_ref.set({"items": merged_items}, merge=True)
 
-    _export_catalog_json(merged_items)
+    _write_json(local_catalog_path, {"items": merged_items})
+    logger.info(
+        f"fuel-sync scope=catalog direction={direction} uid={uid} "
+        f"path={local_catalog_path} result=ok count={len(merged_items)}"
+    )
     return {"catalog_items": len(merged_items)}
 
 
@@ -423,6 +477,22 @@ def collect_dates(data_dir: Path) -> list[str]:
     return sorted(dates)
 
 
+def collect_remote_dates(uid: str) -> list[str]:
+    """Alle vorhandenen Remote-Tage für eine UID aus Nutrition/Supplements/Journal."""
+    fs = get_fs()
+    dates: set[str] = set()
+    collections = [
+        fs.collection("nutrition").document(uid).collection("logs"),
+        fs.collection("supplements").document(uid).collection("logs"),
+        fs.collection("nutrition").document(uid).collection("journal"),
+    ]
+    for col in collections:
+        for snap in col.stream():
+            if snap.id:
+                dates.add(snap.id)
+    return sorted(dates)
+
+
 def push_uid_batched(uid: str, data_dir: Path) -> dict:
     """Push aller lokalen Daten für eine UID — batched + idempotent (mtime/hash skip)."""
     from firebase_admin import firestore as fb_firestore
@@ -503,42 +573,7 @@ def push_uid_batched(uid: str, data_dir: Path) -> dict:
             batch_set(ref, {"items": items, "_content_hash": new_hash, "updated_at": server_ts})
 
     # Nutrition Catalog
-    nutrition_items = []
-    seen_ids = set()
-    meals_dir = ROOT / "catalogs" / "nutrition" / "meals"
-    if meals_dir.exists():
-        for ext in ("yaml", "yml", "json"):
-            for f in meals_dir.glob(f"*.{ext}"):
-                iid = f.stem
-                if iid in seen_ids and ext == "json":
-                    continue
-                try:
-                    raw = f.read_text(encoding="utf-8")
-                    item = json.loads(raw) if ext == "json" else yaml.safe_load(raw)
-                    if item:
-                        nutrition_items.append(item)
-                        seen_ids.add(iid)
-                except Exception as e:
-                    logger.error(f"Fehler beim Laden von Meal-File {f.name}: {e}")
-                    
-    nutrition_dir = ROOT / "catalogs" / "nutrition"
-    for legacy_name in ("catalog.yaml", "catalog.json"):
-        legacy_path = nutrition_dir / legacy_name
-        if legacy_path.exists():
-            try:
-                raw = legacy_path.read_text(encoding="utf-8")
-                data = json.loads(raw) if legacy_name.endswith(".json") else yaml.safe_load(raw)
-                items = data.get("items") if isinstance(data, dict) else data
-                if isinstance(items, list):
-                    for item in items:
-                        iid = item.get("id")
-                        if iid and iid not in seen_ids:
-                            nutrition_items.append(item)
-                            seen_ids.add(iid)
-                    break
-            except Exception as e:
-                logger.error(f"Fehler beim Laden von legacy catalog {legacy_name}: {e}")
-                
+    nutrition_items = _load_local_nutrition_catalog_items(data_dir)
     if nutrition_items:
         deleted_ids = _locally_deleted_meal_ids()
         nutrition_items = [it for it in nutrition_items if it.get("id") not in deleted_ids]
@@ -551,6 +586,10 @@ def push_uid_batched(uid: str, data_dir: Path) -> dict:
             stats["skipped"] += 1
         else:
             batch_set(ref, {"items": nutrition_items, "_content_hash": new_hash, "updated_at": server_ts})
+        logger.info(
+            f"fuel-sync scope=catalog direction=push uid={uid} "
+            f"path={_nutrition_catalog_path(data_dir)} result=ok count={len(nutrition_items)}"
+        )
 
     if ops > 0:
         batch.commit()
@@ -597,7 +636,12 @@ def cli_pull(uid: str | None = None, data_dir: Path | None = None) -> None:
 
     for u in uids:
         dd = data_dir or data_dir_for(u)
-        dates = collect_dates(dd)
+        dates = set(collect_dates(dd))
+        try:
+            dates.update(collect_remote_dates(u))
+        except Exception as e:
+            logger.warning(f"Remote-Date-Discovery fehlgeschlagen für uid={u}: {e}")
+        dates = sorted(dates)
         logger.info(f"📥 pull uid={u}: {len(dates)} Tage")
         for d in dates:
             r = {}

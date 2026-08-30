@@ -193,10 +193,10 @@ function normalizeMealName(name) {
 // wieder mit Rohwerten überschreiben. Neue Einträge bekommen source:
 // "gemini", damit der wöchentliche fuel-catalog-verify-Timer (Haiku+
 // WebSearch) sie im Zweifelsfall gegen echte Herstellerangaben recherchiert.
-function autoUpsertCatalog(m) {
+function autoUpsertCatalog(m, nutritionDir, uid) {
   if (!m?.description && !m?.name) return;
   try {
-    const catalog = loadCatalog();
+    const catalog = loadCatalog(nutritionDir, { uid });
     const synced = upsertLoggedMeal(catalog, m);
     if (synced) return synced;
     const nameNorm = normalizeMealName(m.description || m.name);
@@ -256,7 +256,7 @@ export default async function logRoute(app) {
     try {
       const bridged = await callV4("/nutrition/log", { method: "PATCH", body: req.body || {} });
       if (bridged.ok) {
-        if (req.body?.meal) autoUpsertCatalog(req.body.meal);
+        if (req.body?.meal) autoUpsertCatalog(req.body.meal, req.paths.nutrition, req.uid);
         return reply.send(bridged.data);
       }
       if (bridged.status < 500) return reply.status(bridged.status).send(bridged.data);
@@ -307,7 +307,7 @@ export default async function logRoute(app) {
     try {
       const bridged = await callV4("/nutrition/log", { method: "POST", body: req.body || {} });
       if (bridged.ok) {
-        if (req.body?.meal) autoUpsertCatalog(req.body.meal);
+        if (req.body?.meal) autoUpsertCatalog(req.body.meal, req.paths.nutrition, req.uid);
         return reply.send(bridged.data);
       }
       if (bridged.status < 500) return reply.status(bridged.status).send(bridged.data);
@@ -322,7 +322,7 @@ export default async function logRoute(app) {
       const log = loadLog(date, req.paths.nutrition);
 
       if (parsed.data.catalog_item_id) {
-        const catalog = loadCatalog();
+        const catalog = loadCatalog(req.paths.nutrition, { uid: req.uid });
         const resolved = resolveCatalogItem(catalog, parsed.data.catalog_item_id, parsed.data.catalog_addon_ids);
         if (!resolved) return reply.status(404).send({ ok: false, error: "Catalog item not found" });
         log.meals.push({ id: `meal_${Date.now()}`, ...resolved, time: new Date().toISOString() });
@@ -339,7 +339,7 @@ export default async function logRoute(app) {
           time: m.time || new Date().toISOString(),
         });
         fireMicrosEstimate(m.description, m.kcal || 0);
-        autoUpsertCatalog(m);
+        autoUpsertCatalog(m, req.paths.nutrition, req.uid);
       }
 
       if (parsed.data.delete_meal_id) {

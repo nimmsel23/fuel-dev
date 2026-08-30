@@ -79,3 +79,38 @@ items:
     unit: ml
     default_dose: 250
     default_time_of_day: evening
+  - id: hohes_c_beauty
+    name: Hohes C All-in-One Beauty
+    product: Hohes C All-in-One Beauty (Biotin-Zink)
+    unit: ml
+    default_dose: 850
+    default_time_of_day: morning
+    notes: "Werte für 850ml (ganze Flasche/Tag) — hochgerechnet aus NRV-Prozentangaben pro 250ml-Glas des Herstellers (Faktor 3,4, nicht Labor-exakt) — Quelle hohesc.de. Vit C/B12/B6/Biotin je 100% NRV pro Glas, Vit A/E/Zink/Selen je 38% NRV pro Glas."
+    micros:
+      vitamin_c_mg: 272
+      vitamin_b12_ug: 8.5
+      vitamin_b6_mg: 4.76
+      vitamin_b7_ug: 51.68
+      vitamin_a_ug: 1033.6
+      vitamin_e_mg: 15.5
+      zinc_mg: 12.92
+      selenium_ug: 71.06
+  - id: hohes_c_everyday
+    name: Hohes C All-in-One Everyday
+    product: Hohes C All-in-One Everyday (Multivitamin)
+    unit: ml
+    default_dose: 850
+    default_time_of_day: morning
+    notes: "Werte für 850ml (ganze Flasche/Tag) — hochgerechnet aus NRV-Prozentangaben pro 250ml-Glas des Herstellers (Faktor 3,4, nicht Labor-exakt) — Quelle hohesc.de. Vit C/E/B12/B1/Niacin/Folsäure/Biotin/B5 je 100% NRV pro Glas, Vit A 75%, Vit D 50%, Eisen 38% NRV pro Glas."
+    micros:
+      vitamin_c_mg: 272
+      vitamin_e_mg: 40.8
+      vitamin_b12_ug: 8.5
+      vitamin_b1_mg: 3.74
+      vitamin_b3_mg: 54.4
+      folate_ug: 680
+      vitamin_b7_ug: 51.68
+      vitamin_b5_mg: 20.4
+      vitamin_a_ug: 2040
+      vitamin_d_ug: 8.5
+      iron_mg: 18.09

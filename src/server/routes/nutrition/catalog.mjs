@@ -48,7 +48,7 @@ const catalogPostSchema = z.object({
 export default async function catalogRoute(app) {
   // GET /nutrition/catalog
   app.get("/nutrition/catalog", async (req, reply) => {
-    const catalog = loadCatalog();
+    const catalog = loadCatalog(req.paths.nutrition, { uid: req.uid });
     return reply.send({ ok: true, items: catalog.items || [] });
   });
 
@@ -59,12 +59,12 @@ export default async function catalogRoute(app) {
       if (!parsed.success) {
         return reply.status(400).send({ ok: false, error: "Invalid data" });
       }
-      const catalog = loadCatalog();
+      const catalog = loadCatalog(req.paths.nutrition, { uid: req.uid });
       const item = addOrUpdateItem(catalog, parsed.data.item || {});
       if (!item) {
         return reply.status(400).send({ ok: false, error: "Name required" });
       }
-      saveCatalog(catalog);
+      saveCatalog(catalog, req.paths.nutrition, { uid: req.uid });
       return reply.send({ ok: true, item });
     } catch (error) {
       console.error(error);
@@ -77,7 +77,7 @@ export default async function catalogRoute(app) {
     try {
       const { id } = req.params;
       if (!id) return reply.status(400).send({ ok: false, error: "ID required" });
-      deleteMeal(id);
+      deleteMeal(id, req.paths.nutrition, { uid: req.uid });
       return reply.send({ ok: true });
     } catch (error) {
       console.error(error);

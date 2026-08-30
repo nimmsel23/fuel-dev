@@ -1,0 +1,21 @@
+category: lunch
+carbs: 23.0
+id: meal_mt7n2hul_he5h3h
+created_at: 2026-08-24 19:38:28.542000+00:00
+updated_at: '2026-08-25T12:14:38.569915Z'
+name: Simply Cola Organics by Red Bull
+source: manual
+use_count: 1
+kind: meal
+protein: 0.0
+description: Simply Cola Organics by Red Bull
+meal_type: lunch
+notes: 'Offizielle Herstellerangabe (https://www.redbull.com/at-de/energydrink/wie-lauten-die-naehrwertangaben-von-organics-simply-cola-by-red-bull)
+  pro 100g: {''kcal'': 39, ''protein'': 0, ''carbs'': 9.2, ''fat'': 0}. Offizielle
+  Red Bull Nährwerte pro 100ml (Standardportion: 250ml-Dose). Zucker: 8,8g pro 100ml.
+  Quelle: Red Bull AT + Open Food Facts.'
+last_used_at: 2026-08-24 19:38:28.542000+00:00
+fat: 0.0
+kcal: 97.5
+yield_g: 250.0
+verified_at: '2026-08-25T12:14:38.569915Z'

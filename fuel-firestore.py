@@ -38,11 +38,14 @@ from fuel.firestore import (
 )
 
 PREFIX = "/api/fuel-firestore"
+LOCAL_ONLY_UID = "default"
 
 
 def get_user_context(request: web.Request) -> tuple[str, Path]:
     """Extrahiert UID aus Header und bestimmt lokales Datenverzeichnis."""
-    uid = request.headers.get("X-Fuel-UID", DEFAULT_UID)
+    uid = request.headers.get("X-Fuel-UID", LOCAL_ONLY_UID)
+    if uid == LOCAL_ONLY_UID:
+        logger.info("fuel-sync scope=runtime direction=http uid=default result=fallback reason=missing_uid_header")
     return uid, data_dir_for(uid)
 
 

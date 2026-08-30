@@ -1,0 +1,23 @@
+id: meal_mtcsqmbv_an44ec
+kind: meal
+category: lunch
+name: 2 Käsleberkäsesemmeln
+alias: null
+meal_type: lunch
+description: 2 Käsleberkäsesemmeln
+notes: ""
+kcal: 920
+protein: 42
+carbs: 80
+fat: 48
+yield_g: null
+components: []
+addons: []
+default_addon_ids: []
+linked_supplement_ids: []
+source: logged
+use_count: 1
+last_used_at: 2026-08-28T10:16:02.948Z
+created_at: 2026-08-28T10:16:02.948Z
+updated_at: 2026-08-28T10:16:02.948Z
+verified_at: null

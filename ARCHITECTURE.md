@@ -251,6 +251,16 @@ ist `fuel.service` derzeit ebenfalls noch v3 (`/opt/fuel`, Port `7000`). `backen
 Nachfolger, kein Prototyp. v4 läuft lokal auf `:4000`, servt sein eigenes gebautes
 `frontend/dist` und kann im Übergangszustand Legacy-Fälle zurück an v3 delegieren.
 
+**Deploy-Status (verifiziert 2026-08-28):** `fuel-v2.service` (Legacy-Unit-Name,
+seit 2026-05-31) ist restlos entfernt (Unit-File gelöscht, `daemon-reload`
+durchgeführt) — `fuel.service` ist jetzt der einzige aktive Prod-Node-Service auf
+`:7000`. `fuel-python.service` (v4, `/opt/fuel-python`) ist ebenfalls scharf
+geschaltet und beantwortet `:4000/health` — v4 ist damit nicht mehr nur
+Codebase/Experiment, sondern läuft parallel im Prod-Deploy. `deploy.sh` restartet
+beide Services (`SERVICE="fuel.service"`, `PY_SERVICE="fuel-python.service"`).
+Dev-Entry-Point v3 auf `:9000` lief zum Zeitpunkt der Prüfung nicht (nur Prod
+`:7000` aktiv) — vor der nächsten Session ggf. `npm run dev` prüfen.
+
 Die Migrationslogik ist **bidirektional**:
 - `/v4/*` auf v3 proxied zu v4 (`src/server/routes/v4-proxy.mjs`)
 - `/v3/*` auf v4 proxied zu v3 (`backend/api/endpoints/v3_proxy.py`)

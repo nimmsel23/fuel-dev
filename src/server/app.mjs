@@ -1,5 +1,7 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import swagger from "@fastify/swagger";
+import swaggerUi from "@fastify/swagger-ui";
 import { PORT, HOST } from "../shared/config/constants.mjs";
 import { initializePaths, getPaths, GLOBAL_DATA_DIR, CATALOGS_DIR } from "./config/paths.mjs";
 import { normalizeRoutedPath } from "../shared/utils/validation.mjs";
@@ -18,6 +20,15 @@ import staticRoute from "./routes/static.mjs";
 import { startPushScheduler } from "./services/push-scheduler.mjs";
 import { startFirestorePullScheduler } from "./lib/firestore-admin.mjs";
 
+function serverMode() {
+  return String(PORT) === "7000" ? "prod" : "dev";
+}
+
+function firestoreSyncEnabled() {
+  const override = String(process.env.FUEL_ENABLE_FIRESTORE_SYNC || "").trim().toLowerCase();
+  if (override) return ["1", "true", "yes", "on"].includes(override);
+  return serverMode() === "prod";
+}
 
 export function createApp() {
   // Initialize data directories
@@ -41,6 +52,17 @@ export function createApp() {
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     credentials: false,
   });
+
+  // Swagger/OpenAPI — auto-generated from registered routes (most have no
+  // JSON schema yet, so this gives paths+methods for free; schemas can be
+  // added per-route later for richer param docs). v4 (FastAPI) gets this
+  // for free at :4000/docs — this mirrors it for v3.
+  app.register(swagger, {
+    openapi: {
+      info: { title: "Fuel Centre API (v3/Node)", version: "3.0.0" },
+    },
+  });
+  app.register(swaggerUi, { routePrefix: "/docs" });
 
   // Path normalization hook (handles /c/<clientId>/ prefixes)
   app.addHook("preHandler", (req, _reply, done) => {
@@ -78,5 +100,12 @@ export async function startServer() {
 
   // Background schedulers
   startPushScheduler(GLOBAL_DATA_DIR, CATALOGS_DIR);
-  startFirestorePullScheduler();
+  if (firestoreSyncEnabled()) {
+    startFirestorePullScheduler();
+  } else {
+    console.log(
+      `[firestore-admin] sync disabled for mode=${serverMode()} port=${PORT} ` +
+      `override=${process.env.FUEL_ENABLE_FIRESTORE_SYNC || "" || "auto"}`
+    );
+  }
 }

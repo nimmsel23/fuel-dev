@@ -1,0 +1,23 @@
+id: meal_mtbrjjfh_ut31fo
+kind: meal
+category: lunch
+name: Gemüse Reis mit schwarzen Bohnen und rote Rüben Salat
+alias: null
+meal_type: lunch
+description: Gemüse Reis mit schwarzen Bohnen und rote Rüben Salat
+notes: ''
+kcal: 579
+protein: 17.3
+carbs: 94.6
+fat: 15.6
+yield_g: null
+components: []
+addons: []
+default_addon_ids: []
+linked_supplement_ids: []
+source: logged
+use_count: 1
+last_used_at: 2026-08-27 16:54:46.836000+00:00
+created_at: 2026-08-27 16:54:46.836000+00:00
+updated_at: 2026-08-27 16:54:46.836000+00:00
+verified_at: '2026-08-28T07:51:00.352150Z'

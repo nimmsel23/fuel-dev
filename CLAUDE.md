@@ -57,7 +57,8 @@ Beide Channels teilen sich **dieselbe React-Codebase** in `src/client/` — Unte
 **Ports:**
 - Dev: 9000 (`server.mjs` → `src/server/app.mjs`)
 - Vite dev: 5173
-- local Prod: 7000 (static, `fuel-v2.service` — Unit-Name historisch, channel ist "local")
+- local Prod: 7000 (static, `fuel.service`; Legacy-Unit `fuel-v2.service` am 2026-08-28 restlos entfernt)
+- v4 (Python/FastAPI, `backend/`): 4000, prod via `fuel-python.service` (`/opt/fuel-python`) — läuft parallel zu v3, siehe `ARCHITECTURE.md`
 - cloud: `https://fuel-vos.web.app`
 
 **Data location (local):** `~/.aos/fuel/` (via `AOS_FUEL_DATA_DIR`)
@@ -271,9 +272,11 @@ fuelctl local deploy # Python-Wrapper, ruft deploy.sh
 
 **`deploy.sh`** macht aktuell zweistufig: `staging` synced `~/fuel-dev` nach
 `~/.local/fuel`; `prod` synced von dort nach `/opt/fuel` und `/opt/fuel-python`.
-Der laufende systemd-Entry-Point ist dabei derzeit noch `fuel.service` aus
-`/opt/fuel`. Das Python-Backend wird mitdeployt, ist aber noch nicht der aktive
-Prod-Service.
+Beide Prod-Services sind aktiv und laufen parallel (verifiziert 2026-08-28):
+`fuel.service` (v3, Node, `/opt/fuel`, Port 7000) und `fuel-python.service`
+(v4, `backend/`+`frontend/`, `/opt/fuel-python`, Port 4000). `deploy.sh`
+restartet beide (`SERVICE`/`PY_SERVICE`). `fuel-v2.service` (Legacy-Unit) wurde
+entfernt (Unit-File gelöscht, disabled, `daemon-reload`).
 
 **Environment Variables (local):**
 - `PORT` (default 9000)
@@ -459,7 +462,8 @@ See `~/.claude/agents/nutrition-agent.md` for full definition.
 - **Tab-Modularisierung:** `main.jsx` ist zu groß — Tabs als eigene Lazy-geladene Module, Tab-Config als Array of `{ key, label, icon, component }`
 - **Chunk-Splitting:** Build-Warning "Some chunks are larger than 500 kB" — dynamische Imports für FullCalendar, Recharts, etc.
 - **Offline write-through (cloud):** POST-Queue via IndexedDB (Vorbild: `~/core4-dev/public/offline-queue.js`) für Firebase-Mode
-- **systemd-Unit umbenennen:** `fuel-v2.service` → `fuel-local.service` (sudo-Op, bisher nicht angefasst — Unit-Name historisch, funktional egal)
+- ~~**systemd-Unit umbenennen:** `fuel-v2.service` → `fuel-local.service`~~ — erledigt 2026-08-28: `fuel-v2.service` restlos entfernt, `fuel.service` ist alleiniger v3-Prod-Service.
+- **v3/v4-Konsolidierung:** beide Services laufen jetzt parallel in Prod (`fuel.service` :7000, `fuel-python.service` :4000) — noch kein gemeinsamer Datenlayer, Übergangs-Proxy in beide Richtungen (`/v4/*` bzw. `/v3/*`), siehe `ARCHITECTURE.md`. Klären: Zielbild ist v4 löst v3 vollständig ab, oder Dauerbetrieb nebeneinander?
 - **`v2/` archiviert:** liegt in `~/.archive/fuel-dev-v2-2026-06-17/` für ggf. Referenz
 - **CLI `fuel meal`:** schreibt via `/nutrition/log` (statt nur Supplements)
 - **Export-Endpoint:** `GET /nutrition/export?from=&to=` → CSV (lokal)
@@ -497,7 +501,6 @@ Gemeinsam ist nur `src/client/` UI (Views, Hooks, Components) — kein Backend-C
 | Was existiert | Ziel |
 |---|---|
 | `fuel_cli/` (catalog, gemini, compose, log, http) | → `fuel_agent/` umbenennen |
-| `fuel-catalog-server.py` (aiohttp) | → `fuel_agent/server.py` |
 | `bin/gemini-*` Standalone-Scripts | → in `fuel_agent/gemini.py` integrieren |
 | Fastify `server.mjs` | → organisch schrumpfen während Python wächst |
 | `fuel_routes.yaml` | bleibt als SSOT für Endpoints |

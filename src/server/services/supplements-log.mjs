@@ -5,12 +5,12 @@ import { SUPPLEMENTS_LOG_DIR } from "../config/paths.mjs";
 import { pushSupplementLog } from "../lib/firestore-admin.mjs";
 import { addDeletedIntakeId, getDeletedIntakeIds, removeDeletedIntakeId } from "./log-tombstones.mjs";
 
-function getLogPath(date) {
-  return path.join(SUPPLEMENTS_LOG_DIR, `${date}.json`);
+function getLogPath(date, supplementsLogDir = SUPPLEMENTS_LOG_DIR) {
+  return path.join(supplementsLogDir, `${date}.json`);
 }
 
-export function loadLog(date) {
-  const filePath = getLogPath(date);
+export function loadLog(date, supplementsLogDir = SUPPLEMENTS_LOG_DIR) {
+  const filePath = getLogPath(date, supplementsLogDir);
   const log = readJsonFile(filePath, {
     date,
     intakes: [],
@@ -18,21 +18,28 @@ export function loadLog(date) {
   });
   if (!log.intakes) log.intakes = [];
   if (!Array.isArray(log.deleted_intake_ids)) {
-    log.deleted_intake_ids = getDeletedIntakeIds(date);
+    log.deleted_intake_ids = getDeletedIntakeIds(date, supplementsLogDir);
   }
   return log;
 }
 
-export function saveLog(log) {
-  const filePath = getLogPath(log.date);
+function writeLogFile(log, supplementsLogDir = SUPPLEMENTS_LOG_DIR) {
+  const filePath = getLogPath(log.date, supplementsLogDir);
   log.updated_at = new Date().toISOString();
-  log.deleted_intake_ids = Array.from(new Set([...(log.deleted_intake_ids || []), ...getDeletedIntakeIds(log.date)]));
+  log.deleted_intake_ids = Array.from(new Set([...(log.deleted_intake_ids || []), ...getDeletedIntakeIds(log.date, supplementsLogDir)]));
   writeJsonFile(filePath, log);
-  // Fire-and-forget push
-  pushSupplementLog(log.date, log).catch(() => {});
 }
 
-export function addIntake(log, intakeInput) {
+export function saveLog(log, supplementsLogDir = SUPPLEMENTS_LOG_DIR, uid = "default") {
+  writeLogFile(log, supplementsLogDir);
+  pushSupplementLog(log.date, log, { uid }).catch(() => {});
+}
+
+export function saveLogFromRemote(log, supplementsLogDir = SUPPLEMENTS_LOG_DIR) {
+  writeLogFile(log, supplementsLogDir);
+}
+
+export function addIntake(log, intakeInput, supplementsLogDir = SUPPLEMENTS_LOG_DIR) {
   const supplementId = (intakeInput.supplement_id || "").toString().trim();
   const name = (intakeInput.name || supplementId).toString().trim();
   if (!supplementId || !name) return null;
@@ -54,7 +61,7 @@ export function addIntake(log, intakeInput) {
   };
 
   log.intakes.push(intake);
-  removeDeletedIntakeId(log.date, intake.id);
+  removeDeletedIntakeId(log.date, intake.id, supplementsLogDir);
   log.deleted_intake_ids = (log.deleted_intake_ids || []).filter((id) => id !== intake.id);
   return intake;
 }
@@ -75,11 +82,11 @@ export function updateIntake(log, intakeId, updates) {
   return merged;
 }
 
-export function deleteIntake(log, intakeId) {
+export function deleteIntake(log, intakeId, supplementsLogDir = SUPPLEMENTS_LOG_DIR) {
   const idx = log.intakes.findIndex((i) => i.id === intakeId);
   if (idx >= 0) {
     log.intakes.splice(idx, 1);
-    addDeletedIntakeId(log.date, intakeId);
+    addDeletedIntakeId(log.date, intakeId, supplementsLogDir);
     log.deleted_intake_ids = Array.from(new Set([...(log.deleted_intake_ids || []), intakeId]));
     return true;
   }

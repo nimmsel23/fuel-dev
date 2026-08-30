@@ -5,18 +5,18 @@ import { isISODate, todayISO, sanitizeMetric } from "../../shared/utils/validati
 import { NUTRITION_DIR } from "../config/paths.mjs";
 import { deleteMeal as deleteMealRow, getMealsForDate, getWater, upsertMeal, upsertWater } from "./nutrition-db.mjs";
 
-function getLogPath(date) {
-  return path.join(NUTRITION_DIR, `${date}.json`);
+function getLogPath(date, nutritionDir = NUTRITION_DIR) {
+  return path.join(nutritionDir, `${date}.json`);
 }
 
-export function loadLog(date) {
+export function loadLog(date, nutritionDir = NUTRITION_DIR) {
   if (!isISODate(date)) date = todayISO();
   const defaultLog = { date, meals: [], water_ml: 0 };
-  return readJsonFile(getLogPath(date), defaultLog);
+  return readJsonFile(getLogPath(date, nutritionDir), defaultLog);
 }
 
-export function saveLog(log) {
-  writeJsonFile(getLogPath(log.date), log);
+export function saveLog(log, nutritionDir = NUTRITION_DIR) {
+  writeJsonFile(getLogPath(log.date, nutritionDir), log);
   const existing = getMealsForDate(log.date);
   const currentIds = new Set((log.meals || []).filter((m) => m.id).map((m) => m.id));
   for (const row of existing) {

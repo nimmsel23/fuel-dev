@@ -1,8 +1,7 @@
 import { z } from "zod";
-import { loadCatalog, saveCatalog, addOrUpdateSupplement, deleteSupplement } from "../services/supplements-catalog.mjs";
+import { loadCatalogForUser, saveCatalog, addOrUpdateSupplement, deleteSupplement } from "../services/supplements-catalog.mjs";
 import { loadLog, saveLog, addIntake, updateIntake, deleteIntake } from "../services/supplements-log.mjs";
 import { isISODate, todayISO } from "../../shared/utils/validation.mjs";
-import { SUPPLEMENTS_LOG_DIR } from "../config/paths.mjs";
 import { callV4 } from "../lib/v4-bridge.mjs";
 import fs from "fs";
 import path from "path";
@@ -60,8 +59,8 @@ const statsQuerySchema = z.object({
 
 export default async function supplementsRoute(app) {
   // GET /supplements/catalog
-  app.get("/supplements/catalog", async (_req, reply) => {
-    const catalog = loadCatalog();
+  app.get("/supplements/catalog", async (req, reply) => {
+    const catalog = loadCatalogForUser(req.paths.supplements, { uid: req.uid });
     return reply.send({ ok: true, items: catalog.items || [] });
   });
 
@@ -73,14 +72,14 @@ export default async function supplementsRoute(app) {
         return reply.status(400).send({ ok: false, error: "Invalid data" });
       }
 
-      const catalog = loadCatalog();
+      const catalog = loadCatalogForUser(req.paths.supplements, { uid: req.uid });
       const item = addOrUpdateSupplement(catalog, parsed.data);
 
       if (!item) {
         return reply.status(400).send({ ok: false, error: "Name required" });
       }
 
-      saveCatalog(catalog);
+      saveCatalog(catalog, req.paths.supplements, { uid: req.uid });
       return reply.send({ ok: true, item });
     } catch (error) {
       console.error(error);
@@ -94,11 +93,11 @@ export default async function supplementsRoute(app) {
       const { id } = req.params;
       if (!id) return reply.status(400).send({ ok: false, error: "ID required" });
 
-      const catalog = loadCatalog();
+      const catalog = loadCatalogForUser(req.paths.supplements, { uid: req.uid });
       const removed = deleteSupplement(catalog, id);
       if (!removed) return reply.status(404).send({ ok: false, error: "Supplement not found" });
 
-      saveCatalog(catalog);
+      saveCatalog(catalog, req.paths.supplements, { uid: req.uid });
       return reply.send({ ok: true });
     } catch (error) {
       console.error(error);
@@ -117,7 +116,7 @@ export default async function supplementsRoute(app) {
       if (bridged.ok) return reply.send(bridged.data);
       if (bridged.status < 500) return reply.status(bridged.status).send(bridged.data);
     } catch {}
-    const log = loadLog(date);
+    const log = loadLog(date, req.paths.supplementsLog);
     return reply.send({ ok: true, data: log });
   });
 
@@ -135,7 +134,7 @@ export default async function supplementsRoute(app) {
       }
 
       try {
-        const catalog = loadCatalog();
+        const catalog = loadCatalogForUser(req.paths.supplements, { uid: req.uid });
         const intake = parsed.data.intake ? {
           ...parsed.data.intake,
           name: parsed.data.intake.name || catalog.items.find((item) => item.id === parsed.data.intake.supplement_id)?.name,
@@ -148,20 +147,20 @@ export default async function supplementsRoute(app) {
         if (bridged.status < 500) return reply.status(bridged.status).send(bridged.data);
       } catch {}
 
-      const log = loadLog(date);
+      const log = loadLog(date, req.paths.supplementsLog);
 
       if (parsed.data.intake) {
-        const intake = addIntake(log, parsed.data.intake);
+        const intake = addIntake(log, parsed.data.intake, req.paths.supplementsLog);
         if (!intake) {
           return reply.status(400).send({ ok: false, error: "Invalid intake" });
         }
       }
 
       if (parsed.data.delete_id) {
-        deleteIntake(log, parsed.data.delete_id);
+        deleteIntake(log, parsed.data.delete_id, req.paths.supplementsLog);
       }
 
-      saveLog(log);
+      saveLog(log, req.paths.supplementsLog, req.uid);
       return reply.send({ ok: true, data: log });
     } catch (error) {
       console.error(error);
@@ -191,13 +190,13 @@ export default async function supplementsRoute(app) {
         if (bridged.status < 500) return reply.status(bridged.status).send(bridged.data);
       } catch {}
 
-      const log = loadLog(date);
+      const log = loadLog(date, req.paths.supplementsLog);
       const updated = updateIntake(log, parsed.data.intake_id, parsed.data.updates);
       if (!updated) {
         return reply.status(404).send({ ok: false, error: "Intake not found" });
       }
 
-      saveLog(log);
+      saveLog(log, req.paths.supplementsLog, req.uid);
       return reply.send({ ok: true, data: log });
     } catch (error) {
       console.error(error);
@@ -226,16 +225,16 @@ export default async function supplementsRoute(app) {
       startDate.setDate(startDate.getDate() - days + 1);
 
       const stats = {};
-      const catalog = loadCatalog();
+      const catalog = loadCatalogForUser(req.paths.supplements, { uid: req.uid });
 
       for (let i = 0; i < days; i++) {
         const d = new Date(startDate);
         d.setDate(d.getDate() + i);
         const dateStr = d.toISOString().split("T")[0];
-        const logPath = path.join(SUPPLEMENTS_LOG_DIR, `${dateStr}.json`);
+        const logPath = path.join(req.paths.supplementsLog, `${dateStr}.json`);
 
         if (fs.existsSync(logPath)) {
-          const log = loadLog(dateStr);
+          const log = loadLog(dateStr, req.paths.supplementsLog);
           for (const intake of log.intakes || []) {
             const suppId = intake.supplement_id;
             if (!stats[suppId]) {
@@ -259,9 +258,9 @@ export default async function supplementsRoute(app) {
           const d = new Date(anchorDate);
           d.setDate(d.getDate() - i);
           const dateStr = d.toISOString().split("T")[0];
-          const logPath = path.join(SUPPLEMENTS_LOG_DIR, `${dateStr}.json`);
+          const logPath = path.join(req.paths.supplementsLog, `${dateStr}.json`);
           const hasIntake = fs.existsSync(logPath) &&
-            loadLog(dateStr).intakes.some((intake) => intake.supplement_id === suppId);
+            loadLog(dateStr, req.paths.supplementsLog).intakes.some((intake) => intake.supplement_id === suppId);
           if (hasIntake) { streak += 1; }
           else if (dateStr === todayStr) { continue; } // heute noch nicht geloggt → nicht brechen
           else { break; }
