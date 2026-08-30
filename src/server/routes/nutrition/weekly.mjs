@@ -1,6 +1,5 @@
 import path from "path";
 import fs from "fs";
-import { NUTRITION_DIR } from "../../config/paths.mjs";
 import { zeroMicros, MICRO_KEYS, computeMealMicroTotals } from "../../services/nutrition-micros.mjs";
 import { loadCatalog } from "../../services/nutrition-catalog.mjs";
 import { loadCatalog as loadSupplementsCatalog } from "../../services/supplements-catalog.mjs";
@@ -23,16 +22,16 @@ function getWeekDates(year, week) {
   return dates;
 }
 
-function loadNutritionLog(date) {
-  const filePath = path.join(NUTRITION_DIR, `${date}.json`);
+function loadNutritionLog(date, nutritionDir) {
+  const filePath = path.join(nutritionDir, `${date}.json`);
   if (fs.existsSync(filePath)) {
     try { return JSON.parse(fs.readFileSync(filePath, "utf-8")); } catch { /* fall through */ }
   }
   return { date, meals: [], water_ml: 0 };
 }
 
-function saveNutritionLog(log) {
-  fs.writeFileSync(path.join(NUTRITION_DIR, `${log.date}.json`), JSON.stringify(log, null, 2), "utf-8");
+function saveNutritionLog(log, nutritionDir) {
+  fs.writeFileSync(path.join(nutritionDir, `${log.date}.json`), JSON.stringify(log, null, 2), "utf-8");
 }
 
 // Gibt zusätzlich die Pro-Supplement-Beiträge zurück (für Modal-Aufschlüsselung
@@ -80,7 +79,7 @@ export default async function weeklyRoute(app) {
       }
 
       const dates = getWeekDates(y, w);
-      const catalog = loadCatalog();
+      const catalog = loadCatalog(req.paths.nutrition, { uid: req.uid });
       const suppCatalog = loadSupplementsCatalog();
       const suppCatalogMap = Object.fromEntries(suppCatalog.items.map((i) => [i.id, i]));
 
@@ -89,7 +88,7 @@ export default async function weeklyRoute(app) {
       const mealBreakdown = {};
 
       for (const date of dates) {
-        const log = loadNutritionLog(date);
+        const log = loadNutritionLog(date, req.paths.nutrition);
         let mealTotals;
 
         if (log.micro_totals && log.micro_totals_complete) {
@@ -108,7 +107,7 @@ export default async function weeklyRoute(app) {
           if ((log.meals || []).some((m) => m.micros)) {
             log.micro_totals = totals;
             log.micro_totals_complete = complete;
-            saveNutritionLog(log);
+            saveNutritionLog(log, req.paths.nutrition);
           }
 
           if (!complete) {

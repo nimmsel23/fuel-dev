@@ -7,23 +7,22 @@ import { loadCatalog as loadSupplementsCatalog } from "../../services/supplement
 import { loadLog as loadSupplementLog } from "../../services/supplements-log.mjs";
 import path from "path";
 import fs from "fs";
-import { NUTRITION_DIR } from "../../config/paths.mjs";
 
 const searchQuerySchema = z.object({
   q: z.string().min(1, "q required"),
   limit: z.coerce.number().int().min(1).max(50).default(20),
 });
 
-function loadLog(date) {
-  const filePath = path.join(NUTRITION_DIR, `${date}.json`);
+function loadLog(date, nutritionDir) {
+  const filePath = path.join(nutritionDir, `${date}.json`);
   if (fs.existsSync(filePath)) {
     try { return JSON.parse(fs.readFileSync(filePath, "utf-8")); } catch { /* fall through */ }
   }
   return { date, meals: [], water_ml: 0 };
 }
 
-function saveLog(log) {
-  fs.writeFileSync(path.join(NUTRITION_DIR, `${log.date}.json`), JSON.stringify(log, null, 2), "utf-8");
+function saveLog(log, nutritionDir) {
+  fs.writeFileSync(path.join(nutritionDir, `${log.date}.json`), JSON.stringify(log, null, 2), "utf-8");
 }
 
 export default async function dailyRoute(app) {
@@ -39,8 +38,8 @@ export default async function dailyRoute(app) {
       const { date } = req.params;
       if (!isISODate(date)) return reply.status(400).send({ ok: false, error: "Invalid date format" });
 
-      const log = loadLog(date);
-      const catalog = loadCatalog();
+      const log = loadLog(date, req.paths.nutrition);
+      const catalog = loadCatalog(req.paths.nutrition, { uid: req.uid });
       const macros = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
 
       for (const meal of log.meals || []) {
@@ -54,7 +53,7 @@ export default async function dailyRoute(app) {
       // in-place gecacht) — wurde die Woche schon einmal geladen, ist das
       // hier ein reiner Cache-Hit statt erneuter Katalog-Namens-Lookups.
       const { totals: micros } = computeMealMicroTotals(log.meals, catalog);
-      if ((log.meals || []).some((m) => m.micros)) saveLog(log);
+      if ((log.meals || []).some((m) => m.micros)) saveLog(log, req.paths.nutrition);
 
       // Supplement micros
       const suppCatalog = loadSupplementsCatalog();

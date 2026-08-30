@@ -26,15 +26,15 @@ export default async function aiLogRoute(app) {
       }
 
       if (result.type === "meal") {
-        const log = loadLog(date);
+        const log = loadLog(date, req.paths.nutrition);
         addMeal(log, result.meal);
-        saveLog(log);
-        upsertLoggedMeal(loadCatalog(), result.meal);
+        saveLog(log, req.paths.nutrition);
+        upsertLoggedMeal(loadCatalog(req.paths.nutrition, { uid: req.uid }), result.meal);
         return reply.send({ ok: true, type: "meal" });
       } else if (result.type === "catalog") {
-        const catalog = loadCatalog();
+        const catalog = loadCatalog(req.paths.nutrition, { uid: req.uid });
         addOrUpdateItem(catalog, { ...result.meal, source: "gemini" });
-        saveCatalog(catalog);
+        saveCatalog(catalog, req.paths.nutrition, { uid: req.uid });
         return reply.send({ ok: true, type: "catalog" });
       } else {
         return reply.status(400).send({ ok: false, error: "Keine Ernährungsinformation erkannt" });

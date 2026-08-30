@@ -14,7 +14,7 @@ export default async function composeRoute(app) {
       const composed = await composeMeal(description);
 
       if (save_catalog && composed.kcal > 0) {
-        const catalog = loadCatalog();
+        const catalog = loadCatalog(req.paths.nutrition, { uid: req.uid });
 
         // Save meal to individual file
         const catalogItem = {

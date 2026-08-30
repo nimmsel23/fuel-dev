@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import YAML from "yaml";
-import { NUTRITION_MEALS_DIR } from "../config/paths.mjs";
+import { NUTRITION_DIR, NUTRITION_MEALS_DIR } from "../config/paths.mjs";
 import { slugifyId } from "../../shared/utils/ids.mjs";
 import { pushNutritionCatalog } from "../lib/firestore-admin.mjs";
 import { verifyCatalogItemAsync } from "./nutrition-catalog-verify.mjs";
@@ -23,40 +23,64 @@ function sortCatalogItems(items) {
   });
 }
 
-export function loadCatalog() {
+function catalogJsonPath(nutritionDir = NUTRITION_DIR) {
+  return path.join(nutritionDir, "catalog.json");
+}
+
+function withCatalogMeta(catalog, nutritionDir = null, uid = "default") {
+  if (!catalog || typeof catalog !== "object") return catalog;
+  Object.defineProperty(catalog, "__nutritionDir", { value: nutritionDir, enumerable: false, writable: true });
+  Object.defineProperty(catalog, "__uid", { value: uid, enumerable: false, writable: true });
+  return catalog;
+}
+
+function loadLegacyCatalog() {
   if (!fs.existsSync(NUTRITION_MEALS_DIR)) fs.mkdirSync(NUTRITION_MEALS_DIR, { recursive: true });
-  
-  // Support .yaml and .json — skip tombstones (.deleted) and backups (.bak)
+
   const files = fs.readdirSync(NUTRITION_MEALS_DIR).filter((f) =>
     (f.endsWith(".yaml") || f.endsWith(".yml") || f.endsWith(".json")) &&
     !f.includes(".deleted") && !f.includes(".bak")
   );
-  
+
   const items = [];
   const seenIds = new Set();
 
   for (const file of files) {
     const ext = path.extname(file);
     const id = path.basename(file, ext);
-    
-    // If we have both .yaml and .json for the same ID, prefer .yaml
-    if (seenIds.has(id) && (ext === ".json")) continue;
-    
+    if (seenIds.has(id) && ext === ".json") continue;
     try {
       const raw = fs.readFileSync(path.join(NUTRITION_MEALS_DIR, file), "utf-8");
-      let data;
-      if (ext === ".json") {
-        data = JSON.parse(raw);
-      } else {
-        data = YAML.parse(raw);
-      }
+      const data = ext === ".json" ? JSON.parse(raw) : YAML.parse(raw);
       items.push(data);
       seenIds.add(id);
     } catch (e) {
       console.warn(`[nutrition-catalog] skip corrupt file ${file}:`, e.message);
     }
   }
-  return { items: sortCatalogItems(items) };
+
+  return { items: sortCatalogItems(items), deleted_ids: [] };
+}
+
+export function loadCatalog(nutritionDir = null, { uid = "default" } = {}) {
+  if (!nutritionDir) return withCatalogMeta(loadLegacyCatalog(), null, uid);
+
+  const file = catalogJsonPath(nutritionDir);
+  if (fs.existsSync(file)) {
+    try {
+      const raw = JSON.parse(fs.readFileSync(file, "utf-8"));
+      return withCatalogMeta({
+        items: sortCatalogItems(Array.isArray(raw.items) ? raw.items : []),
+        deleted_ids: Array.isArray(raw.deleted_ids) ? raw.deleted_ids : [],
+      }, nutritionDir, uid);
+    } catch (e) {
+      console.warn(`[nutrition-catalog] failed to read ${file}:`, e.message);
+    }
+  }
+
+  const legacy = loadLegacyCatalog();
+  console.warn(`[nutrition-catalog] user catalog missing at ${file} — falling back to legacy repo catalog`);
+  return withCatalogMeta(legacy, nutritionDir, uid);
 }
 
 export function loadMeal(id) {
@@ -77,7 +101,26 @@ export function loadMeal(id) {
   return null;
 }
 
-export function saveMeal(item) {
+function writeUserCatalog(catalog, nutritionDir, uid, { skipPush = false } = {}) {
+  if (!fs.existsSync(nutritionDir)) fs.mkdirSync(nutritionDir, { recursive: true });
+  const file = catalogJsonPath(nutritionDir);
+  fs.writeFileSync(file, JSON.stringify({
+    items: sortCatalogItems([...(catalog.items || [])]),
+    deleted_ids: Array.from(new Set(catalog.deleted_ids || [])),
+  }, null, 2), "utf-8");
+  if (skipPush) return;
+  if (uid && uid !== "default") {
+    pushNutritionCatalog(catalog.items || [], {
+      uid,
+      deletedIds: catalog.deleted_ids || [],
+      sourcePath: file,
+    }).catch(() => {});
+  } else {
+    console.log(`[nutrition-catalog] scope=catalog direction=save uid=default path=${file} result=local-only count=${(catalog.items || []).length}`);
+  }
+}
+
+function saveMealLegacy(item) {
   if (!fs.existsSync(NUTRITION_MEALS_DIR)) fs.mkdirSync(NUTRITION_MEALS_DIR, { recursive: true });
 
   item.updated_at = new Date().toISOString();
@@ -112,7 +155,27 @@ export function saveMeal(item) {
   return item;
 }
 
-export function deleteMeal(id) {
+export function saveMeal(item, nutritionDir = null, { uid = "default", catalog = null } = {}) {
+  if (!nutritionDir) return saveMealLegacy(item);
+  const nextCatalog = catalog || loadCatalog(nutritionDir, { uid });
+  const items = [...(nextCatalog.items || [])];
+  const index = items.findIndex((existing) => existing.id === item.id);
+  if (index >= 0) items[index] = item;
+  else items.push(item);
+  nextCatalog.items = sortCatalogItems(items);
+  nextCatalog.deleted_ids = (nextCatalog.deleted_ids || []).filter((deletedId) => deletedId !== item.id);
+  writeUserCatalog(nextCatalog, nutritionDir, uid);
+  return item;
+}
+
+export function deleteMeal(id, nutritionDir = null, { uid = "default", catalog = null } = {}) {
+  if (nutritionDir) {
+    const nextCatalog = catalog || loadCatalog(nutritionDir, { uid });
+    nextCatalog.items = (nextCatalog.items || []).filter((item) => item.id !== id);
+    nextCatalog.deleted_ids = Array.from(new Set([...(nextCatalog.deleted_ids || []), id]));
+    writeUserCatalog(nextCatalog, nutritionDir, uid);
+    return;
+  }
   let deleted = false;
   for (const ext of [".yaml", ".yml", ".json"]) {
     const p = mealPath(id, ext);
@@ -137,7 +200,11 @@ export function deleteMeal(id) {
 // Merge (eine lokale Löschung muss auch dann gewinnen, wenn Firestore die ID
 // zwischenzeitlich wieder enthält, z.B. weil sie während lokaler Downtime
 // über die Cloud-UI neu angelegt wurde).
-export function listDeletedMealIds() {
+export function listDeletedMealIds(nutritionDir = null) {
+  if (nutritionDir) {
+    const catalog = loadCatalog(nutritionDir);
+    return Array.from(new Set(catalog.deleted_ids || []));
+  }
   if (!fs.existsSync(NUTRITION_MEALS_DIR)) return [];
   return fs.readdirSync(NUTRITION_MEALS_DIR)
     .filter((f) => f.includes(".deleted"))
@@ -191,19 +258,43 @@ export function addOrUpdateItem(catalog, input) {
     item.created_at = existing.created_at;
     item.verified_at = existing.verified_at || null;
   }
-  saveMeal(item);
+  if (catalog.__nutritionDir) {
+    saveMeal(item, catalog.__nutritionDir, { uid: catalog.__uid, catalog });
+  } else {
+    saveMeal(item);
+  }
   return item;
 }
 
-// Legacy compat — catalog.items is built on the fly, no save needed
-export function saveCatalog(_catalog) { /* no-op: individual files are saved directly */ }
+export function saveCatalog(catalog, nutritionDir = null, { uid = "default" } = {}) {
+  const targetDir = nutritionDir || catalog?.__nutritionDir || null;
+  const targetUid = uid || catalog?.__uid || "default";
+  if (!targetDir) return;
+  writeUserCatalog(catalog, targetDir, targetUid);
+}
 
 // Schreibt einen von Firestore gepullten Catalog-Eintrag direkt als YAML,
 // ohne den saveMeal()-Push-Loop (sonst pusht jeder Pull sofort wieder
 // dasselbe Item zurück nach Firestore). Nur wirklich neue (lokal unbekannte)
 // Items lösen die Haiku-Verifikation aus — sonst würde jeder Pull-Zyklus
 // für ältere, nie lokal verifizierte Cloud-Items erneut Haiku-Calls feuern.
-export function importMealFromRemote(item, { isNew }) {
+export function importMealFromRemote(item, { isNew, nutritionDir = null, uid = "default", catalog = null } = {}) {
+  if (nutritionDir) {
+    const nextCatalog = catalog || loadCatalog(nutritionDir, { uid });
+    const normalized = normalizeMeal(item, item.id);
+    normalized.updated_at = item.updated_at || normalized.updated_at;
+    normalized.verified_at = item.verified_at || null;
+    const items = [...(nextCatalog.items || [])];
+    const index = items.findIndex((existing) => existing.id === normalized.id);
+    if (index >= 0) items[index] = normalized;
+    else items.push(normalized);
+    nextCatalog.items = sortCatalogItems(items);
+    nextCatalog.deleted_ids = (nextCatalog.deleted_ids || []).filter((deletedId) => deletedId !== normalized.id);
+    writeUserCatalog(nextCatalog, nutritionDir, uid, { skipPush: true });
+    if (isNew && !normalized.verified_at) verifyCatalogItemAsync(normalized.id);
+    if (isNew) estimateMicrosAsync(normalized.name, normalized.kcal);
+    return normalized;
+  }
   if (!fs.existsSync(NUTRITION_MEALS_DIR)) fs.mkdirSync(NUTRITION_MEALS_DIR, { recursive: true });
   // normalizeMeal statt Rohdaten schreiben — Firestore-Log-Einträge können
   // kcal/protein etc. als String enthalten (Cloud-seitiger Auto-Catalog-Bug),
@@ -254,7 +345,14 @@ function estimateMicrosAsync(name, kcal) {
 // vorhandener "manual"-Eintrag beschreibt). Ein leeres Tombstone-File reicht,
 // listDeletedMealIds() liest nur den Dateinamen, nicht den Inhalt — und
 // pushNutritionCatalog() zieht die ID dadurch dauerhaft aus dem Merge raus.
-export function tombstoneMealId(id) {
+export function tombstoneMealId(id, nutritionDir = null, { uid = "default", catalog = null } = {}) {
+  if (nutritionDir) {
+    const nextCatalog = catalog || loadCatalog(nutritionDir, { uid });
+    nextCatalog.items = (nextCatalog.items || []).filter((item) => item.id !== id);
+    nextCatalog.deleted_ids = Array.from(new Set([...(nextCatalog.deleted_ids || []), id]));
+    writeUserCatalog(nextCatalog, nutritionDir, uid, { skipPush: true });
+    return;
+  }
   if (!fs.existsSync(NUTRITION_MEALS_DIR)) fs.mkdirSync(NUTRITION_MEALS_DIR, { recursive: true });
   const tomb = mealPath(id, ".yaml.deleted");
   if (!fs.existsSync(tomb)) fs.writeFileSync(tomb, "", "utf-8");
@@ -294,6 +392,10 @@ export function upsertLoggedMeal(catalog, mealInput) {
     created_at: existing?.created_at,
   }, existing?.id || mealInput?.catalog_id || null);
   if (!next) return null;
-  saveMeal(next);
+  if (catalog.__nutritionDir) {
+    saveMeal(next, catalog.__nutritionDir, { uid: catalog.__uid, catalog });
+  } else {
+    saveMeal(next);
+  }
   return next;
 }

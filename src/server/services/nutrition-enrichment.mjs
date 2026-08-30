@@ -121,8 +121,8 @@ export async function enrichMeal(meal, catalog) {
  * @param {object[]} meals – from a Firestore day doc or SQLite
  * @returns {Promise<{ meals: object[], changed: boolean }>}
  */
-export async function enrichNutritionLog(meals) {
-  const catalog = loadCatalog();
+export async function enrichNutritionLog(meals, options = {}) {
+  const catalog = loadCatalog(options.nutritionDir || null, { uid: options.uid || "default" });
   let anyChanged = false;
   const result = [];
   for (const meal of meals || []) {

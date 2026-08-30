@@ -1,4 +1,5 @@
 import os from "os";
+import path from "path";
 import { PORT } from "../../shared/config/constants.mjs";
 import { getSyncStatus, pushNutritionCatalog, pushSupplementsCatalog, pullNow } from "../lib/firestore-admin.mjs";
 import { loadCatalog as loadNutritionCatalog } from "../services/nutrition-catalog.mjs";
@@ -20,10 +21,10 @@ function serverMode() {
 }
 
 export default async function coachRoute(app) {
-  app.get("/coach/health", async (_req, reply) => {
+  app.get("/coach/health", async (req, reply) => {
     let nutritionCount = 0;
     let supplementsCount = 0;
-    try { nutritionCount = loadNutritionCatalog().items.length; } catch { /* left at 0 */ }
+    try { nutritionCount = loadNutritionCatalog(req.paths.nutrition, { uid: req.uid }).items.length; } catch { /* left at 0 */ }
     try { supplementsCount = loadSupplementsCatalog().items.length; } catch { /* left at 0 */ }
 
     return reply.send({
@@ -41,10 +42,14 @@ export default async function coachRoute(app) {
     });
   });
 
-  app.post("/coach/sync/push", async (_req, reply) => {
-    const nutCat = loadNutritionCatalog();
+  app.post("/coach/sync/push", async (req, reply) => {
+    const nutCat = loadNutritionCatalog(req.paths.nutrition, { uid: req.uid });
     const suppCat = loadSupplementsCatalog();
-    await pushNutritionCatalog(nutCat.items);
+    await pushNutritionCatalog(nutCat.items, {
+      uid: req.uid,
+      deletedIds: nutCat.deleted_ids || [],
+      sourcePath: path.join(req.paths.nutrition, "catalog.json"),
+    });
     await pushSupplementsCatalog(suppCat.items);
     return reply.send({
       ok: true,
@@ -81,7 +86,8 @@ export default async function coachRoute(app) {
         if (meals.length === 0) continue;
 
         const { meals: enriched, changed } = await enrichNutritionLog(
-          meals.map((m) => ({ ...m, date }))
+          meals.map((m) => ({ ...m, date })),
+          { nutritionDir: req.paths.nutrition, uid: req.uid }
         );
         if (changed) {
           for (const meal of enriched) upsertMeal(meal);

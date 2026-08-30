@@ -28,6 +28,7 @@ import path from "path";
 import { createRequire } from "module";
 import { todayISO } from "../../shared/utils/validation.mjs";
 import logger from "./logger.mjs";
+import { GLOBAL_DATA_DIR } from "../config/paths.mjs";
 
 const require = createRequire(import.meta.url);
 
@@ -122,6 +123,11 @@ function markPushError(message) {
   _status.lastPushError = message;
 }
 
+function userNutritionDir(uid = UID) {
+  if (!uid || uid === "default") return null;
+  return path.join(GLOBAL_DATA_DIR, "users", uid, "nutrition");
+}
+
 // ── PUSH ─────────────────────────────────────────────────────────────────────
 
 /**
@@ -142,12 +148,22 @@ function markPushError(message) {
  *   3. Lokal tombstoned IDs werden explizit aus dem Ergebnis entfernt —
  *      eine lokale Löschung gewinnt IMMER, unabhängig vom Remote-Stand.
  */
-export async function pushNutritionCatalog(items) {
+export async function pushNutritionCatalog(items, options = {}) {
   const db = getDb();
   if (!db) return;
   try {
+    const uid = options.uid || UID;
+    const deletedIds = Array.isArray(options.deletedIds) ? options.deletedIds : null;
+    const sourcePath = options.sourcePath || "repo:catalogs/nutrition/meals";
+    if (!uid || uid === "default") {
+      logger.info(
+        `[firestore-admin] scope=catalog direction=push uid=default ` +
+        `target=nutrition path=${sourcePath} result=skip reason=local_only`
+      );
+      return;
+    }
     const { listDeletedMealIds } = await import("../services/nutrition-catalog.mjs");
-    const ref = db.collection("nutrition").doc(UID).collection("meta").doc("catalog");
+    const ref = db.collection("nutrition").doc(uid).collection("meta").doc("catalog");
 
     const snap = await ref.get();
     const remoteItems = snap.exists ? (snap.data().items || []) : [];
@@ -159,13 +175,13 @@ export async function pushNutritionCatalog(items) {
         || new Date(local.updated_at) >= new Date(remote.updated_at);
       if (localNewer) merged.set(local.id, local);
     }
-    for (const deletedId of listDeletedMealIds()) merged.delete(deletedId);
+    for (const deletedId of (deletedIds || listDeletedMealIds())) merged.delete(deletedId);
 
     const mergedItems = Array.from(merged.values());
     await ref.set({ items: mergedItems, updated_at: new Date().toISOString() }, { merge: false });
     logger.info(
-      `[firestore-admin] scope=catalog direction=push uid=${UID} ` +
-      `target=nutrition path=firestore:nutrition/${UID}/meta/catalog result=ok count=${mergedItems.length}`
+      `[firestore-admin] scope=catalog direction=push uid=${uid} ` +
+      `target=nutrition path=firestore:nutrition/${uid}/meta/catalog result=ok count=${mergedItems.length}`
     );
     markPushOk();
   } catch (e) {
@@ -307,6 +323,7 @@ async function pullRecentLogs() {
  */
 export async function pullNutritionCatalog(db) {
   const { loadCatalog, listDeletedMealIds, importMealFromRemote, tombstoneMealId } = await import("../services/nutrition-catalog.mjs");
+  const nutritionDir = userNutritionDir();
 
   const ref = db.collection("nutrition").doc(UID).collection("meta").doc("catalog");
   const snap = await ref.get();
@@ -315,10 +332,10 @@ export async function pullNutritionCatalog(db) {
   const normalizeName = (s) => String(s || "").trim().toLowerCase().replace(/\s+/g, " ");
 
   const remoteItems = snap.data().items || [];
-  const local = loadCatalog();
+  const local = loadCatalog(nutritionDir, { uid: UID });
   const localById = new Map(local.items.map((it) => [it.id, it]));
   const localByName = new Map(local.items.map((it) => [normalizeName(it.name), it]));
-  const deletedIds = new Set(listDeletedMealIds());
+  const deletedIds = new Set(listDeletedMealIds(nutritionDir));
 
   let imported = 0;
   let graveyarded = 0;
@@ -332,7 +349,7 @@ export async function pullNutritionCatalog(db) {
     // Same dish, different id already known locally under a different id →
     // duplicate, bury the incoming id instead of writing a second file.
     if (existingByName && existingByName.id !== remote.id) {
-      tombstoneMealId(remote.id);
+      tombstoneMealId(remote.id, nutritionDir, { uid: UID, catalog: local });
       deletedIds.add(remote.id);
       graveyarded += 1;
       continue;
@@ -341,20 +358,20 @@ export async function pullNutritionCatalog(db) {
     const remoteNewer = !existingById || !existingById.updated_at || !remote.updated_at
       || new Date(remote.updated_at) > new Date(existingById.updated_at);
     if (!remoteNewer) continue;
-    importMealFromRemote(remote, { isNew: !existingById });
+    importMealFromRemote(remote, { isNew: !existingById, nutritionDir, uid: UID, catalog: local });
     imported += 1;
   }
 
   if (imported > 0) {
     logger.info(
       `[firestore-admin] scope=catalog direction=pull uid=${UID} ` +
-      `target=nutrition path=repo:catalogs/nutrition/meals result=ok imported=${imported} total=${remoteItems.length}`
+      `target=nutrition path=${nutritionDir || "repo:catalogs/nutrition/meals"} result=ok imported=${imported} total=${remoteItems.length}`
     );
   }
   if (graveyarded > 0) {
     logger.info(
       `[firestore-admin] scope=catalog direction=pull uid=${UID} ` +
-      `target=nutrition path=repo:catalogs/nutrition/meals result=graveyarded count=${graveyarded}`
+      `target=nutrition path=${nutritionDir || "repo:catalogs/nutrition/meals"} result=graveyarded count=${graveyarded}`
     );
   }
 
@@ -362,7 +379,12 @@ export async function pullNutritionCatalog(db) {
   // to the same corrected state instead of keeping the raw/duplicate data
   // forever (mirrors the log-enrichment push-back below).
   if (imported > 0 || graveyarded > 0) {
-    await pushNutritionCatalog(loadCatalog().items);
+    const syncedCatalog = loadCatalog(nutritionDir, { uid: UID });
+    await pushNutritionCatalog(syncedCatalog.items, {
+      uid: UID,
+      deletedIds: syncedCatalog.deleted_ids || [],
+      sourcePath: nutritionDir ? path.join(nutritionDir, "catalog.json") : "repo:catalogs/nutrition/meals",
+    });
   }
 }
 
@@ -399,6 +421,8 @@ async function doPullRecentLogs(db) {
           (remote.meals || [])
             .filter((m) => !mergedDeletedIds.includes(m.id))
             .map((m) => ({ ...m, date }))
+          ,
+          { nutritionDir: userNutritionDir(), uid: UID }
         );
 
         deleteMealsByIds(date, mergedDeletedIds);
