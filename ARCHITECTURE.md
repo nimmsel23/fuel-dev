@@ -186,6 +186,22 @@ Begründung:
 - Dev und Prod sollen nicht parallel dieselben Userdaten syncen
 - sichtbare Server-Logs müssen klar einem aktiven Sync-Owner zuordenbar sein
 
+### Dev Service Boundary
+
+Für den lokalen Dev-Stack gilt seit 2026-08-31 zusätzlich:
+
+- ein eigener `fuel-dev.service` ist architektonisch unerwünscht
+- Dev soll terminalgeführt bleiben über `fuel-devctl` oder direkte `npm run dev*`
+- ein systemd-Dev-Service verwischt die Grenze zwischen bewusst gestarteter
+  Entwicklungsumgebung und dauerhaft laufendem Prod-Betrieb
+
+Pragmatische Folge:
+
+- v3/Vite-Start im Dev lieber über Terminal-Kommandos
+- Prod bleibt systemd-owned
+- Dev-Prozessprobleme sind eher im Frontdoor-/CLI-Flow zu lösen als durch
+  mehr systemd-Automation
+
 ## v3 / v4 Boundary
 
 Fuel befindet sich in einem Übergang:
@@ -199,6 +215,25 @@ Wichtig:
 - die User-Isolation darf in beiden Schichten nicht verloren gehen
 - ein v3 Fallback darf niemals implizit wieder auf einen globalen User-Speicher
   schreiben
+
+### Open Direction
+
+Stand 2026-08-31 ist Prod noch v3-fronted (`fuel.service` auf `:7000`) mit
+parallelem v4-Service auf `:4000`.
+
+Offene Architekturfrage:
+
+- ob Desktop-Prod mittelfristig nicht direkt v4 als eigentlichen Prod-Entry
+  nehmen sollte
+- statt v3 dauerhaft als Frontdoor vor einem ebenfalls laufenden v4-Service zu
+  behalten
+
+Hintergrund:
+
+- der aktuelle Dualbetrieb erhöht Betriebs- und Debug-Komplexität
+- `fuelctl prod status`/`fuel-prodctl` fokussieren historisch noch primär v3
+- Dev/Prod-Grenzen werden klarer, wenn das Zielbild explizit festgelegt wird:
+  v4 als echter Prod oder bewusster Dauerbetrieb von v3+v4
 
 ### v4 Repo Shape
 

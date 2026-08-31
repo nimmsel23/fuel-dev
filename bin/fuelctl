@@ -8,9 +8,9 @@ fuel-vos.web.app -- via `sync`, siehe fuelctl sync/deploy:cloud in package.json)
 Maschine laufen -- der einzige echte Gegenpol dazu ist "cloud".
 """
 
+import json
 import os
 import subprocess
-import sys
 from pathlib import Path
 from typing import Optional
 
@@ -48,18 +48,15 @@ def _unit_port(service: str, fallback: str) -> str:
 PORT = os.getenv("PORT", "9000")
 PROD_PORT = os.getenv("PROD_PORT") or _unit_port(PROD_SERVICE, "7000")
 PY_PROD_PORT = os.getenv("PY_PROD_PORT") or _unit_port(PY_PROD_SERVICE, "4000")
-CATALOG_PORT = "9050"
-
 HEALTH_URL = f"http://127.0.0.1:{PORT}/health"
 PROD_HEALTH_URL = f"http://127.0.0.1:{PROD_PORT}/health"
 PY_PROD_HEALTH_URL = f"http://127.0.0.1:{PY_PROD_PORT}/health"
+PROD_COACH_HEALTH_URL = f"http://127.0.0.1:{PROD_PORT}/coach/health"
 
 WORKDIR = Path(__file__).resolve().parent.parent
 BIN_DEVCTL = WORKDIR / "bin" / "fuel-devctl"
 BIN_PRODCTL = WORKDIR / "bin" / "fuel-prodctl"
 SYNC_SCRIPT = WORKDIR / "scripts" / "firestore-sync.mjs"
-CATALOG_SERVER_SCRIPT = WORKDIR / "fuel-catalog-server.py"
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def gum_log(level: str, text: str):
@@ -71,12 +68,25 @@ def gum_log(level: str, text: str):
         elif level == "error": msg.fail(text)
 
 def check_url(url: str) -> bool:
-    import urllib.request
     try:
-        with urllib.request.urlopen(url, timeout=1):
-            return True
-    except:
+        res = subprocess.run(
+            ["curl", "-fsS", "-o", "/dev/null", "--max-time", "1", url],
+            capture_output=True,
+            text=True,
+        )
+        return res.returncode == 0
+    except Exception:
         return False
+
+
+def get_json(url: str) -> Optional[dict]:
+    import urllib.request
+
+    try:
+        with urllib.request.urlopen(url, timeout=1) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except Exception:
+        return None
 
 # ── Commands ──────────────────────────────────────────────────────────────────
 
@@ -87,8 +97,9 @@ def status():
     subprocess.run([str(BIN_DEVCTL), "status"])
 
     # 2. Prod
+    prod_coach_health = get_json(PROD_COACH_HEALTH_URL)
     msg.divider("Fuel Centre · Prod (Desktop)")
-    if check_url(PROD_HEALTH_URL):
+    if prod_coach_health:
         msg.good(f"Fuel prod v3 is running on :{PROD_PORT}")
     else:
         msg.warn(f"Fuel prod v3 is NOT responding on :{PROD_PORT}")
@@ -97,21 +108,30 @@ def status():
     else:
         msg.warn(f"Fuel prod v4 is NOT responding on :{PY_PROD_PORT}")
 
-    # 3. Catalog Server
-    msg.divider("Catalog Server")
-    if check_url(f"http://127.0.0.1:{CATALOG_PORT}/catalogs/nutrition"):
-        msg.good(f"Catalog Server is running on :{CATALOG_PORT}")
+    # 3. Catalogs
+    msg.divider("Catalogs")
+    catalogs = (prod_coach_health or {}).get("catalogs")
+    if isinstance(catalogs, dict):
+        nutrition_count = catalogs.get("nutrition", 0)
+        supplements_count = catalogs.get("supplements", 0)
+        msg.good(
+            f"Prod runtime catalogs loaded: nutrition={nutrition_count}, supplements={supplements_count}"
+        )
     else:
-        msg.warn(f"Catalog Server is NOT responding on :{CATALOG_PORT}")
+        msg.warn("Catalog state unavailable from prod runtime")
 
     # 4. Firestore Sync
     msg.divider("Firestore Sync")
-    # Check if watcher is running
-    res = subprocess.run(["pgrep", "-f", "firestore-sync.mjs watch"], capture_output=True)
-    if res.returncode == 0:
-        msg.good("Sync Watcher is active")
+    firestore = (prod_coach_health or {}).get("firestoreAdmin")
+    if isinstance(firestore, dict) and firestore.get("connected"):
+        active_uids = firestore.get("activeUids") or firestore.get("uids") or []
+        push_count = firestore.get("pushCount", 0)
+        listener_count = firestore.get("listenerCount", 0)
+        msg.good(
+            f"Prod Firestore sync active: listeners={listener_count}, pushes={push_count}, users={len(active_uids)}"
+        )
     else:
-        msg.warn("Sync Watcher is idle")
+        msg.warn("Prod Firestore sync is not connected")
 
 @app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
 def dev(
@@ -198,20 +218,19 @@ def sync(action: Optional[str] = typer.Argument(None, help="push, pull, watch"))
 
 @app.command()
 def catalog(action: str = typer.Argument("status", help="start, stop, status")):
-    """Manage the catalog server."""
-    if action == "start":
-        msg.info(f"Starting Catalog Server on port {CATALOG_PORT}...")
-        subprocess.Popen([sys.executable, str(CATALOG_SERVER_SCRIPT)], 
-                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                         start_new_session=True)
-    elif action == "stop":
-        msg.info("Stopping Catalog Server...")
-        subprocess.run(["pkill", "-f", f"python3 {CATALOG_SERVER_SCRIPT}"])
-    elif action == "status":
-        if check_url(f"http://127.0.0.1:{CATALOG_PORT}/catalogs/nutrition"):
-            msg.good(f"Catalog Server is running on :{CATALOG_PORT}")
+    """Deprecated: catalogs are served from the prod runtime, not a separate server."""
+    if action == "status":
+        prod_coach_health = get_json(PROD_COACH_HEALTH_URL)
+        catalogs = (prod_coach_health or {}).get("catalogs")
+        if isinstance(catalogs, dict):
+            msg.good(
+                f"Prod runtime catalogs: nutrition={catalogs.get('nutrition', 0)}, supplements={catalogs.get('supplements', 0)}"
+            )
         else:
-            msg.warn("Catalog Server is NOT running")
+            msg.warn("Catalog state unavailable from prod runtime")
+        return
+
+    msg.warn("Separate catalog server no longer exists. Catalogs are handled by the prod runtime.")
 
 if __name__ == "__main__":
     app()
