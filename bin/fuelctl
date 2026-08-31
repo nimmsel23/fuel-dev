@@ -23,6 +23,7 @@ app = typer.Typer(help="Fuel Centre Universal Control", no_args_is_help=True)
 # ── Config ────────────────────────────────────────────────────────────────────
 
 PROD_SERVICE = "fuel.service"  # systemd unit (vormals fuel-v2.service, umbenannt -- Kontrolle via fuel-prodctl, nicht hier)
+PY_PROD_SERVICE = "fuel-python.service"
 
 
 def _unit_port(service: str, fallback: str) -> str:
@@ -46,10 +47,12 @@ def _unit_port(service: str, fallback: str) -> str:
 # hier bleibt die env-Var/Default die einzige Quelle.
 PORT = os.getenv("PORT", "9000")
 PROD_PORT = os.getenv("PROD_PORT") or _unit_port(PROD_SERVICE, "7000")
+PY_PROD_PORT = os.getenv("PY_PROD_PORT") or _unit_port(PY_PROD_SERVICE, "4000")
 CATALOG_PORT = "9050"
 
 HEALTH_URL = f"http://127.0.0.1:{PORT}/health"
 PROD_HEALTH_URL = f"http://127.0.0.1:{PROD_PORT}/health"
+PY_PROD_HEALTH_URL = f"http://127.0.0.1:{PY_PROD_PORT}/health"
 
 WORKDIR = Path(__file__).resolve().parent.parent
 BIN_DEVCTL = WORKDIR / "bin" / "fuel-devctl"
@@ -86,9 +89,13 @@ def status():
     # 2. Prod
     msg.divider("Fuel Centre · Prod (Desktop)")
     if check_url(PROD_HEALTH_URL):
-        msg.good(f"Fuel prod is running on :{PROD_PORT}")
+        msg.good(f"Fuel prod v3 is running on :{PROD_PORT}")
     else:
-        msg.warn(f"Fuel prod is NOT responding on :{PROD_PORT}")
+        msg.warn(f"Fuel prod v3 is NOT responding on :{PROD_PORT}")
+    if check_url(PY_PROD_HEALTH_URL):
+        msg.good(f"Fuel prod v4 is running on :{PY_PROD_PORT}")
+    else:
+        msg.warn(f"Fuel prod v4 is NOT responding on :{PY_PROD_PORT}")
 
     # 3. Catalog Server
     msg.divider("Catalog Server")
