@@ -53,6 +53,8 @@ export function addMeal(log, mealInput) {
     catalog_item_id: mealInput.catalog_item_id || null,
     catalog_components: mealInput.catalog_components || [],
     catalog_addon_ids: mealInput.catalog_addon_ids || [],
+    micros: mealInput.micros || null,
+    micros_meta: mealInput.micros_meta || null,
     time: new Date().toISOString(),
   };
 

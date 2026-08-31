@@ -55,6 +55,18 @@ function scaleMicros(micros, factor) {
   return scaled;
 }
 
+function buildMicrosMeta({ lookupName, inferredFrom, normalizedKey = null, factor = 1, source = "unknown", origin }) {
+  return {
+    source,
+    lookup_name: lookupName || null,
+    inferred_from: inferredFrom || lookupName || null,
+    normalized_key: normalizedKey,
+    scaling_factor: Math.round((factor || 1) * 1000) / 1000,
+    resolved_at: new Date().toISOString(),
+    origin,
+  };
+}
+
 /**
  * Enrich a single meal in-place-ish (returns a new object, caller decides
  * whether to persist). Never overwrites values the user explicitly set —
@@ -98,6 +110,14 @@ export async function enrichMeal(meal, catalog) {
     if (cached) {
       const factor = enriched.kcal && cached.kcal ? enriched.kcal / cached.kcal : 1;
       enriched.micros = scaleMicros(cached, factor);
+      enriched.micros_meta = buildMicrosMeta({
+        lookupName,
+        inferredFrom: cached.meal_name,
+        normalizedKey: cached.name_key || null,
+        factor,
+        source: cached.source || "unknown",
+        origin: "cache_lookup",
+      });
       changed = true;
     } else if (isRecent(enriched.date)) {
       // 4. Micro estimation — only for recent meals, cache the result
@@ -112,6 +132,13 @@ export async function enrichMeal(meal, catalog) {
         );
         const factor = enriched.kcal && estimated.kcal ? enriched.kcal / estimated.kcal : 1;
         enriched.micros = scaleMicros(estimated, factor);
+        enriched.micros_meta = buildMicrosMeta({
+          lookupName,
+          inferredFrom: enriched.description,
+          factor,
+          source: "gemini",
+          origin: "fresh_estimate",
+        });
         changed = true;
       }
     }

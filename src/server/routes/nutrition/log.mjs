@@ -307,6 +307,7 @@ export default async function logRoute(app) {
         Object.assign(meal, Object.fromEntries(Object.entries(updates).filter(([, v]) => v !== undefined)));
         // kcal/description geändert → gecachte Mikros (auf altes kcal skaliert) sind stale.
         delete meal.micros;
+        delete meal.micros_meta;
       }
 
       if (new_date && new_date !== date) {

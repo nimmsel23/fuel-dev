@@ -28,6 +28,15 @@ export default async function aiLogRoute(app) {
       };
       if (result.meal.micros) {
         saveMicrosForMeal(mealName, result.meal.kcal || 0, result.meal.micros, "gemini-ai-log", microOptions);
+        result.meal.micros_meta = {
+          source: "gemini-ai-log",
+          lookup_name: mealName,
+          inferred_from: mealName,
+          normalized_key: null,
+          scaling_factor: 1,
+          resolved_at: new Date().toISOString(),
+          origin: "ai_log",
+        };
       }
 
       if (result.type === "meal") {

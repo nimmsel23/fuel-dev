@@ -7,6 +7,18 @@ export function zeroMicros() {
   return Object.fromEntries(MICRO_KEYS.map((k) => [k, 0]));
 }
 
+function buildMicrosMeta(lookupName, micros, factor, origin) {
+  return {
+    source: micros?.source || "unknown",
+    lookup_name: lookupName || null,
+    inferred_from: micros?.meal_name || lookupName || null,
+    normalized_key: micros?.name_key || null,
+    scaling_factor: Math.round((factor || 1) * 1000) / 1000,
+    resolved_at: new Date().toISOString(),
+    origin,
+  };
+}
+
 // Lookup meal micros by name (case-insensitive, SQLite handles it)
 export function getMicrosForMeal(mealName, options = {}) {
   if (!mealName) return null;
@@ -46,6 +58,7 @@ export function resolveMealMicros(meal, catalog, options = {}) {
     resolved[k] = Math.round((micros[k] || 0) * factor * 10) / 10;
   }
   meal.micros = resolved;
+  meal.micros_meta = buildMicrosMeta(lookupName, micros, factor, "cache_lookup");
   return resolved;
 }
 

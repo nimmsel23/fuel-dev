@@ -95,6 +95,7 @@ function initDb(db) {
   for (const col of newCols) {
     try { db.exec(`ALTER TABLE meal_micros ADD COLUMN ${col}`); } catch { /* column exists */ }
   }
+  try { db.exec(`ALTER TABLE meals ADD COLUMN micros_meta_json TEXT`); } catch { /* column exists */ }
 
   // Tages-Log als normalisierte Rows statt JSON-Blob-pro-Tag. Grund: der
   // Firestore-Sync (firestored push_fuel) pusht bisher den kompletten
@@ -119,6 +120,7 @@ function initDb(db) {
       carbs       REAL DEFAULT 0,
       fat         REAL DEFAULT 0,
       micros_json TEXT,
+      micros_meta_json TEXT,
       logged_at   TEXT,
       created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -140,13 +142,13 @@ export function upsertMeal(meal, options = {}) {
   const nutritionDir = options.nutritionDir || (options.nutritionDbPath ? path.dirname(options.nutritionDbPath) : null);
   const uid = options.uid || "default";
   db.prepare(`
-    INSERT INTO meals (id, date, catalog_id, type, description, notes, kcal, protein, carbs, fat, micros_json, logged_at)
-    VALUES (@id, @date, @catalog_id, @type, @description, @notes, @kcal, @protein, @carbs, @fat, @micros_json, @logged_at)
+    INSERT INTO meals (id, date, catalog_id, type, description, notes, kcal, protein, carbs, fat, micros_json, micros_meta_json, logged_at)
+    VALUES (@id, @date, @catalog_id, @type, @description, @notes, @kcal, @protein, @carbs, @fat, @micros_json, @micros_meta_json, @logged_at)
     ON CONFLICT(id) DO UPDATE SET
       date = excluded.date, catalog_id = excluded.catalog_id, type = excluded.type,
       description = excluded.description, notes = excluded.notes,
       kcal = excluded.kcal, protein = excluded.protein, carbs = excluded.carbs, fat = excluded.fat,
-      micros_json = excluded.micros_json, logged_at = excluded.logged_at,
+      micros_json = excluded.micros_json, micros_meta_json = excluded.micros_meta_json, logged_at = excluded.logged_at,
       updated_at = CURRENT_TIMESTAMP
   `).run({
     id: meal.id,
@@ -160,6 +162,7 @@ export function upsertMeal(meal, options = {}) {
     carbs: meal.carbs ?? 0,
     fat: meal.fat ?? 0,
     micros_json: meal.micros ? JSON.stringify(meal.micros) : null,
+    micros_meta_json: meal.micros_meta ? JSON.stringify(meal.micros_meta) : null,
     logged_at: meal.logged_at ?? meal.time ?? null,
   });
   removeDeletedMealId(meal.date, meal.id, nutritionDir || undefined);
@@ -213,12 +216,13 @@ export function deleteMealsByIds(date, ids = [], options = {}) {
 export function getMealsForDate(date, options = {}) {
   const rows = getDb(options).prepare("SELECT * FROM meals WHERE date = ? ORDER BY logged_at, id").all(date);
   return rows.map((r) => {
-    const { micros_json, ...rest } = r;
+    const { micros_json, micros_meta_json, ...rest } = r;
     // `undefined` statt gelöschtem Key wurde von Firestore Admin abgelehnt
     // ("Cannot use 'undefined' as a Firestore value") — deshalb Destructuring
     // statt `micros_json: undefined`, damit der Key im Objekt fehlt statt
     // nur einen undefined-Wert zu tragen.
     if (micros_json) rest.micros = JSON.parse(micros_json);
+    if (micros_meta_json) rest.micros_meta = JSON.parse(micros_meta_json);
     return rest;
   });
 }

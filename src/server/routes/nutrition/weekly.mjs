@@ -7,6 +7,10 @@ import { loadLog as loadSupplementLog } from "../../services/supplements-log.mjs
 import { pushNutritionLog } from "../../lib/firestore-admin.mjs";
 import { DACH, getStatus } from "../../../shared/config/dach.mjs";
 
+function nowIso() {
+  return new Date().toISOString();
+}
+
 function getWeekDates(year, week) {
   const simple = new Date(year, 0, 1 + (week - 1) * 7);
   const dow = simple.getDay();
@@ -64,6 +68,15 @@ function addSupplementMicros(dayTotals, date, supplementCatalogMap, supplementsL
       dose: intake.dose,
       unit: entry.unit || "",
       micros: scaledMicros,
+      micros_meta: {
+        source: "supplement_catalog",
+        lookup_name: entry.name || intake.supplement_id,
+        inferred_from: intake.supplement_id,
+        normalized_key: null,
+        scaling_factor: Math.round((factor || 1) * 1000) / 1000,
+        resolved_at: nowIso(),
+        origin: "supplement",
+      },
     });
   }
   return contributions;
@@ -136,6 +149,15 @@ export default async function weeklyRoute(app) {
                         for (const k of MICRO_KEYS) {
                           target.micros[k] = Math.round((est[k] || 0) * 10) / 10;
                         }
+                        target.micros_meta = {
+                          source: "gemini",
+                          lookup_name: lookupName,
+                          inferred_from: lookupName,
+                          normalized_key: null,
+                          scaling_factor: 1,
+                          resolved_at: nowIso(),
+                          origin: "background_estimate",
+                        };
                         delete refreshed.micro_totals;
                         delete refreshed.micro_totals_complete;
                         saveNutritionLog(refreshed, req.paths.nutrition);
@@ -167,7 +189,7 @@ export default async function weeklyRoute(app) {
         // stammt aus dem Cache (beim ersten Auflösen persistiert).
         const mealContributions = (log.meals || [])
           .filter((m) => m.micros)
-          .map((m) => ({ kind: "meal", name: m.description, kcal: m.kcal || 0, micros: m.micros }));
+          .map((m) => ({ kind: "meal", name: m.description, kcal: m.kcal || 0, micros: m.micros, micros_meta: m.micros_meta || null }));
         mealBreakdown[date] = [...mealContributions, ...suppContributions];
       }
 
