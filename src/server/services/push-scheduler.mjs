@@ -63,7 +63,7 @@ function loadPushSettings(baseDataDir) {
 }
 
 export function startPushScheduler(baseDataDir, catalogsDir) {
-  setInterval(() => {
+  setInterval(async () => {
     const now = new Date();
     const settings = loadPushSettings(baseDataDir);
     if (!settings.enabled) return;
@@ -73,7 +73,7 @@ export function startPushScheduler(baseDataDir, catalogsDir) {
 
     if (timeOfDayToCheck) {
       console.log(`[PushScheduler] Running check for ${timeOfDayToCheck}...`);
-      checkAndSendReminders(timeOfDayToCheck, baseDataDir, catalogsDir);
+      await checkAndSendReminders(timeOfDayToCheck, baseDataDir, catalogsDir);
     }
   }, 60000); // alle 60 Sekunden prüfen
 }
@@ -85,10 +85,21 @@ async function checkAndSendReminders(timeOfDay, baseDataDir, catalogsDir) {
     const logsPath = path.join(baseDataDir, "supplements", "logs", `${todayStr}.json`);
     const subsPath = path.join(baseDataDir, "push-subscriptions.json");
 
-    if (!fs.existsSync(catalogPath) || !fs.existsSync(subsPath)) return;
+    if (!fs.existsSync(catalogPath)) {
+      console.log(`[PushScheduler] Skipping ${timeOfDay}: no supplements catalog at ${catalogPath}`);
+      return;
+    }
+    if (!fs.existsSync(subsPath)) {
+      console.log(`[PushScheduler] Skipping ${timeOfDay}: no push subscriptions at ${subsPath}`);
+      return;
+    }
 
     const catalog = JSON.parse(fs.readFileSync(catalogPath, "utf-8")).items || [];
     const subscriptions = JSON.parse(fs.readFileSync(subsPath, "utf-8")) || [];
+    if (subscriptions.length === 0) {
+      console.log(`[PushScheduler] Skipping ${timeOfDay}: push subscriptions list is empty`);
+      return;
+    }
 
     let intakes = [];
     if (fs.existsSync(logsPath)) {
@@ -121,6 +132,9 @@ async function checkAndSendReminders(timeOfDay, baseDataDir, catalogsDir) {
           console.error("[PushScheduler] Send failed (maybe unsubscribed):", err.statusCode);
         }
       }
+      console.log(
+        `[PushScheduler] Reminder dispatch finished for ${timeOfDay} (${subscriptions.length} subscriptions)`
+      );
     } else {
       console.log(`[PushScheduler] All good. No missing supplements for ${timeOfDay}.`);
     }
