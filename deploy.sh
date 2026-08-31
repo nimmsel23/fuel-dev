@@ -129,8 +129,7 @@ install_prod_unit() {
     msg "✅ $PY_UNIT_TARGET bereits aktuell."
   fi
   sudo systemctl daemon-reload
-  sudo systemctl enable "$SERVICE" "$PY_SERVICE"
-  msg "✅ Installed prod units, enabled boot start, and reloaded systemd."
+  msg "✅ Installed prod units and reloaded systemd."
 }
 
 if [[ "$TARGET" == "staging" ]]; then
