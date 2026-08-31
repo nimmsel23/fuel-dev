@@ -230,7 +230,7 @@ def _stop_backend():
 @app.command()
 def status(
     frontend: bool = typer.Option(True, "--v3/--no-v3", help="Show v3 Node/Fastify entrypoint (:9000)"),
-    backend: bool = typer.Option(True, "--v4/--no-v4", help="Show v4 Python/FastAPI backend (:4000)"),
+    backend: bool = typer.Option(False, "--v4/--no-v4", help="Also show v4 Python/FastAPI backend (:4000)"),
 ):
     """Check the status of v3 and v4 in the local runtime."""
     msg.divider("System Status")
@@ -267,7 +267,7 @@ def status(
 @app.command()
 def start(
     frontend: bool = typer.Option(True, "--v3/--no-v3", help="Start v3 Node/Fastify entrypoint (:9000)"),
-    backend: bool = typer.Option(True, "--v4/--no-v4", help="Also start v4 Python/FastAPI backend (:4000)"),
+    backend: bool = typer.Option(False, "--v4/--no-v4", help="Also start v4 Python/FastAPI backend (:4000)"),
 ):
     """Start v3 and, if requested, v4."""
     if frontend:
@@ -322,7 +322,7 @@ def start(
 @app.command()
 def stop(
     frontend: bool = typer.Option(True, "--v3/--no-v3", help="Stop v3 Node/Fastify entrypoint (:9000)"),
-    backend: bool = typer.Option(True, "--v4/--no-v4", help="Stop v4 Python/FastAPI backend (:4000)"),
+    backend: bool = typer.Option(False, "--v4/--no-v4", help="Also stop v4 Python/FastAPI backend (:4000)"),
 ):
     """Stop v3 and v4."""
     if frontend:
@@ -357,7 +357,7 @@ def stop(
 @app.command()
 def restart(
     frontend: bool = typer.Option(True, "--v3/--no-v3", help="Restart v3 Node/Fastify entrypoint (:9000)"),
-    backend: bool = typer.Option(True, "--v4/--no-v4", help="Also restart v4 Python/FastAPI backend (:4000)"),
+    backend: bool = typer.Option(False, "--v4/--no-v4", help="Also restart v4 Python/FastAPI backend (:4000)"),
 ):
     """Stop and then start v3 and v4."""
     stop(frontend=frontend, backend=backend)

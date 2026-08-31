@@ -111,7 +111,7 @@ def dev(
     ctx: typer.Context,
     action: str = typer.Argument("status", help="up, down, restart, status, logs, build, deploy, foreground"),
 ):
-    """Manage the development stack (v3 entrypoint + v4 backend).
+    """Manage the development stack (v3 entrypoint by default, v4 optional).
 
     Extra flags pass through to fuel-devctl, e.g.:
       fuelctl dev start --v4        (also start v4)
