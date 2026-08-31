@@ -7,6 +7,7 @@ import { estimateMicros } from "../../services/nutrition-estimate-micros.mjs";
 import { getMicrosForMeal, saveMicrosForMeal } from "../../services/nutrition-micros.mjs";
 import { upsertMeal, deleteMeal as deleteMealRow, upsertWater, getMealsForDate, getMealDates, getWater } from "../../services/nutrition-db.mjs";
 import { callV4 } from "../../lib/v4-bridge.mjs";
+import { pushNutritionLog } from "../../lib/firestore-admin.mjs";
 
 function dbOptions(req) {
   return {
@@ -14,6 +15,23 @@ function dbOptions(req) {
     nutritionDbPath: req.paths.nutritionDb,
     uid: req.uid,
   };
+}
+
+async function enrichAndPersistLog(req, log) {
+  const { enrichNutritionLog } = await import("../../services/nutrition-enrichment.mjs");
+  const { meals, changed } = await enrichNutritionLog(
+    (log.meals || []).map((meal) => ({ ...meal, date: log.date })),
+    dbOptions(req)
+  );
+  if (!changed) return false;
+  log.meals = meals;
+  invalidateMicroCache(log);
+  saveLog(log, req.paths.nutrition, dbOptions(req));
+  await pushNutritionLog(log.date, meals, log.water_ml || 0, {
+    uid: req.uid,
+    nutritionDir: req.paths.nutrition,
+  });
+  return true;
 }
 
 const logPostSchema = z.object({
@@ -179,11 +197,12 @@ const logPatchSchema = z.object({
 });
 
 function fireMicrosEstimate(description, kcal) {
-  if (!description || getMicrosForMeal(description)) return;
+  const options = arguments[2] || {};
+  if (!description || getMicrosForMeal(description, options)) return;
   estimateMicros(description)
     .then((micros) => {
       if (Object.keys(micros).length > 0) {
-        saveMicrosForMeal(description, kcal, micros, "gemini-log");
+        saveMicrosForMeal(description, kcal, micros, "gemini-log", options);
       }
     })
     .catch((e) => console.warn(`[micros] estimate failed for "${description}":`, e.message));
@@ -334,7 +353,7 @@ export default async function logRoute(app) {
         const resolved = resolveCatalogItem(catalog, parsed.data.catalog_item_id, parsed.data.catalog_addon_ids);
         if (!resolved) return reply.status(404).send({ ok: false, error: "Catalog item not found" });
         log.meals.push({ id: `meal_${Date.now()}`, ...resolved, time: new Date().toISOString() });
-        fireMicrosEstimate(resolved.description, resolved.kcal);
+        fireMicrosEstimate(resolved.description, resolved.kcal, dbOptions(req));
       } else if (parsed.data.meal) {
         const m = parsed.data.meal;
         log.meals.push({
@@ -346,7 +365,7 @@ export default async function logRoute(app) {
           kcal: m.kcal || 0, protein: m.protein || 0, carbs: m.carbs || 0, fat: m.fat || 0,
           time: m.time || new Date().toISOString(),
         });
-        fireMicrosEstimate(m.description, m.kcal || 0);
+        fireMicrosEstimate(m.description, m.kcal || 0, dbOptions(req));
         autoUpsertCatalog(m, req.paths.nutrition, req.uid);
       }
 
@@ -359,6 +378,9 @@ export default async function logRoute(app) {
 
       invalidateMicroCache(log);
       saveLog(log, req.paths.nutrition, dbOptions(req));
+      void enrichAndPersistLog(req, log).catch((e) => {
+        console.warn(`[nutrition-enrichment] post-log enrich failed for ${log.date}:`, e.message);
+      });
       return reply.send({ ok: true, data: log });
     } catch (error) {
       console.error(error);

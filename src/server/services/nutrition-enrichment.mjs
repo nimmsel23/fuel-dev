@@ -65,6 +65,7 @@ function scaleMicros(micros, factor) {
  * @returns {Promise<{ meal: object, changed: boolean }>}
  */
 export async function enrichMeal(meal, catalog) {
+  const options = arguments[2] || {};
   let changed = false;
   const enriched = { ...meal };
 
@@ -93,7 +94,7 @@ export async function enrichMeal(meal, catalog) {
   // 3. Micro lookup (cached, no API call)
   if (!enriched.micros) {
     const lookupName = catalogEntry?.name || enriched.description;
-    const cached = getMicrosForMeal(lookupName);
+    const cached = getMicrosForMeal(lookupName, options);
     if (cached) {
       const factor = enriched.kcal && cached.kcal ? enriched.kcal / cached.kcal : 1;
       enriched.micros = scaleMicros(cached, factor);
@@ -102,7 +103,13 @@ export async function enrichMeal(meal, catalog) {
       // 4. Micro estimation — only for recent meals, cache the result
       const estimated = await estimateMicros(enriched.description);
       if (estimated && Object.keys(estimated).length > 0) {
-        saveMicrosForMeal(enriched.description, enriched.kcal || estimated.kcal || 0, estimated);
+        saveMicrosForMeal(
+          enriched.description,
+          enriched.kcal || estimated.kcal || 0,
+          estimated,
+          "gemini",
+          options
+        );
         const factor = enriched.kcal && estimated.kcal ? enriched.kcal / estimated.kcal : 1;
         enriched.micros = scaleMicros(estimated, factor);
         changed = true;
@@ -126,7 +133,7 @@ export async function enrichNutritionLog(meals, options = {}) {
   let anyChanged = false;
   const result = [];
   for (const meal of meals || []) {
-    const { meal: enriched, changed } = await enrichMeal(meal, catalog);
+    const { meal: enriched, changed } = await enrichMeal(meal, catalog, options);
     if (changed) anyChanged = true;
     result.push(enriched);
   }

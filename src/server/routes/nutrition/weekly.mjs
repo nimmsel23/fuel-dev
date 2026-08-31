@@ -4,6 +4,7 @@ import { zeroMicros, MICRO_KEYS, computeMealMicroTotals } from "../../services/n
 import { loadCatalog } from "../../services/nutrition-catalog.mjs";
 import { loadCatalog as loadSupplementsCatalog } from "../../services/supplements-catalog.mjs";
 import { loadLog as loadSupplementLog } from "../../services/supplements-log.mjs";
+import { pushNutritionLog } from "../../lib/firestore-admin.mjs";
 import { DACH, getStatus } from "../../../shared/config/dach.mjs";
 
 function getWeekDates(year, week) {
@@ -37,8 +38,8 @@ function saveNutritionLog(log, nutritionDir) {
 // Gibt zusätzlich die Pro-Supplement-Beiträge zurück (für Modal-Aufschlüsselung
 // "welcher Eintrag hat wie viel beigetragen") — dayTotals bleibt wie bisher
 // die aufsummierte Quelle für Heatmap/Status.
-function addSupplementMicros(dayTotals, date, supplementCatalogMap) {
-  const suppLog = loadSupplementLog(date);
+function addSupplementMicros(dayTotals, date, supplementCatalogMap, supplementsLogDir) {
+  const suppLog = loadSupplementLog(date, supplementsLogDir);
   const contributions = [];
   for (const intake of suppLog.intakes || []) {
     const entry = supplementCatalogMap[intake.supplement_id];
@@ -80,8 +81,9 @@ export default async function weeklyRoute(app) {
 
       const dates = getWeekDates(y, w);
       const catalog = loadCatalog(req.paths.nutrition, { uid: req.uid });
-      const suppCatalog = loadSupplementsCatalog();
+      const suppCatalog = loadSupplementsCatalog(req.paths.supplements, { uid: req.uid });
       const suppCatalogMap = Object.fromEntries(suppCatalog.items.map((i) => [i.id, i]));
+      const microOptions = { nutritionDir: req.paths.nutrition, nutritionDbPath: req.paths.nutritionDb, uid: req.uid };
 
       const weekTotals = zeroMicros();
       const dayBreakdown = {};
@@ -95,7 +97,8 @@ export default async function weeklyRoute(app) {
           // Gecacht (aus einem vorherigen Request oder beim Loggen aufgelöst) — kein Rechnen nötig.
           mealTotals = log.micro_totals;
         } else {
-          const { totals, complete } = computeMealMicroTotals(log.meals, catalog);
+          const hadPersistedMicros = (log.meals || []).some((m) => m.micros);
+          const { totals, complete } = computeMealMicroTotals(log.meals, catalog, microOptions);
           mealTotals = totals;
 
           // Selbstheilend zurückschreiben, sobald irgendeine Mahlzeit neu
@@ -104,10 +107,17 @@ export default async function weeklyRoute(app) {
           // verlangt complete=true — ein unvollständiger Tag wird also beim
           // nächsten Request automatisch erneut versucht, statt als 0 zu
           // erstarren.
-          if ((log.meals || []).some((m) => m.micros)) {
+          const hasResolvedMicros = (log.meals || []).some((m) => m.micros);
+          if (hasResolvedMicros) {
             log.micro_totals = totals;
             log.micro_totals_complete = complete;
             saveNutritionLog(log, req.paths.nutrition);
+            if (!hadPersistedMicros) {
+              void pushNutritionLog(date, log.meals, log.water_ml || 0, {
+                uid: req.uid,
+                nutritionDir: req.paths.nutrition,
+              }).catch(() => {});
+            }
           }
 
           if (!complete) {
@@ -118,7 +128,22 @@ export default async function weeklyRoute(app) {
                 import("../../services/nutrition-micros.mjs").then(({ saveMicrosForMeal }) => {
                   estimateMicros(lookupName).then((est) => {
                     if (Object.keys(est).length > 0) {
-                      saveMicrosForMeal(lookupName, meal.kcal || 0, est, "gemini");
+                      saveMicrosForMeal(lookupName, meal.kcal || 0, est, "gemini", microOptions);
+                      const refreshed = loadNutritionLog(date, req.paths.nutrition);
+                      const target = (refreshed.meals || []).find((m) => m.id === meal.id);
+                      if (target) {
+                        target.micros = {};
+                        for (const k of MICRO_KEYS) {
+                          target.micros[k] = Math.round((est[k] || 0) * 10) / 10;
+                        }
+                        delete refreshed.micro_totals;
+                        delete refreshed.micro_totals_complete;
+                        saveNutritionLog(refreshed, req.paths.nutrition);
+                        void pushNutritionLog(date, refreshed.meals, refreshed.water_ml || 0, {
+                          uid: req.uid,
+                          nutritionDir: req.paths.nutrition,
+                        }).catch(() => {});
+                      }
                       console.log(`[micros] Background estimation completed for: ${lookupName}`);
                     }
                   });
@@ -129,7 +154,7 @@ export default async function weeklyRoute(app) {
         }
 
         const dayTotals = { ...mealTotals };
-        const suppContributions = addSupplementMicros(dayTotals, date, suppCatalogMap);
+        const suppContributions = addSupplementMicros(dayTotals, date, suppCatalogMap, req.paths.supplementsLog);
 
         dayBreakdown[date] = dayTotals;
         for (const k of MICRO_KEYS) {

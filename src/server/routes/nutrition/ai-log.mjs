@@ -21,8 +21,13 @@ export default async function aiLogRoute(app) {
       const result = JSON.parse(extractJson(raw));
       
       const mealName = result.meal.description;
+      const microOptions = {
+        nutritionDir: req.paths.nutrition,
+        nutritionDbPath: req.paths.nutritionDb,
+        uid: req.uid,
+      };
       if (result.meal.micros) {
-        saveMicrosForMeal(mealName, result.meal.kcal || 0, result.meal.micros, "gemini-ai-log");
+        saveMicrosForMeal(mealName, result.meal.kcal || 0, result.meal.micros, "gemini-ai-log", microOptions);
       }
 
       if (result.type === "meal") {

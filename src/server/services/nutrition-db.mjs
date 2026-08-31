@@ -254,8 +254,8 @@ export function getNutritionDeletedIds(date, options = {}) {
 
 // ── Ingredients (wger cache) ──────────────────────────────────────────────────
 
-export function upsertIngredient(wgerId, data) {
-  return getDb().prepare(`
+export function upsertIngredient(wgerId, data, options = {}) {
+  return getDb(options).prepare(`
     INSERT INTO ingredients (wger_id, name, brand, kcal, protein, carbs, fat, fiber, sodium_mg)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(wger_id) DO UPDATE SET
@@ -272,8 +272,8 @@ export function upsertIngredient(wgerId, data) {
   );
 }
 
-export function getIngredientByWgerId(wgerId) {
-  return getDb().prepare("SELECT * FROM ingredients WHERE wger_id = ?").get(wgerId) || null;
+export function getIngredientByWgerId(wgerId, options = {}) {
+  return getDb(options).prepare("SELECT * FROM ingredients WHERE wger_id = ?").get(wgerId) || null;
 }
 
 // ── Meal micros ───────────────────────────────────────────────────────────────
@@ -330,8 +330,8 @@ export function normalizeMicroKey(name) {
   return tokens.join(" ");
 }
 
-export function upsertMealMicros(mealName, kcal, micros, source = "gemini") {
-  const db = getDb();
+export function upsertMealMicros(mealName, kcal, micros, source = "gemini", options = {}) {
+  const db = getDb(options);
   const vals = MICRO_COLS.map((c) => micros[c] ?? 0);
   const sets = MICRO_COLS.map((c) => `${c} = excluded.${c}`).join(", ");
   const nameKey = normalizeMicroKey(mealName);
@@ -345,8 +345,8 @@ export function upsertMealMicros(mealName, kcal, micros, source = "gemini") {
   `).run(mealName, kcal, ...vals, source, nameKey);
 }
 
-export function getMealMicros(mealName) {
-  const db = getDb();
+export function getMealMicros(mealName, options = {}) {
+  const db = getDb(options);
   const exact = db.prepare("SELECT * FROM meal_micros WHERE meal_name = ? COLLATE NOCASE").get(mealName);
   if (exact) return exact;
 
@@ -355,8 +355,8 @@ export function getMealMicros(mealName) {
   return db.prepare("SELECT * FROM meal_micros WHERE name_key = ? ORDER BY updated_at DESC LIMIT 1").get(key) || null;
 }
 
-export function getAllMealMicros() {
-  return getDb().prepare("SELECT * FROM meal_micros ORDER BY meal_name").all();
+export function getAllMealMicros(options = {}) {
+  return getDb(options).prepare("SELECT * FROM meal_micros ORDER BY meal_name").all();
 }
 
 export default {
