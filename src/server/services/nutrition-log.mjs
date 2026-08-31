@@ -5,6 +5,14 @@ import { isISODate, todayISO, sanitizeMetric } from "../../shared/utils/validati
 import { NUTRITION_DIR } from "../config/paths.mjs";
 import { deleteMeal as deleteMealRow, getMealsForDate, getWater, upsertMeal, upsertWater } from "./nutrition-db.mjs";
 
+function dbOptions(nutritionDir, options = {}) {
+  return {
+    nutritionDir,
+    nutritionDbPath: options.nutritionDbPath || path.join(nutritionDir, "nutrition.db"),
+    uid: options.uid || "default",
+  };
+}
+
 function getLogPath(date, nutritionDir = NUTRITION_DIR) {
   return path.join(nutritionDir, `${date}.json`);
 }
@@ -15,19 +23,20 @@ export function loadLog(date, nutritionDir = NUTRITION_DIR) {
   return readJsonFile(getLogPath(date, nutritionDir), defaultLog);
 }
 
-export function saveLog(log, nutritionDir = NUTRITION_DIR) {
+export function saveLog(log, nutritionDir = NUTRITION_DIR, options = {}) {
+  const resolved = dbOptions(nutritionDir, options);
   writeJsonFile(getLogPath(log.date, nutritionDir), log);
-  const existing = getMealsForDate(log.date);
+  const existing = getMealsForDate(log.date, resolved);
   const currentIds = new Set((log.meals || []).filter((m) => m.id).map((m) => m.id));
   for (const row of existing) {
-    if (!currentIds.has(row.id)) deleteMealRow(row.id);
+    if (!currentIds.has(row.id)) deleteMealRow(row.id, resolved);
   }
   for (const meal of log.meals || []) {
     if (!meal.id) continue;
-    upsertMeal({ ...meal, date: log.date });
+    upsertMeal({ ...meal, date: log.date }, resolved);
   }
-  if ((log.water_ml || 0) !== getWater(log.date)) {
-    upsertWater(log.date, log.water_ml || 0);
+  if ((log.water_ml || 0) !== getWater(log.date, resolved)) {
+    upsertWater(log.date, log.water_ml || 0, resolved);
   }
 }
 

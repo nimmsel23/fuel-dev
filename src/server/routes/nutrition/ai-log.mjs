@@ -28,7 +28,10 @@ export default async function aiLogRoute(app) {
       if (result.type === "meal") {
         const log = loadLog(date, req.paths.nutrition);
         addMeal(log, result.meal);
-        saveLog(log, req.paths.nutrition);
+        saveLog(log, req.paths.nutrition, {
+          nutritionDbPath: req.paths.nutritionDb,
+          uid: req.uid,
+        });
         upsertLoggedMeal(loadCatalog(req.paths.nutrition, { uid: req.uid }), result.meal);
         return reply.send({ ok: true, type: "meal" });
       } else if (result.type === "catalog") {

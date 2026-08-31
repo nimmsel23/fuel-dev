@@ -4,6 +4,7 @@
  * computeFastingWindows function.
  */
 
+import path from "path";
 import { getMealsForDate } from "./nutrition-db.mjs";
 import { computeFastingWindows } from "../../shared/utils/fasting.mjs";
 
@@ -18,12 +19,17 @@ function recentDates(daysBack) {
   return dates;
 }
 
-export async function getFastingWindows(days = 14) {
+export async function getFastingWindows(days = 14, options = {}) {
   // Load data for days + 1 (so first requested day has a prev-day for comparison)
   const allDates = recentDates(days);
+  const dbOptions = {
+    nutritionDir: options.nutritionDir,
+    nutritionDbPath: options.nutritionDbPath || (options.nutritionDir ? path.join(options.nutritionDir, "nutrition.db") : undefined),
+    uid: options.uid,
+  };
   const dayLogs = allDates.map((date) => ({
     date,
-    meals: getMealsForDate(date),
+    meals: getMealsForDate(date, dbOptions),
   }));
 
   const windows = computeFastingWindows(dayLogs);

@@ -8,6 +8,14 @@ import { getMicrosForMeal, saveMicrosForMeal } from "../../services/nutrition-mi
 import { upsertMeal, deleteMeal as deleteMealRow, upsertWater, getMealsForDate, getMealDates, getWater } from "../../services/nutrition-db.mjs";
 import { callV4 } from "../../lib/v4-bridge.mjs";
 
+function dbOptions(req) {
+  return {
+    nutritionDir: req.paths.nutrition,
+    nutritionDbPath: req.paths.nutritionDb,
+    uid: req.uid,
+  };
+}
+
 const logPostSchema = z.object({
   date: z.string().optional(),
   meal: z.object({
@@ -47,17 +55,17 @@ function loadLog(date, nutritionDir) {
 }
 
 function loadReadLog(date, nutritionDir) {
-  const meals = getMealsForDate(date);
-  const waterMl = getWater(date);
+  const meals = getMealsForDate(date, { nutritionDir, nutritionDbPath: path.join(nutritionDir, "nutrition.db") });
+  const waterMl = getWater(date, { nutritionDir, nutritionDbPath: path.join(nutritionDir, "nutrition.db") });
   if (meals.length > 0 || waterMl > 0) {
     return { date, meals, water_ml: waterMl };
   }
   return loadLog(date, nutritionDir);
 }
 
-function saveLog(log, nutritionDir) {
+function saveLog(log, nutritionDir, options = {}) {
   fs.writeFileSync(path.join(nutritionDir, `${log.date}.json`), JSON.stringify(log, null, 2), "utf-8");
-  syncLogToDb(log);
+  syncLogToDb(log, options);
 }
 
 // Schreibt den Tag komplett nach SQLite durch (meals als Rows, id-basiert
@@ -66,21 +74,21 @@ function saveLog(log, nutritionDir) {
 // vorerst der Lesepfad (loadLog), SQLite existiert parallel als
 // Row-granulare Quelle für zukünftigen Firestore-Row-Sync (siehe
 // _merge_by_id-Fix in firestored/adapters/vitalos.py, 2026-07-23).
-function syncLogToDb(log) {
+function syncLogToDb(log, options = {}) {
   try {
-    const existing = getMealsForDate(log.date);
+    const existing = getMealsForDate(log.date, options);
     const currentIds = new Set((log.meals || []).filter((m) => m.id).map((m) => m.id));
     for (const row of existing) {
-      if (!currentIds.has(row.id)) deleteMealRow(row.id);
+      if (!currentIds.has(row.id)) deleteMealRow(row.id, options);
     }
     for (const meal of log.meals || []) {
       if (!meal.id) {
         console.warn(`[nutrition-db] Meal ohne id in ${log.date} übersprungen:`, meal.description);
         continue;
       }
-      upsertMeal({ ...meal, date: log.date });
+      upsertMeal({ ...meal, date: log.date }, options);
     }
-    upsertWater(log.date, log.water_ml || 0);
+    upsertWater(log.date, log.water_ml || 0, options);
   } catch (e) {
     console.warn(`[nutrition-db] Sync-Fehler für ${log.date}:`, e.message);
   }
@@ -241,7 +249,7 @@ export default async function logRoute(app) {
     const legacyDates = fs.readdirSync(nutritionDir)
       .filter((f) => f.match(/^\d{4}-\d{2}-\d{2}\.json$/))
       .map((f) => f.replace(".json", ""));
-    const dates = Array.from(new Set([...getMealDates(), ...legacyDates])).sort().reverse();
+      const dates = Array.from(new Set([...getMealDates(dbOptions(req)), ...legacyDates])).sort().reverse();
     const history = [];
     for (const date of dates) {
       const log = loadReadLog(date, nutritionDir);
@@ -285,16 +293,16 @@ export default async function logRoute(app) {
       if (new_date && new_date !== date) {
         sourceLog.meals.splice(mealIndex, 1);
         invalidateMicroCache(sourceLog);
-        saveLog(sourceLog, req.paths.nutrition);
+        saveLog(sourceLog, req.paths.nutrition, dbOptions(req));
         const targetLog = loadLog(new_date, req.paths.nutrition);
         targetLog.meals.push({ ...meal, id: `meal_${Date.now()}` });
         invalidateMicroCache(targetLog);
-        saveLog(targetLog, req.paths.nutrition);
+        saveLog(targetLog, req.paths.nutrition, dbOptions(req));
         return reply.send({ ok: true, data: targetLog });
       } else {
         sourceLog.meals[mealIndex] = meal;
         invalidateMicroCache(sourceLog);
-        saveLog(sourceLog, req.paths.nutrition);
+        saveLog(sourceLog, req.paths.nutrition, dbOptions(req));
         return reply.send({ ok: true, data: sourceLog });
       }
     } catch (error) {
@@ -350,7 +358,7 @@ export default async function logRoute(app) {
       }
 
       invalidateMicroCache(log);
-      saveLog(log, req.paths.nutrition);
+      saveLog(log, req.paths.nutrition, dbOptions(req));
       return reply.send({ ok: true, data: log });
     } catch (error) {
       console.error(error);

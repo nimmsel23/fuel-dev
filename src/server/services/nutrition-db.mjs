@@ -1,22 +1,31 @@
 import Database from "better-sqlite3";
+import path from "path";
 import { NUTRITION_DB_PATH } from "../config/paths.mjs";
 import { MICRO_KEYS } from "../../shared/config/dach.mjs";
 import { pushNutritionLog } from "../lib/firestore-admin.mjs";
 import { addDeletedMealId, addDeletedMealIds, getDeletedMealIds, removeDeletedMealId } from "./log-tombstones.mjs";
 
-let db = null;
+const dbByPath = new Map();
 
-function getDb() {
+function resolveDbPath(options = {}) {
+  return options.nutritionDbPath
+    || (options.nutritionDir ? path.join(options.nutritionDir, "nutrition.db") : null)
+    || NUTRITION_DB_PATH;
+}
+
+function getDb(options = {}) {
+  const dbPath = resolveDbPath(options);
+  let db = dbByPath.get(dbPath);
   if (!db) {
-    db = new Database(NUTRITION_DB_PATH);
+    db = new Database(dbPath);
     db.pragma("journal_mode = WAL");
-    initDb();
+    initDb(db);
+    dbByPath.set(dbPath, db);
   }
   return db;
 }
 
-function initDb() {
-  const db = getDb();
+function initDb(db) {
 
   // Wger ingredient cache — macros per 100g
   db.exec(`
@@ -126,8 +135,10 @@ function initDb() {
 
 // ── Meals (Tages-Log, normalisiert) ───────────────────────────────────────────
 
-export function upsertMeal(meal) {
-  const db = getDb();
+export function upsertMeal(meal, options = {}) {
+  const db = getDb(options);
+  const nutritionDir = options.nutritionDir || (options.nutritionDbPath ? path.dirname(options.nutritionDbPath) : null);
+  const uid = options.uid || "default";
   db.prepare(`
     INSERT INTO meals (id, date, catalog_id, type, description, notes, kcal, protein, carbs, fat, micros_json, logged_at)
     VALUES (@id, @date, @catalog_id, @type, @description, @notes, @kcal, @protein, @carbs, @fat, @micros_json, @logged_at)
@@ -151,28 +162,43 @@ export function upsertMeal(meal) {
     micros_json: meal.micros ? JSON.stringify(meal.micros) : null,
     logged_at: meal.logged_at ?? meal.time ?? null,
   });
-  removeDeletedMealId(meal.date, meal.id);
+  removeDeletedMealId(meal.date, meal.id, nutritionDir || undefined);
   // Fire-and-forget push
   const date = meal.date;
-  pushNutritionLog(date, getMealsForDate(date), getWater(date)).catch(() => {});
+  pushNutritionLog(
+    date,
+    getMealsForDate(date, options),
+    getWater(date, options),
+    { uid, nutritionDir }
+  ).catch(() => {});
 }
 
-export function deleteMeal(id) {
-  const row = getDb().prepare("SELECT date FROM meals WHERE id = ?").get(id);
-  const result = getDb().prepare("DELETE FROM meals WHERE id = ?").run(id);
+export function deleteMeal(id, options = {}) {
+  const db = getDb(options);
+  const nutritionDir = options.nutritionDir || (options.nutritionDbPath ? path.dirname(options.nutritionDbPath) : null);
+  const uid = options.uid || "default";
+  const row = db.prepare("SELECT date FROM meals WHERE id = ?").get(id);
+  const result = db.prepare("DELETE FROM meals WHERE id = ?").run(id);
   // Fire-and-forget push
   if (row?.date) {
-    addDeletedMealId(row.date, id);
-    pushNutritionLog(row.date, getMealsForDate(row.date), getWater(row.date)).catch(() => {});
+    addDeletedMealId(row.date, id, nutritionDir || undefined);
+    pushNutritionLog(
+      row.date,
+      getMealsForDate(row.date, options),
+      getWater(row.date, options),
+      { uid, nutritionDir }
+    ).catch(() => {});
   }
   return result;
 }
 
-export function deleteMealsByIds(date, ids = []) {
+export function deleteMealsByIds(date, ids = [], options = {}) {
   const unique = Array.from(new Set((ids || []).filter(Boolean)));
   if (unique.length === 0) return 0;
-  const stmt = getDb().prepare("DELETE FROM meals WHERE date = ? AND id = ?");
-  const runMany = getDb().transaction((mealIds) => {
+  const db = getDb(options);
+  const nutritionDir = options.nutritionDir || (options.nutritionDbPath ? path.dirname(options.nutritionDbPath) : null);
+  const stmt = db.prepare("DELETE FROM meals WHERE date = ? AND id = ?");
+  const runMany = db.transaction((mealIds) => {
     let count = 0;
     for (const id of mealIds) {
       count += stmt.run(date, id).changes;
@@ -180,12 +206,12 @@ export function deleteMealsByIds(date, ids = []) {
     return count;
   });
   const count = runMany(unique);
-  addDeletedMealIds(date, unique);
+  addDeletedMealIds(date, unique, nutritionDir || undefined);
   return count;
 }
 
-export function getMealsForDate(date) {
-  const rows = getDb().prepare("SELECT * FROM meals WHERE date = ? ORDER BY logged_at, id").all(date);
+export function getMealsForDate(date, options = {}) {
+  const rows = getDb(options).prepare("SELECT * FROM meals WHERE date = ? ORDER BY logged_at, id").all(date);
   return rows.map((r) => {
     const { micros_json, ...rest } = r;
     // `undefined` statt gelöschtem Key wurde von Firestore Admin abgelehnt
@@ -197,29 +223,33 @@ export function getMealsForDate(date) {
   });
 }
 
-export function getMealDates() {
-  return getDb()
+export function getMealDates(options = {}) {
+  return getDb(options)
     .prepare("SELECT date FROM meals GROUP BY date ORDER BY date DESC")
     .all()
     .map((row) => row.date);
 }
 
-export function upsertWater(date, waterMl) {
-  getDb().prepare(`
+export function upsertWater(date, waterMl, options = {}) {
+  const db = getDb(options);
+  const nutritionDir = options.nutritionDir || (options.nutritionDbPath ? path.dirname(options.nutritionDbPath) : null);
+  const uid = options.uid || "default";
+  db.prepare(`
     INSERT INTO daily_water (date, water_ml) VALUES (?, ?)
     ON CONFLICT(date) DO UPDATE SET water_ml = excluded.water_ml, updated_at = CURRENT_TIMESTAMP
   `).run(date, waterMl);
   // Fire-and-forget push
-  pushNutritionLog(date, getMealsForDate(date), waterMl).catch(() => {});
+  pushNutritionLog(date, getMealsForDate(date, options), waterMl, { uid, nutritionDir }).catch(() => {});
 }
 
-export function getWater(date) {
-  const row = getDb().prepare("SELECT water_ml FROM daily_water WHERE date = ?").get(date);
+export function getWater(date, options = {}) {
+  const row = getDb(options).prepare("SELECT water_ml FROM daily_water WHERE date = ?").get(date);
   return row ? row.water_ml : 0;
 }
 
-export function getNutritionDeletedIds(date) {
-  return getDeletedMealIds(date);
+export function getNutritionDeletedIds(date, options = {}) {
+  const nutritionDir = options.nutritionDir || (options.nutritionDbPath ? path.dirname(options.nutritionDbPath) : null);
+  return getDeletedMealIds(date, nutritionDir || undefined);
 }
 
 // ── Ingredients (wger cache) ──────────────────────────────────────────────────

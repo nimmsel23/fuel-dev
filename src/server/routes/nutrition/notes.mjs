@@ -41,7 +41,7 @@ export default async function journalRoute(app) {
         if (bridged.status < 500) return reply.status(bridged.status).send(bridged.data);
       } catch {}
       writeEntry(date, content, req.paths.nutritionJournal);
-      pushNutritionJournal(date, content).catch(() => {});
+      pushNutritionJournal(date, content, { uid: req.uid }).catch(() => {});
       return reply.send({ ok: true, date });
     } catch (error) {
       console.error(error);
