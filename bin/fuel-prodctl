@@ -101,6 +101,18 @@ def restart():
         raise typer.Exit(rc)
 
 
+@app.command()
+def enable():
+    """Aktiviert die Prod-Units für Autostart beim Boot (sudo)."""
+    msg.info(f"Enabling {PROD_SERVICE} and fuel-python.service for boot (sudo)")
+    rc = subprocess.run(["sudo", "systemctl", "enable", PROD_SERVICE, "fuel-python.service"]).returncode
+    if rc == 0:
+        msg.good(f"{PROD_SERVICE} + fuel-python.service enabled")
+    else:
+        msg.fail(f"enable failed (exit {rc})")
+        raise typer.Exit(rc)
+
+
 def _run_deploy_sh(*args: str) -> int:
     deploy_script = DEV_DIR / "deploy.sh"
     if not deploy_script.exists():
