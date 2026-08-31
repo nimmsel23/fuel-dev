@@ -28,6 +28,7 @@ app = typer.Typer(help="Fuel Prod Controller", no_args_is_help=True)
 DEV_DIR = Path(__file__).resolve().parent.parent
 
 PROD_SERVICE = "fuel.service"  # system-scope, sudo
+PY_SERVICE = "fuel-python.service"
 
 
 def _unit_port(service: str, fallback: str) -> str:
@@ -59,20 +60,25 @@ def _systemctl(action: str, unit: str) -> int:
     return subprocess.run(["sudo", "systemctl", action, unit]).returncode
 
 
-@app.command()
-def status():
-    """Status des Prod-Service."""
-    prod_port = _unit_port(PROD_SERVICE, "7000")
-    health_url = f"http://127.0.0.1:{prod_port}/health"
+def _status_line(service: str, fallback_port: str):
+    port = _unit_port(service, fallback_port)
+    health_url = f"http://127.0.0.1:{port}/health"
     result = subprocess.run(
-        ["systemctl", "is-active", PROD_SERVICE], capture_output=True, text=True
+        ["systemctl", "is-active", service], capture_output=True, text=True
     )
     state = result.stdout.strip() or "unknown"
     if state == "active" or _check_url(health_url):
-        suffix = f" (health ok on :{prod_port})" if _check_url(health_url) else ""
-        msg.good(f"{PROD_SERVICE}: {state}{suffix}")
+        suffix = f" (health ok on :{port})" if _check_url(health_url) else ""
+        msg.good(f"{service}: {state}{suffix}")
     else:
-        msg.fail(f"{PROD_SERVICE}: {state}")
+        msg.fail(f"{service}: {state}")
+
+
+@app.command()
+def status():
+    """Status der Prod-Services."""
+    _status_line(PROD_SERVICE, "7000")
+    _status_line(PY_SERVICE, "4000")
 
 
 @app.command()
@@ -104,10 +110,10 @@ def restart():
 @app.command()
 def enable():
     """Aktiviert die Prod-Units für Autostart beim Boot (sudo)."""
-    msg.info(f"Enabling {PROD_SERVICE} and fuel-python.service for boot (sudo)")
-    rc = subprocess.run(["sudo", "systemctl", "enable", PROD_SERVICE, "fuel-python.service"]).returncode
+    msg.info(f"Enabling {PROD_SERVICE} and {PY_SERVICE} for boot (sudo)")
+    rc = subprocess.run(["sudo", "systemctl", "enable", PROD_SERVICE, PY_SERVICE]).returncode
     if rc == 0:
-        msg.good(f"{PROD_SERVICE} + fuel-python.service enabled")
+        msg.good(f"{PROD_SERVICE} + {PY_SERVICE} enabled")
     else:
         msg.fail(f"enable failed (exit {rc})")
         raise typer.Exit(rc)
