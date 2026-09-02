@@ -3,6 +3,17 @@ import { X } from "lucide-react";
 import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine, Cell as RCell } from "recharts";
 import { pctColor } from "./utils.js";
 
+function provenanceLabel(entry) {
+  const meta = entry?.micros_meta || null;
+  if (!meta) return null;
+  if (meta.origin === "supplement") return "Supplement-Katalog";
+  if (meta.origin === "fresh_estimate") return "frisch geschätzt";
+  if (meta.origin === "background_estimate") return "geschätzt im Hintergrund";
+  if (meta.origin === "cloud_cache_lookup") return "Cloud-Micros-Katalog";
+  if (meta.origin === "cache_lookup") return "lokaler Micros-Cache";
+  return meta.source || "Micros";
+}
+
 export default function MicrosDetailModal({ nutrient, week, weekData, onClose }) {
   const { key, label, unit } = nutrient;
   const status = weekData?.rda_comparison?.[key];
@@ -139,6 +150,12 @@ export default function MicrosDetailModal({ nutrient, week, weekData, onClose })
                           {entry.kind === "supplement" ? "💊 " : "🍽 "}{entry.name}
                           <span className="ml-2 text-[10px] font-normal text-slate-500">{entry.date.slice(5).split("-").reverse().join(".")}</span>
                         </div>
+                        {entry.micros_meta && (
+                          <div className="truncate text-[10px] text-slate-500">
+                            {provenanceLabel(entry)}
+                            {entry.micros_meta.lookup_name ? ` · via ${entry.micros_meta.lookup_name}` : ""}
+                          </div>
+                        )}
                         <div className="h-1 mt-1 rounded-full bg-white/10 overflow-hidden">
                           <div className="h-full rounded-full bg-amber-400/70" style={{ width: `${pct}%` }} />
                         </div>
@@ -173,6 +190,13 @@ export default function MicrosDetailModal({ nutrient, week, weekData, onClose })
                         <div className="truncate text-sm text-slate-200">
                           {entry.kind === "supplement" ? "💊 " : "🍽 "}{entry.name}
                         </div>
+                        {entry.micros_meta && (
+                          <div className="truncate text-[10px] text-slate-500">
+                            {provenanceLabel(entry)}
+                            {entry.micros_meta.lookup_name ? ` · via ${entry.micros_meta.lookup_name}` : ""}
+                            {entry.micros_meta.inferred_from && entry.micros_meta.inferred_from !== entry.micros_meta.lookup_name ? ` · aus ${entry.micros_meta.inferred_from}` : ""}
+                          </div>
+                        )}
                         <div className="h-1 mt-1 rounded-full bg-white/10 overflow-hidden">
                           <div className="h-full rounded-full bg-violet-400/70" style={{ width: `${pct}%` }} />
                         </div>

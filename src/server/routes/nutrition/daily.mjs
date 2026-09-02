@@ -5,6 +5,7 @@ import { MICRO_KEYS, computeMealMicroTotals } from "../../services/nutrition-mic
 import { loadCatalog } from "../../services/nutrition-catalog.mjs";
 import { loadCatalog as loadSupplementsCatalog } from "../../services/supplements-catalog.mjs";
 import { loadLog as loadSupplementLog } from "../../services/supplements-log.mjs";
+import { pushNutritionLog } from "../../lib/firestore-admin.mjs";
 import path from "path";
 import fs from "fs";
 
@@ -52,13 +53,22 @@ export default async function dailyRoute(app) {
       // Nutzt denselben Resolve-Cache wie /nutrition/weekly (meal.micros wird
       // in-place gecacht) — wurde die Woche schon einmal geladen, ist das
       // hier ein reiner Cache-Hit statt erneuter Katalog-Namens-Lookups.
-      const { totals: micros } = computeMealMicroTotals(log.meals, catalog);
-      if ((log.meals || []).some((m) => m.micros)) saveLog(log, req.paths.nutrition);
+      const microOptions = { nutritionDir: req.paths.nutrition, nutritionDbPath: req.paths.nutritionDb, uid: req.uid };
+      const hadPersistedMicros = (log.meals || []).some((m) => m.micros);
+      const { totals: micros } = computeMealMicroTotals(log.meals, catalog, microOptions);
+      const hasResolvedMicros = (log.meals || []).some((m) => m.micros);
+      if (hasResolvedMicros && !hadPersistedMicros) {
+        saveLog(log, req.paths.nutrition);
+        void pushNutritionLog(date, log.meals, log.water_ml || 0, {
+          uid: req.uid,
+          nutritionDir: req.paths.nutrition,
+        }).catch(() => {});
+      }
 
       // Supplement micros
-      const suppCatalog = loadSupplementsCatalog();
+      const suppCatalog = loadSupplementsCatalog(req.paths.supplements, { uid: req.uid });
       const suppCatalogMap = Object.fromEntries(suppCatalog.items.map((i) => [i.id, i]));
-      const suppLog = loadSupplementLog(date);
+      const suppLog = loadSupplementLog(date, req.paths.supplementsLog);
       for (const intake of suppLog.intakes || []) {
         const entry = suppCatalogMap[intake.supplement_id];
         if (!entry?.micros) continue;

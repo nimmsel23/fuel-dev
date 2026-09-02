@@ -1,324 +1,490 @@
-# Fuel Centre — Architektur
+# Fuel Centre Architecture
 
-Stand: 2026-05-29
+Stand: 2026-08-31
 
----
+## Scope
 
-## Überblick
+Dieses Dokument beschreibt den tatsächlich verifizierten Stand von `fuel-dev`:
 
-Hybrid-Architektur für maximale Flexibilität:
-- **Lokal:** Fastify-Backend (Port 9000), JSON-Speicher in `data/`, SQLite Caches.
-- **Cloud:** Firebase Hosting & Firestore. Ermöglicht 24/7 Nutzung der PWA unabhängig vom Laptop.
-- **Sync:** Bidirektionaler Abgleich zwischen lokalem Dateisystem und Firestore.
-
----
-
-## Daten-Layer & API-Routing
+- v3 Runtime: Node/Fastify in `src/server`
+- v4 Backend: Python/FastAPI in `backend/`
+- Cloud Client: Firebase Hosting + Firestore
+- Lokale Persistenz: `~/.aos/fuel`
 
-Die App nutzt in `src/lib/api.js` eine intelligente Weiche:
+Es dokumentiert bewusst auch die gefundenen Failure-Modes, damit `default` und
+falsche UID-Fallbacks nicht erneut als "normal" behandelt werden.
 
-1.  **Detection:** Läuft die App auf `*.web.app` oder `*.firebaseapp.com`?
-2.  **Routing:**
-    -   **Lokal:** Requests gehen an den Node-Server (`/nutrition/...`).
-    -   **Cloud:** Requests werden auf Firestore-Calls umgeleitet (`src/lib/db.firestore.js`).
-    -   **Fallback:** Wenn der lokale Server nicht erreichbar ist, kann auch lokal auf Firestore ausgewichen werden.
+## High-Level Model
 
----
-
-## Backend (`src/app.mjs`)
-
-**Fastify** mit `@fastify/cors`. Plugins in `src/routes/`.
-Path-Normalisierung per `preHandler`-Hook: `/c/<clientId>/...` → bare path.
-
-### Routing
-
-```
-GET  /health
-
-# Nutrition
-GET  /nutrition/search?q=&limit=       Open Food Facts proxy
-GET  /nutrition/log?date=              Tages-Logs (YYYY-MM-DD.json)
-POST /nutrition/log                    {meal: {description, catalog_id?, kcal, protein, carbs, fat}}
-GET  /nutrition/catalog                Alle Meals aus catalogs/nutrition/meals/
-POST /nutrition/catalog                Meal als {id}.json speichern
-GET  /nutrition/daily/:date            Aggregierte Makros + Mikros für einen Tag
-GET  /nutrition/weekly/:year/:week     Wochen-Mikros vs. DACH-Referenz
-POST /nutrition/compose                wger + Gemini → Gericht komponieren, optional speichern
-POST /nutrition/estimate               Gemini Makro-Schätzung ohne Save
-GET  /nutrition/journal?date=
-POST /nutrition/journal
-
-# Supplements
-GET  /supplements/catalog
-POST /supplements/catalog
-GET  /supplements/log?date=
-POST /supplements/log
-GET  /supplements/stats?days=&anchor=
-
-# Push Notifications (Habit Tracker)
-GET  /push/vapidPublicKey
-POST /push/subscribe
-
-# Legacy
-GET|POST /fuel/log
-```
+Fuel hat zwei klar getrennte Datenklassen:
 
----
-
-## Datenspeicherung
-
-### Laufzeit-Daten (`data/catalogs/`)
-
-```
-~/.aos/fuel/
-├── nutrition/
-│   ├── YYYY-MM-DD.json     Tages-Mahlzeiten
-│   └── nutrition.db        SQLite (ingredients + meal_micros)
-├── nutrition_journal/
-│   └── YYYY-MM-DD.md
-└── supplements/
-    └── logs/
-        └── YYYY-MM-DD.json
-```
-
-### Repo-Kataloge (`catalogs/`, git-tracked)
-
-```
-catalogs/
-├── nutrition/
-│   └── meals/
-│       └── {id}.json       Ein File pro Gericht
-└── supplements/
-    └── catalog.json
-```
-
-Catalogs sind im Repo versioniert — portabel, backup-frei, direkt editierbar.
-
-### SQLite (`nutrition.db`)
-
-**`ingredients`** — wger API Cache, per 100g:
-```sql
-wger_id, name, brand, kcal, protein, carbs, fat, fiber, sodium_mg
-```
-Befüllt automatisch beim Compose.
-
-**`meal_micros`** — Gemini-geschätztes Mikronährstoffprofil:
-```sql
-meal_name TEXT UNIQUE,
-vitamin_b12_ug, calcium_mg, iron_mg, vitamin_d_ug, vitamin_e_mg,
-folate_ug, magnesium_mg, zinc_mg, sodium_mg, potassium_mg,
-source TEXT  -- 'gemini'
-```
-Lookup: `SELECT * FROM meal_micros WHERE meal_name = ? COLLATE NOCASE`
-
----
-
-## Meal Catalog
-
-Individuelle JSON-Files in `catalogs/nutrition/meals/`:
-
-```json
-{
-  "id": "meal_eierspeise_freiland",
-  "kind": "recipe",
-  "category": "meal",
-  "name": "Eierspeise Freiland",
-  "meal_type": "meal",
-  "description": "...",
-  "kcal": 168, "protein": 15.1, "carbs": 0.6, "fat": 11.8,
-  "components": [],
-  "addons": [
-    { "id": "freiland_2er", "label": "2 große Freiland-Eier", "grams": 120, "kcal": 168, ... }
-  ],
-  "default_addon_ids": ["freiland_2er"]
-}
-```
-
-`nutrition-catalog.mjs` liest beim Start alle `*.json` aus dem Meals-Dir.
-Neues Meal: `saveMeal(item)` → schreibt `{id}.json`.
-
----
-
-## Supplement Habit Tracker (Push Reminders)
-
-Supplements fungieren als tägliche Checkliste (Habits), die den User an die Einnahme erinnern.
-
-### 1. Datenmodell (Catalog)
-Im `catalog.json` werden Supplements mit einem `schedule` definiert:
-- `daily`: Jeden Tag fällig
-- `weekly`: Nur an bestimmten Wochentagen (z. B. `["mon", "wed"]`)
-- `cyclical`: Alle X Tage (z. B. jeden 3. Tag)
-
-### 2. UI-Logik (Due Today Checkliste)
-Die PWA (V2 / Fuel Studio) berechnet on-the-fly, welche Supplements **heute** an der Reihe sind. Es wird eine Checkliste gruppiert nach Tageszeiten (Morning, Midday, Evening, Night) angezeigt. Ein Tap loggt das Supplement (Y/N).
-
-### 3. Push-Benachrichtigungen
-- **Backend:** `push-scheduler.mjs` läuft im Node-Server als minütlicher Cron-Job.
-- **Triggers:** Um 08:00 (morning), 13:00 (midday), 19:00 (evening) und 21:00 (night) wird der Soll-Zustand (`schedule`) mit dem Ist-Zustand (`logs/YYYY-MM-DD.json`) abgeglichen.
-- **Service Worker:** Sind noch Supplements offen, schickt der Server eine Web-Push-Notification (VAPID) an den Service Worker (`sw.js`), der das Smartphone aufweckt und den Reminder anzeigt.
-
----
-
-## Mikronährstoff-Pipeline
-
-```
-User loggt Mahlzeit (via UI oder /nutrition/compose)
-    │
-    ├─ Makros: aus Meal-Katalog oder manuell eingegeben
-    │
-    └─ Mikros (async, beim Compose):
-           gemini-micros "Mahlzeit-Beschreibung"
-               → Gemini schätzt absolute Mikrowerte für die Portion wie gegessen
-               → upsertMealMicros(mealName, micros) → SQLite meal_micros
-```
-
-**Aggregation** (weekly/daily):
-1. Meal-Log laden → für jede Mahlzeit `getMealMicros(name)` aus SQLite
-2. Mikros summieren → Tages-/Wochen-Totals
-3. Vergleich mit DACH-Referenz (`src/config/dach.mjs`)
-
-**Wochenheatmap** (`MicrosView.jsx`):
-- 8 Wochen × 10 Mikronährstoffe
-- Farbe: ≥90% grün, 50–89% amber, <50% rot, keine Daten grau
-- Daten: `GET /nutrition/weekly/:year/:week` → `rda_comparison`
-
----
-
-## Gemini Integration
-
-Alle drei Scripts sind eigenständige Python-Executables im Repo-Root:
-
-| Script | Input | Output |
-|--------|-------|--------|
-| `gemini-compose` | Mahlzeit-Beschreibung | `{kcal, protein, carbs, fat, components[]}` |
-| `gemini-estimate` | Mahlzeit-Beschreibung | `{kcal, protein, carbs, fat}` |
-| `gemini-micros` | Mahlzeit-Beschreibung | `{vitamin_b12_ug, calcium_mg, ...}` (absolute Werte) |
-
-Config: `~/.env/fuel.env` (`GEMINI_API_KEY`, `GEMINI_MODEL=gemini-2.5-flash`)
-
----
-
-## Frontend
-
-### V1 / Fuel Classic (`public/index.html`)
-- Vanilla HTML PWA, kein Build
-- SW cache-first für Assets, network-first für API
-- Kein Offline-Write-Through
-
-### V2 / Fuel Studio (`src/main.jsx`)
-- React 18, TailwindCSS 3, TanStack Query, FullCalendar, Recharts, Zod, Zustand
-- **Tabs:** Dashboard · Food · Big Calendar · Journal · Supplements · Mikros · Setup
-- **NutritionHeatmap** (Header): Wochennavigation mit Kcal-Level-Visualisierung
-- **MicrosView**: DACH-Wochenheatmap (letzter 8 Kalenderwochen)
-
----
-
-## Services-Übersicht
-
-| Service | Was |
-|---------|-----|
-| `nutrition-db.mjs` | better-sqlite3: `ingredients` + `meal_micros` |
-| `nutrition-catalog.mjs` | Meal-Files lesen/schreiben |
-| `nutrition-micros.mjs` | Thin wrapper: `getMicrosForMeal`, `saveMicrosForMeal` |
-| `nutrition-compose.mjs` | `gemini-compose` execFile wrapper |
-| `nutrition-estimate.mjs` | `gemini-estimate` execFile wrapper |
-| `nutrition-estimate-micros.mjs` | `gemini-micros` execFile wrapper |
-| `nutrition-search.mjs` | Open Food Facts HTTPS proxy |
-| `nutrition-log.mjs` | Tages-Log lesen/schreiben |
-| `supplements-catalog.mjs` | `catalogs/supplements/catalog.json` |
-| `supplements-log.mjs` | Supplement-Logs + Stats |
-| `push.mjs` | Routen für VAPID Key und Subscription |
-| `push-scheduler.mjs` | Cron-Job für Supplement-Reminders |
-| `wger-search.mjs` | wger API Ingredient-Suche |
-
----
-
-## Open
-
-- Offline Write-Through POST-Queue (Vorbild: `~/core4-dev/public/offline-queue.js`)
-- `fuel meal` CLI → schreibt via `/nutrition/log`
-- Export-Endpoint: `GET /nutrition/export?from=&to=` → CSV
-- Klienten-Auth für `/c/<id>/nutrition/…`
-
----
-
-## v4 (Python/FastAPI + Postgres) — seit 2026-08-07
-
-Alles oben ist **v3** (Node/Fastify + altes React-Frontend, `src/`) — aktuell der
-äußere Runtime-/Kompatibilitäts-Layer. In Dev läuft v3 auf `:9000`; in Desktop-Prod
-ist `fuel.service` derzeit ebenfalls noch v3 (`/opt/fuel`, Port `7000`). `backend/`
-+ `frontend/` sind **v4**, aus `~/fuel/` nach hierher gemerged: der eigentliche
-Nachfolger, kein Prototyp. v4 läuft lokal auf `:4000`, servt sein eigenes gebautes
-`frontend/dist` und kann im Übergangszustand Legacy-Fälle zurück an v3 delegieren.
-
-**Deploy-Status (verifiziert 2026-08-28):** `fuel-v2.service` (Legacy-Unit-Name,
-seit 2026-05-31) ist restlos entfernt (Unit-File gelöscht, `daemon-reload`
-durchgeführt) — `fuel.service` ist jetzt der einzige aktive Prod-Node-Service auf
-`:7000`. `fuel-python.service` (v4, `/opt/fuel-python`) ist ebenfalls scharf
-geschaltet und beantwortet `:4000/health` — v4 ist damit nicht mehr nur
-Codebase/Experiment, sondern läuft parallel im Prod-Deploy. `deploy.sh` restartet
-beide Services (`SERVICE="fuel.service"`, `PY_SERVICE="fuel-python.service"`).
-Dev-Entry-Point v3 auf `:9000` lief zum Zeitpunkt der Prüfung nicht (nur Prod
-`:7000` aktiv) — vor der nächsten Session ggf. `npm run dev` prüfen.
-
-Die Migrationslogik ist **bidirektional**:
-- `/v4/*` auf v3 proxied zu v4 (`src/server/routes/v4-proxy.mjs`)
-- `/v3/*` auf v4 proxied zu v3 (`backend/api/endpoints/v3_proxy.py`)
-
-Das ist reine Erreichbarkeit im Übergang, kein gemeinsamer Datenlayer. v4 behält
-seine eigene Postgres-/SQLite-Seite; v3 behält seine bestehende Node/Firebase-
-Kompatibilität.
-
-Der Fuel Tracker (v4) wurde bewusst als simpel gehaltenes, modulares Python-Backend
-("Prod-like") konzipiert, das sich von historisch gewachsenen Node/Python-
-Mischarchitekturen verabschiedet.
-
-### Kern-Architektur
-
-1. **Python 3 Backend**: Verwaltet durch Poetry für striktes Dependency-Management (`backend/pyproject.toml`).
-2. **Relationales Datenmodell (PostgreSQL)**: Single-Point-of-Truth für alle getrackten Mahlzeiten (SQLite als reiner Dev-Fallback, an `backend/` geankert, siehe `backend/core/config.py`).
-3. **LLM als "Intelligenter Parser"**: Gemini API übersetzt natürlichen Text in harte Makro-Fakten statt einer internen Nährwert-Suchmaschine.
-
-### Verzeichnisstruktur
+1. Runtime user data
+   - nutrition Tageslogs
+   - nutrition journal
+   - supplements logs
+   - lokale SQLite-Caches und Runtime-Indices
+
+2. User-specific catalogs
+   - nutrition catalog
+   - supplements catalog
+
+Im Unterschied zu Fitness sind Fuel-Catalogs nicht global. Der vorhandene
+Fuel-Catalog ist immer ein User-Catalog.
+
+## User Identity And Routing
+
+Der Node-Server normalisiert eingehende Requests in `src/server/app.mjs`.
+
+- Bare paths ohne Client-Prefix laufen als `default`
+- `/c/<clientId>/...` wird auf den echten Client aufgelöst
+- `req.clientId` wird zu `req.uid` über `src/server/lib/client-manager.mjs`
+- `req.paths` wird über `src/server/config/paths.mjs` user-spezifisch erzeugt
+
+Entscheidende Regel:
+
+- `default` ist local-only fallback
+- `default` ist kein echter Cloud-User
+- `default` darf niemals in Firestore als Owner verwendet werden
+
+## Local Data Layout
+
+Fuel speichert Userdaten unter `~/.aos/fuel/users/<uid>/...`.
 
 ```text
-fuel-dev/
-├── backend/                 # Python-Package (FastAPI + SQLAlchemy)
-│   ├── .agents/              AlphaOS Meta-Instruktionen
-│   ├── alembic/               DB-Migrations-Historie
-│   ├── api/                   FastAPI Router (food, supplements, journal, ..., v3_proxy)
-│   ├── core/                  Config/env-Loader + LLM-Logik
-│   ├── db/                    SQLAlchemy Engine, Session, Modelle
-│   ├── schemas/                Pydantic-Modelle (KI-Antwort-Schablonen)
-│   ├── main.py                 CLI-Einstiegspunkt
-│   ├── docker-compose.yml      Lokales PostgreSQL Setup
-│   └── pyproject.toml          Poetry-Konfiguration (separat von fuel-devs Root-pyproject.toml, das ist die `fuel`-CLI)
-└── frontend/                 # v4 React-Frontend (eigener Vite-Build, package.json v4.0.0)
+~/.aos/fuel/
+├── users/
+│   └── <uid>/
+│       ├── nutrition/
+│       │   ├── YYYY-MM-DD.json
+│       │   ├── YYYY-MM-DD.deleted.json
+│       │   ├── catalog.json
+│       │   ├── micros-catalog.json
+│       │   └── nutrition.db
+│       ├── nutrition_journal/
+│       │   └── YYYY-MM-DD.md
+│       └── supplements/
+│           ├── catalog.json
+│           └── logs/
+│               ├── YYYY-MM-DD.json
+│               └── YYYY-MM-DD.deleted.json
+└── ...
 ```
 
-### Datenfluss
+`default` nutzt denselben Shape direkt unter `~/.aos/fuel/`, aber nur lokal.
 
-1. **User Input**: Freitext an `main.py` (z.B. *"Ich aß 3 Eier mit Speck"*).
-2. **NLP-Parsing (`backend/core/llm.py`)**: Text + Prompt an Gemini, `response_schema` erzwingt Pydantic-Format (`backend/schemas/food.py`).
-3. **Validierung**: Pydantic stellt korrekte Typisierung sicher (Zahlen für Makros, Arrays für Zutaten).
-4. **Persistierung (`backend/db/models/`)**: Typsicher als `FoodLog`/`DailyJournal` in PostgreSQL.
+## Catalog Ownership
 
-### "Journal-First" Datenmodell (DailyJournal)
+### Fuel
 
-Mit Blick auf einen späteren Übergang zu Firestore/NoSQL: `DailyJournal`
-(`backend/db/models/journal.py`) speichert Zeilen mit dem Datum als Primärschlüssel.
-Essen (`food_logs`) und Gewohnheiten/Supplements (`habits`) liegen als native
-JSON-Arrays (JSONB). Supplements sind eine Unterform von Habits (`type: "supplement"`).
+Fuel-Catalogs sind user-scoped:
 
-### Kalorien-Namenskonvention (`calories` vs. `kcal`)
+- nutrition catalog: `~/.aos/fuel/users/<uid>/nutrition/catalog.json`
+- supplements catalog: `~/.aos/fuel/users/<uid>/supplements/catalog.json`
 
-Um Namenskonflikte mit KDE-`KCal` zu vermeiden: Backend/API nutzt durchgängig
-`calories`, Frontend/UI mappt auf `kcal` für die Anzeige.
+Der frühere Repo-Pfad `catalogs/nutrition/meals/*` ist für aktive Fuel-User
+nicht mehr die kanonische Runtime-Quelle. Er bleibt nur als Legacy-/Fallback-
+Material relevant.
 
-### Frontend-Auslieferung (SPA Hosting)
+### Fitness
 
-FastAPI dient gleichzeitig als Webserver fürs React-Frontend: `npm run build` in
-`frontend/` → `frontend/dist`, FastAPI liefert `/assets` statisch aus und leitet
-SPA-Routen per Catch-All auf `index.html`. Lokal läuft das auf Port `4000`. In der
-aktuellen Prod-Topologie served aber noch nicht FastAPI den Haupteinstieg; dort ist
-weiter v3/Node der Entry-Point und kann bei Bedarf an v4 weiterreichen.
+Fitness hat globalere Catalogs und getrennte Runtime-Userdaten. Diese Abweichung
+ist absichtlich und darf nicht in Fuel "vereinheitlicht" werden.
+
+## Runtime Persistence
+
+### Nutrition
+
+Nutrition Runtime lebt pro User in zwei Formen:
+
+- JSON-Tagesdateien in `nutrition/YYYY-MM-DD.json`
+- SQLite in `nutrition/nutrition.db`
+
+Die SQLite-DB enthält normalisierte Meal- und Water-Rows und dient als
+serverseitige Runtime-Sicht. Sie ist jetzt pro User isoliert.
+
+Wichtige Tabellen:
+
+- `meals`
+- `daily_water`
+- `ingredients`
+- `meal_micros`
+
+### Supplements
+
+Supplements Runtime ist dateibasiert pro User:
+
+- `supplements/logs/YYYY-MM-DD.json`
+- `supplements/logs/YYYY-MM-DD.deleted.json`
+
+### Journal
+
+Nutrition Journal ist ebenfalls pro User:
+
+- `nutrition_journal/YYYY-MM-DD.md`
+
+## Graveyard / Tombstones
+
+Beide Runtime-Bereiche haben ein Graveyard-System.
+
+### Nutrition
+
+- Day-level deletes: `nutrition/YYYY-MM-DD.deleted.json`
+- Catalog tombstones: `nutrition/catalog.json` Feld `deleted_ids`
+
+Zweck:
+
+- lokal gelöschte Meals werden beim nächsten Pull nicht wiederbelebt
+- lokal tombstoned Catalog-IDs gewinnen gegen ältere oder doppelte Remote-Items
+
+### Supplements
+
+- `supplements/logs/YYYY-MM-DD.deleted.json`
+- Log-Feld `deleted_intake_ids`
+
+## Firestore Layout
+
+Fuel schreibt nicht in ein globales Shared-Dokument, sondern pro UID:
+
+```text
+nutrition/<uid>/meta/catalog
+nutrition/<uid>/logs/<date>
+nutrition/<uid>/journal/<date>
+
+supplements/<uid>/meta/catalog
+supplements/<uid>/logs/<date>
+```
+
+## Firestore Sync Ownership
+
+Der Fuel Firestore-Sync lebt in `src/server/lib/firestore-admin.mjs`.
+
+Er ist der eigentliche Node-seitige Transport-Layer für:
+
+- nutrition catalog push/pull
+- supplements catalog push/pull
+- nutrition runtime log push/pull
+- supplements runtime log push/pull
+- nutrition journal push/pull
+
+Der Sync ist multi-UID-fähig und entdeckt User aus:
+
+- `FUEL_CLOUD_UID`
+- `FUEL_CLOUD_UIDS`
+- `~/vital/Klienten/*/client.json`
+- lokalen `~/.aos/fuel/users/*` Ordnern
+
+## Sync Execution Policy
+
+Standardverhalten seit 2026-08-31:
+
+- lokaler Prod-Server auf Port `7000`: Firestore-Sync standardmäßig aktiv
+- Dev-Server auf Port `9000`: Firestore-Sync standardmäßig aus
+- Override nur explizit über `FUEL_ENABLE_FIRESTORE_SYNC=1`
+
+Begründung:
+
+- Dev und Prod sollen nicht parallel dieselben Userdaten syncen
+- sichtbare Server-Logs müssen klar einem aktiven Sync-Owner zuordenbar sein
+
+### Dev Service Boundary
+
+Für den lokalen Dev-Stack gilt seit 2026-08-31 zusätzlich:
+
+- ein eigener `fuel-dev.service` ist architektonisch unerwünscht
+- Dev soll terminalgeführt bleiben über `fuel-devctl` oder direkte `npm run dev*`
+- ein systemd-Dev-Service verwischt die Grenze zwischen bewusst gestarteter
+  Entwicklungsumgebung und dauerhaft laufendem Prod-Betrieb
+
+Pragmatische Folge:
+
+- v3/Vite-Start im Dev lieber über Terminal-Kommandos
+- Prod bleibt systemd-owned
+- Dev-Prozessprobleme sind eher im Frontdoor-/CLI-Flow zu lösen als durch
+  mehr systemd-Automation
+
+## v3 / v4 Boundary
+
+Fuel befindet sich in einem Übergang:
+
+- v3 Node/Fastify ist der lokale Runtime- und Kompatibilitäts-Layer
+- v4 Python/FastAPI läuft parallel und kann bestimmte Pfade bedienen
+- manche v3 Routes versuchen zuerst `callV4(...)` und fallen dann lokal zurück
+
+Wichtig:
+
+- die User-Isolation darf in beiden Schichten nicht verloren gehen
+- ein v3 Fallback darf niemals implizit wieder auf einen globalen User-Speicher
+  schreiben
+
+### Open Direction
+
+Stand 2026-08-31 ist Prod noch v3-fronted (`fuel.service` auf `:7000`) mit
+parallelem v4-Service auf `:4000`.
+
+Offene Architekturfrage:
+
+- ob Desktop-Prod mittelfristig nicht direkt v4 als eigentlichen Prod-Entry
+  nehmen sollte
+- statt v3 dauerhaft als Frontdoor vor einem ebenfalls laufenden v4-Service zu
+  behalten
+
+Hintergrund:
+
+- der aktuelle Dualbetrieb erhöht Betriebs- und Debug-Komplexität
+- `fuelctl prod status`/`fuel-prodctl` fokussieren historisch noch primär v3
+- Dev/Prod-Grenzen werden klarer, wenn das Zielbild explizit festgelegt wird:
+  v4 als echter Prod oder bewusster Dauerbetrieb von v3+v4
+
+### v4 Repo Shape
+
+Die v4-Struktur lebt in diesem Repo parallel zu v3:
+
+```text
+backend/
+├── alembic/
+├── core/
+├── db/
+├── routers/
+├── schemas/
+├── main.py
+└── pyproject.toml
+
+frontend/
+├── src/
+├── public/
+├── package.json
+└── vite.config.*
+```
+
+Wichtig:
+
+- `backend/pyproject.toml` gehört zum Python-v4-Backend
+- das Root-`pyproject.toml` gehört nicht zu dieser v4-App selbst, sondern zur
+  separaten `fuel`-CLI/Repo-Root-Tooling-Schicht
+
+### v4 Data Flow
+
+Der v4-Pfad ist weiterhin relevant, auch wenn v3 lokal noch Entry-Point sein
+kann:
+
+1. User Input kommt über FastAPI-Routen oder v3-Bridge im `backend`
+2. Parsing/LLM-Logik lebt in `backend/core/llm.py`
+3. Schemas und Typisierung liegen in `backend/schemas/`
+4. Persistierung läuft über `backend/db/models/`
+5. FastAPI servt bei gebautem Frontend auch die SPA aus `frontend/dist`
+
+### v4 Journal-First Model
+
+Das v4-Backend hat zusätzlich ein Journal-orientiertes Modell:
+
+- `backend/db/models/journal.py`
+- `DailyJournal` als Tagesanker
+- `food_logs`, `habits`, `notes`, `micros_sum` als JSON/JSONB-nahe Felder
+
+Dieses Modell ist für den Python-Stack weiterhin relevant, auch wenn der
+aktuelle Fuel Runtime-Sync in Node/Firestore pro User mit Tageslogs arbeitet.
+
+### v4 Calories Naming
+
+Die ältere Konvention bleibt dokumentationswürdig:
+
+- Backend/API bevorzugt `calories`
+- Frontend/UI mappt für die Anzeige oft auf `kcal`
+
+Grund war die frühere Vermeidung von Konflikten mit KDE-`KCal`. Im heutigen
+Repo existieren dennoch auch viele `kcal`-Felder, vor allem im v3- und
+Sync-Bereich. Diese Benennung ist daher historisch gemischt und muss bei
+Bridges bewusst gemappt werden.
+
+### v4 Frontend Serving
+
+FastAPI kann das React-Frontend direkt ausliefern:
+
+- Build in `frontend/` erzeugt `frontend/dist`
+- FastAPI servt statische Assets
+- SPA-Routen fallen auf `index.html` zurück
+- lokal läuft v4 auf Port `4000`
+
+Trotzdem ist in der aktuellen Desktop-Topologie der lokale Haupteinstieg noch
+nicht ausschließlich FastAPI:
+
+- v3/Node bleibt auf Port `7000` bzw. `9000` der lokale Frontdoor-Layer
+- v3 kann selektiv an v4 weiterreichen
+- deshalb müssen Architekturänderungen immer beide Schichten mitdenken
+
+## Logging
+
+Node nutzt strukturierte Logs über Fastify/Pino.
+
+- Dev: `pino-pretty`
+- Prod: Standard-Fastify-Logger
+
+`firestore-admin.mjs` loggt bewusst mit sichtbaren Feldern wie:
+
+- `scope=catalog|runtime`
+- `direction=push|pull|pushback`
+- `uid=<uid>`
+- `target=...`
+- `result=...`
+
+Das ist wichtig, damit Sync-Vorfälle in den Server-Logs klar pro User lesbar
+bleiben.
+
+## Interactive Daily Notifications
+
+Seit dem 2. September 2026 nutzt Fuel ein gemeinsames Notification-Schema für
+lokalen Node-Push und Firebase-FCM-Push.
+
+Ziel:
+
+- tägliche Einstiege mit sehr niedriger Hürde
+- klickbare Actions statt nur stumpfer Reminder-Texte
+- dieselben Intent-Namen lokal und in der Cloud
+- serverseitig sichtbare Logs pro Prompt-Typ
+
+Bausteine:
+
+- `src/server/lib/push-config.mjs`
+  - SSOT für lokale Push-Settings
+  - Daily-Prompt-Definitionen
+  - Action-/Intent-URLs
+- `src/server/services/push-scheduler.mjs`
+  - lokaler Scheduler für Supplements plus Daily Prompts
+- `src/server/routes/push.mjs`
+  - lokale Settings-API
+  - lokaler Test-Trigger `POST /push/test`
+- `public/sw.js`
+  - rendert Notification-Actions
+  - navigiert in Intent-Ziele statt nur auf rohe Tabs
+- `functions/index.js`
+  - Cloud-Scheduler liest `users/{uid}/meta/settings`
+  - FCM-Token aus `users/{uid}/fcm/token`
+
+Aktuelle Daily-Prompt-Typen in Fuel:
+
+- `fuel_quick_log`
+  - öffnet den AI-Freitext-Logger
+  - Actions: `Quick Log`, `Log`, `Journal`
+- `journal_entry`
+  - öffnet die Tagesnotizen
+  - Actions: `Jetzt schreiben`, `Food Log`
+
+Intent-Schema:
+
+- Query-Parameter:
+  - `notificationTab`
+  - `notificationDate`
+  - `notificationIntent`
+  - `notificationFocus`
+  - optional `notificationDraft`
+- Frontend-Bridge:
+  - `src/client/lib/notification-intents.js`
+  - speichert den Intent kurz in `sessionStorage`
+  - setzt Tab/Datum sofort
+  - übergibt den Fokus an die Ziel-View
+
+Wichtige Einschränkung:
+
+- Auf der Web/PWA-Schicht gibt es kein verlässliches plattformübergreifendes
+  echtes Freitext-Reply wie in nativen Messenger-Notifications.
+- Daher ist `reply_mode=deep-link` aktuell der ehrliche Modus:
+  Notification -> Action -> fokussierter Composer in der App.
+- Wenn später ein nativer Wrapper oder Android-spezifischer Kanal dazukommt,
+  kann derselbe Intent-Name (`fuel.quick-log`, `journal.quick-entry`, ...)
+  auf echtes Inline-Reply gemappt werden.
+
+Analoge Zieltypen für die anderen VitalOS-Apps:
+
+- Fitness
+  - Prompt: nächster Trainingsblock laut User-Präferenz (`PPL`, `UL`, `FB`)
+  - Intent: `fitness.next-block`
+  - Actions: `Start Session`, `Swap Block`, `Skip Today`
+- Journal
+  - Prompt: Tages-Check-in
+  - Intent: `journal.quick-entry`
+  - Actions: `1 Satz schreiben`, `Mood`, `Heute reviewen`
+- Habits
+  - Prompt: due Habits oder Supplements
+  - Intent: `habits.daily-checkin`
+  - Actions: `Done`, `Snooze`, `Open Stack`
+- Fuel
+  - Prompt: Mahlzeit als Freitext loggen
+  - Intent: `fuel.quick-log`
+  - Actions: `Quick Log`, `Log`, `Journal`
+
+Die beabsichtigte gemeinsame Struktur ist also nicht ein global gemeinsamer
+Catalog, sondern ein gemeinsames Notification-/Intent-Protokoll über
+app-spezifische Datenmodelle hinweg.
+
+## Known Incident: Multi-User Runtime Leak
+
+Am 2026-08-31 wurde ein echter Multi-User-Leak bestätigt.
+
+Symptom:
+
+- Jakobs Meals landeten in einem anderen Firestore-User
+- konkret wurde mindestens der Tag `2026-08-29` verdächtig
+- Jakobs lokaler User `fxohGl4Zn5ZUqXzTHjBsye5MmFu1` hatte dort:
+  - `Reis mit Gemüse und Falafel`
+  - `Feta Wrap mit Bohnensalat`
+
+Root cause:
+
+1. Die Nutrition Runtime-DB war noch global verdrahtet statt user-scoped.
+2. Mehrere Runtime-Pushpfade gaben die echte `uid` nicht explizit weiter.
+3. Dadurch konnten gepullte Userdaten wieder über `FUEL_CLOUD_UID` in den
+   falschen Firestore-User zurückgeschrieben werden.
+
+Fix:
+
+- `src/server/services/nutrition-db.mjs` auf user-scoped DB-Kontext umgestellt
+- Runtime-Pushes für nutrition logs und journal auf explizite `uid`
+- Firestore-Pull schreibt pro User wieder in dessen eigene DB/Journal-Pfade
+
+Commit:
+
+- `74947ad` `Fix fuel runtime sync user isolation`
+
+Der Fix verhindert neue Vermischungen. Bereits verfälschte Firestore-Dokumente
+müssen separat per Recovery bereinigt werden.
+
+## Fitness Bridge
+
+`fitness-dev` kann Fuel-Daten bridgen, aber diese Brücke ist nicht der primäre
+Fuel-Sync-Owner.
+
+Regeln:
+
+- Fuel bleibt Owner seiner eigenen user-scoped Catalogs
+- Fitness darf Fuel nicht auf globale Catalog-Semantik herunterbrechen
+- die Repo-Bridge muss deaktivierbar bleiben
+
+Das wurde in `fitness-dev` über ein abschaltbares Env-Flag umgesetzt.
+
+## Invariants
+
+Diese Regeln gelten als Architektur-Invarianten:
+
+1. `default` bleibt lokal-only.
+2. Fuel-Catalogs sind user-spezifisch, nicht global.
+3. Runtime-Logs, Journal und SQLite müssen pro User isoliert sein.
+4. Jeder Cloud-Write braucht eine explizite echte `uid`.
+5. Dev und Prod dürfen nicht beide standardmäßig denselben Firestore-Sync fahren.
+6. Tombstones gewinnen gegen ältere oder doppelte Remote-Daten.
+7. Server-Logs müssen `uid` und Richtung des Syncs sichtbar machen.
+
+## Relevant Files
+
+- `src/server/app.mjs`
+- `src/server/config/paths.mjs`
+- `src/server/lib/client-manager.mjs`
+- `src/server/lib/firestore-admin.mjs`
+- `src/server/services/nutrition-db.mjs`
+- `src/server/services/nutrition-catalog.mjs`
+- `src/server/services/supplements-catalog.mjs`
+- `src/server/services/supplements-log.mjs`
+- `src/server/services/log-tombstones.mjs`
+- `src/server/routes/nutrition/log.mjs`
+- `src/server/routes/nutrition/notes.mjs`
+- `src/server/routes/supplements.mjs`
+- `src/server/routes/coach.mjs`

@@ -6,6 +6,7 @@
   "description": "Fuel Centre - nutrition tracking",
   "scripts": {
     "dev": "nodemon --watch server.mjs --watch src --watch index.html --watch vite.config.js --watch tailwind.config.cjs --watch postcss.config.cjs --ext js,jsx,mjs,cjs,html,css --signal SIGTERM --exec node scripts/dev-runner.mjs",
+    "dev:vite": "vite --host 127.0.0.1 --port 9001 --strictPort",
     "start": "node server.mjs",
     "ui:dev": "vite",
     "build": "npm run build:local",

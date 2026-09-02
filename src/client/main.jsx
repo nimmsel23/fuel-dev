@@ -17,6 +17,7 @@ import { useAppData } from "./hooks/useAppData.js";
 import { sumMetric, formatMetric } from "../shared/utils/utils.js";
 import { watchAuth, signIn, signOut, getUid } from "./lib/db.firestore.js";
 import { fetchJson } from "@api";
+import { captureNotificationIntentFromLocation } from "./lib/notification-intents.js";
 
 
 
@@ -100,6 +101,10 @@ function App() {
 
   // URL Hashing for Tab + Datum
   React.useEffect(() => {
+    const intent = captureNotificationIntentFromLocation();
+    if (intent?.tab) setActiveTab(intent.tab);
+    if (intent?.date) setActiveDate(intent.date);
+
     const handleHashChange = () => {
       const { tab: hashTab, date } = parseHashState();
       const isCloudNow = window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com") || import.meta.env.VITE_APP_MODE === "client";

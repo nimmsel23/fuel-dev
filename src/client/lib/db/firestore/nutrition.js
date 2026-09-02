@@ -131,6 +131,15 @@ function resolveMealMicros(meal, catalog, microsMap) {
     resolved[k] = Math.round((micros[k] || 0) * factor * 10) / 10;
   }
   meal.micros = resolved;
+  meal.micros_meta = {
+    source: micros.source || "unknown",
+    lookup_name: lookupName || null,
+    inferred_from: micros.meal_name || lookupName || null,
+    normalized_key: micros.name_key || null,
+    scaling_factor: Math.round((factor || 1) * 1000) / 1000,
+    resolved_at: new Date().toISOString(),
+    origin: "cloud_cache_lookup",
+  };
   return resolved;
 }
 
@@ -169,6 +178,7 @@ export async function getWeeklyMicros(year, week) {
 
   const weekTotals = zeroMicros();
   const dayBreakdown = {};
+  const mealBreakdown = {};
   const missingMeals = new Set();
 
   for (const date of dates) {
@@ -196,6 +206,15 @@ export async function getWeeklyMicros(year, week) {
 
     const dayTotals = { ...mealTotals };
     const suppLog = suppLogsMap[date] || { intakes: [] };
+    const contributions = (log.meals || [])
+      .filter((m) => m.micros)
+      .map((m) => ({
+        kind: "meal",
+        name: m.description,
+        kcal: m.kcal || 0,
+        micros: m.micros,
+        micros_meta: m.micros_meta || null,
+      }));
     for (const intake of suppLog.intakes || []) {
       const entry = suppCatalogMap[intake.supplement_id];
       if (entry?.micros) {
@@ -209,10 +228,27 @@ export async function getWeeklyMicros(year, week) {
             dayTotals[k] = Math.round((dayTotals[k] + (entry.micros[k] * factor)) * 10) / 10;
           }
         }
+        contributions.push({
+          kind: "supplement",
+          name: entry.name || intake.supplement_id,
+          dose: intake.dose,
+          unit: entry.unit || "",
+          micros: Object.fromEntries(MICRO_KEYS.map((k) => [k, entry.micros[k] ? Math.round((entry.micros[k] * factor) * 10) / 10 : 0])),
+          micros_meta: {
+            source: "supplement_catalog",
+            lookup_name: entry.name || intake.supplement_id,
+            inferred_from: intake.supplement_id,
+            normalized_key: null,
+            scaling_factor: Math.round((factor || 1) * 1000) / 1000,
+            resolved_at: new Date().toISOString(),
+            origin: "supplement",
+          },
+        });
       }
     }
 
     dayBreakdown[date] = dayTotals;
+    mealBreakdown[date] = contributions;
     for (const k of MICRO_KEYS) {
       weekTotals[k] = Math.round((weekTotals[k] + dayTotals[k]) * 10) / 10;
     }
@@ -251,7 +287,7 @@ export async function getWeeklyMicros(year, week) {
     };
   }
 
-  return { ok: true, year, week, dates, week_totals: weekTotals, rda_comparison, day_breakdown: dayBreakdown, missing_meals: Array.from(missingMeals) };
+  return { ok: true, year, week, dates, week_totals: weekTotals, rda_comparison, day_breakdown: dayBreakdown, meal_breakdown: mealBreakdown, missing_meals: Array.from(missingMeals) };
 }
 
 export async function getFastingWindows(days = 14) {

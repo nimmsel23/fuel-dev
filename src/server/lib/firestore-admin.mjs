@@ -301,13 +301,25 @@ export async function pushNutritionLog(date, meals, waterMl, options = {}) {
   }
 }
 
-export async function pushNutritionJournal(date, content) {
+export async function pushNutritionJournal(date, content, options = {}) {
   const db = getDb();
   if (!db) return;
   try {
+    const uid = options.uid || UID;
+    if (!uid || uid === "default") {
+      logger.info(
+        `[firestore-admin] scope=runtime direction=push uid=default ` +
+        `target=nutrition/journal/${date} result=skip reason=local_only`
+      );
+      return;
+    }
     const now = new Date().toISOString();
-    await db.collection("nutrition").doc(UID).collection("journal").doc(date)
+    await db.collection("nutrition").doc(uid).collection("journal").doc(date)
       .set({ date, content, updated_at: now }, { merge: true });
+    logger.info(
+      `[firestore-admin] scope=runtime direction=push uid=${uid} ` +
+      `target=nutrition/journal/${date} result=ok`
+    );
     markPushOk();
   } catch (e) {
     logger.error("[firestore-admin] pushNutritionJournal failed:", e.message);
@@ -506,7 +518,7 @@ async function doPullRecentLogs(db, uid = UID) {
         const remote = nutSnap.data();
         const remoteAt = remote.updated_at ? new Date(remote.updated_at).getTime() : 0;
         const remoteDeletedIds = Array.isArray(remote.deleted_meal_ids) ? remote.deleted_meal_ids : [];
-        const localDeletedIds = getNutritionDeletedIds(date);
+        const localDeletedIds = getNutritionDeletedIds(date, { nutritionDir: userNutritionDir(uid) });
         const mergedDeletedIds = Array.from(new Set([...remoteDeletedIds, ...localDeletedIds]));
 
         // Enrich (catalog-match / macro-sanity / micro-lookup+estimate)
@@ -519,19 +531,31 @@ async function doPullRecentLogs(db, uid = UID) {
           { nutritionDir: userNutritionDir(uid), uid }
         );
 
-        deleteMealsByIds(date, mergedDeletedIds);
+        deleteMealsByIds(date, mergedDeletedIds, {
+          nutritionDir: userNutritionDir(uid),
+          nutritionDbPath: path.join(userNutritionDir(uid), "nutrition.db"),
+          uid,
+        });
 
         // Upsert each meal individually – no array overwrite, no data loss.
         for (const meal of enrichedMeals) {
           // Only upsert if remote meal is newer than what might be local.
           // meal.updated_at may not exist on old records; treat absence as "pull it".
           const mealRemoteAt = meal.updated_at ? new Date(meal.updated_at).getTime() : remoteAt;
-          upsertMeal(meal);
+          upsertMeal(meal, {
+            nutritionDir: userNutritionDir(uid),
+            nutritionDbPath: path.join(userNutritionDir(uid), "nutrition.db"),
+            uid,
+          });
           void mealRemoteAt; // timestamp noted, upsert always wins for now (remote is authoritative)
         }
 
         if (remote.water_ml != null) {
-          upsertWater(date, remote.water_ml);
+          upsertWater(date, remote.water_ml, {
+            nutritionDir: userNutritionDir(uid),
+            nutritionDbPath: path.join(userNutritionDir(uid), "nutrition.db"),
+            uid,
+          });
         }
 
         logger.info(
@@ -596,7 +620,7 @@ async function doPullRecentLogs(db, uid = UID) {
       const journalSnap = await db.collection("nutrition").doc(uid).collection("journal").doc(date).get();
       if (journalSnap.exists) {
         const remote = journalSnap.data();
-        writeEntry(date, remote.content || "");
+        writeEntry(date, remote.content || "", path.join(GLOBAL_DATA_DIR, "users", uid, "nutrition_journal"));
       }
     } catch (e) {
       logger.error(`[firestore-admin] pull nutrition/journal/${date} uid=${uid} failed:`, e.message);

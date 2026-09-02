@@ -2,9 +2,11 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
+import { createRequire } from "module";
 import { existsSync } from "fs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const requireFromHere = createRequire(import.meta.url);
 
 // Sibling-Repos existieren unter zwei Namensschemata, je nach Checkout:
 // ~/fuel-dev (dev-Branch, Home-Root)     → Siblings heißen *-dev (habits-dev, journal-dev, fitness-dev)
@@ -17,6 +19,10 @@ function resolveSibling(candidates, label) {
     if (existsSync(abs)) return abs;
   }
   throw new Error(`[vite.config.js] Kein Sibling-Pfad gefunden für ${label}: ${candidates.join(", ")}`);
+}
+
+function resolvePackageEntry(specifier) {
+  return requireFromHere.resolve(specifier);
 }
 
 // SSOT für Cross-App-Aliase ist @vos/cross-app-aliases (~/vitalos/packages/
@@ -74,8 +80,27 @@ export default defineConfig(async () => {
         "@firebase-config": resolve(__dirname, "src/client/lib/firebase.config.vitalos.js"),
         "@utils":   resolve(__dirname, "src/client/lib/db/index.js"),
         "@fuel":    resolve(__dirname, "src/client"),
+        "firebase/app": resolvePackageEntry("firebase/app"),
+        "firebase/auth": resolvePackageEntry("firebase/auth"),
+        "firebase/firestore": resolvePackageEntry("firebase/firestore"),
+        "firebase/functions": resolvePackageEntry("firebase/functions"),
+        "firebase/storage": resolvePackageEntry("firebase/storage"),
+        "firebase/vertexai": resolvePackageEntry("firebase/vertexai"),
+        "firebase/ai": resolvePackageEntry("firebase/ai"),
       },
-      dedupe: ["react", "react-dom", "@tanstack/react-query"],
+      dedupe: [
+        "react",
+        "react-dom",
+        "@tanstack/react-query",
+        "firebase",
+        "firebase/app",
+        "firebase/auth",
+        "firebase/firestore",
+        "firebase/functions",
+        "firebase/storage",
+        "firebase/vertexai",
+        "firebase/ai",
+      ],
     },
     plugins: [
       react(),

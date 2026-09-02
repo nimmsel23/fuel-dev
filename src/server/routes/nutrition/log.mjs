@@ -7,6 +7,32 @@ import { estimateMicros } from "../../services/nutrition-estimate-micros.mjs";
 import { getMicrosForMeal, saveMicrosForMeal } from "../../services/nutrition-micros.mjs";
 import { upsertMeal, deleteMeal as deleteMealRow, upsertWater, getMealsForDate, getMealDates, getWater } from "../../services/nutrition-db.mjs";
 import { callV4 } from "../../lib/v4-bridge.mjs";
+import { pushNutritionLog } from "../../lib/firestore-admin.mjs";
+
+function dbOptions(req) {
+  return {
+    nutritionDir: req.paths.nutrition,
+    nutritionDbPath: req.paths.nutritionDb,
+    uid: req.uid,
+  };
+}
+
+async function enrichAndPersistLog(req, log) {
+  const { enrichNutritionLog } = await import("../../services/nutrition-enrichment.mjs");
+  const { meals, changed } = await enrichNutritionLog(
+    (log.meals || []).map((meal) => ({ ...meal, date: log.date })),
+    dbOptions(req)
+  );
+  if (!changed) return false;
+  log.meals = meals;
+  invalidateMicroCache(log);
+  saveLog(log, req.paths.nutrition, dbOptions(req));
+  await pushNutritionLog(log.date, meals, log.water_ml || 0, {
+    uid: req.uid,
+    nutritionDir: req.paths.nutrition,
+  });
+  return true;
+}
 
 const logPostSchema = z.object({
   date: z.string().optional(),
@@ -47,17 +73,17 @@ function loadLog(date, nutritionDir) {
 }
 
 function loadReadLog(date, nutritionDir) {
-  const meals = getMealsForDate(date);
-  const waterMl = getWater(date);
+  const meals = getMealsForDate(date, { nutritionDir, nutritionDbPath: path.join(nutritionDir, "nutrition.db") });
+  const waterMl = getWater(date, { nutritionDir, nutritionDbPath: path.join(nutritionDir, "nutrition.db") });
   if (meals.length > 0 || waterMl > 0) {
     return { date, meals, water_ml: waterMl };
   }
   return loadLog(date, nutritionDir);
 }
 
-function saveLog(log, nutritionDir) {
+function saveLog(log, nutritionDir, options = {}) {
   fs.writeFileSync(path.join(nutritionDir, `${log.date}.json`), JSON.stringify(log, null, 2), "utf-8");
-  syncLogToDb(log);
+  syncLogToDb(log, options);
 }
 
 // Schreibt den Tag komplett nach SQLite durch (meals als Rows, id-basiert
@@ -66,21 +92,21 @@ function saveLog(log, nutritionDir) {
 // vorerst der Lesepfad (loadLog), SQLite existiert parallel als
 // Row-granulare Quelle für zukünftigen Firestore-Row-Sync (siehe
 // _merge_by_id-Fix in firestored/adapters/vitalos.py, 2026-07-23).
-function syncLogToDb(log) {
+function syncLogToDb(log, options = {}) {
   try {
-    const existing = getMealsForDate(log.date);
+    const existing = getMealsForDate(log.date, options);
     const currentIds = new Set((log.meals || []).filter((m) => m.id).map((m) => m.id));
     for (const row of existing) {
-      if (!currentIds.has(row.id)) deleteMealRow(row.id);
+      if (!currentIds.has(row.id)) deleteMealRow(row.id, options);
     }
     for (const meal of log.meals || []) {
       if (!meal.id) {
         console.warn(`[nutrition-db] Meal ohne id in ${log.date} übersprungen:`, meal.description);
         continue;
       }
-      upsertMeal({ ...meal, date: log.date });
+      upsertMeal({ ...meal, date: log.date }, options);
     }
-    upsertWater(log.date, log.water_ml || 0);
+    upsertWater(log.date, log.water_ml || 0, options);
   } catch (e) {
     console.warn(`[nutrition-db] Sync-Fehler für ${log.date}:`, e.message);
   }
@@ -171,11 +197,12 @@ const logPatchSchema = z.object({
 });
 
 function fireMicrosEstimate(description, kcal) {
-  if (!description || getMicrosForMeal(description)) return;
+  const options = arguments[2] || {};
+  if (!description || getMicrosForMeal(description, options)) return;
   estimateMicros(description)
     .then((micros) => {
       if (Object.keys(micros).length > 0) {
-        saveMicrosForMeal(description, kcal, micros, "gemini-log");
+        saveMicrosForMeal(description, kcal, micros, "gemini-log", options);
       }
     })
     .catch((e) => console.warn(`[micros] estimate failed for "${description}":`, e.message));
@@ -241,7 +268,7 @@ export default async function logRoute(app) {
     const legacyDates = fs.readdirSync(nutritionDir)
       .filter((f) => f.match(/^\d{4}-\d{2}-\d{2}\.json$/))
       .map((f) => f.replace(".json", ""));
-    const dates = Array.from(new Set([...getMealDates(), ...legacyDates])).sort().reverse();
+      const dates = Array.from(new Set([...getMealDates(dbOptions(req)), ...legacyDates])).sort().reverse();
     const history = [];
     for (const date of dates) {
       const log = loadReadLog(date, nutritionDir);
@@ -280,21 +307,22 @@ export default async function logRoute(app) {
         Object.assign(meal, Object.fromEntries(Object.entries(updates).filter(([, v]) => v !== undefined)));
         // kcal/description geändert → gecachte Mikros (auf altes kcal skaliert) sind stale.
         delete meal.micros;
+        delete meal.micros_meta;
       }
 
       if (new_date && new_date !== date) {
         sourceLog.meals.splice(mealIndex, 1);
         invalidateMicroCache(sourceLog);
-        saveLog(sourceLog, req.paths.nutrition);
+        saveLog(sourceLog, req.paths.nutrition, dbOptions(req));
         const targetLog = loadLog(new_date, req.paths.nutrition);
         targetLog.meals.push({ ...meal, id: `meal_${Date.now()}` });
         invalidateMicroCache(targetLog);
-        saveLog(targetLog, req.paths.nutrition);
+        saveLog(targetLog, req.paths.nutrition, dbOptions(req));
         return reply.send({ ok: true, data: targetLog });
       } else {
         sourceLog.meals[mealIndex] = meal;
         invalidateMicroCache(sourceLog);
-        saveLog(sourceLog, req.paths.nutrition);
+        saveLog(sourceLog, req.paths.nutrition, dbOptions(req));
         return reply.send({ ok: true, data: sourceLog });
       }
     } catch (error) {
@@ -326,7 +354,7 @@ export default async function logRoute(app) {
         const resolved = resolveCatalogItem(catalog, parsed.data.catalog_item_id, parsed.data.catalog_addon_ids);
         if (!resolved) return reply.status(404).send({ ok: false, error: "Catalog item not found" });
         log.meals.push({ id: `meal_${Date.now()}`, ...resolved, time: new Date().toISOString() });
-        fireMicrosEstimate(resolved.description, resolved.kcal);
+        fireMicrosEstimate(resolved.description, resolved.kcal, dbOptions(req));
       } else if (parsed.data.meal) {
         const m = parsed.data.meal;
         log.meals.push({
@@ -338,7 +366,7 @@ export default async function logRoute(app) {
           kcal: m.kcal || 0, protein: m.protein || 0, carbs: m.carbs || 0, fat: m.fat || 0,
           time: m.time || new Date().toISOString(),
         });
-        fireMicrosEstimate(m.description, m.kcal || 0);
+        fireMicrosEstimate(m.description, m.kcal || 0, dbOptions(req));
         autoUpsertCatalog(m, req.paths.nutrition, req.uid);
       }
 
@@ -350,7 +378,10 @@ export default async function logRoute(app) {
       }
 
       invalidateMicroCache(log);
-      saveLog(log, req.paths.nutrition);
+      saveLog(log, req.paths.nutrition, dbOptions(req));
+      void enrichAndPersistLog(req, log).catch((e) => {
+        console.warn(`[nutrition-enrichment] post-log enrich failed for ${log.date}:`, e.message);
+      });
       return reply.send({ ok: true, data: log });
     } catch (error) {
       console.error(error);

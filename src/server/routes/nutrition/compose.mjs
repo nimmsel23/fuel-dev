@@ -10,6 +10,11 @@ export default async function composeRoute(app) {
     try {
       const { description, save_catalog } = req.body || {};
       if (!description?.trim()) return reply.status(400).send({ ok: false, error: "description required" });
+      const microOptions = {
+        nutritionDir: req.paths.nutrition,
+        nutritionDbPath: req.paths.nutritionDb,
+        uid: req.uid,
+      };
 
       const composed = await composeMeal(description);
 
@@ -40,13 +45,13 @@ export default async function composeRoute(app) {
             carbs:     comp.carbs     / (comp.quantity_g / 100),
             fat:       comp.fat       / (comp.quantity_g / 100),
             sodium_mg: comp.sodium_mg ? comp.sodium_mg / (comp.quantity_g / 100) : null,
-          });
+          }, microOptions);
         }
 
         // Gemini estimates micronutrient profile for the whole meal as eaten → SQLite
         const micros = await estimateMicros(description);
         if (Object.keys(micros).length > 0) {
-          saveMicrosForMeal(description, composed.kcal, micros, "gemini-compose");
+          saveMicrosForMeal(description, composed.kcal, micros, "gemini-compose", microOptions);
         }
 
         return reply.send({ ok: true, description, ...composed, saved: true, micros });

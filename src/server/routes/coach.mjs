@@ -85,7 +85,12 @@ export default async function coachRoute(app) {
         d.setDate(d.getDate() - i);
         const date = d.toISOString().slice(0, 10);
 
-        const meals = getMealsForDate(date);
+        const dbOptions = {
+          nutritionDir: req.paths.nutrition,
+          nutritionDbPath: req.paths.nutritionDb,
+          uid: req.uid,
+        };
+        const meals = getMealsForDate(date, dbOptions);
         if (meals.length === 0) continue;
 
         const { meals: enriched, changed } = await enrichNutritionLog(
@@ -93,7 +98,7 @@ export default async function coachRoute(app) {
           { nutritionDir: req.paths.nutrition, uid: req.uid }
         );
         if (changed) {
-          for (const meal of enriched) upsertMeal(meal);
+          for (const meal of enriched) upsertMeal(meal, dbOptions);
         }
         results.push({ date, meals: meals.length, changed });
       }

@@ -1,22 +1,31 @@
 import Database from "better-sqlite3";
+import path from "path";
 import { NUTRITION_DB_PATH } from "../config/paths.mjs";
 import { MICRO_KEYS } from "../../shared/config/dach.mjs";
 import { pushNutritionLog } from "../lib/firestore-admin.mjs";
 import { addDeletedMealId, addDeletedMealIds, getDeletedMealIds, removeDeletedMealId } from "./log-tombstones.mjs";
 
-let db = null;
+const dbByPath = new Map();
 
-function getDb() {
+function resolveDbPath(options = {}) {
+  return options.nutritionDbPath
+    || (options.nutritionDir ? path.join(options.nutritionDir, "nutrition.db") : null)
+    || NUTRITION_DB_PATH;
+}
+
+function getDb(options = {}) {
+  const dbPath = resolveDbPath(options);
+  let db = dbByPath.get(dbPath);
   if (!db) {
-    db = new Database(NUTRITION_DB_PATH);
+    db = new Database(dbPath);
     db.pragma("journal_mode = WAL");
-    initDb();
+    initDb(db);
+    dbByPath.set(dbPath, db);
   }
   return db;
 }
 
-function initDb() {
-  const db = getDb();
+function initDb(db) {
 
   // Wger ingredient cache — macros per 100g
   db.exec(`
@@ -86,6 +95,7 @@ function initDb() {
   for (const col of newCols) {
     try { db.exec(`ALTER TABLE meal_micros ADD COLUMN ${col}`); } catch { /* column exists */ }
   }
+  try { db.exec(`ALTER TABLE meals ADD COLUMN micros_meta_json TEXT`); } catch { /* column exists */ }
 
   // Tages-Log als normalisierte Rows statt JSON-Blob-pro-Tag. Grund: der
   // Firestore-Sync (firestored push_fuel) pusht bisher den kompletten
@@ -110,6 +120,7 @@ function initDb() {
       carbs       REAL DEFAULT 0,
       fat         REAL DEFAULT 0,
       micros_json TEXT,
+      micros_meta_json TEXT,
       logged_at   TEXT,
       created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -126,16 +137,18 @@ function initDb() {
 
 // ── Meals (Tages-Log, normalisiert) ───────────────────────────────────────────
 
-export function upsertMeal(meal) {
-  const db = getDb();
+export function upsertMeal(meal, options = {}) {
+  const db = getDb(options);
+  const nutritionDir = options.nutritionDir || (options.nutritionDbPath ? path.dirname(options.nutritionDbPath) : null);
+  const uid = options.uid || "default";
   db.prepare(`
-    INSERT INTO meals (id, date, catalog_id, type, description, notes, kcal, protein, carbs, fat, micros_json, logged_at)
-    VALUES (@id, @date, @catalog_id, @type, @description, @notes, @kcal, @protein, @carbs, @fat, @micros_json, @logged_at)
+    INSERT INTO meals (id, date, catalog_id, type, description, notes, kcal, protein, carbs, fat, micros_json, micros_meta_json, logged_at)
+    VALUES (@id, @date, @catalog_id, @type, @description, @notes, @kcal, @protein, @carbs, @fat, @micros_json, @micros_meta_json, @logged_at)
     ON CONFLICT(id) DO UPDATE SET
       date = excluded.date, catalog_id = excluded.catalog_id, type = excluded.type,
       description = excluded.description, notes = excluded.notes,
       kcal = excluded.kcal, protein = excluded.protein, carbs = excluded.carbs, fat = excluded.fat,
-      micros_json = excluded.micros_json, logged_at = excluded.logged_at,
+      micros_json = excluded.micros_json, micros_meta_json = excluded.micros_meta_json, logged_at = excluded.logged_at,
       updated_at = CURRENT_TIMESTAMP
   `).run({
     id: meal.id,
@@ -149,30 +162,46 @@ export function upsertMeal(meal) {
     carbs: meal.carbs ?? 0,
     fat: meal.fat ?? 0,
     micros_json: meal.micros ? JSON.stringify(meal.micros) : null,
+    micros_meta_json: meal.micros_meta ? JSON.stringify(meal.micros_meta) : null,
     logged_at: meal.logged_at ?? meal.time ?? null,
   });
-  removeDeletedMealId(meal.date, meal.id);
+  removeDeletedMealId(meal.date, meal.id, nutritionDir || undefined);
   // Fire-and-forget push
   const date = meal.date;
-  pushNutritionLog(date, getMealsForDate(date), getWater(date)).catch(() => {});
+  pushNutritionLog(
+    date,
+    getMealsForDate(date, options),
+    getWater(date, options),
+    { uid, nutritionDir }
+  ).catch(() => {});
 }
 
-export function deleteMeal(id) {
-  const row = getDb().prepare("SELECT date FROM meals WHERE id = ?").get(id);
-  const result = getDb().prepare("DELETE FROM meals WHERE id = ?").run(id);
+export function deleteMeal(id, options = {}) {
+  const db = getDb(options);
+  const nutritionDir = options.nutritionDir || (options.nutritionDbPath ? path.dirname(options.nutritionDbPath) : null);
+  const uid = options.uid || "default";
+  const row = db.prepare("SELECT date FROM meals WHERE id = ?").get(id);
+  const result = db.prepare("DELETE FROM meals WHERE id = ?").run(id);
   // Fire-and-forget push
   if (row?.date) {
-    addDeletedMealId(row.date, id);
-    pushNutritionLog(row.date, getMealsForDate(row.date), getWater(row.date)).catch(() => {});
+    addDeletedMealId(row.date, id, nutritionDir || undefined);
+    pushNutritionLog(
+      row.date,
+      getMealsForDate(row.date, options),
+      getWater(row.date, options),
+      { uid, nutritionDir }
+    ).catch(() => {});
   }
   return result;
 }
 
-export function deleteMealsByIds(date, ids = []) {
+export function deleteMealsByIds(date, ids = [], options = {}) {
   const unique = Array.from(new Set((ids || []).filter(Boolean)));
   if (unique.length === 0) return 0;
-  const stmt = getDb().prepare("DELETE FROM meals WHERE date = ? AND id = ?");
-  const runMany = getDb().transaction((mealIds) => {
+  const db = getDb(options);
+  const nutritionDir = options.nutritionDir || (options.nutritionDbPath ? path.dirname(options.nutritionDbPath) : null);
+  const stmt = db.prepare("DELETE FROM meals WHERE date = ? AND id = ?");
+  const runMany = db.transaction((mealIds) => {
     let count = 0;
     for (const id of mealIds) {
       count += stmt.run(date, id).changes;
@@ -180,52 +209,57 @@ export function deleteMealsByIds(date, ids = []) {
     return count;
   });
   const count = runMany(unique);
-  addDeletedMealIds(date, unique);
+  addDeletedMealIds(date, unique, nutritionDir || undefined);
   return count;
 }
 
-export function getMealsForDate(date) {
-  const rows = getDb().prepare("SELECT * FROM meals WHERE date = ? ORDER BY logged_at, id").all(date);
+export function getMealsForDate(date, options = {}) {
+  const rows = getDb(options).prepare("SELECT * FROM meals WHERE date = ? ORDER BY logged_at, id").all(date);
   return rows.map((r) => {
-    const { micros_json, ...rest } = r;
+    const { micros_json, micros_meta_json, ...rest } = r;
     // `undefined` statt gelöschtem Key wurde von Firestore Admin abgelehnt
     // ("Cannot use 'undefined' as a Firestore value") — deshalb Destructuring
     // statt `micros_json: undefined`, damit der Key im Objekt fehlt statt
     // nur einen undefined-Wert zu tragen.
     if (micros_json) rest.micros = JSON.parse(micros_json);
+    if (micros_meta_json) rest.micros_meta = JSON.parse(micros_meta_json);
     return rest;
   });
 }
 
-export function getMealDates() {
-  return getDb()
+export function getMealDates(options = {}) {
+  return getDb(options)
     .prepare("SELECT date FROM meals GROUP BY date ORDER BY date DESC")
     .all()
     .map((row) => row.date);
 }
 
-export function upsertWater(date, waterMl) {
-  getDb().prepare(`
+export function upsertWater(date, waterMl, options = {}) {
+  const db = getDb(options);
+  const nutritionDir = options.nutritionDir || (options.nutritionDbPath ? path.dirname(options.nutritionDbPath) : null);
+  const uid = options.uid || "default";
+  db.prepare(`
     INSERT INTO daily_water (date, water_ml) VALUES (?, ?)
     ON CONFLICT(date) DO UPDATE SET water_ml = excluded.water_ml, updated_at = CURRENT_TIMESTAMP
   `).run(date, waterMl);
   // Fire-and-forget push
-  pushNutritionLog(date, getMealsForDate(date), waterMl).catch(() => {});
+  pushNutritionLog(date, getMealsForDate(date, options), waterMl, { uid, nutritionDir }).catch(() => {});
 }
 
-export function getWater(date) {
-  const row = getDb().prepare("SELECT water_ml FROM daily_water WHERE date = ?").get(date);
+export function getWater(date, options = {}) {
+  const row = getDb(options).prepare("SELECT water_ml FROM daily_water WHERE date = ?").get(date);
   return row ? row.water_ml : 0;
 }
 
-export function getNutritionDeletedIds(date) {
-  return getDeletedMealIds(date);
+export function getNutritionDeletedIds(date, options = {}) {
+  const nutritionDir = options.nutritionDir || (options.nutritionDbPath ? path.dirname(options.nutritionDbPath) : null);
+  return getDeletedMealIds(date, nutritionDir || undefined);
 }
 
 // ── Ingredients (wger cache) ──────────────────────────────────────────────────
 
-export function upsertIngredient(wgerId, data) {
-  return getDb().prepare(`
+export function upsertIngredient(wgerId, data, options = {}) {
+  return getDb(options).prepare(`
     INSERT INTO ingredients (wger_id, name, brand, kcal, protein, carbs, fat, fiber, sodium_mg)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(wger_id) DO UPDATE SET
@@ -242,8 +276,8 @@ export function upsertIngredient(wgerId, data) {
   );
 }
 
-export function getIngredientByWgerId(wgerId) {
-  return getDb().prepare("SELECT * FROM ingredients WHERE wger_id = ?").get(wgerId) || null;
+export function getIngredientByWgerId(wgerId, options = {}) {
+  return getDb(options).prepare("SELECT * FROM ingredients WHERE wger_id = ?").get(wgerId) || null;
 }
 
 // ── Meal micros ───────────────────────────────────────────────────────────────
@@ -300,8 +334,8 @@ export function normalizeMicroKey(name) {
   return tokens.join(" ");
 }
 
-export function upsertMealMicros(mealName, kcal, micros, source = "gemini") {
-  const db = getDb();
+export function upsertMealMicros(mealName, kcal, micros, source = "gemini", options = {}) {
+  const db = getDb(options);
   const vals = MICRO_COLS.map((c) => micros[c] ?? 0);
   const sets = MICRO_COLS.map((c) => `${c} = excluded.${c}`).join(", ");
   const nameKey = normalizeMicroKey(mealName);
@@ -315,8 +349,8 @@ export function upsertMealMicros(mealName, kcal, micros, source = "gemini") {
   `).run(mealName, kcal, ...vals, source, nameKey);
 }
 
-export function getMealMicros(mealName) {
-  const db = getDb();
+export function getMealMicros(mealName, options = {}) {
+  const db = getDb(options);
   const exact = db.prepare("SELECT * FROM meal_micros WHERE meal_name = ? COLLATE NOCASE").get(mealName);
   if (exact) return exact;
 
@@ -325,8 +359,8 @@ export function getMealMicros(mealName) {
   return db.prepare("SELECT * FROM meal_micros WHERE name_key = ? ORDER BY updated_at DESC LIMIT 1").get(key) || null;
 }
 
-export function getAllMealMicros() {
-  return getDb().prepare("SELECT * FROM meal_micros ORDER BY meal_name").all();
+export function getAllMealMicros(options = {}) {
+  return getDb(options).prepare("SELECT * FROM meal_micros ORDER BY meal_name").all();
 }
 
 export default {

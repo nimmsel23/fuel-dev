@@ -21,14 +21,31 @@ export default async function aiLogRoute(app) {
       const result = JSON.parse(extractJson(raw));
       
       const mealName = result.meal.description;
+      const microOptions = {
+        nutritionDir: req.paths.nutrition,
+        nutritionDbPath: req.paths.nutritionDb,
+        uid: req.uid,
+      };
       if (result.meal.micros) {
-        saveMicrosForMeal(mealName, result.meal.kcal || 0, result.meal.micros, "gemini-ai-log");
+        saveMicrosForMeal(mealName, result.meal.kcal || 0, result.meal.micros, "gemini-ai-log", microOptions);
+        result.meal.micros_meta = {
+          source: "gemini-ai-log",
+          lookup_name: mealName,
+          inferred_from: mealName,
+          normalized_key: null,
+          scaling_factor: 1,
+          resolved_at: new Date().toISOString(),
+          origin: "ai_log",
+        };
       }
 
       if (result.type === "meal") {
         const log = loadLog(date, req.paths.nutrition);
         addMeal(log, result.meal);
-        saveLog(log, req.paths.nutrition);
+        saveLog(log, req.paths.nutrition, {
+          nutritionDbPath: req.paths.nutritionDb,
+          uid: req.uid,
+        });
         upsertLoggedMeal(loadCatalog(req.paths.nutrition, { uid: req.uid }), result.meal);
         return reply.send({ ok: true, type: "meal" });
       } else if (result.type === "catalog") {

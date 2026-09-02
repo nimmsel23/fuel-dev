@@ -72,13 +72,37 @@ self.addEventListener("push", (event) => {
       data.url = data.fcm_options?.link || "/supplements";
     }
 
+    if (typeof data.actions === "string") {
+      try {
+        data.actions = JSON.parse(data.actions);
+      } catch (_error) {
+        data.actions = [];
+      }
+    }
+    if (typeof data.meta === "string") {
+      try {
+        data.meta = JSON.parse(data.meta);
+      } catch (_error) {
+        data.meta = {};
+      }
+    }
+
     const options = {
       body: data.body || "Du hast noch offene Supplements für heute.",
       icon: data.icon || "/favicon-192x192.png",
       badge: "/favicon-192x192.png",
       vibrate: [200, 100, 200],
+      tag: data.tag || "fuel-reminder",
+      renotify: Boolean(data.renotify),
+      requireInteraction: Boolean(data.requireInteraction),
+      actions: Array.isArray(data.actions) ? data.actions.slice(0, 3).map((action) => ({
+        action: action.action,
+        title: action.title,
+      })) : [],
       data: {
-        url: data.url || "/supplements"
+        url: data.url || "/supplements",
+        actions: Array.isArray(data.actions) ? data.actions : [],
+        meta: data.meta || {},
       }
     };
     
@@ -92,14 +116,21 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const urlToOpen = event.notification.data.url;
+  const data = event.notification.data || {};
+  const actionMatch = Array.isArray(data.actions)
+    ? data.actions.find((entry) => entry.action === event.action)
+    : null;
+  const urlToOpen = actionMatch?.url || data.url || "/";
   
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
       for (let i = 0; i < windowClients.length; i++) {
         const client = windowClients[i];
-        if (client.url.includes(urlToOpen) && "focus" in client) {
-          return client.focus();
+        if ("focus" in client) {
+          return client.focus().then(() => {
+            if ("navigate" in client && urlToOpen) return client.navigate(urlToOpen);
+            return client;
+          });
         }
       }
       if (clients.openWindow) {
