@@ -1,6 +1,8 @@
+import { useEffect, useRef } from "react";
 import { Sparkles, RotateCcw, RefreshCw } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 import { useAiMealLogger } from "../hooks/useAiMealLogger.js";
+import { consumeNotificationIntent } from "../lib/notification-intents.js";
 
 // Kompaktes Freitext-Log-Widget fürs Dashboard. Nutzt denselben
 // useAiMealLogger-Hook wie der volle Log-Tab (Log/LogView.jsx) — also
@@ -9,6 +11,20 @@ import { useAiMealLogger } from "../hooks/useAiMealLogger.js";
 // mehr die zugrundeliegende Logik.
 export default function QuickAiLog({ date }) {
   const { text, setText, loading, error, submit, pendingEntries, reanalyzePending, cloud } = useAiMealLogger(date);
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    const applyIntent = (payload) => {
+      if (!payload || payload.intent !== "fuel.quick-log") return;
+      if (payload.draft) setText(payload.draft);
+      requestAnimationFrame(() => inputRef.current?.focus());
+    };
+
+    applyIntent(consumeNotificationIntent("fuel.quick-log"));
+    const onIntent = (event) => applyIntent(event.detail);
+    window.addEventListener("fuel-notification-intent", onIntent);
+    return () => window.removeEventListener("fuel-notification-intent", onIntent);
+  }, [setText]);
 
   return (
     <form onSubmit={submit} className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur grid gap-3">
@@ -18,6 +34,8 @@ export default function QuickAiLog({ date }) {
       </div>
       <div className="flex flex-col gap-2 sm:flex-row">
         <input
+          ref={inputRef}
+          id="quick-ai-log"
           className="flex-1 rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-violet-400"
           placeholder="z.B. 2 Eier mit Toast und Butter"
           value={text}

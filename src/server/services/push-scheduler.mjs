@@ -2,6 +2,12 @@ import fs from "fs";
 import path from "path";
 import webpush from "web-push";
 import { format } from "date-fns";
+import {
+  buildDailyPromptPayload,
+  buildSupplementPayload,
+  getSubscriptionsPath,
+  loadPushSettings,
+} from "../lib/push-config.mjs";
 
 const PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "BOafCxLae9KCsYm5j6NJv0csS_Qmvtef8XWszQBootQiX6Cpvkih3fL3P71dXP_2T05CMSXO3bwGxLNZN_SbF_w";
 const PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "zD3-SRxK2iGrs8XVEavlgkgQn9X9XtrXVef7ams3VXI";
@@ -14,16 +20,6 @@ webpush.setVapidDetails(
 
 // Einfache Due-Check Logik (ähnlich Frontend)
 const WEEKDAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
-const DEFAULT_PUSH_SETTINGS = {
-  enabled: true,
-  times: {
-    morning: "08:00",
-    midday: "13:00",
-    evening: "19:00",
-    night: "21:00",
-  },
-};
-
 function isDueToday(item, dateString) {
   if (!item.schedule) return false;
   if (item.schedule.type === "daily") return true;
@@ -44,46 +40,35 @@ function isDueToday(item, dateString) {
   return false;
 }
 
-function loadPushSettings(baseDataDir) {
-  const settingsPath = path.join(baseDataDir, "push-settings.json");
-  try {
-    if (!fs.existsSync(settingsPath)) return DEFAULT_PUSH_SETTINGS;
-    const raw = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
-    return {
-      enabled: raw.enabled ?? DEFAULT_PUSH_SETTINGS.enabled,
-      times: {
-        ...DEFAULT_PUSH_SETTINGS.times,
-        ...(raw.times || {}),
-      },
-    };
-  } catch (error) {
-    console.error("[PushScheduler] Failed to load push settings:", error);
-    return DEFAULT_PUSH_SETTINGS;
-  }
-}
-
 export function startPushScheduler(baseDataDir, catalogsDir) {
   setInterval(async () => {
     const now = new Date();
     const settings = loadPushSettings(baseDataDir);
-    if (!settings.enabled) return;
-
     const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-    const timeOfDayToCheck = Object.entries(settings.times).find(([, value]) => value === currentTime)?.[0] || null;
+    const supplementSlot = settings.supplements.enabled
+      ? Object.entries(settings.supplements.times).find(([, value]) => value === currentTime)?.[0] || null
+      : null;
+    const dueDailyPrompts = Object.entries(settings.daily_prompts || {})
+      .filter(([, value]) => value?.enabled && value?.time === currentTime)
+      .map(([promptId]) => promptId);
 
-    if (timeOfDayToCheck) {
-      console.log(`[PushScheduler] Running check for ${timeOfDayToCheck}...`);
-      await checkAndSendReminders(timeOfDayToCheck, baseDataDir, catalogsDir);
+    if (supplementSlot) {
+      console.log(`[PushScheduler] Running supplement check for ${supplementSlot}...`);
+      await checkAndSendSupplementReminders(supplementSlot, baseDataDir, catalogsDir);
+    }
+    if (dueDailyPrompts.length > 0) {
+      console.log(`[PushScheduler] Running daily prompts: ${dueDailyPrompts.join(", ")}`);
+      await sendDailyPrompts(dueDailyPrompts, baseDataDir);
     }
   }, 60000); // alle 60 Sekunden prüfen
 }
 
-async function checkAndSendReminders(timeOfDay, baseDataDir, catalogsDir) {
+async function checkAndSendSupplementReminders(timeOfDay, baseDataDir, catalogsDir) {
   try {
     const todayStr = format(new Date(), "yyyy-MM-dd");
     const catalogPath = path.join(catalogsDir, "supplements", "catalog.json");
     const logsPath = path.join(baseDataDir, "supplements", "logs", `${todayStr}.json`);
-    const subsPath = path.join(baseDataDir, "push-subscriptions.json");
+    const subsPath = getSubscriptionsPath(baseDataDir);
 
     if (!fs.existsSync(catalogPath)) {
       console.log(`[PushScheduler] Skipping ${timeOfDay}: no supplements catalog at ${catalogPath}`);
@@ -116,12 +101,7 @@ async function checkAndSendReminders(timeOfDay, baseDataDir, catalogsDir) {
 
     if (dueItems.length > 0) {
       const names = dueItems.map(i => i.name).join(", ");
-      const payload = JSON.stringify({
-        title: `Time for your ${timeOfDay} Supplements!`,
-        body: `You still need to take: ${names}`,
-        icon: "/favicon-192x192.png",
-        url: "/supplements"
-      });
+      const payload = JSON.stringify(buildSupplementPayload({ timeOfDay, names }));
 
       console.log(`[PushScheduler] Sending reminders for: ${names}`);
 
@@ -140,5 +120,38 @@ async function checkAndSendReminders(timeOfDay, baseDataDir, catalogsDir) {
     }
   } catch (error) {
     console.error("[PushScheduler] Error checking reminders:", error);
+  }
+}
+
+async function sendDailyPrompts(promptIds, baseDataDir) {
+  const subsPath = getSubscriptionsPath(baseDataDir);
+  if (!fs.existsSync(subsPath)) {
+    console.log(`[PushScheduler] Skipping daily prompts: no push subscriptions at ${subsPath}`);
+    return;
+  }
+
+  const subscriptions = JSON.parse(fs.readFileSync(subsPath, "utf-8")) || [];
+  if (subscriptions.length === 0) {
+    console.log("[PushScheduler] Skipping daily prompts: push subscriptions list is empty");
+    return;
+  }
+
+  for (const promptId of promptIds) {
+    const payload = buildDailyPromptPayload(promptId);
+    if (!payload) {
+      console.log(`[PushScheduler] Unknown daily prompt: ${promptId}`);
+      continue;
+    }
+
+    for (const sub of subscriptions) {
+      try {
+        await webpush.sendNotification(sub, JSON.stringify(payload));
+      } catch (error) {
+        console.error(`[PushScheduler] Daily prompt send failed for ${promptId}:`, error?.statusCode || error);
+      }
+    }
+    console.log(
+      `[PushScheduler] Daily prompt sent: ${promptId} (${subscriptions.length} subscriptions)`
+    );
   }
 }

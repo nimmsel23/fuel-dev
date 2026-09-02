@@ -1,6 +1,13 @@
-import fs from "fs";
-import path from "path";
 import webpush from "web-push";
+import {
+  buildDailyPromptPayload,
+  getSubscriptionsPath,
+  loadPushSettings,
+  loadSubscriptions,
+  normalizePushSettings,
+  savePushSettings,
+  saveSubscriptions,
+} from "../lib/push-config.mjs";
 
 // Konfiguration der VAPID Keys
 // Für Produktion sollten diese aus Umgebungsvariablen kommen (.env)
@@ -9,93 +16,11 @@ import webpush from "web-push";
 
 const PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "BOafCxLae9KCsYm5j6NJv0csS_Qmvtef8XWszQBootQiX6Cpvkih3fL3P71dXP_2T05CMSXO3bwGxLNZN_SbF_w";
 const PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "zD3-SRxK2iGrs8XVEavlgkgQn9X9XtrXVef7ams3VXI";
-const DEFAULT_PUSH_SETTINGS = {
-  enabled: true,
-  times: {
-    morning: "08:00",
-    midday: "13:00",
-    evening: "19:00",
-    night: "21:00",
-  },
-};
-
 webpush.setVapidDetails(
   "mailto:example@yourdomain.org",
   PUBLIC_KEY,
   PRIVATE_KEY
 );
-
-// Hilfsfunktion zum Lesen/Schreiben von Abonnements
-function getSubscriptionsPath(req) {
-  return path.join(req.paths.dataDir, "push-subscriptions.json");
-}
-
-function getSettingsPath(req) {
-  return path.join(req.paths.dataDir, "push-settings.json");
-}
-
-function loadSubscriptions(filePath) {
-  try {
-    if (fs.existsSync(filePath)) {
-      return JSON.parse(fs.readFileSync(filePath, "utf-8"));
-    }
-  } catch (e) {
-    console.error("Error loading subscriptions:", e);
-  }
-  return [];
-}
-
-function saveSubscriptions(filePath, subscriptions) {
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, JSON.stringify(subscriptions, null, 2));
-}
-
-function loadPushSettings(filePath) {
-  try {
-    if (fs.existsSync(filePath)) {
-      const raw = JSON.parse(fs.readFileSync(filePath, "utf-8"));
-      return {
-        enabled: raw.enabled ?? DEFAULT_PUSH_SETTINGS.enabled,
-        times: {
-          ...DEFAULT_PUSH_SETTINGS.times,
-          ...(raw.times || {}),
-        },
-      };
-    }
-  } catch (e) {
-    console.error("Error loading push settings:", e);
-  }
-  return DEFAULT_PUSH_SETTINGS;
-}
-
-function savePushSettings(filePath, settings) {
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, JSON.stringify(settings, null, 2));
-}
-
-function sanitizeTime(value, fallback) {
-  const next = String(value || "").trim();
-  return /^\d{2}:\d{2}$/.test(next) ? next : fallback;
-}
-
-function normalizePushSettings(input) {
-  const current = {
-    enabled: input?.enabled ?? DEFAULT_PUSH_SETTINGS.enabled,
-    times: {
-      ...DEFAULT_PUSH_SETTINGS.times,
-      ...(input?.times || {}),
-    },
-  };
-  return {
-    enabled: Boolean(current.enabled),
-    times: {
-      morning: sanitizeTime(current.times.morning, DEFAULT_PUSH_SETTINGS.times.morning),
-      midday: sanitizeTime(current.times.midday, DEFAULT_PUSH_SETTINGS.times.midday),
-      evening: sanitizeTime(current.times.evening, DEFAULT_PUSH_SETTINGS.times.evening),
-      night: sanitizeTime(current.times.night, DEFAULT_PUSH_SETTINGS.times.night),
-    },
-  };
-}
 
 export default async function pushRoute(fastify, options) {
   // Liefert den Public Key ans Frontend
@@ -106,7 +31,7 @@ export default async function pushRoute(fastify, options) {
   // Nimmt ein neues Abonnement vom Frontend entgegen
   fastify.post("/push/subscribe", async (req, reply) => {
     const subscription = req.body;
-    const subPath = getSubscriptionsPath(req);
+    const subPath = getSubscriptionsPath(req.paths.dataDir);
     
     let subscriptions = loadSubscriptions(subPath);
     
@@ -122,12 +47,50 @@ export default async function pushRoute(fastify, options) {
   });
 
   fastify.get("/push/settings", async (req) => {
-    return loadPushSettings(getSettingsPath(req));
+    return loadPushSettings(req.paths.dataDir);
   });
 
   fastify.post("/push/settings", async (req, reply) => {
     const normalized = normalizePushSettings(req.body || {});
-    savePushSettings(getSettingsPath(req), normalized);
+    savePushSettings(req.paths.dataDir, normalized);
+    fastify.log.info({
+      topic: "push-settings",
+      uid: req.uid || null,
+      dataDir: req.paths.dataDir,
+      dailyPrompts: normalized.daily_prompts,
+      supplements: normalized.supplements,
+    }, "Saved push settings");
     reply.send({ ok: true, settings: normalized });
+  });
+
+  fastify.post("/push/test", async (req, reply) => {
+    const { prompt_id = "fuel_quick_log" } = req.body || {};
+    const payload = buildDailyPromptPayload(prompt_id);
+    if (!payload) {
+      return reply.status(400).send({ ok: false, error: `Unknown prompt_id: ${prompt_id}` });
+    }
+
+    const subscriptions = loadSubscriptions(getSubscriptionsPath(req.paths.dataDir));
+    if (subscriptions.length === 0) {
+      return reply.status(400).send({ ok: false, error: "No local push subscriptions found" });
+    }
+
+    const results = [];
+    for (const sub of subscriptions) {
+      try {
+        await webpush.sendNotification(sub, JSON.stringify(payload));
+        results.push({ endpoint: sub.endpoint, ok: true });
+      } catch (error) {
+        results.push({ endpoint: sub.endpoint, ok: false, statusCode: error?.statusCode || null });
+      }
+    }
+
+    fastify.log.info({
+      topic: "push-test",
+      promptId: prompt_id,
+      uid: req.uid || null,
+      subscriptions: subscriptions.length,
+    }, "Sent local test notification");
+    reply.send({ ok: true, prompt_id, subscriptions: subscriptions.length, results });
   });
 }

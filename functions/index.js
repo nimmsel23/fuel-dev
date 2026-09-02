@@ -5,6 +5,17 @@ admin.initializeApp();
 
 const TIME_ZONE = "Europe/Berlin";
 const REMINDER_WINDOW_MINUTES = 5;
+const DEFAULTS = {
+  supplement_push_enabled: true,
+  supplement_push_morning_time: "08:00",
+  supplement_push_midday_time: "13:00",
+  supplement_push_evening_time: "19:00",
+  supplement_push_night_time: "21:00",
+  daily_fuel_quick_log_enabled: true,
+  daily_fuel_quick_log_time: "09:30",
+  daily_journal_entry_enabled: true,
+  daily_journal_entry_time: "20:30",
+};
 
 function getLocalDateParts(date = new Date(), timeZone = TIME_ZONE) {
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -38,34 +49,123 @@ function isReminderDue(reminderTime, currentMinutes) {
   return delta >= 0 && delta < REMINDER_WINDOW_MINUTES;
 }
 
-function normalizeTokens(data = {}) {
-  return Array.from(new Set([
-    ...(Array.isArray(data.tokens) ? data.tokens : []),
-    ...(data.token ? [data.token] : []),
-  ].filter(Boolean)));
+function buildIntentUrl({ tab, date = "today", intent, focus }) {
+  const params = new URLSearchParams();
+  if (tab) params.set("notificationTab", tab);
+  if (date) params.set("notificationDate", date);
+  if (intent) params.set("notificationIntent", intent);
+  if (focus) params.set("notificationFocus", focus);
+  const query = params.toString();
+  const hash = tab ? `#${tab}/${date}` : "";
+  return `/${query ? `?${query}` : ""}${hash}`;
 }
 
-async function sendReminder(uid, tokens, title, body, link) {
-  if (!tokens || tokens.length === 0) return { sentCount: 0, failureCount: 0 };
-
-  try {
-    const message = {
-      data: {
-        title,
-        body,
-        link: link || "/",
-        tag: "fuel-reminder",
+function buildMessage(payload) {
+  return {
+    data: {
+      title: payload.title,
+      body: payload.body,
+      icon: payload.icon || "/favicon-192x192.png",
+      badge: payload.badge || "/favicon-192x192.png",
+      url: payload.url || "/",
+      tag: payload.tag || "fuel-reminder",
+      actions: JSON.stringify(payload.actions || []),
+      meta: JSON.stringify(payload.meta || {}),
+      requireInteraction: payload.requireInteraction ? "true" : "false",
+      renotify: payload.renotify ? "true" : "false",
+    },
+    webpush: {
+      fcmOptions: {
+        link: payload.url || "/",
       },
-      tokens,
-    };
-    const response = await admin.messaging().sendEachForMulticast(message);
-    return {
-      sentCount: response.successCount,
-      failureCount: response.failureCount,
-    };
+    },
+  };
+}
+
+function buildFuelQuickLogPayload() {
+  return {
+    title: "Fuel Quick Log",
+    body: "Logge dein Essen direkt als Freitext und lass Fuel den Eintrag bauen.",
+    icon: "/favicon-192x192.png",
+    badge: "/favicon-192x192.png",
+    tag: "fuel-daily-quick-log",
+    url: buildIntentUrl({
+      tab: "dashboard",
+      date: "today",
+      intent: "fuel.quick-log",
+      focus: "quick-ai-log",
+    }),
+    actions: [
+      {
+        action: "open-quick-log",
+        title: "Quick Log",
+        url: buildIntentUrl({ tab: "dashboard", date: "today", intent: "fuel.quick-log", focus: "quick-ai-log" }),
+      },
+      {
+        action: "open-log-tab",
+        title: "Log",
+        url: buildIntentUrl({ tab: "log", date: "today", intent: "fuel.quick-log", focus: "quick-ai-log" }),
+      },
+      {
+        action: "open-journal",
+        title: "Journal",
+        url: buildIntentUrl({ tab: "log", date: "today", intent: "journal.quick-entry", focus: "journal-notes" }),
+      },
+    ],
+    meta: {
+      kind: "daily_prompt",
+      prompt_id: "fuel_quick_log",
+      app: "fuel",
+      reply_mode: "deep-link",
+    },
+  };
+}
+
+function buildJournalEntryPayload() {
+  return {
+    title: "Daily Journal",
+    body: "Ein kurzer Check-in zu Schlaf, Energie, Hunger oder Training reicht.",
+    icon: "/favicon-192x192.png",
+    badge: "/favicon-192x192.png",
+    tag: "fuel-daily-journal",
+    url: buildIntentUrl({
+      tab: "log",
+      date: "today",
+      intent: "journal.quick-entry",
+      focus: "journal-notes",
+    }),
+    actions: [
+      {
+        action: "open-journal",
+        title: "Jetzt schreiben",
+        url: buildIntentUrl({ tab: "log", date: "today", intent: "journal.quick-entry", focus: "journal-notes" }),
+      },
+      {
+        action: "open-food",
+        title: "Food Log",
+        url: buildIntentUrl({ tab: "food", date: "today", intent: "fuel.quick-log", focus: "quick-ai-log" }),
+      },
+    ],
+    meta: {
+      kind: "daily_prompt",
+      prompt_id: "journal_entry",
+      app: "journal",
+      reply_mode: "deep-link",
+    },
+  };
+}
+
+async function sendMessageToToken(token, payload) {
+  if (!token) return { sentCount: 0, failureCount: 0 };
+  try {
+    await admin.messaging().send({
+      token,
+      ...buildMessage(payload),
+    });
+    return { sentCount: 1, failureCount: 0 };
   } catch (error) {
-    console.error(`Error sending reminders to ${uid}:`, error);
-    return { sentCount: 0, failureCount: tokens.length, error: error.message };
+    console.error("FCM send failed:", error);
+    return { sentCount: 0, failureCount: 1, error: error.message };
   }
 }
 
@@ -73,33 +173,41 @@ exports.scheduledPushReminders = functions
   .region("europe-west1")
   .pubsub.schedule("every 5 minutes")
   .timeZone(TIME_ZONE)
-  .onRun(async (context) => {
+  .onRun(async () => {
     const { minutes } = getLocalDateParts();
     const db = admin.firestore();
     let sentCount = 0;
     let failureCount = 0;
 
     try {
-      const usersSnap = await db.collectionGroup("push").get();
+      const usersSnap = await db.collection("users").get();
 
-      for (const doc of usersSnap.docs) {
-        const data = doc.data() || {};
-        if (!data.enabled) continue;
+      for (const userDoc of usersSnap.docs) {
+        const uid = userDoc.id;
+        const [settingsSnap, tokenSnap] = await Promise.all([
+          userDoc.ref.collection("meta").doc("settings").get(),
+          userDoc.ref.collection("fcm").doc("token").get(),
+        ]);
 
-        const tokens = normalizeTokens(data);
-        if (tokens.length === 0) continue;
+        const settings = { ...DEFAULTS, ...(settingsSnap.data() || {}) };
+        const token = tokenSnap.data()?.token || null;
+        if (!token) continue;
 
-        if (isReminderDue(data.reminderTime, minutes)) {
-          const uid = doc.ref.parent.parent.id;
-          const result = await sendReminder(
-            uid,
-            tokens,
-            "Nutrition Reminder",
-            "Time to log your meals",
-            "/?tab=food"
-          );
+        const duePayloads = [];
+        if (settings.daily_fuel_quick_log_enabled && isReminderDue(settings.daily_fuel_quick_log_time, minutes)) {
+          duePayloads.push(buildFuelQuickLogPayload());
+        }
+        if (settings.daily_journal_entry_enabled && isReminderDue(settings.daily_journal_entry_time, minutes)) {
+          duePayloads.push(buildJournalEntryPayload());
+        }
+
+        for (const payload of duePayloads) {
+          const result = await sendMessageToToken(token, payload);
           sentCount += result.sentCount || 0;
           failureCount += result.failureCount || 0;
+          console.log(
+            `[scheduledPushReminders] uid=${uid} prompt=${payload.meta.prompt_id} sent=${result.sentCount || 0} failed=${result.failureCount || 0}`
+          );
         }
       }
 

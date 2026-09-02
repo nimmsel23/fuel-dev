@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { NotebookPen, UtensilsCrossed, Pencil, Sparkles, AlertTriangle, RefreshCw, Check, X, ScanSearch, Clock, AlignJustify, LayoutGrid, GitCommitVertical } from "lucide-react";
 import { twMerge } from "tailwind-merge";
@@ -16,6 +16,7 @@ import MealListTimeline from "./components/MealListTimeline.jsx";
 import { computeMacroGoals } from "../Settings/GoalsSection.jsx";
 import { Camera, RotateCcw } from "lucide-react";
 import { sumMetric, formatMetric } from "../../../shared/utils/utils.js";
+import { consumeNotificationIntent } from "../../lib/notification-intents.js";
 
 const LOG_VIEW_MODES = [
   { value: "minimal", label: "Liste", icon: AlignJustify },
@@ -146,6 +147,7 @@ export default function LogView({ date, nutrition, notes }) {
   const [journalSuggestions, setJournalSuggestions] = useState([]);
   const [journalCheckLoading, setJournalCheckLoading] = useState(false);
   const [journalCheckError, setJournalCheckError] = useState("");
+  const notesRef = useRef(null);
 
   const isEditing = Boolean(form.id);
   const meals = nutrition?.meals || [];
@@ -155,6 +157,19 @@ export default function LogView({ date, nutrition, notes }) {
     text: aiText, setText: setAiText, loading: aiLoading, error: aiError,
     submit: handleAiLog, pendingEntries: pendingAiEntries, reanalyzePending,
   } = useAiMealLogger(date);
+
+  useEffect(() => {
+    const applyIntent = (payload) => {
+      if (!payload || payload.intent !== "journal.quick-entry") return;
+      if (payload.draft) setText((current) => current ? `${current}\n${payload.draft}` : payload.draft);
+      requestAnimationFrame(() => notesRef.current?.focus());
+    };
+
+    applyIntent(consumeNotificationIntent("journal.quick-entry"));
+    const onIntent = (event) => applyIntent(event.detail);
+    window.addEventListener("fuel-notification-intent", onIntent);
+    return () => window.removeEventListener("fuel-notification-intent", onIntent);
+  }, []);
 
   const handleNotesSave = async (e) => {
     e.preventDefault();
@@ -638,6 +653,8 @@ export default function LogView({ date, nutrition, notes }) {
           <h2 className="text-xl font-bold text-white tracking-wide">Notizen</h2>
         </div>
         <textarea
+          ref={notesRef}
+          id="journal-notes"
           className={twMerge(
             "w-full rounded-2xl border border-white/10 bg-slate-950/70 p-4 text-slate-100 placeholder-slate-500 focus:ring-2 focus:ring-sky-400/50 outline-none transition-all",
             log_view_mode === "minimal" ? "min-h-[500px]" : "min-h-[160px]"

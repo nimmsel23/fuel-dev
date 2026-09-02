@@ -330,6 +330,92 @@ Node nutzt strukturierte Logs über Fastify/Pino.
 Das ist wichtig, damit Sync-Vorfälle in den Server-Logs klar pro User lesbar
 bleiben.
 
+## Interactive Daily Notifications
+
+Seit dem 2. September 2026 nutzt Fuel ein gemeinsames Notification-Schema für
+lokalen Node-Push und Firebase-FCM-Push.
+
+Ziel:
+
+- tägliche Einstiege mit sehr niedriger Hürde
+- klickbare Actions statt nur stumpfer Reminder-Texte
+- dieselben Intent-Namen lokal und in der Cloud
+- serverseitig sichtbare Logs pro Prompt-Typ
+
+Bausteine:
+
+- `src/server/lib/push-config.mjs`
+  - SSOT für lokale Push-Settings
+  - Daily-Prompt-Definitionen
+  - Action-/Intent-URLs
+- `src/server/services/push-scheduler.mjs`
+  - lokaler Scheduler für Supplements plus Daily Prompts
+- `src/server/routes/push.mjs`
+  - lokale Settings-API
+  - lokaler Test-Trigger `POST /push/test`
+- `public/sw.js`
+  - rendert Notification-Actions
+  - navigiert in Intent-Ziele statt nur auf rohe Tabs
+- `functions/index.js`
+  - Cloud-Scheduler liest `users/{uid}/meta/settings`
+  - FCM-Token aus `users/{uid}/fcm/token`
+
+Aktuelle Daily-Prompt-Typen in Fuel:
+
+- `fuel_quick_log`
+  - öffnet den AI-Freitext-Logger
+  - Actions: `Quick Log`, `Log`, `Journal`
+- `journal_entry`
+  - öffnet die Tagesnotizen
+  - Actions: `Jetzt schreiben`, `Food Log`
+
+Intent-Schema:
+
+- Query-Parameter:
+  - `notificationTab`
+  - `notificationDate`
+  - `notificationIntent`
+  - `notificationFocus`
+  - optional `notificationDraft`
+- Frontend-Bridge:
+  - `src/client/lib/notification-intents.js`
+  - speichert den Intent kurz in `sessionStorage`
+  - setzt Tab/Datum sofort
+  - übergibt den Fokus an die Ziel-View
+
+Wichtige Einschränkung:
+
+- Auf der Web/PWA-Schicht gibt es kein verlässliches plattformübergreifendes
+  echtes Freitext-Reply wie in nativen Messenger-Notifications.
+- Daher ist `reply_mode=deep-link` aktuell der ehrliche Modus:
+  Notification -> Action -> fokussierter Composer in der App.
+- Wenn später ein nativer Wrapper oder Android-spezifischer Kanal dazukommt,
+  kann derselbe Intent-Name (`fuel.quick-log`, `journal.quick-entry`, ...)
+  auf echtes Inline-Reply gemappt werden.
+
+Analoge Zieltypen für die anderen VitalOS-Apps:
+
+- Fitness
+  - Prompt: nächster Trainingsblock laut User-Präferenz (`PPL`, `UL`, `FB`)
+  - Intent: `fitness.next-block`
+  - Actions: `Start Session`, `Swap Block`, `Skip Today`
+- Journal
+  - Prompt: Tages-Check-in
+  - Intent: `journal.quick-entry`
+  - Actions: `1 Satz schreiben`, `Mood`, `Heute reviewen`
+- Habits
+  - Prompt: due Habits oder Supplements
+  - Intent: `habits.daily-checkin`
+  - Actions: `Done`, `Snooze`, `Open Stack`
+- Fuel
+  - Prompt: Mahlzeit als Freitext loggen
+  - Intent: `fuel.quick-log`
+  - Actions: `Quick Log`, `Log`, `Journal`
+
+Die beabsichtigte gemeinsame Struktur ist also nicht ein global gemeinsamer
+Catalog, sondern ein gemeinsames Notification-/Intent-Protokoll über
+app-spezifische Datenmodelle hinweg.
+
 ## Known Incident: Multi-User Runtime Leak
 
 Am 2026-08-31 wurde ein echter Multi-User-Leak bestätigt.

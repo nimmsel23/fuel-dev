@@ -3,12 +3,24 @@ import { Bell, BellRing } from "lucide-react";
 import { useSettings } from "../../store.js";
 
 const DEFAULTS = {
-  enabled: true,
-  times: {
-    morning: "08:00",
-    midday: "13:00",
-    evening: "19:00",
-    night: "21:00",
+  supplements: {
+    enabled: true,
+    times: {
+      morning: "08:00",
+      midday: "13:00",
+      evening: "19:00",
+      night: "21:00",
+    },
+  },
+  daily_prompts: {
+    fuel_quick_log: {
+      enabled: true,
+      time: "09:30",
+    },
+    journal_entry: {
+      enabled: true,
+      time: "20:30",
+    },
   },
 };
 
@@ -24,6 +36,10 @@ export default function PushRemindersCard({ sectionCls, labelCls, inputCls }) {
     supplement_push_midday_time,
     supplement_push_evening_time,
     supplement_push_night_time,
+    daily_fuel_quick_log_enabled,
+    daily_fuel_quick_log_time,
+    daily_journal_entry_enabled,
+    daily_journal_entry_time,
     setSetting,
   } = useSettings();
   const [localSettings, setLocalSettings] = useState(DEFAULTS);
@@ -38,31 +54,59 @@ export default function PushRemindersCard({ sectionCls, labelCls, inputCls }) {
     fetch("/push/settings")
       .then((res) => res.json())
       .then((data) => setLocalSettings({
-        enabled: data.enabled ?? DEFAULTS.enabled,
-        times: { ...DEFAULTS.times, ...(data.times || {}) },
+        supplements: {
+          enabled: data?.supplements?.enabled ?? DEFAULTS.supplements.enabled,
+          times: { ...DEFAULTS.supplements.times, ...(data?.supplements?.times || {}) },
+        },
+        daily_prompts: {
+          fuel_quick_log: {
+            enabled: data?.daily_prompts?.fuel_quick_log?.enabled ?? DEFAULTS.daily_prompts.fuel_quick_log.enabled,
+            time: data?.daily_prompts?.fuel_quick_log?.time || DEFAULTS.daily_prompts.fuel_quick_log.time,
+          },
+          journal_entry: {
+            enabled: data?.daily_prompts?.journal_entry?.enabled ?? DEFAULTS.daily_prompts.journal_entry.enabled,
+            time: data?.daily_prompts?.journal_entry?.time || DEFAULTS.daily_prompts.journal_entry.time,
+          },
+        },
       }))
       .catch(() => setLocalSettings(DEFAULTS));
   }, [cloud]);
 
   const settings = cloud
     ? {
-        enabled: supplement_push_enabled,
-        times: {
-          morning: supplement_push_morning_time,
-          midday: supplement_push_midday_time,
-          evening: supplement_push_evening_time,
-          night: supplement_push_night_time,
+        supplements: {
+          enabled: supplement_push_enabled,
+          times: {
+            morning: supplement_push_morning_time,
+            midday: supplement_push_midday_time,
+            evening: supplement_push_evening_time,
+            night: supplement_push_night_time,
+          },
+        },
+        daily_prompts: {
+          fuel_quick_log: {
+            enabled: daily_fuel_quick_log_enabled,
+            time: daily_fuel_quick_log_time,
+          },
+          journal_entry: {
+            enabled: daily_journal_entry_enabled,
+            time: daily_journal_entry_time,
+          },
         },
       }
     : localSettings;
 
   function updateSettings(next) {
     if (cloud) {
-      setSetting("supplement_push_enabled", next.enabled);
-      setSetting("supplement_push_morning_time", next.times.morning);
-      setSetting("supplement_push_midday_time", next.times.midday);
-      setSetting("supplement_push_evening_time", next.times.evening);
-      setSetting("supplement_push_night_time", next.times.night);
+      setSetting("supplement_push_enabled", next.supplements.enabled);
+      setSetting("supplement_push_morning_time", next.supplements.times.morning);
+      setSetting("supplement_push_midday_time", next.supplements.times.midday);
+      setSetting("supplement_push_evening_time", next.supplements.times.evening);
+      setSetting("supplement_push_night_time", next.supplements.times.night);
+      setSetting("daily_fuel_quick_log_enabled", next.daily_prompts.fuel_quick_log.enabled);
+      setSetting("daily_fuel_quick_log_time", next.daily_prompts.fuel_quick_log.time);
+      setSetting("daily_journal_entry_enabled", next.daily_prompts.journal_entry.enabled);
+      setSetting("daily_journal_entry_time", next.daily_prompts.journal_entry.time);
     } else {
       setLocalSettings(next);
     }
@@ -135,7 +179,7 @@ export default function PushRemindersCard({ sectionCls, labelCls, inputCls }) {
   }
 
   function handleToggleEnabled(enabled) {
-    const next = { ...settings, enabled };
+    const next = { ...settings, supplements: { ...settings.supplements, enabled } };
     updateSettings(next);
     if (!cloud) saveLocalSettings(next);
   }
@@ -143,9 +187,41 @@ export default function PushRemindersCard({ sectionCls, labelCls, inputCls }) {
   function handleTimeChange(slot, value) {
     const next = {
       ...settings,
-      times: {
-        ...settings.times,
-        [slot]: value,
+      supplements: {
+        ...settings.supplements,
+        times: {
+          ...settings.supplements.times,
+          [slot]: value,
+        },
+      },
+    };
+    updateSettings(next);
+  }
+
+  function handleDailyPromptToggle(promptId, enabled) {
+    const next = {
+      ...settings,
+      daily_prompts: {
+        ...settings.daily_prompts,
+        [promptId]: {
+          ...settings.daily_prompts[promptId],
+          enabled,
+        },
+      },
+    };
+    updateSettings(next);
+    if (!cloud) saveLocalSettings(next);
+  }
+
+  function handleDailyPromptTime(promptId, value) {
+    const next = {
+      ...settings,
+      daily_prompts: {
+        ...settings.daily_prompts,
+        [promptId]: {
+          ...settings.daily_prompts[promptId],
+          time: value,
+        },
       },
     };
     updateSettings(next);
@@ -162,7 +238,7 @@ export default function PushRemindersCard({ sectionCls, labelCls, inputCls }) {
         <h2 className="text-lg font-semibold">Supplement Reminders</h2>
       </div>
       <p className="text-sm text-slate-400">
-        Uhrzeiten fuer Morning, Midday, Evening und Night Reminder. Die Due-Logik kommt weiter aus dem Supplement-Katalog.
+        Daily Prompts und Supplement-Reminder nutzen jetzt denselben Push-Unterbau mit interaktiven Actions und Deep-Links.
       </p>
 
       <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3">
@@ -190,14 +266,14 @@ export default function PushRemindersCard({ sectionCls, labelCls, inputCls }) {
         </div>
         <input
           type="checkbox"
-          checked={settings.enabled}
+          checked={settings.supplements.enabled}
           onChange={(e) => handleToggleEnabled(e.target.checked)}
           className="h-4 w-4 accent-violet-400"
         />
       </label>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        {Object.entries(settings.times).map(([slot, value]) => (
+        {Object.entries(settings.supplements.times).map(([slot, value]) => (
           <label key={slot}>
             <span className={labelCls}>{slot}</span>
             <input
@@ -211,9 +287,57 @@ export default function PushRemindersCard({ sectionCls, labelCls, inputCls }) {
         ))}
       </div>
 
+      <div className="grid gap-3">
+        <div className="text-xs uppercase tracking-[0.2em] text-slate-500">Daily Prompts</div>
+
+        <label className="flex items-center justify-between rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3">
+          <div>
+            <div className="text-sm text-slate-200">Fuel Quick Log</div>
+            <div className="text-xs text-slate-500">
+              Oeffnet den AI-Freitext-Logger direkt im Notification-Flow.
+            </div>
+          </div>
+          <input
+            type="checkbox"
+            checked={settings.daily_prompts.fuel_quick_log.enabled}
+            onChange={(e) => handleDailyPromptToggle("fuel_quick_log", e.target.checked)}
+            className="h-4 w-4 accent-violet-400"
+          />
+        </label>
+        <input
+          type="time"
+          value={settings.daily_prompts.fuel_quick_log.time}
+          onChange={(e) => handleDailyPromptTime("fuel_quick_log", e.target.value)}
+          onBlur={handleTimeBlur}
+          className={inputCls}
+        />
+
+        <label className="flex items-center justify-between rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3">
+          <div>
+            <div className="text-sm text-slate-200">Journal Entry</div>
+            <div className="text-xs text-slate-500">
+              Springt direkt in die Tagesnotizen fuer einen kurzen Check-in.
+            </div>
+          </div>
+          <input
+            type="checkbox"
+            checked={settings.daily_prompts.journal_entry.enabled}
+            onChange={(e) => handleDailyPromptToggle("journal_entry", e.target.checked)}
+            className="h-4 w-4 accent-violet-400"
+          />
+        </label>
+        <input
+          type="time"
+          value={settings.daily_prompts.journal_entry.time}
+          onChange={(e) => handleDailyPromptTime("journal_entry", e.target.value)}
+          onBlur={handleTimeBlur}
+          className={inputCls}
+        />
+      </div>
+
       {cloud && (
         <p className="text-xs text-amber-300">
-          Cloud-Hinweis: Die Preferences sind speicherbar, aber der automatische Reminder-Versand auf Firebase Hosting hat aktuell noch keinen laufenden Scheduler.
+          Cloud-Hinweis: Daily Prompts und Reminder werden ueber User-Settings plus FCM-Tokens aus der Cloud gelesen.
         </p>
       )}
       {!cloud && message && (
