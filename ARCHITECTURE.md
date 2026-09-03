@@ -173,6 +173,53 @@ Der Sync ist multi-UID-fähig und entdeckt User aus:
 - `~/vital/Klienten/*/client.json`
 - lokalen `~/.aos/fuel/users/*` Ordnern
 
+## Firestore Semantics
+
+Die aktuelle Implementierung enthält fachlich zwei verschiedene Klassen von
+Schreibvorgängen, die historisch beide unter "sync" laufen:
+
+- `catalog`: Publish/Deploy-Semantik
+- `runtime`: echte Sync-Semantik
+
+### Catalog Publish
+
+Betroffene Dokumente:
+
+- `nutrition/<uid>/meta/catalog`
+- `supplements/<uid>/meta/catalog`
+
+Bei jedem erfolgreichen Catalog-Push schreibt Fuel das komplette Ziel-Dokument
+neu nach Firestore. Es wird kein feingranulares Delta übertragen. Der Vorgang
+ist deshalb semantisch näher an "publish" oder "deploy" als an klassischem
+"sync".
+
+Folge für Diagnose und Statusanzeigen:
+
+- ein hoher `catalogPushCount` bedeutet zunächst nur, dass häufig ein voller
+  Catalog-Write ausgelöst wurde
+- daraus folgt nicht automatisch, dass sich viele einzelne Catalog-Einträge
+  verändert haben
+
+### Runtime Sync
+
+Betroffene Dokumente:
+
+- `nutrition/<uid>/logs/<date>`
+- `nutrition/<uid>/journal/<date>`
+- `supplements/<uid>/logs/<date>`
+
+Der Runtime-Pfad ist der eigentliche Sync-Layer: lokale Änderungen pushen nach
+Firestore, Pull-Zyklen holen Remote-Änderungen zurück, und Self-Heal-/
+Normalization-Pfade können bereinigte Daten wieder hochschreiben.
+
+### Status Counter Semantics
+
+Die Statusausgabe soll diese Trennung sichtbar halten:
+
+- `catalogPushCount`: Vollschreib-Events für Catalog-Dokumente
+- `runtimePushCount`: Pushes für Logs und Journal
+- `pushCount`: Summe aus beiden Klassen
+
 ## Sync Execution Policy
 
 Standardverhalten seit 2026-08-31:

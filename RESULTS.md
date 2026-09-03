@@ -2,6 +2,22 @@
 
 Session-Log mit datierten Ergebnis-Bullets.
 
+## 2026-09-03
+
+- Firestore-Status im Fuel-Prod-Health-Payload und in `bin/fuelctl` getrennt:
+  `pushCount` bleibt als Gesamtzähler bestehen, zusätzlich gibt es jetzt
+  `catalogPushCount` und `runtimePushCount`. Die Dev-Ansicht zeigt dieselbe
+  Aufteilung, damit `pushes=...` nicht mehr als unscharfer Sammelwert erscheint.
+- Erkenntnis zur Semantik des bestehenden Firestore-Systems dokumentiert:
+  Der Catalog-Pfad ist fachlich kein echter `sync`, sondern ein
+  Vollschreib-/Publish-Pfad pro Zieldokument
+  (`nutrition/<uid>/meta/catalog`, `supplements/<uid>/meta/catalog`).
+  Bei jedem erfolgreichen Catalog-Push wird das komplette Catalog-Dokument neu
+  nach Firestore geschrieben, nicht nur ein Delta.
+- Der Runtime-Pfad (`nutrition/logs`, `nutrition/journal`, `supplements/logs`)
+  bleibt der eigentliche Sync-Pfad. Er enthält Push/Pull/Pushback-Verhalten,
+  einschließlich Self-Heal-Writebacks nach Enrichment oder Mikro-Resolution.
+
 ## 2026-08-07 (v4-Merge)
 
 - `~/fuel/` (Python/FastAPI + Postgres, v4.0.0-Frontend) komplett nach hierher
