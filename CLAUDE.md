@@ -95,6 +95,7 @@ npm run deploy:preview # build:cloud + 24h-Preview-Channel + Telegram-Link (scri
 npm run cloud:push   # lokale Cloud-Payloads → Firestore
 npm run cloud:pull   # Firestore → lokale Dateien
 npm run cloud:watch  # firestore-sync.mjs im Watch-Modus
+npm run catalog:sync -- <uid> # echter Catalog-Sync: nur fehlende oder neuere Items
 ```
 
 **Auto-Deploy via pre-push Hook (seit 2026-07-30 aktiv):** `.githooks/pre-push` (`core.hooksPath=.githooks`) prüft bei jedem Push auf `master`, ob relevante Dateien (`src/`, `public/`, `index.html`, `vite.config*`, `package.json`, `firebase.json`, `firestore.rules`) im Diff sind — wenn ja, läuft automatisch `npm run firebase` (= `build:cloud` + `deploy:firebase`) **vor** dem Push. Fehlschlag bricht den Push ab (kein halb-deployter Stand). Umgehen mit `git push --no-verify`, falls explizit gewünscht. Das früher dokumentierte "kein Auto-Deploy mehr" (Entfernung eines alten `post-commit`-Hooks) bezog sich auf einen anderen, älteren Mechanismus — dieser pre-push-Hook ist der aktuell gewollte Deploy-Flow.
@@ -292,6 +293,7 @@ npm run build:cloud  # VITE_APP_MODE=client → dist-firebase/
 npm run deploy:cloud # build:cloud + firebase deploy --only hosting
 npm run cloud:push   # Lokale Cloud-Payloads → Firestore (scripts/firestore-sync.mjs)
 npm run cloud:pull   # Firestore → lokale Dateien
+npm run catalog:sync -- <uid> # echter Catalog-Sync für nutrition/supplements
 npm run deploy:preview # 24h-Preview-Channel + Telegram-Link
 ```
 
@@ -529,11 +531,11 @@ Referenz-Implementierung: `~/aos-dev/bin/bridge-devctl menu`
 |---|---|---|
 | `bin/fuel` | python3 | **Domain CLI** — direkter File-Zugriff auf `~/.aos/fuel/`, HTTP-Fallback via `fuel_cli/http.py` |
 | `bin/fuel-devctl` | python3 | **Stack-Controller** (start/stop/status/logs/build) — Node-Server `:9000` |
-| `bin/fuelctl` | python3 | **Universal-Controller** (dev/local/cloud/catalog) — wraps fuel-devctl |
+| `bin/fuelctl` | python3 | **Universal-Controller** (dev/local/cloud/sync/catalog) — wraps fuel-devctl |
 
 `bin/fuel` = Day-to-day Logging + Abfragen — liest direkt aus `~/.aos/fuel/nutrition/` und `~/.aos/fuel/supplements/logs/`. Kein laufender Server nötig.
 `bin/fuel-devctl` = reiner Service-Controller. Neues Server-Tool → hierher.
-`bin/fuelctl` = höherer Wrapper (deploy, cloud, catalog-server).
+`bin/fuelctl` = höherer Wrapper (deploy, cloud, echter catalog-sync, catalog-server).
 
 ### HTTP-Fallback-Modul
 

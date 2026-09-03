@@ -21,6 +21,8 @@
     "cloud:push": "node --env-file-if-exists=.env scripts/firestore-sync.mjs push",
     "cloud:pull": "node --env-file-if-exists=.env scripts/firestore-sync.mjs pull",
     "cloud:watch": "node --env-file-if-exists=.env scripts/firestore-sync.mjs watch",
+    "catalog:sync": "node --env-file-if-exists=.env scripts/firestore-sync.mjs sync",
+    "sync:catalog": "npm run catalog:sync",
     "sync:push": "npm run cloud:push",
     "sync:pull": "npm run cloud:pull",
     "sync:watch": "npm run cloud:watch",

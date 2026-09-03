@@ -220,6 +220,20 @@ Die Statusausgabe soll diese Trennung sichtbar halten:
 - `runtimePushCount`: Pushes für Logs und Journal
 - `pushCount`: Summe aus beiden Klassen
 
+### Actual Catalog Sync
+
+Der echte CLI-Sync ist jetzt getrennt vom Cloud-Transport:
+
+- `fuelctl sync <uid>`
+- `scripts/firestore-sync.mjs sync <uid>`
+
+Dieser Pfad ist bidirektional, aber nicht destruktiv:
+
+- fehlende Remote-Items werden aus lokal ergänzt
+- fehlende lokale Items werden aus remote ergänzt
+- bei Konflikten gewinnt der neuere Stand anhand von `updated_at`
+- Löschungen werden nicht propagiert
+
 ## Sync Execution Policy
 
 Standardverhalten seit 2026-08-31:

@@ -224,11 +224,13 @@ def cloud(action: Optional[str] = typer.Argument(None, help="push, pull, watch")
         msg.fail(f"Unknown cloud action: {action}")
 
 
-@app.command(name="sync", hidden=True)
-def sync_alias(action: Optional[str] = typer.Argument(None, help="push, pull, watch")):
-    """Deprecated: use `fuelctl cloud` instead."""
-    msg.warn("`fuelctl sync` is deprecated. Use `fuelctl cloud` instead.")
-    cloud(action)
+@app.command()
+def sync(uid: Optional[str] = typer.Argument(None, help="Firebase UID for bidirectional catalog sync")):
+    """Bidirectional catalog sync: only missing or newer items are reconciled."""
+    cmd = ["node", str(SYNC_SCRIPT), "sync"]
+    if uid:
+        cmd.append(uid)
+    subprocess.run(cmd)
 
 @app.command()
 def catalog(action: str = typer.Argument("status", help="start, stop, status")):

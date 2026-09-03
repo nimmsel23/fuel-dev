@@ -11,7 +11,12 @@ Session-Log mit datierten Ergebnis-Bullets.
 - Die sichtbare CLI-/npm-Frontdoor wurde von `sync` auf `cloud` umbenannt
   (`fuelctl cloud`, `fuel cloud`, `npm run cloud:{push,pull,watch}`), weil der
   bisherige Name semantisch zu eng bzw. irreführend war. Deprecated
-  `sync:*`-npm-Skripte und `fuelctl sync` bleiben als Alias vorerst erhalten.
+  `sync:*`-npm-Skripte bleiben als Alias vorerst erhalten.
+- Ein neuer echter `sync` wurde separat eingeführt:
+  `fuelctl sync <uid>` bzw. `npm run catalog:sync -- <uid>`. Dieser Pfad
+  gleicht nur Catalog-Daten ab und übernimmt nur fehlende oder neuere Einträge
+  zwischen lokal und Firestore; Löschungen werden dabei bewusst nicht
+  propagiert.
 - Erkenntnis zur Semantik des bestehenden Firestore-Systems dokumentiert:
   Der Catalog-Pfad ist fachlich kein echter `sync`, sondern ein
   Vollschreib-/Publish-Pfad pro Zieldokument

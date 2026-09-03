@@ -43,6 +43,21 @@ Hinweis: `cloud:push` ist kein echter Delta-Sync-Name. Der aktuelle Command ist 
 breiter Cloud-Transportpfad; insbesondere die Catalog-Dokumente werden als ganze
 Dokumente geschrieben, nicht als feingranularer Item-Sync.
 
+## Actual Sync
+
+Der neue echte Sync-Pfad ist bewusst getrennt vom Cloud-Transport:
+
+- `fuelctl sync <uid>`
+- `npm run catalog:sync -- <uid>`
+
+Semantik:
+
+- liest lokalen und Remote-Catalog
+- führt beide Seiten per `id` bzw. normalisiertem Namen zusammen
+- übernimmt nur fehlende oder neuere Einträge
+- schreibt danach den zusammengeführten Stand lokal und remote zurück
+- synchronisiert keine Löschungen
+
 ### 2. Python Bridge Handler (`fuel-firestore.py`)
 Teil der `aos-dev` Bridge. Dient als modularer Handler für den bidirektionalen Sync von User-Daten (Logs/Journal), wenn die Bridge als zentraler Router agiert.
 
