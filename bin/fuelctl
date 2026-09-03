@@ -126,9 +126,14 @@ def status():
     if isinstance(firestore, dict) and firestore.get("connected"):
         active_uids = firestore.get("activeUids") or firestore.get("uids") or []
         push_count = firestore.get("pushCount", 0)
+        catalog_push_count = firestore.get("catalogPushCount", 0)
+        runtime_push_count = firestore.get("runtimePushCount", 0)
         listener_count = firestore.get("listenerCount", 0)
         msg.good(
-            f"Prod Firestore sync active: listeners={listener_count}, pushes={push_count}, users={len(active_uids)}"
+            "Prod Firestore sync active: "
+            f"listeners={listener_count}, "
+            f"pushes(catalog={catalog_push_count}, runtime={runtime_push_count}, total={push_count}), "
+            f"users={len(active_uids)}"
         )
     else:
         msg.warn("Prod Firestore sync is not connected")
