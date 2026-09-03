@@ -29,15 +29,19 @@ Die Struktur spiegelt die lokale Datei-Hierarchie wider, um die Synchronisation 
 
 *Hinweis: `uid` ist im Cloud-Modus die Firebase Auth ID, lokal wird oft `"default"` verwendet.*
 
-## Synchronisation (Sync-Pipeline)
+## Cloud Transport
 
-Um die lokalen "Master-Kataloge" und Offline-Logs abzugleichen, gibt es zwei Mechanismen:
+Um lokale Payloads nach Firestore zu schreiben oder von dort zurückzuholen, gibt es zwei Mechanismen:
 
 ### 1. Node.js Sync-CLI (`scripts/firestore-sync.mjs`)
-Primäres Tool für das Hochladen von Katalogen und Logs aus dem Projekt-Root.
--   `npm run sync:push` — Lokal → Firestore (Kataloge & Logs)
--   `npm run sync:pull` — Firestore → Lokal (Logs)
--   `npm run sync:watch` — Überwacht `knowledge_tasks` in Firestore (Enrichment)
+Primäres Tool für den Cloud-Transport aus dem Projekt-Root.
+-   `npm run cloud:push` — Lokal → Firestore (Logs, Catalog-Dokumente, Relax-Daten)
+-   `npm run cloud:pull` — Firestore → Lokal (Logs)
+-   `npm run cloud:watch` — Überwacht `knowledge_tasks` in Firestore (Enrichment)
+
+Hinweis: `cloud:push` ist kein echter Delta-Sync-Name. Der aktuelle Command ist ein
+breiter Cloud-Transportpfad; insbesondere die Catalog-Dokumente werden als ganze
+Dokumente geschrieben, nicht als feingranularer Item-Sync.
 
 ### 2. Python Bridge Handler (`fuel-firestore.py`)
 Teil der `aos-dev` Bridge. Dient als modularer Handler für den bidirektionalen Sync von User-Daten (Logs/Journal), wenn die Bridge als zentraler Router agiert.

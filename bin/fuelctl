@@ -3,7 +3,7 @@
 fuelctl — Universal System Control for Fuel Centre (Python Edition)
 Central control für: dev (v3 entrypoint + v4 backend, diese Maschine), prod
 (fuel.service, diese Maschine, /opt/fuel), cloud (Firebase Hosting,
-fuel-vos.web.app -- via `sync`, siehe fuelctl sync/deploy:cloud in package.json).
+fuel-vos.web.app -- via `cloud`, siehe fuelctl cloud/deploy:cloud in package.json).
 "local" fällt als Bezeichnung weg, weil dev + prod ohnehin beide auf dieser
 Maschine laufen -- der einzige echte Gegenpol dazu ist "cloud".
 """
@@ -92,7 +92,7 @@ def get_json(url: str) -> Optional[dict]:
 
 @app.command()
 def status():
-    """Check all systems (Dev, Prod, Sync)."""
+    """Check all systems (Dev, Prod, Cloud)."""
     # 1. Dev Stack
     subprocess.run([str(BIN_DEVCTL), "status"])
 
@@ -120,8 +120,8 @@ def status():
     else:
         msg.warn("Catalog state unavailable from prod runtime")
 
-    # 4. Firestore Sync
-    msg.divider("Firestore Sync")
+    # 4. Firestore Cloud Transport
+    msg.divider("Firestore Cloud")
     firestore = (prod_coach_health or {}).get("firestoreAdmin")
     if isinstance(firestore, dict) and firestore.get("connected"):
         active_uids = firestore.get("activeUids") or firestore.get("uids") or []
@@ -197,8 +197,8 @@ def v2_alias(ctx: typer.Context, action: str = typer.Argument("status")):
     prod(ctx, action)
 
 @app.command()
-def sync(action: Optional[str] = typer.Argument(None, help="push, pull, watch")):
-    """Manage Firestore synchronization."""
+def cloud(action: Optional[str] = typer.Argument(None, help="push, pull, watch")):
+    """Manage cloud transport to and from Firestore."""
     if action is None:
         try:
             choice = subprocess.run(
@@ -211,7 +211,7 @@ def sync(action: Optional[str] = typer.Argument(None, help="push, pull, watch"))
             elif "Watch" in choice: action = "watch"
             else: return
         except:
-            msg.info("Usage: fuelctl sync [push|pull|watch]")
+            msg.info("Usage: fuelctl cloud [push|pull|watch]")
             return
 
     if action == "push":
@@ -220,6 +220,15 @@ def sync(action: Optional[str] = typer.Argument(None, help="push, pull, watch"))
         subprocess.run(["node", str(SYNC_SCRIPT), "pull"])
     elif action == "watch":
         subprocess.run(["node", str(SYNC_SCRIPT), "watch"])
+    else:
+        msg.fail(f"Unknown cloud action: {action}")
+
+
+@app.command(name="sync", hidden=True)
+def sync_alias(action: Optional[str] = typer.Argument(None, help="push, pull, watch")):
+    """Deprecated: use `fuelctl cloud` instead."""
+    msg.warn("`fuelctl sync` is deprecated. Use `fuelctl cloud` instead.")
+    cloud(action)
 
 @app.command()
 def catalog(action: str = typer.Argument("status", help="start, stop, status")):

@@ -146,11 +146,11 @@ Kurz zu den Invarianten:
 
 ### Daten-Synchronisation
 
-Um lokale Kataloge und Logs mit der Cloud abzugleichen:
+Um lokale Kataloge und Logs mit der Cloud zu transportieren:
 
 ```bash
-npm run sync:push   # Lokal -> Firestore
-npm run sync:pull   # Firestore -> Lokal
+npm run cloud:push   # Lokal -> Firestore
+npm run cloud:pull   # Firestore -> Lokal
 ```
 
 Detaillierte Infos zur Cloud-Anbindung findest du in [FIREBASE.md](FIREBASE.md).

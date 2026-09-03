@@ -24,8 +24,8 @@ Fuel Centre is a multifunctional nutrition and supplement tracking project desig
 2. **Deploy:** `firebase deploy` (Uses Firebase Hosting and Firestore)
 
 ### Synchronization
-- **Push Local to Cloud:** `npm run sync:push`
-- **Pull Cloud to Local:** `npm run sync:pull`
+- **Push Local to Cloud:** `npm run cloud:push`
+- **Pull Cloud to Local:** `npm run cloud:pull`
 
 ## Development Conventions
 

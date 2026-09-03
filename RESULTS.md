@@ -8,6 +8,10 @@ Session-Log mit datierten Ergebnis-Bullets.
   `pushCount` bleibt als Gesamtzähler bestehen, zusätzlich gibt es jetzt
   `catalogPushCount` und `runtimePushCount`. Die Dev-Ansicht zeigt dieselbe
   Aufteilung, damit `pushes=...` nicht mehr als unscharfer Sammelwert erscheint.
+- Die sichtbare CLI-/npm-Frontdoor wurde von `sync` auf `cloud` umbenannt
+  (`fuelctl cloud`, `fuel cloud`, `npm run cloud:{push,pull,watch}`), weil der
+  bisherige Name semantisch zu eng bzw. irreführend war. Deprecated
+  `sync:*`-npm-Skripte und `fuelctl sync` bleiben als Alias vorerst erhalten.
 - Erkenntnis zur Semantik des bestehenden Firestore-Systems dokumentiert:
   Der Catalog-Pfad ist fachlich kein echter `sync`, sondern ein
   Vollschreib-/Publish-Pfad pro Zieldokument
