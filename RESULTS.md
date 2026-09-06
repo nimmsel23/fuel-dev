@@ -2,6 +2,22 @@
 
 Session-Log mit datierten Ergebnis-Bullets.
 
+## 2026-09-06 (Nachtrag 4: Cloud-Nachzug Vertex)
+
+- Cloud-Pfad (`src/client/lib/aiMealLogger.js` → Firebase Vertex AI,
+  `gemini-2.5-flash`) auf denselben Stand gebracht wie die lokale CLI.
+- `analyzeMealText`-`responseSchema`: neues `components`-Array; Prompt fragt
+  Zutaten mit Gramm-Menge + Rohgewicht-Regel für Trockenware.
+- `normalizeComponents` / `amountToGrams` / `sumYieldG` als JS-Port von
+  `catalog_lookup.py::_normalize_components` — identische Feldnamen.
+- `resolveMealText`: `micros` + `micros_meta` + `components` direkt auf den
+  Firestore-Log-Eintrag. Side-Doc `nutrition/{uid}/meta/micros` bleibt
+  zusätzlich (Wochen-Heatmap aggregiert daraus).
+- `api.cloud.js::autoUpsertCatalog`: `micros`/`components`/`yield_g` auf den
+  Katalog-Eintrag; beim Update nur, wenn dort noch nichts Kuratiertes steht.
+- Keine Firestore-Rules-Änderung nötig (doc-, nicht feldbasiert).
+  `build:cloud` + `build:local` grün. Commit `5728166`.
+
 ## 2026-09-06 (Nachtrag 3: Mikros + Zutaten ins JSON)
 
 - `fuel "<desc>"` verwarf bisher alles außer den 4 Makros. Derselbe
