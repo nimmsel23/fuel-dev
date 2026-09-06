@@ -62,11 +62,206 @@ function simpleHash(obj) {
   return h.toString(36);
 }
 
+function normalizeName(value) {
+  return String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function itemKey(item) {
+  return item?.id || normalizeName(item?.name || item?.description || item?.meal_name);
+}
+
+function itemStamp(item) {
+  const raw = item?.updated_at || item?.created_at || item?.last_used_at || "";
+  const stamp = raw ? Date.parse(raw) : NaN;
+  return Number.isFinite(stamp) ? stamp : 0;
+}
+
+function isSameItem(a, b) {
+  return simpleHash(a || null) === simpleHash(b || null);
+}
+
+function sortCatalogItems(items) {
+  return [...items].sort((a, b) => {
+    const aRecent = a?.last_used_at || a?.updated_at || "";
+    const bRecent = b?.last_used_at || b?.updated_at || "";
+    if (aRecent !== bRecent) return String(bRecent).localeCompare(String(aRecent));
+    return String(a?.name || a?.description || "").localeCompare(String(b?.name || b?.description || ""));
+  });
+}
+
+function pickCanonicalItem(current, incoming) {
+  if (!current) return incoming;
+  if (!incoming) return current;
+  return itemStamp(incoming) >= itemStamp(current) ? incoming : current;
+}
+
 async function shouldSkip(docRef, localMtimeMs) {
   const snap = await docRef.get();
   if (!snap.exists) return false;
   const remoteMtime = snap.data()?._local_mtime || 0;
   return remoteMtime >= localMtimeMs;
+}
+
+function readCatalogFile(filePath) {
+  const raw = readFileSync(filePath, "utf8");
+  return filePath.endsWith(".json") ? JSON.parse(raw) : YAML.parse(raw);
+}
+
+function writeCatalogFile(filePath, data) {
+  const body = filePath.endsWith(".json")
+    ? `${JSON.stringify(data, null, 2)}\n`
+    : YAML.stringify(data, { indent: 2 });
+  writeFileSync(filePath, body);
+}
+
+function findNutritionMealFile(id) {
+  const mealsDir = join(ROOT, "catalogs", "nutrition", "meals");
+  for (const ext of [".yaml", ".yml", ".json"]) {
+    const filePath = join(mealsDir, `${id}${ext}`);
+    if (existsSync(filePath)) return filePath;
+  }
+  return join(mealsDir, `${id}.yaml`);
+}
+
+function loadLocalNutritionCatalog() {
+  const mealsDir = join(ROOT, "catalogs", "nutrition", "meals");
+  const items = [];
+
+  if (existsSync(mealsDir)) {
+    const mealFiles = readdirSync(mealsDir).filter((f) =>
+      f.endsWith(".json") || f.endsWith(".yaml") || f.endsWith(".yml")
+    );
+    const seenIds = new Set();
+
+    for (const file of mealFiles) {
+      const ext = basename(file).split(".").pop();
+      const id = basename(file, `.${ext}`);
+      if (seenIds.has(id) && ext === "json") continue;
+      try {
+        items.push(readCatalogFile(join(mealsDir, file)));
+        seenIds.add(id);
+      } catch (e) {
+        console.error(`    ❌ Fehler in Meal-File ${file}:`, e.message);
+      }
+    }
+
+    if (items.length > 0) {
+      return { items: sortCatalogItems(dedupeCatalogItems(items)), storage: { kind: "files", path: mealsDir } };
+    }
+  }
+
+  const nutritionDir = join(DATA_DIR, "nutrition");
+  const legacyCatalogJson = join(nutritionDir, "catalog.json");
+  const legacyCatalogYaml = join(nutritionDir, "catalog.yaml");
+
+  for (const legacyPath of [legacyCatalogYaml, legacyCatalogJson]) {
+    if (!existsSync(legacyPath)) continue;
+    try {
+      const data = readCatalogFile(legacyPath);
+      const list = Array.isArray(data?.items) ? data.items : (Array.isArray(data) ? data : []);
+      return {
+        items: sortCatalogItems(dedupeCatalogItems(list)),
+        storage: { kind: "legacy", path: legacyPath, wrapper: data && !Array.isArray(data) ? data : null },
+      };
+    } catch (e) {
+      console.error(`    ❌ Fehler in legacy catalog ${basename(legacyPath)}:`, e.message);
+    }
+  }
+
+  return { items: [], storage: { kind: "files", path: mealsDir } };
+}
+
+function writeLocalNutritionCatalog(items, storage) {
+  const mergedItems = sortCatalogItems(dedupeCatalogItems(items));
+  if (storage?.kind === "legacy" && storage.path) {
+    const wrapper = storage.wrapper && !Array.isArray(storage.wrapper)
+      ? { ...storage.wrapper, items: mergedItems }
+      : { items: mergedItems };
+    writeCatalogFile(storage.path, wrapper);
+    return storage.path;
+  }
+
+  const mealsDir = storage?.path || join(ROOT, "catalogs", "nutrition", "meals");
+  if (!existsSync(mealsDir)) mkdirSync(mealsDir, { recursive: true });
+  for (const item of mergedItems) {
+    const key = itemKey(item);
+    if (!key) continue;
+    writeCatalogFile(findNutritionMealFile(key), item);
+  }
+  return mealsDir;
+}
+
+function loadLocalSupplementsCatalog() {
+  const candidates = [
+    join(ROOT, "catalogs", "supplements", "catalog.yaml"),
+    join(ROOT, "catalogs", "supplements", "catalog.json"),
+    join(ROOT, "data", "supplements", "catalog.json"),
+    join(DATA_DIR, "supplements", "catalog.yaml"),
+    join(DATA_DIR, "supplements", "catalog.json"),
+  ];
+
+  for (const catalogPath of candidates) {
+    if (!existsSync(catalogPath)) continue;
+    const data = readCatalogFile(catalogPath);
+    const items = Array.isArray(data?.items) ? data.items : (Array.isArray(data) ? data : []);
+    return {
+      items: sortCatalogItems(dedupeCatalogItems(items)),
+      storage: { path: catalogPath, wrapper: data && !Array.isArray(data) ? data : null },
+    };
+  }
+
+  return {
+    items: [],
+    storage: { path: join(ROOT, "catalogs", "supplements", "catalog.yaml"), wrapper: { version: 1, updated_at: new Date().toISOString(), items: [] } },
+  };
+}
+
+function writeLocalSupplementsCatalog(items, storage) {
+  const mergedItems = sortCatalogItems(dedupeCatalogItems(items));
+  const targetPath = storage?.path || join(ROOT, "catalogs", "supplements", "catalog.yaml");
+  const targetDir = dirname(targetPath);
+  if (!existsSync(targetDir)) mkdirSync(targetDir, { recursive: true });
+  const wrapper = storage?.wrapper && !Array.isArray(storage.wrapper)
+    ? { ...storage.wrapper, items: mergedItems, updated_at: new Date().toISOString() }
+    : { version: 1, updated_at: new Date().toISOString(), items: mergedItems };
+  writeCatalogFile(targetPath, wrapper);
+  return targetPath;
+}
+
+function dedupeCatalogItems(items) {
+  const seen = new Map();
+  for (const item of items || []) {
+    const key = itemKey(item);
+    if (!key) continue;
+    seen.set(key, pickCanonicalItem(seen.get(key), item));
+  }
+  return Array.from(seen.values());
+}
+
+function mergeCatalogSides(localItems, remoteItems) {
+  const localMap = new Map(dedupeCatalogItems(localItems).map((item) => [itemKey(item), item]));
+  const remoteMap = new Map(dedupeCatalogItems(remoteItems).map((item) => [itemKey(item), item]));
+  const allKeys = new Set([...localMap.keys(), ...remoteMap.keys()]);
+  const merged = [];
+  let localChanges = 0;
+  let remoteChanges = 0;
+
+  for (const key of allKeys) {
+    const localItem = localMap.get(key);
+    const remoteItem = remoteMap.get(key);
+    const finalItem = pickCanonicalItem(remoteItem, localItem);
+    if (!finalItem) continue;
+    merged.push(finalItem);
+    if (!isSameItem(localItem, finalItem)) localChanges += 1;
+    if (!isSameItem(remoteItem, finalItem)) remoteChanges += 1;
+  }
+
+  return {
+    items: sortCatalogItems(merged),
+    localChanges,
+    remoteChanges,
+    totalKeys: allKeys.size,
+  };
 }
 
 // ── Gemini Logic ──────────────────────────────────────────────────────────────
@@ -573,6 +768,70 @@ async function pull(uid = UID_DEFAULT) {
   console.log("✅ Pull abgeschlossen.");
 }
 
+async function syncCatalogs(uid) {
+  if (!uid || uid === UID_DEFAULT) {
+    throw new Error("UID required for sync");
+  }
+
+  console.log(`🔄 Starte echten Catalog-Sync für User: ${uid}`);
+
+  const localNutrition = loadLocalNutritionCatalog();
+  const nutritionRef = db.collection("nutrition").doc(uid).collection("meta").doc("catalog");
+  const nutritionSnap = await nutritionRef.get();
+  const remoteNutrition = nutritionSnap.exists ? (nutritionSnap.data()?.items || []) : [];
+  const mergedNutrition = mergeCatalogSides(localNutrition.items, remoteNutrition);
+  const nutritionHash = simpleHash(mergedNutrition.items);
+
+  if (mergedNutrition.localChanges > 0) {
+    const localPath = writeLocalNutritionCatalog(mergedNutrition.items, localNutrition.storage);
+    console.log(`  ↔ Nutrition lokal aktualisiert: ${localPath} (${mergedNutrition.localChanges} Änderungen)`);
+  } else {
+    console.log("  ⏭️  Nutrition lokal bereits aktuell");
+  }
+
+  if (!nutritionSnap.exists || nutritionSnap.data()?._content_hash !== nutritionHash || mergedNutrition.remoteChanges > 0) {
+    await nutritionRef.set({
+      items: mergedNutrition.items,
+      _content_hash: nutritionHash,
+      updated_at: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    console.log(`  ↔ Nutrition remote aktualisiert (${mergedNutrition.remoteChanges} Änderungen)`);
+  } else {
+    console.log("  ⏭️  Nutrition remote bereits aktuell");
+  }
+
+  const localSupplements = loadLocalSupplementsCatalog();
+  const supplementsRef = db.collection("supplements").doc(uid).collection("meta").doc("catalog");
+  const supplementsSnap = await supplementsRef.get();
+  const remoteSupplements = supplementsSnap.exists ? (supplementsSnap.data()?.items || []) : [];
+  const mergedSupplements = mergeCatalogSides(localSupplements.items, remoteSupplements);
+  const supplementsHash = simpleHash(mergedSupplements.items);
+
+  if (mergedSupplements.localChanges > 0) {
+    const localPath = writeLocalSupplementsCatalog(mergedSupplements.items, localSupplements.storage);
+    console.log(`  ↔ Supplements lokal aktualisiert: ${localPath} (${mergedSupplements.localChanges} Änderungen)`);
+  } else {
+    console.log("  ⏭️  Supplements lokal bereits aktuell");
+  }
+
+  if (!supplementsSnap.exists || supplementsSnap.data()?._content_hash !== supplementsHash || mergedSupplements.remoteChanges > 0) {
+    await supplementsRef.set({
+      items: mergedSupplements.items,
+      _content_hash: supplementsHash,
+      updated_at: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    console.log(`  ↔ Supplements remote aktualisiert (${mergedSupplements.remoteChanges} Änderungen)`);
+  } else {
+    console.log("  ⏭️  Supplements remote bereits aktuell");
+  }
+
+  console.log(
+    "✅ Catalog-Sync abgeschlossen. " +
+    `nutrition(local=${mergedNutrition.localChanges}, remote=${mergedNutrition.remoteChanges}) · ` +
+    `supplements(local=${mergedSupplements.localChanges}, remote=${mergedSupplements.remoteChanges})`
+  );
+}
+
 // ── CLI Runner ────────────────────────────────────────────────────────────────
 
 const [,, cmd, uidArg] = process.argv;
@@ -595,10 +854,16 @@ if (cmd === "push") {
     process.exit(2);
   }
   pull(effectiveUid).then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
+} else if (cmd === "sync") {
+  if (!effectiveUid || effectiveUid === UID_DEFAULT) {
+    console.error("❌ UID required for sync.");
+    process.exit(2);
+  }
+  syncCatalogs(effectiveUid).then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
 } else if (cmd === "watch") {
   watchTasks();
 } else {
-  console.log("Usage: node scripts/firestore-sync.mjs [push|pull|watch] <uid>");
+  console.log("Usage: node scripts/firestore-sync.mjs [push|pull|sync|watch] <uid>");
   console.log("  uid: Firebase Auth UID (required, no default fallback).");
   process.exit(1);
 }

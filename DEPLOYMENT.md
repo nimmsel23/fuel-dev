@@ -163,7 +163,7 @@ Das Tool `fuelctl` dient als Master-Controller für die lokale Umgebung.
 
 - **`fuelctl status`**: Zeigt den Zustand der lokalen Runtime-Schichten und des Sync-Watchers an.
 - **`fuelctl dev up`**: Startet die lokale Runtime.
-- **`fuelctl sync`**: Manueller Datenabgleich für die Cloud-/Firestore-Seite.
+- **`fuelctl cloud`**: Manueller Cloud-Transport für die Firestore-Seite.
 
 ## 5. What Could Possibly Go Wrong
 

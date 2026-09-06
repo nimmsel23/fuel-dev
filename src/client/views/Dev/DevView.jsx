@@ -126,7 +126,11 @@ export default function DevView() {
         <Row
           label="Letzter Push"
           ok={firestoreAdmin.lastPushError ? false : (firestoreAdmin.lastPushAt ? true : undefined)}
-          value={`${timeAgo(firestoreAdmin.lastPushAt)}${firestoreAdmin.lastPushError ? " — " + firestoreAdmin.lastPushError : ""} (${firestoreAdmin.pushCount}×)`}
+          value={
+            `${timeAgo(firestoreAdmin.lastPushAt)}` +
+            `${firestoreAdmin.lastPushError ? " — " + firestoreAdmin.lastPushError : ""} ` +
+            `(catalog ${firestoreAdmin.catalogPushCount ?? 0}×, runtime ${firestoreAdmin.runtimePushCount ?? 0}×, total ${firestoreAdmin.pushCount ?? 0}×)`
+          }
         />
         <Row
           label="Letzter Pull"

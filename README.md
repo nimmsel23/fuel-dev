@@ -146,11 +146,15 @@ Kurz zu den Invarianten:
 
 ### Daten-Synchronisation
 
-Um lokale Kataloge und Logs mit der Cloud abzugleichen:
+Es gibt jetzt bewusst zwei verschiedene Pfade:
+
+- `cloud`: breiter Transportpfad für Firestore
+- `sync`: echter Catalog-Abgleich
 
 ```bash
-npm run sync:push   # Lokal -> Firestore
-npm run sync:pull   # Firestore -> Lokal
+npm run cloud:push   # Lokal -> Firestore
+npm run cloud:pull   # Firestore -> Lokal
+npm run catalog:sync -- <uid>   # echter Catalog-Sync: nur fehlende oder neuere Items
 ```
 
 Detaillierte Infos zur Cloud-Anbindung findest du in [FIREBASE.md](FIREBASE.md).

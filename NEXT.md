@@ -2,6 +2,15 @@
 
 Aktive Arbeitsliste (max. 5 Punkte).
 
+## 2026-09-06
+
+- [ ] Redundanz Food-Tab vs. Katalog-Tab klären — beide rendern jetzt
+  `FoodCatalog`. Entweder Food-Tab auf etwas anderes umstellen oder entfernen.
+- [ ] Tab-Modularisierung `main.jsx` weiterführen (siehe CLAUDE.md "Open / Planned").
+- [ ] Offene Diplom-Hits (Taskwarrior): "7 Tage Makronutrient-Protokoll",
+  "40 Training-Einheiten protokollieren", "Sturzprophylaxe Konzept" — überfällig
+  scheduled, blockieren laut Regel weitere Dev-Arbeit.
+
 ## 2026-07-18
 
 - **Sehr viele weitere `.bak`-Dateien im ganzen Repo gefunden** (weit über 80, u. a. in `.archiv/`, `.bak/`, `bin/`, `fuel/`, `gas/`, `scripts/`, `src/server/`, root-level Configs). Nicht angefasst — lag außerhalb des TODO-Scopes ("db-Umfeld"). Vor einem breiteren Cleanup: einzeln prüfen, ob `.archiv/` und `.bak/` bewusste Archiv-Ordner sind (vermutlich ja) vs. verstreute `.bak`-Dateien in aktiven Verzeichnissen (`src/server/routes/`, `bin/`) die vermutlich echte Leichen sind.

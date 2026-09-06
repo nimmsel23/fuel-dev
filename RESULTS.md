@@ -2,6 +2,45 @@
 
 Session-Log mit datierten Ergebnis-Bullets.
 
+## 2026-09-06
+
+- Rezept-Builder aus `FoodView` herausgelöst: Komponente nach
+  `src/client/views/RecipeBuilder/RecipeBuilder.jsx` verschoben, neue
+  `src/client/views/RecipeBuilderView.jsx` (thin wrapper, `max-w-3xl`), eigener
+  Tab `recipes` ("Rezepte", `ChefHat`) in `routes.js` nach dem Food-Tab.
+- Katalog zusätzlich als eigene View + Tab: `src/client/views/CatalogView.jsx`,
+  Tab `catalog` ("Katalog", `Library`). `FoodCatalog` bleibt weiterhin auch in
+  `FoodView` eingebunden (bewusst redundant lt. Ansage).
+- Header-Nav (Tab-Pills unter dem Date-Picker) wrappt jetzt statt horizontal zu
+  scrollen: `<nav>` von `overflow-x-auto snap-*` auf `flex flex-wrap gap-2`,
+  Pills ohne `shrink-0 snap-start` (`main.jsx`).
+- `build:local` + `build:cloud` grün.
+
+## 2026-09-03
+
+- Firestore-Status im Fuel-Prod-Health-Payload und in `bin/fuelctl` getrennt:
+  `pushCount` bleibt als Gesamtzähler bestehen, zusätzlich gibt es jetzt
+  `catalogPushCount` und `runtimePushCount`. Die Dev-Ansicht zeigt dieselbe
+  Aufteilung, damit `pushes=...` nicht mehr als unscharfer Sammelwert erscheint.
+- Die sichtbare CLI-/npm-Frontdoor wurde von `sync` auf `cloud` umbenannt
+  (`fuelctl cloud`, `fuel cloud`, `npm run cloud:{push,pull,watch}`), weil der
+  bisherige Name semantisch zu eng bzw. irreführend war. Deprecated
+  `sync:*`-npm-Skripte bleiben als Alias vorerst erhalten.
+- Ein neuer echter `sync` wurde separat eingeführt:
+  `fuelctl sync <uid>` bzw. `npm run catalog:sync -- <uid>`. Dieser Pfad
+  gleicht nur Catalog-Daten ab und übernimmt nur fehlende oder neuere Einträge
+  zwischen lokal und Firestore; Löschungen werden dabei bewusst nicht
+  propagiert.
+- Erkenntnis zur Semantik des bestehenden Firestore-Systems dokumentiert:
+  Der Catalog-Pfad ist fachlich kein echter `sync`, sondern ein
+  Vollschreib-/Publish-Pfad pro Zieldokument
+  (`nutrition/<uid>/meta/catalog`, `supplements/<uid>/meta/catalog`).
+  Bei jedem erfolgreichen Catalog-Push wird das komplette Catalog-Dokument neu
+  nach Firestore geschrieben, nicht nur ein Delta.
+- Der Runtime-Pfad (`nutrition/logs`, `nutrition/journal`, `supplements/logs`)
+  bleibt der eigentliche Sync-Pfad. Er enthält Push/Pull/Pushback-Verhalten,
+  einschließlich Self-Heal-Writebacks nach Enrichment oder Mikro-Resolution.
+
 ## 2026-08-07 (v4-Merge)
 
 - `~/fuel/` (Python/FastAPI + Postgres, v4.0.0-Frontend) komplett nach hierher

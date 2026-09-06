@@ -61,6 +61,8 @@ const _status = {
   lastPullAt: null,
   lastPullError: null,
   pushCount: 0,
+  catalogPushCount: 0,
+  runtimePushCount: 0,
   pullCount: 0,
   activeUids: [],
   listenerCount: 0,
@@ -123,10 +125,12 @@ function recentDates(n) {
   return dates;
 }
 
-function markPushOk() {
+function markPushOk(kind = "runtime") {
   _status.lastPushAt = new Date().toISOString();
   _status.lastPushError = null;
   _status.pushCount += 1;
+  if (kind === "catalog") _status.catalogPushCount += 1;
+  else _status.runtimePushCount += 1;
 }
 
 function markPushError(message) {
@@ -228,7 +232,7 @@ export async function pushNutritionCatalog(items, options = {}) {
       `[firestore-admin] scope=catalog direction=push uid=${uid} ` +
       `target=nutrition path=firestore:nutrition/${uid}/meta/catalog result=ok count=${mergedItems.length}`
     );
-    markPushOk();
+    markPushOk("catalog");
   } catch (e) {
     logger.error("[firestore-admin] pushNutritionCatalog failed:", e.message);
     markPushError(e.message);
@@ -258,7 +262,7 @@ export async function pushSupplementsCatalog(items, options = {}) {
       `[firestore-admin] scope=catalog direction=push uid=${uid} ` +
       `target=supplements path=firestore:supplements/${uid}/meta/catalog result=ok count=${items.length}`
     );
-    markPushOk();
+    markPushOk("catalog");
   } catch (e) {
     logger.error("[firestore-admin] pushSupplementsCatalog failed:", e.message);
     markPushError(e.message);
@@ -294,7 +298,7 @@ export async function pushNutritionLog(date, meals, waterMl, options = {}) {
       `[firestore-admin] scope=runtime direction=push uid=${uid} ` +
       `target=nutrition/logs/${date} result=ok count=${meals.length}`
     );
-    markPushOk();
+    markPushOk("runtime");
   } catch (e) {
     logger.error("[firestore-admin] pushNutritionLog failed:", e.message);
     markPushError(e.message);
@@ -320,7 +324,7 @@ export async function pushNutritionJournal(date, content, options = {}) {
       `[firestore-admin] scope=runtime direction=push uid=${uid} ` +
       `target=nutrition/journal/${date} result=ok`
     );
-    markPushOk();
+    markPushOk("runtime");
   } catch (e) {
     logger.error("[firestore-admin] pushNutritionJournal failed:", e.message);
     markPushError(e.message);
@@ -353,7 +357,7 @@ export async function pushSupplementLog(date, log, options = {}) {
       `[firestore-admin] scope=runtime direction=push uid=${uid} ` +
       `target=supplements/logs/${date} result=ok count=${log.intakes?.length ?? 0}`
     );
-    markPushOk();
+    markPushOk("runtime");
   } catch (e) {
     logger.error("[firestore-admin] pushSupplementLog failed:", e.message);
     markPushError(e.message);
