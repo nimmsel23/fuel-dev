@@ -13,6 +13,16 @@ Aktive Arbeitsliste (max. 5 Punkte).
   Nachmittag/Abend-Gruppierung, Makro-% + Tageskalorien, Druck/PDF. Deckt die
   FFA-Aufgaben Task 1 / 19 / 147 ab. Nächster Schritt: 14 Tage echte Daten
   loggen, dann Report gegen die Leitfaden-Vorlage feinjustieren.
+- [x] Mikros + Zutaten aus dem Schätz-Call ins JSON geschrieben (2026-09-06,
+  Commit `7c35d7e`): Log-Eintrag + Catalog-Entry bekommen `micros` +
+  `micros_meta` + normalisierte `components` (`amount_g` geparst). Nächste
+  Stufe: Zutaten-Mikroprofil pro 100 g auflösen (OFF zuerst, LLM-Fallback,
+  ein Call pro neuer Zutat) → `components[].per_100g.micros` füllen,
+  `micros_source` setzen; dann Mahlzeiten-Mikros bottom-up summieren statt
+  `method:"meal_estimate"`.
+- [ ] Zwei Dubletten `meal_basmati_reis_mit_brokkoli` / `_2` in
+  `catalogs/nutrition/catalog.json` (aus den `fuel`-Läufen 13:38/13:39)
+  konsolidieren + Log-Einträge 09-05/09-06 angleichen.
 - [ ] Tab-Modularisierung `main.jsx` weiterführen (siehe CLAUDE.md "Open / Planned").
 - [ ] Offene Diplom-Hits (Taskwarrior): "7 Tage Makronutrient-Protokoll",
   "40 Training-Einheiten protokollieren", "Sturzprophylaxe Konzept" — überfällig

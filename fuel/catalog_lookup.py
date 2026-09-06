@@ -200,8 +200,54 @@ def _slugify(name: str) -> str:
     return re.sub(r"_+", "_", s).strip("_")[:60] or "meal"
 
 
-def save_meal(name: str, macros: dict[str, float], *, source: str = "gemini", uid: str | None = None) -> str:
-    """Schreibt einen neuen Meal-Catalog-Eintrag in den user-spezifischen Catalog."""
+_GRAMS_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s*(g|gr|gramm|kg|ml|l)\b", re.IGNORECASE)
+
+
+def _amount_to_grams(qty_text: str) -> float | None:
+    """Zieht eine Grammzahl aus Geminis freitextlichem qty-Feld ("200g roh", "0,5 l")."""
+    if not qty_text:
+        return None
+    m = _GRAMS_RE.search(str(qty_text))
+    if not m:
+        return None
+    val = float(m.group(1).replace(",", "."))
+    unit = m.group(2).lower()
+    if unit == "kg" or unit == "l":
+        val *= 1000
+    return round(val, 1)
+
+
+def _normalize_components(components: list | None) -> list[dict]:
+    """Gemini-Komponenten ({name, qty, kcal, protein, carbs, fat}) in eine stabile
+    Form bringen. per_100g-Mikroprofile pro Zutat sind hier noch nicht befüllt —
+    das ist die separate Ausbaustufe (Zutaten-DB). micros_source markiert das."""
+    out: list[dict] = []
+    for c in components or []:
+        if not isinstance(c, dict):
+            continue
+        qty_text = c.get("qty") or c.get("quantity") or ""
+        out.append({
+            "name": c.get("name") or "?",
+            "qty_text": qty_text,
+            "amount_g": _amount_to_grams(qty_text),
+            "kcal": round(float(c.get("kcal", 0) or 0), 1),
+            "protein": round(float(c.get("protein", 0) or 0), 1),
+            "carbs": round(float(c.get("carbs", 0) or 0), 1),
+            "fat": round(float(c.get("fat", 0) or 0), 1),
+            "per_100g": None,
+            "micros_source": None,
+        })
+    return out
+
+
+def save_meal(name: str, macros: dict[str, float], *, source: str = "gemini", uid: str | None = None,
+              micros: dict[str, float] | None = None, components: list | None = None) -> str:
+    """Schreibt einen neuen Meal-Catalog-Eintrag in den user-spezifischen Catalog.
+
+    micros: absolutes DACH-Mikroprofil für eine Portion des Gerichts (wie
+    geschätzt). components: Zutaten-Zerlegung aus demselben Schätz-Call.
+    Beides wird direkt in die git-/Firestore-getrackte catalog.json geschrieben,
+    damit die Werte ohne laufenden Node-Server erhalten bleiben."""
 
     catalog_path = user_catalog_path(uid)
     catalog_path.parent.mkdir(parents=True, exist_ok=True)
@@ -222,6 +268,9 @@ def save_meal(name: str, macros: dict[str, float], *, source: str = "gemini", ui
         n += 1
 
     now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    norm_components = _normalize_components(components)
+    clean_micros = {k: round(float(v), 3) for k, v in (micros or {}).items()
+                    if isinstance(v, (int, float)) and v > 0}
     entry = {
         "id": item_id,
         "kind": "meal",
@@ -235,8 +284,14 @@ def save_meal(name: str, macros: dict[str, float], *, source: str = "gemini", ui
         "protein": round(float(macros.get("protein", 0)), 1),
         "carbs": round(float(macros.get("carbs", 0)), 1),
         "fat": round(float(macros.get("fat", 0)), 1),
-        "yield_g": None,
-        "components": [],
+        "yield_g": sum(c["amount_g"] for c in norm_components if c.get("amount_g")) or None,
+        "micros": clean_micros,
+        "micros_meta": {
+            "source": source,
+            "method": "meal_estimate",
+            "resolved_at": now,
+        } if clean_micros else None,
+        "components": norm_components,
         "addons": [],
         "default_addon_ids": [],
         "source": source,

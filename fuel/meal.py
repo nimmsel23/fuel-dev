@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import os
+import re as _re
 import subprocess
 import sys
 from datetime import date, datetime, timezone
@@ -27,8 +28,8 @@ from rich.table import Table
 
 from .dates import resolve_flags as _resolve_date, extract_date_hint as _extract_date_hint
 from .narrative import parse as _parse_narrative, spread_times as _spread_times
-from .gemini import estimate_macros_only as _gemini_macros, discover_item as _gemini_discover
-from .catalog_lookup import find_meal as _catalog_find, extract_macros as _catalog_macros, save_meal as _catalog_save, load_meals as _catalog_load_meals
+from .gemini import estimate_macros_only as _gemini_macros, estimate_nutrition as _gemini_estimate, discover_item as _gemini_discover
+from .catalog_lookup import find_meal as _catalog_find, extract_macros as _catalog_macros, save_meal as _catalog_save, load_meals as _catalog_load_meals, _normalize_components
 
 
 def _clean_catalog_name(text: str, max_len: int = 80) -> str:
@@ -219,23 +220,70 @@ class MealInput(BaseModel):
     fat: float = Field(0, ge=0)
     notes: str = Field("")
 
-def _parse_macros_with_gemini(description: str) -> dict:
-    """Schätzt Makros direkt über fuel.gemini (kein Subprocess mehr).
+# Explizite Mengenangabe im Freitext ("200g", "0,5 l", "2 Stück", "1 Portion").
+_QTY_IN_TEXT = _re.compile(
+    r"\d+([.,]\d+)?\s*(g|gr|gramm|kg|ml|l|liter|stk|stück|stueck|portion|portionen|scheibe|scheiben|el|tl|tasse|becher)\b",
+    _re.IGNORECASE,
+)
+# Trockenwaren, die Gemini laut Prompt als Rohgewicht rechnet, sofern nicht
+# "gekocht"/"cooked"/"zubereitet" dabeisteht — für den Hinweis im Terminal.
+_DRY_GOODS = _re.compile(
+    r"\b(reis|nudel|nudeln|pasta|spaghetti|penne|couscous|bulgur|quinoa|hafer|haferflocken|"
+    r"linsen|bohnen|kichererbsen|mehl|griess|grieß|polenta)\b",
+    _re.IGNORECASE,
+)
 
-    War vorher ein subprocess.run() auf ein externes bin/gemini-estimate
-    Script — unnötiger Umweg, da _gemini_macros (fuel.gemini.
-    estimate_macros_only) exakt dasselbe tut, inklusive Multi-Key-Rotation
-    bei HTTP 400/403/429. Der Subprocess-Pfad war zudem seit dem Umzug von
-    fuel-meal nach fuel/meal.py kaputt (relativer Pfad zeigte auf das
-    falsche Verzeichnis).
+
+def _fmt_micro_count(micros: dict) -> int:
+    """Zahl der Mikronährstoffe mit einem Wert > 0."""
+    return sum(1 for v in (micros or {}).values() if isinstance(v, (int, float)) and v > 0)
+
+
+def _parse_macros_with_gemini(description: str) -> dict:
+    """Vollschätzung über fuel.gemini: Makros + Mikros + Komponenten in EINEM Call.
+
+    Früher lief hier nur estimate_macros_only — das warf Mikros und die
+    Komponenten-Zerlegung weg, obwohl derselbe Gemini-/Haiku-Call sie
+    ohnehin mitliefert. Jetzt wird das komplette Ergebnis zurückgegeben und
+    von do_meal_log in Log-Eintrag + Catalog-Entry geschrieben (siehe
+    save_meal). Multi-Key-Rotation bei HTTP 400/403/429 steckt weiterhin in
+    call_gemini.
+
+    Returns: {"macros": {...}, "micros": {...}, "components": [...], "_error"?: str}
     """
-    macros = _gemini_macros(description)
+    result = _gemini_estimate(description)
+    macros = result.get("macros") or {}
+    micros = result.get("micros") or {}
+    components = result.get("components") or []
     kcal = macros.get("kcal", 0)
-    if macros.get("_error"):
-        msg.warn(f"Gemini: {macros['_error']}")
-    elif kcal > 0:
-        msg.info(f"Gemini: {kcal} kcal geschätzt")
-    return macros
+
+    if result.get("_error"):
+        msg.warn(f"Gemini: {result['_error']}")
+        return result
+
+    if kcal > 0:
+        msg.info(
+            f"Gemini-Schätzung · {kcal:.0f} kcal · "
+            f"{macros.get('protein', 0):.1f} EW / {macros.get('carbs', 0):.1f} KH / "
+            f"{macros.get('fat', 0):.1f} Fett"
+        )
+        # Mengen-Annahme transparent machen.
+        if _QTY_IN_TEXT.search(description):
+            msg.info("  Menge: aus Text übernommen, exakt gerechnet")
+        else:
+            msg.warn("  Menge: nicht angegeben → Ø-Portion angenommen (Wert schwankt zwischen Läufen)")
+        if _DRY_GOODS.search(description) and not _re.search(r"gekocht|cooked|zubereitet", description, _re.IGNORECASE):
+            msg.warn("  Trockenware ohne \"gekocht\" → als Rohgewicht interpretiert (~Faktor 2,7 vs. gekocht)")
+        if components:
+            parts = ", ".join(
+                f"{c.get('name', '?')} ({c.get('qty', '?')})" for c in components[:6]
+            )
+            msg.info(f"  Zutaten: {parts}")
+        mc = _fmt_micro_count(micros)
+        if mc:
+            msg.info(f"  Micros: {mc} Werte geschätzt (Mahlzeitenebene, keine Zutaten-Auflösung)")
+
+    return result
 
 # ── Interactive Mode ───────────────────────────────────────────────────────────
 
@@ -287,9 +335,11 @@ def do_meal_interactive() -> None:
 
 # ── Meal Logging ───────────────────────────────────────────────────────────────
 
-def do_meal_log(description: str, kcal: float, protein: float, carbs: float, fat: float, notes: str, day: str | None, save_catalog: bool, qty: int = 1, catalog_id: str | None = None, meal_type: str = "lunch") -> None:
+def do_meal_log(description: str, kcal: float, protein: float, carbs: float, fat: float, notes: str, day: str | None, save_catalog: bool, qty: int = 1, catalog_id: str | None = None, meal_type: str = "lunch", micros: dict | None = None, components: list | None = None) -> None:
     today = day or date.today().isoformat()
     qty = max(1, int(qty))
+    micros = dict(micros) if micros else {}
+    components = list(components) if components else []
 
     if kcal == 0 and protein == 0 and carbs == 0 and fat == 0:
         # Lookup-first: Catalog-Hit spart Gemini-Call komplett
@@ -301,17 +351,26 @@ def do_meal_log(description: str, kcal: float, protein: float, carbs: float, fat
                 catalog_id = hit.get("id")
                 msg.good(f"Catalog-Hit: {hit['name']} ({kcal:.0f} kcal/Stück) — kein Gemini-Call")
         if kcal == 0:
-            with Console().status(f"[cyan]Gemini schätzt Makros für '{description}'...[/cyan]", spinner="dots"):
-                macros = _parse_macros_with_gemini(description)
-            
+            with Console().status(f"[cyan]Gemini schätzt Nährwerte für '{description}'...[/cyan]", spinner="dots"):
+                est = _parse_macros_with_gemini(description)
+
+            macros = est.get("macros") or {}
             kcal, protein, carbs, fat = macros.get("kcal", 0), macros.get("protein", 0), macros.get("carbs", 0), macros.get("fat", 0)
-            
+            # Mikros + Komponenten aus demselben Call übernehmen (wurden früher verworfen).
+            est_micros = {k: v for k, v in (est.get("micros") or {}).items() if isinstance(v, (int, float)) and v > 0}
+            if est_micros:
+                micros = est_micros
+            if est.get("components"):
+                components = est["components"]
+
             if kcal == 0 and protein == 0 and carbs == 0 and fat == 0:
                 msg.fail("Gemini konnte die Makros nicht schätzen (Netzwerkfehler oder ungültige Antwort). Abbruch.")
                 raise SystemExit(1)
 
     if qty > 1:
         kcal, protein, carbs, fat = kcal * qty, protein * qty, carbs * qty, fat * qty
+        if micros:
+            micros = {k: v * qty for k, v in micros.items()}
 
     try:
         MealInput(description=description, kcal=kcal, protein=protein, carbs=carbs, fat=fat, notes=notes)
@@ -319,6 +378,7 @@ def do_meal_log(description: str, kcal: float, protein: float, carbs: float, fat
         msg.fail(f"Validation error: {e.error_count()} Fehler")
         raise SystemExit(1)
 
+    now_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     meal_entry = {
         "id": f"meal_{int(datetime.now().timestamp() * 1000)}",
         "catalog_id": catalog_id,
@@ -326,8 +386,17 @@ def do_meal_log(description: str, kcal: float, protein: float, carbs: float, fat
         "description": f"{qty}x {description}" if qty > 1 else description,
         "notes": notes,
         "kcal": kcal, "protein": protein, "carbs": carbs, "fat": fat,
-        "time": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "time": now_iso,
     }
+    if micros:
+        meal_entry["micros"] = micros
+        meal_entry["micros_meta"] = {
+            "source": "gemini",
+            "method": "meal_estimate",  # ganze Mahlzeit geschätzt, nicht aus Zutaten summiert
+            "resolved_at": now_iso,
+        }
+    if components:
+        meal_entry["components"] = _normalize_components(components)
 
     # Direkter Dateizugriff — kein Node-Server als Dependency für das Python
     # CLI-Tool. War vorher _api_call("POST", "/nutrition/log", ...) über HTTP;
@@ -338,8 +407,24 @@ def do_meal_log(description: str, kcal: float, protein: float, carbs: float, fat
     _save_log_local(log)
     msg.good(f"{description} ({kcal:.0f} kcal) geloggt — {today}")
 
+    # Tages-Zwischensumme nach dem Loggen.
+    day_meals = log.get("meals", [])
+    d_kcal = sum(m.get("kcal", 0) or 0 for m in day_meals)
+    d_p = sum(m.get("protein", 0) or 0 for m in day_meals)
+    d_c = sum(m.get("carbs", 0) or 0 for m in day_meals)
+    d_f = sum(m.get("fat", 0) or 0 for m in day_meals)
+    msg.info(
+        f"  Tag {today}: {len(day_meals)} Mahlzeit(en) · {d_kcal:.0f} kcal · "
+        f"{d_p:.0f} EW / {d_c:.0f} KH / {d_f:.0f} Fett"
+    )
+
     if save_catalog:
-        new_id = _catalog_save(description, {"kcal": kcal/qty, "protein": protein/qty, "carbs": carbs/qty, "fat": fat/qty})
+        new_id = _catalog_save(
+            description,
+            {"kcal": kcal/qty, "protein": protein/qty, "carbs": carbs/qty, "fat": fat/qty},
+            micros={k: v / qty for k, v in micros.items()} if micros else None,
+            components=components or None,
+        )
         msg.info(f"Zum Catalog hinzugefügt: {description} (id={new_id})")
 
 def do_today(day: str | None) -> None:
