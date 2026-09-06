@@ -4,6 +4,7 @@ node_modules/
 functions/node_modules
 dist/
 dist-firebase/
+dev-dist/
 /opt/
 .firebase/
 .firebase/hosting.*.cache
@@ -19,8 +20,7 @@ serviceAccountKey.json
 __pycache__/
 *.pyc
 *.egg-info/
-.claude/TICKETS/
-.claude/hooks/*.lock
+.claude/
 
 # Runtime data (daily logs, journals, user sessions)
 data/
