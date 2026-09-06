@@ -47,6 +47,31 @@ export function resolveMealMicros(meal, catalog, options = {}) {
     (i) => (meal.catalog_id && i.id === meal.catalog_id) || i.name === meal.description
   );
   const lookupName = catalogEntry?.name || meal.description;
+
+  // 1) Direkt im Katalog-Eintrag hinterlegtes Mikroprofil (Etikett /
+  //    Referenztabelle) hat Vorrang vor dem name-gekeyten meal_micros-Lookup.
+  //    Werte sind absolut für die Katalog-Portion (catalogEntry.kcal) und
+  //    werden auf die tatsächlich geloggte kcal skaliert — gleiche Logik wie
+  //    der Fallback unten.
+  if (catalogEntry?.micros && Object.keys(catalogEntry.micros).length > 0) {
+    const src = catalogEntry.micros;
+    let factor = 1;
+    if (meal.kcal && catalogEntry.kcal) factor = meal.kcal / catalogEntry.kcal;
+    const resolved = {};
+    for (const k of MICRO_KEYS) {
+      resolved[k] = Math.round((src[k] || 0) * factor * 10) / 10;
+    }
+    meal.micros = resolved;
+    meal.micros_meta = buildMicrosMeta(
+      lookupName,
+      { source: catalogEntry.micros_meta?.source || "catalog", name_key: null, meal_name: lookupName },
+      factor,
+      "catalog_embedded"
+    );
+    return resolved;
+  }
+
+  // 2) Fallback: separat gepflegtes meal_micros (Gemini-Schätzung, SQLite).
   const micros = getMicrosForMeal(lookupName, options);
   if (!micros) return null;
 
