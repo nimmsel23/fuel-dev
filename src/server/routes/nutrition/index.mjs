@@ -4,6 +4,7 @@ import journalRoute from "./notes.mjs";
 import composeRoute from "./compose.mjs";
 import dailyRoute from "./daily.mjs";
 import weeklyRoute from "./weekly.mjs";
+import microTrendRoute from "./micro-trend.mjs";
 import estimateRoute from "./estimate.mjs";
 import aiLogRoute from "./ai-log.mjs";
 import visionRoute from "./vision.mjs";
@@ -17,6 +18,7 @@ export default async function nutritionRoute(app) {
   app.register(composeRoute);
   app.register(dailyRoute);
   app.register(weeklyRoute);
+  app.register(microTrendRoute);
   app.register(estimateRoute);
   app.register(aiLogRoute);
   app.register(visionRoute);

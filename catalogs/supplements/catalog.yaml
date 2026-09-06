@@ -10,6 +10,14 @@ items:
     micros:
       zinc_mg: 10
       vitamin_b6_mg: 1.4
+    # Wirkstoffe pro default_dose (1 Tablette). Reine Produktdoku — keine
+    # DACH-Nährstoffe, gehen NICHT in die Wochen-Aggregation/Heatmap ein.
+    actives:
+      melatonin_mg: 2
+      vitamin_b6_mg: 1.4
+      zinc_mg: 10
+      valerian_root_extract_mg: 120
+      passionflower_extract_mg: 50
   - id: glycin
     name: Glycin
     product: Sunday Natural Glycin pur

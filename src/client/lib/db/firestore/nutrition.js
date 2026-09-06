@@ -120,6 +120,33 @@ function resolveMealMicros(meal, catalog, microsMap) {
 
   const catalogEntry = catalog.find((i) => (meal.catalog_id && i.id === meal.catalog_id) || i.name === meal.description);
   const lookupName = catalogEntry?.name || meal.description;
+
+  // 1) Direkt im Katalog-Eintrag hinterlegtes Mikroprofil (Etikett /
+  //    Referenztabelle) hat Vorrang vor dem name-gekeyten microsMap-Lookup.
+  //    Werte sind absolut für catalogEntry.kcal und werden auf die geloggte
+  //    kcal skaliert. Parität zu server/services/nutrition-micros.mjs.
+  if (catalogEntry?.micros && Object.keys(catalogEntry.micros).length > 0) {
+    const src = catalogEntry.micros;
+    let factor = 1;
+    if (meal.kcal && catalogEntry.kcal) factor = meal.kcal / catalogEntry.kcal;
+    const resolved = {};
+    for (const k of MICRO_KEYS) {
+      resolved[k] = Math.round((src[k] || 0) * factor * 10) / 10;
+    }
+    meal.micros = resolved;
+    meal.micros_meta = {
+      source: catalogEntry.micros_meta?.source || "catalog",
+      lookup_name: lookupName || null,
+      inferred_from: lookupName || null,
+      normalized_key: null,
+      scaling_factor: Math.round((factor || 1) * 1000) / 1000,
+      resolved_at: new Date().toISOString(),
+      origin: "catalog_embedded",
+    };
+    return resolved;
+  }
+
+  // 2) Fallback: separat gepflegtes Micros-Katalog-Item (Gemini-Schätzung).
   const micros = microsMap[lookupName];
   if (!micros) return null;
 
