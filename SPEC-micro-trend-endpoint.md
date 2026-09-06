@@ -1,8 +1,9 @@
 # SPEC — Mikro-Trend-Detail-Endpoint
 
-Status: **v3 implementiert** (2026-09-06, Commit `b636f58`). Route + `assembleWeek()`-Extraktion
-live, per Handler-Harness + HTTP-Smoke (Port 9009) gegen echte Daten verifiziert. Noch offen:
-Deploy auf `/opt/fuel` (`npm run deploy:local`), Cloud-Client-Drilldown, v4-Variante (s.u.).
+Status: **v3 implementiert + deployed** (2026-09-06, Commit `b636f58`). Route + `assembleWeek()`-Extraktion
+live auf `/opt/fuel` (`fuel.service` :7000), per Handler-Harness + HTTP-Smoke gegen echte Daten
+verifiziert (`curl :7000/nutrition/weekly/2026/31/micro/vitamin-c` → 200, `.../micro/zink` → 200).
+Noch offen: Cloud-Client-Drilldown, v4-Variante (s.u.).
 
 ## Ziel
 
