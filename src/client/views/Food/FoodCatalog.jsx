@@ -53,7 +53,10 @@ function loadDismissed() {
   }
 }
 
-export default function FoodCatalog({ activeDate }) {
+// showHistory: der "Food-Verlauf" (unkuratierte Inbox) gehört in den Food-Tab,
+// nicht in den eigenständigen Katalog-Tab (User-Vorgabe 2026-09-06). CatalogView
+// rendert dieselbe Komponente mit showHistory={false}.
+export default function FoodCatalog({ activeDate, showHistory = true }) {
   const qc = useQueryClient();
   const [catalogAddonSelection, setCatalogAddonSelection] = useState({});
   const [catalogGrams, setCatalogGrams] = useState({});
@@ -129,6 +132,7 @@ export default function FoodCatalog({ activeDate }) {
     queryKey: ["nutrition-history-inbox"],
     queryFn: () => fetchJson("/nutrition/history?limit=30"),
     staleTime: 0,
+    enabled: showHistory,
   });
   const historyMeals = (historyData?.history || [])
     .flatMap((day) => (day.meals || []).map((m) => ({ ...m, _date: day.date })))
@@ -401,7 +405,7 @@ export default function FoodCatalog({ activeDate }) {
 
   return (
     <>
-      {historyMeals.length > 0 && (
+      {showHistory && historyMeals.length > 0 && (
         <div className="mb-6 rounded-3xl border border-emerald-400/15 bg-emerald-400/5 p-6 shadow-glow">
           <div className="mb-5 flex items-center justify-between gap-3">
             <div>

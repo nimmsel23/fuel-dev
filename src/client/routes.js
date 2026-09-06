@@ -4,6 +4,8 @@ import { Flame, UtensilsCrossed, NotebookPen, BookOpen, Pill, Microscope, Settin
 const BUILD_IS_LOCAL = import.meta.env.VITE_APP_MODE !== "client" && import.meta.env.MODE !== "firebase";
 const BUILD_IS_SHELL = import.meta.env.MODE === "firebase";
 
+// Tab-Reihenfolge (2026-09-06, User-Vorgabe): Dashboard · Log · Food · Rezepte ·
+// Katalog · Historie · Journal · Supplements · Mikros · Setup · Dev.
 export const TAB_CONFIG = [
   ...(!BUILD_IS_SHELL ? [{
     key: "dashboard",
@@ -13,6 +15,13 @@ export const TAB_CONFIG = [
     getProps: (ctx) => ({ nutrition: ctx.nutrition, sup: ctx.sup, journal: ctx.journal, macroTrend: ctx.macroTrend, setActiveTab: ctx.setActiveTab, activeDate: ctx.activeDate }),
   }] : []),
   {
+    key: "log",
+    label: "Log",
+    Icon: NotebookPen,
+    View: lazy(() => import("./views/Log/LogView.jsx")),
+    getProps: (ctx) => ({ date: ctx.activeDate, nutrition: ctx.nutrition, journal: ctx.journal || "" }),
+  },
+  {
     key: "food",
     label: "Food",
     Icon: UtensilsCrossed,
@@ -20,18 +29,18 @@ export const TAB_CONFIG = [
     getProps: (ctx) => ({ activeDate: ctx.activeDate, setActiveDate: ctx.setActiveDate, nutrition: ctx.nutrition }),
   },
   {
-    key: "catalog",
-    label: "Katalog",
-    Icon: Library,
-    View: lazy(() => import("./views/CatalogView.jsx")),
-    getProps: (ctx) => ({ activeDate: ctx.activeDate }),
-  },
-  {
     key: "recipes",
     label: "Rezepte",
     Icon: ChefHat,
     View: lazy(() => import("./views/RecipeBuilderView.jsx")),
     getProps: () => ({}),
+  },
+  {
+    key: "catalog",
+    label: "Katalog",
+    Icon: Library,
+    View: lazy(() => import("./views/CatalogView.jsx")),
+    getProps: (ctx) => ({ activeDate: ctx.activeDate }),
   },
   {
     key: "history",
@@ -53,13 +62,6 @@ export const TAB_CONFIG = [
     getProps: (ctx) => ({ date: ctx.activeDate }),
     cloudHidden: true,
   }] : []),
-  {
-    key: "log",
-    label: "Log",
-    Icon: NotebookPen,
-    View: lazy(() => import("./views/Log/LogView.jsx")),
-    getProps: (ctx) => ({ date: ctx.activeDate, nutrition: ctx.nutrition, journal: ctx.journal || "" }),
-  },
   {
     key: "supplements",
     label: "Supplements",
