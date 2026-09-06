@@ -24,3 +24,41 @@ body {
 .scrollbar-none::-webkit-scrollbar {
   display: none;
 }
+
+/* ── Ernährungsprotokoll-Report (NutritionReportView) ──────────────────
+   Der Report wird als weißes „Blatt" gerendert (auch am Bildschirm), damit
+   die Druck-/PDF-Ausgabe für die FFA-Pflichtaufgabe 1:1 der Vorschau
+   entspricht. Bedienelemente tragen .no-print und verschwinden beim Druck. */
+.report-sheet {
+  background: #ffffff;
+  color: #14181f;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.report-sheet table { border-collapse: collapse; width: 100%; }
+.report-sheet th,
+.report-sheet td { border: 1px solid #c8ccd4; padding: 3px 6px; text-align: left; }
+.report-sheet th { background: #eef0f3; font-weight: 600; }
+.report-sheet td.num,
+.report-sheet th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.report-sheet .slot-subtotal td { background: #f6f7f9; font-weight: 600; }
+.report-sheet .day-total td { background: #e9edf4; font-weight: 700; }
+
+@media print {
+  :root { background: #ffffff !important; }
+  body { background: #ffffff !important; }
+  header,
+  .no-print { display: none !important; }
+  main { padding: 0 !important; margin: 0 !important; }
+  .report-sheet {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    max-width: none !important;
+    border-radius: 0 !important;
+  }
+  .report-day { break-inside: avoid; }
+  .report-page-break { break-before: page; }
+}
+
+@page { margin: 15mm; }

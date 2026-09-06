@@ -1,5 +1,5 @@
 import { lazy } from "react";
-import { Flame, UtensilsCrossed, NotebookPen, BookOpen, Pill, Microscope, Settings2, History, TerminalSquare, ChefHat, Library } from "lucide-react";
+import { Flame, UtensilsCrossed, NotebookPen, BookOpen, Pill, Microscope, Settings2, History, TerminalSquare, ChefHat, Library, FileText } from "lucide-react";
 
 const BUILD_IS_LOCAL = import.meta.env.VITE_APP_MODE !== "client" && import.meta.env.MODE !== "firebase";
 const BUILD_IS_SHELL = import.meta.env.MODE === "firebase";
@@ -48,6 +48,16 @@ export const TAB_CONFIG = [
     Icon: History,
     View: lazy(() => import("./views/HistoryView.jsx")),
     getProps: (ctx) => ({ setActiveDate: ctx.setActiveDate, setActiveTab: ctx.setActiveTab }),
+  },
+  {
+    // Ernährungsprotokoll-Report (2026-09-06): abgabefertiges 7-/14-Tage-
+    // Protokoll für die FFA-Pflichtaufgaben (Ernährungstrainer Task 1/19,
+    // Fitnesstrainer-Zusatzaufgabe Task 147). Druck-/PDF-Ausgabe via window.print().
+    key: "report",
+    label: "Protokoll",
+    Icon: FileText,
+    View: lazy(() => import("./views/Report/NutritionReportView.jsx")),
+    getProps: () => ({}),
   },
   ...(!BUILD_IS_SHELL ? [{
     // Seit 2026-08-07 (TODO.md): im Firebase-Frontend (cloud) ausgeblendet —
