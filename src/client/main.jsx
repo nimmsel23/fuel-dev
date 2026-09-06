@@ -1,7 +1,7 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Settings2 } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 import { motion, AnimatePresence } from "framer-motion";
 import { RotateCcw } from "lucide-react";
@@ -142,6 +142,11 @@ function App() {
   const totalFat = sumMetric(meals, "fat");
 
   const visibleTabs = TAB_CONFIG.filter((t) => !t.localOnly || localMode !== null).filter((t) => !(t.cloudHidden && isCloudFrontend));
+  // Setup-Tab (2026-09-06, User-Vorgabe): nicht als gleichwertige Pill in der
+  // Haupt-Nav, sondern dezentes Zahnrad oben im Header. Aus der Pill-Leiste
+  // herausgefiltert, separat als Icon-Button gerendert.
+  const settingsTab = visibleTabs.find((t) => t.key === "settings");
+  const navTabs = visibleTabs.filter((t) => t.key !== "settings");
   const runtimeBadge = isCloudFrontend ? "Fuel Centre V3" : (hasV4 ? "Fuel Centre V3 / V4" : "Fuel Centre V3");
   const runtimeTitle = isCloudFrontend
     ? "Fuel Centre V3 (Firebase PWA)"
@@ -190,6 +195,22 @@ function App() {
                     </button>
                   )
                 )}
+                {settingsTab && (
+                  <button
+                    onClick={() => setActiveTab("settings")}
+                    title={settingsTab.label}
+                    aria-label={settingsTab.label}
+                    aria-pressed={activeTab === "settings"}
+                    className={twMerge(
+                      "inline-flex items-center rounded-full p-1.5 transition",
+                      activeTab === "settings"
+                        ? "text-orange-300"
+                        : "text-slate-500 hover:text-white hover:bg-white/10",
+                    )}
+                  >
+                    <Settings2 className="h-4 w-4" />
+                  </button>
+                )}
               </div>
               <h1 className="text-3xl font-semibold tracking-tight md:text-5xl">Fuel Control Deck</h1>
               <p className="mt-3 max-w-2xl text-sm text-slate-300 md:text-base">
@@ -210,7 +231,7 @@ function App() {
           <NutritionHeatmap selectedDate={activeDate} onSelectDate={setActiveDate} />
 
           <nav className="flex flex-wrap gap-2">
-            {visibleTabs
+            {navTabs
               .map(({ key, label, Icon, localOnly }) => (
                 <motion.button
                   whileTap={{ scale: 0.96 }}
