@@ -1,7 +1,8 @@
 # SPEC — Mikro-Trend-Detail-Endpoint
 
-Status: **Entwurf, nicht implementiert** (2026-09-06). Blocker: `feedback_no_dev_while_due_scheduled`
-(16 Taskwarrior-Tasks fällig/scheduled). Build erst nach Freigabe / Abbau der Tasks.
+Status: **v3 implementiert** (2026-09-06, Commit `b636f58`). Route + `assembleWeek()`-Extraktion
+live, per Handler-Harness + HTTP-Smoke (Port 9009) gegen echte Daten verifiziert. Noch offen:
+Deploy auf `/opt/fuel` (`npm run deploy:local`), Cloud-Client-Drilldown, v4-Variante (s.u.).
 
 ## Ziel
 
