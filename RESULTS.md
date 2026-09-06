@@ -2,6 +2,27 @@
 
 Session-Log mit datierten Ergebnis-Bullets.
 
+## 2026-09-06 (Nachtrag 2: Ernährungsprotokoll-Report)
+
+- Neuer Tab `report` ("Protokoll", `FileText`) nach `Historie` — abgabefertiges
+  7-/14-Tage-Ernährungsprotokoll für die FFA-Aufgaben (Ernährungstrainer
+  Task 1 „7 Tage Makronutrient-Protokoll" + Task 19 „14 Tage Diät-Protokoll",
+  Fitnesstrainer-Zusatzaufgabe Task 147). `src/client/views/Report/NutritionReportView.jsx`.
+- Rein clientseitig über `fetchJson("/nutrition/history?limit=180")` (@api →
+  Fastify lokal / Firestore cloud), kein neuer Server-Endpoint. Der in
+  CLAUDE.md geplante `GET /nutrition/export?from=&to=` bleibt damit unnötig.
+- Ausgabe: weißes „Blatt" (`.report-sheet` in `styles.css`, sichtbar wie
+  gedruckt), pro Tag Tabelle Nahrungsmittel/Getränk × kcal/KH/Fett/EW,
+  gruppiert nach Vormittag (<12) / Nachmittag (12–17) / Abend (≥17) aus dem
+  `time`-Feld (Fallback über `meal.type`), Slot-Zwischensummen + Tages-
+  Gesamtkalorien + energetische Makro-Verteilung (%). Deckblatt mit Name
+  (localStorage), Zeitraum, Erhebungsmethode; Auswertungstabelle mit Ø/Tag.
+- Zeitraumwahl: Presets 7 / 14 Tage / frei (Von–Bis). Tage ohne Log werden
+  als „Keine Einträge" ausgewiesen. Druck via `window.print()`, Print-CSS in
+  `styles.css` (`@media print`: Header/Nav weg, `@page`-Rand, Seitenumbruch
+  alle 3 Tage).
+- `build:local` + `build:cloud` grün, eigener Lazy-Chunk `NutritionReportView`.
+
 ## 2026-09-06 (Nachtrag: Tab-Reihenfolge + Katalog-Trennung)
 
 - Tab-Reihenfolge auf User-Vorgabe umgestellt (`routes.js`):
