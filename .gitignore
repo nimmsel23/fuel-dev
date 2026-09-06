@@ -20,7 +20,7 @@ __pycache__/
 *.pyc
 *.egg-info/
 .claude/TICKETS/
-.claude/hooks/.commit-docs.lock
+.claude/hooks/*.lock
 
 # Runtime data (daily logs, journals, user sessions)
 data/

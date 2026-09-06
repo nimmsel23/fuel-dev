@@ -4,8 +4,10 @@ Aktive Arbeitsliste (max. 5 Punkte).
 
 ## 2026-09-06
 
-- [ ] Redundanz Food-Tab vs. Katalog-Tab klären — beide rendern jetzt
-  `FoodCatalog`. Entweder Food-Tab auf etwas anderes umstellen oder entfernen.
+- [x] Redundanz Food-Tab vs. Katalog-Tab geklärt (2026-09-06): beide rendern
+  weiterhin `FoodCatalog`, aber der Food-Verlauf (unkuratierte Inbox) erscheint
+  nur im Food-Tab (`showHistory`-Prop), Katalog-Tab zeigt nur den reinen
+  Gerichte-Katalog. Bewusst gewollte Teil-Redundanz, kein Cleanup mehr nötig.
 - [ ] Tab-Modularisierung `main.jsx` weiterführen (siehe CLAUDE.md "Open / Planned").
 - [ ] Offene Diplom-Hits (Taskwarrior): "7 Tage Makronutrient-Protokoll",
   "40 Training-Einheiten protokollieren", "Sturzprophylaxe Konzept" — überfällig

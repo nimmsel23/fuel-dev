@@ -2,6 +2,18 @@
 
 Session-Log mit datierten Ergebnis-Bullets.
 
+## 2026-09-06 (Nachtrag: Tab-Reihenfolge + Katalog-Trennung)
+
+- Tab-Reihenfolge auf User-Vorgabe umgestellt (`routes.js`):
+  Dashboard · **Log** · Food · **Rezepte** · **Katalog** · Historie · Journal ·
+  Supplements · Mikros · Setup · Dev. Log wandert direkt hinter Dashboard,
+  Rezepte steht zwischen Food und Katalog.
+- Food-Verlauf (unkuratierte Inbox „Noch nicht kuratiert") bleibt nur im
+  Food-Tab: `FoodCatalog` bekommt Prop `showHistory` (Default `true`), die
+  History-Inbox-Query ist per `enabled: showHistory` gated. `CatalogView`
+  rendert `<FoodCatalog showHistory={false} />` → reiner Gerichte-Katalog.
+- `build:local` + `build:cloud` grün.
+
 ## 2026-09-06
 
 - Rezept-Builder aus `FoodView` herausgelöst: Komponente nach
