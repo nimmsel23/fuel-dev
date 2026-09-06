@@ -173,6 +173,11 @@ export async function postJson(path, body) {
     const existing = await firestore.getNutritionLog(body.date);
     if (body.delete_meal_id) {
       existing.meals = (existing.meals || []).filter((m) => m.id !== body.delete_meal_id);
+      // Tombstone im Tages-Dokument mitschreiben — sonst holt ein späterer
+      // Merge/Push (lokaler Server, v4-Re-Import) die Mahlzeit zurück.
+      existing.deleted_meal_ids = Array.from(
+        new Set([...(existing.deleted_meal_ids || []), body.delete_meal_id])
+      );
     } else if (body.catalog_item_id) {
       const catalog = await firestore.getNutritionCatalog();
       const item = catalog.find((i) => i.id === body.catalog_item_id);

@@ -31,9 +31,22 @@ export async function saveMicrosCatalog(items) {
   await setDoc(ref, { items, updated_at: serverTimestamp() }, { merge: true });
 }
 
+// Getilgte Mahlzeiten (deleted_meal_ids im Tages-Dokument) aus der meals-Liste
+// entfernen — ein noch nicht konvergierter Merge/Push kann sie wieder in
+// meals[] geschrieben haben, der Tombstone ist die autoritative Löschliste.
+function applyMealTombstones(data) {
+  if (!data || typeof data !== "object") return data;
+  const del = Array.isArray(data.deleted_meal_ids) ? data.deleted_meal_ids : [];
+  if (del.length && Array.isArray(data.meals)) {
+    const set = new Set(del);
+    return { ...data, meals: data.meals.filter((m) => !set.has(m?.id)) };
+  }
+  return data;
+}
+
 export async function getNutritionLog(date = todayISO()) {
   const snap = await getDoc(doc(db, "nutrition", getUid(), "logs", date));
-  return snap.exists() ? snap.data() : { date, meals: [], water_ml: 0 };
+  return snap.exists() ? applyMealTombstones(snap.data()) : { date, meals: [], water_ml: 0 };
 }
 
 export async function saveNutritionLog(date, data) {
@@ -67,7 +80,7 @@ export async function getNutritionLogsInRange(dates) {
   const map = {};
   await Promise.all(dates.map(async (date) => {
     const snap = await getDoc(doc(db, "nutrition", uid, "logs", date));
-    if (snap.exists()) map[date] = snap.data();
+    if (snap.exists()) map[date] = applyMealTombstones(snap.data());
   }));
   return map;
 }
@@ -84,7 +97,7 @@ export async function getMealsHistory(limitCount = 30) {
     );
     const snap = await getDocs(q);
     return snap.docs
-      .map(d => ({ date: d.id, ...d.data() }))
+      .map(d => applyMealTombstones({ date: d.id, ...d.data() }))
       .filter(log => (log.meals || []).length > 0);
   } catch (error) {
     console.error("[getMealsHistory] Query failed, fallback to unordered:", error);
@@ -101,7 +114,8 @@ export async function deleteMealFromLog(date, mealId) {
   const log = await getNutritionLog(date);
   if (!log.meals) return;
   const filtered = log.meals.filter(m => m.id !== mealId);
-  await saveNutritionLog(date, { ...log, meals: filtered });
+  const deleted_meal_ids = Array.from(new Set([...(log.deleted_meal_ids || []), mealId]));
+  await saveNutritionLog(date, { ...log, meals: filtered, deleted_meal_ids });
 }
 
 export async function searchNutritionCatalog(q, limit = 20) {

@@ -5,6 +5,7 @@ import { MICRO_KEYS, computeMealMicroTotals } from "../../services/nutrition-mic
 import { loadCatalog } from "../../services/nutrition-catalog.mjs";
 import { loadCatalog as loadSupplementsCatalog } from "../../services/supplements-catalog.mjs";
 import { loadLog as loadSupplementLog } from "../../services/supplements-log.mjs";
+import { getDeletedMealIds } from "../../services/log-tombstones.mjs";
 import { pushNutritionLog } from "../../lib/firestore-admin.mjs";
 import path from "path";
 import fs from "fs";
@@ -16,10 +17,16 @@ const searchQuerySchema = z.object({
 
 function loadLog(date, nutritionDir) {
   const filePath = path.join(nutritionDir, `${date}.json`);
+  let log = { date, meals: [], water_ml: 0 };
   if (fs.existsSync(filePath)) {
-    try { return JSON.parse(fs.readFileSync(filePath, "utf-8")); } catch { /* fall through */ }
+    try { log = JSON.parse(fs.readFileSync(filePath, "utf-8")); } catch { /* fall through */ }
   }
-  return { date, meals: [], water_ml: 0 };
+  const deleted = getDeletedMealIds(date, nutritionDir);
+  if (deleted.length && Array.isArray(log.meals)) {
+    const del = new Set(deleted);
+    log.meals = log.meals.filter((m) => !del.has(m?.id));
+  }
+  return log;
 }
 
 function saveLog(log, nutritionDir) {
