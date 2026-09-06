@@ -12,6 +12,50 @@ export function parseQuantityPrefix(text) {
   return { qty: 1, rest: text.trim() };
 }
 
+// Zieht eine Grammzahl aus dem freitextlichen qty-Feld ("200g roh", "0,5 l").
+// JS-Port von fuel/catalog_lookup.py::_amount_to_grams — beide Channels sollen
+// components identisch normalisieren.
+const _GRAMS_RE = /(\d+(?:[.,]\d+)?)\s*(g|gr|gramm|kg|ml|l)\b/i;
+export function amountToGrams(qtyText) {
+  if (!qtyText) return null;
+  const m = String(qtyText).match(_GRAMS_RE);
+  if (!m) return null;
+  let val = parseFloat(m[1].replace(",", "."));
+  const unit = m[2].toLowerCase();
+  if (unit === "kg" || unit === "l") val *= 1000;
+  return Math.round(val * 10) / 10;
+}
+
+const _r1 = (v) => Math.round((Number(v) || 0) * 10) / 10;
+
+// Vertex-Komponenten ({name, qty, kcal, protein, carbs, fat}) in die stabile
+// Form bringen, die auch die lokale CLI schreibt. per_100g/micros_source sind
+// Platzhalter für die spätere Zutaten-Mikro-Auflösung.
+export function normalizeComponents(components) {
+  return (components || [])
+    .filter((c) => c && typeof c === "object")
+    .map((c) => {
+      const qtyText = c.qty || c.quantity || "";
+      return {
+        name: c.name || "?",
+        qty_text: qtyText,
+        amount_g: amountToGrams(qtyText),
+        kcal: _r1(c.kcal),
+        protein: _r1(c.protein),
+        carbs: _r1(c.carbs),
+        fat: _r1(c.fat),
+        per_100g: null,
+        micros_source: null,
+      };
+    });
+}
+
+// yield_g = Summe der geparsten Zutaten-Gramm (null wenn nichts parsbar).
+export function sumYieldG(normComponents) {
+  const total = (normComponents || []).reduce((s, c) => s + (c.amount_g || 0), 0);
+  return total > 0 ? Math.round(total * 10) / 10 : null;
+}
+
 // Sucht einen bereits im Katalog gespeicherten Treffer, bevor überhaupt
 // Vertex gefragt wird — bekannte Sachen (mit echten Makros) brauchen keine
 // KI-Schätzung, die zudem bei z.B. Getränken gerne mal unzuverlässig ist.
@@ -58,6 +102,22 @@ export async function analyzeMealText(promptText) {
           micros: {
             type: SchemaType.OBJECT,
             properties: Object.fromEntries(MICRO_KEYS.map(k => [k, { type: SchemaType.NUMBER, description: "Wert in mg oder ug" }]))
+          },
+          components: {
+            type: SchemaType.ARRAY,
+            description: "Hauptzutaten der Mahlzeit mit geschätzter Menge in Gramm",
+            items: {
+              type: SchemaType.OBJECT,
+              properties: {
+                name: { type: SchemaType.STRING },
+                qty: { type: SchemaType.STRING, description: "Menge wie interpretiert, z.B. '200g roh' oder '1 Scheibe'" },
+                kcal: { type: SchemaType.NUMBER },
+                protein: { type: SchemaType.NUMBER },
+                carbs: { type: SchemaType.NUMBER },
+                fat: { type: SchemaType.NUMBER }
+              },
+              required: ["name"]
+            }
           }
         },
         // Ohne required bleibt macros optional — das Modell konnte es bei
@@ -72,6 +132,8 @@ export async function analyzeMealText(promptText) {
   const prompt = `Analysiere folgende Mahlzeit/Lebensmittel und schätze die Makronährstoffe sowie die absoluten Mikronährstoffe (Vitamine, Mineralstoffe) so exakt wie möglich.
 Gib IMMER eine Makro-Schätzung ab, auch bei ungenauer/unvollständiger Beschreibung — nutze plausible Standardportionen statt die Werte wegzulassen.
 Ordne außerdem "type" zu (breakfast/lunch/dinner/snack), falls aus dem Text oder der Tageszeit ableitbar, sonst "snack".
+Zerlege die Mahlzeit zusätzlich in ihre Hauptzutaten mit geschätzter Menge in Gramm ("components"); "qty" jeweils so, wie du die Menge interpretiert hast (z.B. "200g roh").
+Trockenwaren (Reis, Nudeln, Pasta, Couscous, Bulgur, Quinoa, Getreide, Mehl, Haferflocken, Hülsenfrüchte) IMMER als Rohgewicht interpretieren, AUSSER es steht explizit "gekocht"/"cooked"/"zubereitet" dabei (roher Reis ~350 kcal/100g, gekochter ~130 — Faktor ~2,7).
 
 Bei bekannten Markenprodukten (z.B. "2 Oreo Cookies", "Milka Schokolade", Fast-Food-Menüs):
 nutze dein Wissen über die tatsächliche Nährwerttabelle/Verpackungsangabe des Produkts, nicht
@@ -135,6 +197,12 @@ export async function resolveMealText({ date, rawText, catalogItems, suppCatalog
   if (!parsed?.macros) throw new Error("Gemini hat keine Makros erkannt.");
 
   const mealName = parsed.name || rawText;
+  const components = normalizeComponents(parsed.components);
+  const micros = parsed.micros
+    ? Object.fromEntries(MICRO_KEYS.map((k) => [k, parsed.micros[k] || 0]))
+    : null;
+  const hasMicros = micros && Object.values(micros).some((v) => v > 0);
+
   await postJson("/nutrition/log", {
     date,
     meal: {
@@ -145,15 +213,29 @@ export async function resolveMealText({ date, rawText, catalogItems, suppCatalog
       protein: parsed.macros.protein || 0,
       carbs: parsed.macros.carbs || 0,
       fat: parsed.macros.fat || 0,
+      // Mikros + Zutaten direkt auf den Log-Eintrag (Channel-Parität mit der
+      // lokalen CLI, fuel/meal.py::do_meal_log). Das Side-Doc meta/micros
+      // bleibt zusätzlich bestehen — die Wochen-Heatmap aggregiert daraus.
+      ...(hasMicros
+        ? {
+            micros,
+            micros_meta: {
+              source: "gemini",
+              method: "meal_estimate",
+              resolved_at: new Date().toISOString(),
+            },
+          }
+        : {}),
+      ...(components.length ? { components } : {}),
     },
   });
 
-  if (parsed.micros) {
+  if (hasMicros) {
     await postJson("/nutrition/micros", {
       items: [{
         meal_name: mealName,
         kcal: parsed.macros.kcal || 0,
-        ...Object.fromEntries(MICRO_KEYS.map(k => [k, parsed.micros[k] || 0]))
+        ...micros,
       }]
     });
   }

@@ -112,12 +112,26 @@ async function autoUpsertCatalog(meal) {
     const inputName = normalizeMealName(meal.description);
     const idx = items.findIndex((i) => normalizeMealName(i.name) === inputName);
     const nowIso = meal.logged_at || meal.time || new Date().toISOString();
+    // Mikros/Zutaten aus dem Schätz-Call (aiMealLogger) mit auf den Katalog-
+    // Eintrag ziehen — Parität mit fuel/catalog_lookup.py::save_meal.
+    const comps = Array.isArray(meal.components) ? meal.components : [];
+    const yieldG = comps.reduce((s, c) => s + (c.amount_g || 0), 0) || null;
+    const hasMicros = meal.micros && Object.values(meal.micros).some((v) => v > 0);
     if (idx >= 0) {
+      const cur = items[idx];
       items[idx] = {
-        ...items[idx],
-        use_count: (items[idx].use_count || 0) + 1,
+        ...cur,
+        use_count: (cur.use_count || 0) + 1,
         last_used_at: nowIso,
         updated_at: new Date().toISOString(),
+        // Nur befüllen wenn am bestehenden Eintrag noch nichts steht — einen
+        // kuratierten Eintrag nicht mit einer Schätzung überschreiben.
+        ...(hasMicros && !(cur.micros && Object.keys(cur.micros).length)
+          ? { micros: meal.micros, micros_meta: meal.micros_meta || null }
+          : {}),
+        ...(comps.length && !(cur.components && cur.components.length)
+          ? { components: comps, yield_g: cur.yield_g ?? yieldG }
+          : {}),
       };
     } else {
       items.push({
@@ -132,6 +146,10 @@ async function autoUpsertCatalog(meal) {
         protein: meal.protein || 0,
         carbs: meal.carbs || 0,
         fat: meal.fat || 0,
+        yield_g: yieldG,
+        micros: hasMicros ? meal.micros : {},
+        micros_meta: hasMicros ? (meal.micros_meta || null) : null,
+        components: comps,
         source: "logged",
         use_count: 1,
         last_used_at: nowIso,
