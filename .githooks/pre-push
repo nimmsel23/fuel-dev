@@ -21,10 +21,23 @@ pushed_refs="$(cat)"
 # vorletzte Schritt der manuellen Kette).
 while read -r local_ref local_sha remote_ref remote_sha; do
   [ -z "$local_ref" ] && continue
-  if [ "${local_ref#refs/heads/}" = "dev" ]; then
-    echo "💡 Tipp: für den kompletten dev->master->vitalos-Flow gibt es ~/vitalos/bin/fuel-release (vos-release fuel --help)." >&2
-    break
+  [ "${local_ref#refs/heads/}" = "dev" ] || continue
+
+  echo "💡 Tipp: für den kompletten dev->master->vitalos-Flow gibt es ~/vitalos/bin/fuel-release (vos-release fuel --help)." >&2
+
+  # dev-Push spiegelt automatisch den Staging-Stand nach ~/.local/fuel.
+  # deploy.sh ohne Argument = TARGET=staging: rsync + build:local +
+  # frontend/-Build, endet mit `exit 0` VOR dem Prod-Block — kein /opt,
+  # kein systemctl, kein sudo. Schlägt es fehl, läuft der Push trotzdem
+  # weiter (dev-Push ist das Primärziel, Staging nur der Spiegel);
+  # manuell nachziehen mit `npm run deploy:local`.
+  echo "📦 fuel-dev: dev-Push → Staging-Deploy nach ~/.local/fuel…" >&2
+  if ./deploy.sh; then
+    echo "✅ Staging aktualisiert (~/.local/fuel)." >&2
+  else
+    echo "⚠️  Staging-Deploy fehlgeschlagen — Push läuft weiter. Nachziehen: npm run deploy:local" >&2
   fi
+  break
 done <<< "$pushed_refs"
 
 # dist-firebase/ ist Build-Output — nie selbst ein Deploy-Grund, sonst

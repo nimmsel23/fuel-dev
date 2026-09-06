@@ -8,6 +8,11 @@ Aktive Arbeitsliste (max. 5 Punkte).
   weiterhin `FoodCatalog`, aber der Food-Verlauf (unkuratierte Inbox) erscheint
   nur im Food-Tab (`showHistory`-Prop), Katalog-Tab zeigt nur den reinen
   Gerichte-Katalog. Bewusst gewollte Teil-Redundanz, kein Cleanup mehr nötig.
+- [x] Ernährungsprotokoll-Report gebaut (2026-09-06): Tab `report` ("Protokoll"),
+  `views/Report/NutritionReportView.jsx`. 7-/14-Tage-Protokoll, Vormittag/
+  Nachmittag/Abend-Gruppierung, Makro-% + Tageskalorien, Druck/PDF. Deckt die
+  FFA-Aufgaben Task 1 / 19 / 147 ab. Nächster Schritt: 14 Tage echte Daten
+  loggen, dann Report gegen die Leitfaden-Vorlage feinjustieren.
 - [ ] Tab-Modularisierung `main.jsx` weiterführen (siehe CLAUDE.md "Open / Planned").
 - [ ] Offene Diplom-Hits (Taskwarrior): "7 Tage Makronutrient-Protokoll",
   "40 Training-Einheiten protokollieren", "Sturzprophylaxe Konzept" — überfällig

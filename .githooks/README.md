@@ -16,8 +16,17 @@ damit ein aktives `core.hooksPath` nicht versehentlich die alte
 Doppel-Deploy-Logik reaktiviert.
 
 ### pre-push
-Baut + deployt zu Firebase (`npm run firebase`) wenn ein Push auf `master`
-relevante Dateien enthält (`src/`, `public/`, `index.html`, `vite.config*`,
+
+**Push auf `dev`:** spiegelt den Staging-Stand nach `~/.local/fuel`
+(`./deploy.sh` ohne Argument = `TARGET=staging`: `build:local` + `frontend/`-Build
++ rsync, endet vor dem Prod-Block — **kein** `/opt`, **kein** `systemctl`, **kein**
+sudo). Schlägt der Staging-Deploy fehl, läuft der Push trotzdem weiter (dev-Push
+ist das Primärziel, Staging nur der Spiegel) — manuell nachziehen mit
+`npm run deploy:local`. Zusätzlich der Hinweis auf `~/vitalos/bin/fuel-release`
+für den vollen dev→master→vitalos-Flow.
+
+**Push auf `master`:** baut + deployt zu Firebase (`npm run firebase`) wenn der
+Push relevante Dateien enthält (`src/`, `public/`, `index.html`, `vite.config*`,
 `package.json`, `firebase.json`, `firestore.rules`).
 
 - Trigger nur auf `master`, prüft alle gepushten Refs von stdin
