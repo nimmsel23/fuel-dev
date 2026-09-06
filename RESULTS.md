@@ -2,6 +2,30 @@
 
 Session-Log mit datierten Ergebnis-Bullets.
 
+## 2026-09-06 (Nachtrag 3: Mikros + Zutaten ins JSON)
+
+- `fuel "<desc>"` verwarf bisher alles außer den 4 Makros. Derselbe
+  Gemini-/Haiku-Call (`estimate_nutrition`, `PROMPT_TEMPLATE`) liefert schon
+  `macros` + `micros` (24 DACH-Werte) + `components` — `estimate_macros_only`
+  hat nur die Makros durchgereicht.
+- `fuel/meal.py`: `_parse_macros_with_gemini` nutzt jetzt die Vollschätzung.
+  `do_meal_log` schreibt `micros` + `micros_meta`
+  (`{source, method:"meal_estimate", resolved_at}`) und normalisierte
+  `components` in den Log-Eintrag (`~/.aos/fuel/nutrition/<date>.json`) und —
+  bei `--save-catalog` — in den Catalog-Entry.
+- `fuel/catalog_lookup.py`: `save_meal` bekommt kwargs `micros`/`components`
+  und schreibt sie in die git-/Firestore-getrackte `catalog.json`.
+  `_normalize_components` parst `amount_g` aus Geminis `qty`-Freitext, legt
+  `per_100g`/`micros_source` als Platzhalter an; `yield_g` = Summe der
+  Zutaten-Gramm.
+- Terminal-Output jetzt informativ: volle Makrozeile, Mengen-Annahme
+  (Text vs. Ø-Portion), Rohgewicht-Hinweis bei Trockenware, Zutatenliste,
+  Micro-Anzahl, Tages-Zwischensumme.
+- **Noch offen:** Zutaten-Mikroprofile pro 100 g (echte Ingredient-DB) —
+  braucht einen Resolve-Call pro Zutat, markiert via `micros_source: null`.
+- Getestet mit gefaktem `estimate_nutrition`-Return + Syntax/Import — kein
+  echter LLM-Call verbraucht. Commit `7c35d7e`.
+
 ## 2026-09-06 (Nachtrag 2: Ernährungsprotokoll-Report)
 
 - Neuer Tab `report` ("Protokoll", `FileText`) nach `Historie` — abgabefertiges
