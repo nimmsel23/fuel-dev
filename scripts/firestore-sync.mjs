@@ -476,8 +476,13 @@ async function push(uid) {
       const ref = db.collection("nutrition").doc(uid).collection("logs").doc(date);
       if (await shouldSkip(ref, mtime)) { batcher.skip(); continue; }
       const localData = JSON.parse(readFileSync(fullPath, "utf8"));
+      if (localData.owner_uid && localData.owner_uid !== uid) {
+        console.warn(`  ⚠️  skip nutrition/${date}: owner_uid=${localData.owner_uid} != ${uid} (cross-user guard)`);
+        batcher.skip(); continue;
+      }
       await batcher.set(ref, {
         ...localData,
+        owner_uid: uid,
         _local_mtime: mtime,
         updated_at: admin.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
@@ -495,8 +500,13 @@ async function push(uid) {
       const ref = db.collection("supplements").doc(uid).collection("logs").doc(date);
       if (await shouldSkip(ref, mtime)) { batcher.skip(); continue; }
       const localData = JSON.parse(readFileSync(fullPath, "utf8"));
+      if (localData.owner_uid && localData.owner_uid !== uid) {
+        console.warn(`  ⚠️  skip supplements/${date}: owner_uid=${localData.owner_uid} != ${uid} (cross-user guard)`);
+        batcher.skip(); continue;
+      }
       await batcher.set(ref, {
         ...localData,
+        owner_uid: uid,
         _local_mtime: mtime,
         updated_at: admin.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
@@ -745,11 +755,16 @@ async function pull(uid = UID_DEFAULT) {
   const nutSnap = await db.collection("nutrition").doc(uid).collection("logs").get();
   nutSnap.forEach(doc => {
     const data = doc.data();
+    if (data.owner_uid && data.owner_uid !== uid) {
+      console.warn(`  ⚠️  skip Nutrition ${doc.id}: owner_uid=${data.owner_uid} != ${uid} (cross-user guard)`);
+      return;
+    }
     delete data.updated_at;
     // Firestore speichert das Datum nur als Doc-ID, nicht als Feld im Doc —
     // ohne diese Zeile fehlt "date" im lokalen JSON und meal.py._save_log_local
     // crasht mit KeyError('date').
     data.date = doc.id;
+    data.owner_uid = uid;
     writeFileSync(join(nutritionDir, `${doc.id}.json`), JSON.stringify(data, null, 2));
     console.log(`  ← Nutrition ${doc.id}`);
   });
@@ -760,7 +775,12 @@ async function pull(uid = UID_DEFAULT) {
   const suppSnap = await db.collection("supplements").doc(uid).collection("logs").get();
   suppSnap.forEach(doc => {
     const data = doc.data();
+    if (data.owner_uid && data.owner_uid !== uid) {
+      console.warn(`  ⚠️  skip Supplements ${doc.id}: owner_uid=${data.owner_uid} != ${uid} (cross-user guard)`);
+      return;
+    }
     delete data.updated_at;
+    data.owner_uid = uid;
     writeFileSync(join(suppLogsDir, `${doc.id}.json`), JSON.stringify(data, null, 2));
     console.log(`  ← Supplements ${doc.id}`);
   });
