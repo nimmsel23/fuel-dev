@@ -4,6 +4,7 @@ import { zeroMicros, MICRO_KEYS, computeMealMicroTotals } from "./nutrition-micr
 import { loadCatalog } from "./nutrition-catalog.mjs";
 import { loadCatalog as loadSupplementsCatalog } from "./supplements-catalog.mjs";
 import { loadLog as loadSupplementLog } from "./supplements-log.mjs";
+import { getDeletedMealIds } from "./log-tombstones.mjs";
 import { pushNutritionLog } from "../lib/firestore-admin.mjs";
 import { DACH, getStatus } from "../../shared/config/dach.mjs";
 
@@ -33,10 +34,19 @@ export function getWeekDates(year, week) {
 
 function loadNutritionLog(date, nutritionDir) {
   const filePath = path.join(nutritionDir, `${date}.json`);
+  let log = { date, meals: [], water_ml: 0 };
   if (fs.existsSync(filePath)) {
-    try { return JSON.parse(fs.readFileSync(filePath, "utf-8")); } catch { /* fall through */ }
+    try { log = JSON.parse(fs.readFileSync(filePath, "utf-8")); } catch { /* fall through */ }
   }
-  return { date, meals: [], water_ml: 0 };
+  // Getilgte Mahlzeiten defensiv rausfiltern — falls ein noch nicht
+  // konvergierter Sync-Stand (v4-Re-Import) sie wieder ins Tages-File
+  // geschrieben hat, sollen sie weder in Heatmap noch Beiträgen auftauchen.
+  const deleted = getDeletedMealIds(date, nutritionDir);
+  if (deleted.length && Array.isArray(log.meals)) {
+    const del = new Set(deleted);
+    log.meals = log.meals.filter((m) => !del.has(m?.id));
+  }
+  return log;
 }
 
 function saveNutritionLog(log, nutritionDir) {

@@ -5,7 +5,8 @@ import fs from "fs";
 import { loadCatalog, addOrUpdateItem, upsertLoggedMeal } from "../../services/nutrition-catalog.mjs";
 import { estimateMicros } from "../../services/nutrition-estimate-micros.mjs";
 import { getMicrosForMeal, saveMicrosForMeal } from "../../services/nutrition-micros.mjs";
-import { upsertMeal, deleteMeal as deleteMealRow, upsertWater, getMealsForDate, getMealDates, getWater } from "../../services/nutrition-db.mjs";
+import { upsertMeal, deleteMeal as deleteMealRow, upsertWater, getMealsForDate, getMealDates, getWater, getNutritionDeletedIds } from "../../services/nutrition-db.mjs";
+import { addDeletedMealId } from "../../services/log-tombstones.mjs";
 import { callV4 } from "../../lib/v4-bridge.mjs";
 import { pushNutritionLog } from "../../lib/firestore-admin.mjs";
 
@@ -245,13 +246,30 @@ function autoUpsertCatalog(m, nutritionDir, uid) {
   }
 }
 
+// v4 (und Firestore) können getilgte Mahlzeiten nach einem Re-Import erneut
+// führen — der Tombstone-Sidecar (<date>.deleted.json) ist die autoritative
+// Löschliste. Filtert die von v4 gebridgte Antwort dagegen, egal in welchem
+// der bekannten Antwort-Shapes die meals stecken.
+function stripDeletedMeals(payload, date, options) {
+  const deleted = new Set(getNutritionDeletedIds(date, options));
+  if (deleted.size === 0 || !payload || typeof payload !== "object") return payload;
+  const clean = (meals) => (Array.isArray(meals) ? meals.filter((m) => !deleted.has(m?.id)) : meals);
+  const out = { ...payload };
+  if (Array.isArray(out.meals)) out.meals = clean(out.meals);
+  if (out.data && typeof out.data === "object") {
+    out.data = { ...out.data };
+    if (Array.isArray(out.data.meals)) out.data.meals = clean(out.data.meals);
+  }
+  return out;
+}
+
 export default async function logRoute(app) {
   app.get("/nutrition/log", async (req, reply) => {
     const date = (req.query.date || todayISO()).toString();
     if (!isISODate(date)) return reply.status(400).send({ ok: false, error: "Invalid date" });
     try {
       const bridged = await callV4(`/nutrition/log?date=${encodeURIComponent(date)}`);
-      if (bridged.ok) return reply.send(bridged.data);
+      if (bridged.ok) return reply.send(stripDeletedMeals(bridged.data, date, dbOptions(req)));
       if (bridged.status < 500) return reply.status(bridged.status).send(bridged.data);
     } catch {}
     return reply.send({ ok: true, data: loadReadLog(date, req.paths.nutrition) });
@@ -261,7 +279,15 @@ export default async function logRoute(app) {
     const limitCount = parseInt(req.query.limit || "30");
     try {
       const bridged = await callV4(`/nutrition/history?limit=${encodeURIComponent(limitCount)}`);
-      if (bridged.ok) return reply.send(bridged.data);
+      if (bridged.ok) {
+        const data = bridged.data;
+        if (data && Array.isArray(data.history)) {
+          data.history = data.history.map((day) =>
+            day?.date ? stripDeletedMeals(day, day.date, dbOptions(req)) : day
+          );
+        }
+        return reply.send(data);
+      }
       if (bridged.status < 500) return reply.status(bridged.status).send(bridged.data);
     } catch {}
     const nutritionDir = req.paths.nutrition;
@@ -332,6 +358,38 @@ export default async function logRoute(app) {
   });
 
   app.post("/nutrition/log", async (req, reply) => {
+    // Löschungen werden v3-autoritativ behandelt: der v4-Bridge-Aufruf allein
+    // entfernt die Mahlzeit nur aus der v4-SQLite — v3-JSON, v3-SQLite,
+    // Tombstone-Sidecar und Firestore behalten sie, und der nächste Sync
+    // (doPullRecentLogs / v4-Re-Import) holt sie zurück. Deshalb hier zusätzlich
+    // Tombstone schreiben + aus dem Tages-File entfernen + nach Firestore pushen.
+    const delId = (req.body?.delete_meal_id || "").toString();
+    if (delId) {
+      const date = (req.body?.date || todayISO()).toString();
+      if (!isISODate(date)) return reply.status(400).send({ ok: false, error: "Invalid date" });
+      try {
+        await callV4("/nutrition/log", { method: "POST", body: req.body || {} });
+      } catch {}
+      try {
+        const log = loadLog(date, req.paths.nutrition);
+        log.meals = (log.meals || []).filter((m) => m.id !== delId);
+        invalidateMicroCache(log);
+        addDeletedMealId(date, delId, req.paths.nutrition);
+        saveLog(log, req.paths.nutrition, dbOptions(req));
+        void pushNutritionLog(date, log.meals, log.water_ml || 0, {
+          uid: req.uid,
+          nutritionDir: req.paths.nutrition,
+        }).catch(() => {});
+        return reply.send({
+          ok: true,
+          data: { ...log, deleted_meal_ids: getNutritionDeletedIds(date, dbOptions(req)) },
+        });
+      } catch (error) {
+        console.error(error);
+        return reply.status(500).send({ ok: false, error: "Internal server error" });
+      }
+    }
+
     try {
       const bridged = await callV4("/nutrition/log", { method: "POST", body: req.body || {} });
       if (bridged.ok) {

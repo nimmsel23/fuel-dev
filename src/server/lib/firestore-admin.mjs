@@ -291,12 +291,33 @@ export async function pushNutritionLog(date, meals, waterMl, options = {}) {
     }
     const { getNutritionDeletedIds } = await import("../services/nutrition-db.mjs");
     const now = new Date().toISOString();
-    const deleted_meal_ids = getNutritionDeletedIds(date);
+
+    // Tombstones aus dem korrekten (ggf. per-uid) Verzeichnis lesen — ohne
+    // options landete das bei NUTRITION_DIR, sodass Löschungen nie nach
+    // Firestore kamen.
+    const localDeleted = getNutritionDeletedIds(date, options);
+
+    // Bestehende Remote-Tombstones mit-übernehmen: der Push ist ein
+    // Full-Overwrite (merge:false), würde eine cloud-seitige Löschung sonst
+    // wieder plattmachen. Union bilden und die meals dagegen filtern, damit
+    // ein Push nie eine getilgte Mahlzeit wiederbelebt.
+    let remoteDeleted = [];
+    try {
+      const snap = await db.collection("nutrition").doc(uid).collection("logs").doc(date).get();
+      if (snap.exists) {
+        const rd = snap.data().deleted_meal_ids;
+        if (Array.isArray(rd)) remoteDeleted = rd;
+      }
+    } catch { /* Remote-Read best effort */ }
+
+    const deleted_meal_ids = Array.from(new Set([...localDeleted, ...remoteDeleted].filter(Boolean)));
+    const cleanMeals = (meals || []).filter((m) => !deleted_meal_ids.includes(m?.id));
+
     await db.collection("nutrition").doc(uid).collection("logs").doc(date)
-      .set({ meals, water_ml: waterMl, deleted_meal_ids, updated_at: now }, { merge: false });
+      .set({ meals: cleanMeals, water_ml: waterMl, deleted_meal_ids, updated_at: now }, { merge: false });
     logger.info(
       `[firestore-admin] scope=runtime direction=push uid=${uid} ` +
-      `target=nutrition/logs/${date} result=ok count=${meals.length}`
+      `target=nutrition/logs/${date} result=ok count=${cleanMeals.length} tombstones=${deleted_meal_ids.length}`
     );
     markPushOk("runtime");
   } catch (e) {
