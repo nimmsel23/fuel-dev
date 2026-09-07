@@ -64,11 +64,32 @@ Beide Channels teilen sich **dieselbe React-Codebase** in `src/client/` — Unte
 **Data location (local):** `~/.aos/fuel/` (via `AOS_FUEL_DATA_DIR`)
 **Data location (cloud):** Firestore — Collections `nutrition/{uid}/logs`, `supplements/{uid}/logs`, `users/{uid}/meta`
 **Catalogs:** Im Repo unter `catalogs/` (git-tracked, local); Firestore `nutrition/{uid}/meta/catalog` (cloud).
-Sync-Richtung: lokal ist Master, **aber nur solange der lokale Server läuft** — jeder lokale Katalog-Save
-pusht den kompletten Dateistand per Merge (`pushNutritionCatalog`, `server/lib/firestore-admin.mjs`) nach
-Firestore. Ist der lokale Server offline, ist Firestore die einzig aktive Instanz; Cloud-Änderungen aus
-dieser Zeit werden beim nächsten lokalen Push jetzt gemerged statt überschrieben (Fix 2026-07-31, vorher
-`merge:false`-Full-Overwrite, siehe Git-Historie).
+Katalog: lokal ist Master **solange der lokale Server läuft** — jeder Katalog-Save pusht den kompletten
+Stand per Merge (`pushNutritionCatalog`, `firestore-admin.mjs`). Server offline → Firestore ist einzige
+Instanz; Cloud-Änderungen werden beim nächsten Push gemerged statt überschrieben (Fix 2026-07-31, vorher
+`merge:false`-Overwrite).
+
+### Firestore-Sync — was TATSÄCHLICH läuft (Stand 2026-09-07, verifiziert)
+
+Es gibt **zwei parallele, überlappende Sync-Engines**. Beide schreiben `~/.aos/fuel/users/<uid>/` ↔ Firestore:
+
+| Engine | Läuft in | Tut | Aktiv |
+|---|---|---|---|
+| **`src/server/lib/firestore-admin.mjs`** | **`fuel.service` :7000** (nur wenn `serverMode()==="prod"`) | **Stündlich** bidirektional Pull **und** Push über **alle** Klienten-UIDs (`discoverSyncUids()` = `FUEL_CLOUD_UID` + `FUEL_CLOUD_UIDS` + `getAllClientUids()` aus `~/vital/Klienten/*/client.json` + Ordner unter `~/.aos/fuel/users/`). Zusätzlich Fire-and-forget-Push bei jedem Log-Write (`log.mjs`/`daily.mjs`/`nutrition-weekly.mjs`). Realtime `onSnapshot` nur für den Katalog. Per-UID → `~/.aos/fuel/users/<uid>/`; Operator läuft als `uid="default"` → **Push wird geskippt**, nur der Katalog geht raus. | **JA — der Haupt-Sync** |
+| **`fitness-firestore-daemon.service`** | eigener user-Service (`python -m fitness.firestore.mirror`, Repo `~/fitness-dev`) | Realtime `on_snapshot` von `nutrition/<operator-uid>/logs` + `supplements/<operator-uid>/logs`+`meta/catalog` → `~/.aos/fuel/users/<operator-uid>/`. Bulk via `fitness sync` (`fitness/firestore/fuel.py` `push_fuel`/`pull_fuel`). **Nur die Operator-UID**, keine Klienten. | **JA — überlappt Zeile 1 für die Operator-UID** |
+| `scripts/firestore-sync.mjs` (`npm run cloud:push`/`cloud:pull`/`cloud:watch`) | fuel-dev CLI, **kein Service** | manueller Bulk-Push/Pull/Watchdog. `PRIMARY_UID=FUEL_CLOUD_UID` → flacher Default-Store, jede andere UID → `users/<uid>/`. | nur wenn manuell gestartet |
+| v4 `fuel-python.service` :4000 | `/opt/fuel-python` | **kein Firestore** (kein `firebase_admin` im Code) | — |
+| Cloud-PWA | Browser | schreibt Firestore direkt via Client-SDK — das ist die App, kein „Sync" | — |
+
+**Cross-User-Schutz (`owner_uid`):** jeder Firestore-Write stempelt `owner_uid=<uid>`; jeder Pull/Mirror
+verwirft Dokumente mit fremdem `owner_uid` (`OWNER MISMATCH`-Log). fuel-dev: Commits `e36c315` + `0c27fbc`.
+fitness-dev: Commit `70175ce`. Fehlendes `owner_uid` (Alt-Doc) wird toleriert und beim nächsten Push
+nachgestempelt — Backfill auf Bestandsdaten steht noch aus.
+
+**Warum Sync-Bugs hier immer wieder auftauchen:** zwei Engines auf demselben Pfad + die stündliche
+Multi-UID-Schleife in `fuel.service` zieht jeden Klienten durch dieselbe Pull/Push-Logik — jeder
+UID-Isolierungsfehler propagiert sofort über alle Klienten (z.B. 2026-08: Jakobs Logs landeten in
+Daniels Store).
 **Build output local:** `/opt/fuel` (via `FUEL_BUILD_DIR`)
 **Build output cloud:** `./dist-firebase/` → Firebase Hosting
 
