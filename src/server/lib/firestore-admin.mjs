@@ -142,6 +142,22 @@ function userNutritionDir(uid = UID) {
   return path.join(GLOBAL_DATA_DIR, "users", uid, "nutrition");
 }
 
+// Cross-User-Schutz: ein Firestore-Dokument unter nutrition/<X>/… gehört
+// ausschliesslich <X>. Trägt es ein owner_uid, das nicht zum erwarteten uid
+// passt, ist es fremd hereingesynct — nicht verarbeiten (sonst landen fremde
+// Logs im lokalen Store und werden beim nächsten Push zurückgeschrieben).
+// Fehlendes owner_uid = Alt-Dokument vor diesem Feld → toleriert.
+function ownerOk(data, uid, label) {
+  if (data && data.owner_uid && data.owner_uid !== uid) {
+    logger.error(
+      `[firestore-admin] OWNER MISMATCH ${label} owner_uid=${data.owner_uid} ` +
+      `expected=${uid} — übersprungen (cross-user guard)`
+    );
+    return false;
+  }
+  return true;
+}
+
 function userSupplementsDir(uid = UID) {
   if (!uid || uid === "default") return null;
   return path.join(GLOBAL_DATA_DIR, "users", uid, "supplements");
@@ -314,7 +330,7 @@ export async function pushNutritionLog(date, meals, waterMl, options = {}) {
     const cleanMeals = (meals || []).filter((m) => !deleted_meal_ids.includes(m?.id));
 
     await db.collection("nutrition").doc(uid).collection("logs").doc(date)
-      .set({ meals: cleanMeals, water_ml: waterMl, deleted_meal_ids, updated_at: now }, { merge: false });
+      .set({ meals: cleanMeals, water_ml: waterMl, deleted_meal_ids, owner_uid: uid, updated_at: now }, { merge: false });
     logger.info(
       `[firestore-admin] scope=runtime direction=push uid=${uid} ` +
       `target=nutrition/logs/${date} result=ok count=${cleanMeals.length} tombstones=${deleted_meal_ids.length}`
@@ -340,7 +356,7 @@ export async function pushNutritionJournal(date, content, options = {}) {
     }
     const now = new Date().toISOString();
     await db.collection("nutrition").doc(uid).collection("journal").doc(date)
-      .set({ date, content, updated_at: now }, { merge: true });
+      .set({ date, content, owner_uid: uid, updated_at: now }, { merge: true });
     logger.info(
       `[firestore-admin] scope=runtime direction=push uid=${uid} ` +
       `target=nutrition/journal/${date} result=ok`
@@ -373,7 +389,7 @@ export async function pushSupplementLog(date, log, options = {}) {
     }
     const now = new Date().toISOString();
     await db.collection("supplements").doc(uid).collection("logs").doc(date)
-      .set({ ...log, updated_at: now }, { merge: false });
+      .set({ ...log, owner_uid: uid, updated_at: now }, { merge: false });
     logger.info(
       `[firestore-admin] scope=runtime direction=push uid=${uid} ` +
       `target=supplements/logs/${date} result=ok count=${log.intakes?.length ?? 0}`
@@ -539,7 +555,7 @@ async function doPullRecentLogs(db, uid = UID) {
     // ── Nutrition log ──────────────────────────────────────────────────────
     try {
       const nutSnap = await db.collection("nutrition").doc(uid).collection("logs").doc(date).get();
-      if (nutSnap.exists) {
+      if (nutSnap.exists && ownerOk(nutSnap.data(), uid, `nutrition/logs/${date}`)) {
         const remote = nutSnap.data();
         const remoteAt = remote.updated_at ? new Date(remote.updated_at).getTime() : 0;
         const remoteDeletedIds = Array.isArray(remote.deleted_meal_ids) ? remote.deleted_meal_ids : [];
@@ -604,7 +620,7 @@ async function doPullRecentLogs(db, uid = UID) {
     // ── Supplement log ─────────────────────────────────────────────────────
     try {
       const suppSnap = await db.collection("supplements").doc(uid).collection("logs").doc(date).get();
-      if (suppSnap.exists) {
+      if (suppSnap.exists && ownerOk(suppSnap.data(), uid, `supplements/logs/${date}`)) {
         const remote = suppSnap.data();
         const supplementsLogDir = userSupplementsLogDir(uid);
         const local  = loadLog(date, supplementsLogDir || undefined);
@@ -643,7 +659,7 @@ async function doPullRecentLogs(db, uid = UID) {
 
     try {
       const journalSnap = await db.collection("nutrition").doc(uid).collection("journal").doc(date).get();
-      if (journalSnap.exists) {
+      if (journalSnap.exists && ownerOk(journalSnap.data(), uid, `nutrition/journal/${date}`)) {
         const remote = journalSnap.data();
         writeEntry(date, remote.content || "", path.join(GLOBAL_DATA_DIR, "users", uid, "nutrition_journal"));
       }
