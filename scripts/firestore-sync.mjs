@@ -26,6 +26,27 @@ const SA_PATH = process.env.FUEL_FIRESTORE_SA
 const UID_DEFAULT = "default";
 const BATCH_LIMIT = 400; // Firestore hard limit: 500 ops/batch — leave headroom
 
+// Nur die Logs dieses einen Users gehören in den flachen Default-Store
+// (DATA_DIR/nutrition, DATA_DIR/supplements/logs) — das ist der Coach/Desktop
+// selbst. Jede andere uid (Klienten, weitere Accounts) wird pro uid isoliert
+// unter DATA_DIR/users/<uid>/… gehalten. Ohne diese Trennung schrieb pull()
+// fremde Cloud-Logs in den Default-Store, wo der lokale Server sie dann als
+// eigene Logs zurück in die Firestore-Collection des Coaches pushte.
+// Ist FUEL_CLOUD_UID nicht gesetzt, landet ALLES unter users/<uid>/ — nie im
+// Default-Store (fail-safe statt fail-open).
+const PRIMARY_UID = process.env.FUEL_CLOUD_UID || null;
+
+function nutritionDirFor(uid) {
+  return uid && uid === PRIMARY_UID
+    ? join(DATA_DIR, "nutrition")
+    : join(DATA_DIR, "users", uid, "nutrition");
+}
+function supplementsLogDirFor(uid) {
+  return uid && uid === PRIMARY_UID
+    ? join(DATA_DIR, "supplements", "logs")
+    : join(DATA_DIR, "users", uid, "supplements", "logs");
+}
+
 // ── Batched-Write Helper (mit Idempotenz via _local_mtime) ────────────────────
 
 function createBatcher(db) {
@@ -465,8 +486,9 @@ async function push(uid) {
   console.log(`🚀 Starte Push für User: ${uid}`);
   const batcher = createBatcher(db);
 
-  // 1. Nutrition Logs
-  const nutritionDir = join(DATA_DIR, "nutrition");
+  // 1. Nutrition Logs — Quelle ist der uid-passende Store, nicht blind der
+  // Default-Store (sonst lädt push <klient> die Coach-Logs in dessen Cloud).
+  const nutritionDir = nutritionDirFor(uid);
   if (existsSync(nutritionDir)) {
     const files = readdirSync(nutritionDir).filter(f => f.match(/^\d{4}-\d{2}-\d{2}\.json$/));
     for (const file of files) {
@@ -490,7 +512,7 @@ async function push(uid) {
   }
 
   // 2. Supplement Logs
-  const suppLogsDir = join(DATA_DIR, "supplements", "logs");
+  const suppLogsDir = supplementsLogDirFor(uid);
   if (existsSync(suppLogsDir)) {
     const files = readdirSync(suppLogsDir).filter(f => f.match(/^\d{4}-\d{2}-\d{2}\.json$/));
     for (const file of files) {
@@ -749,9 +771,10 @@ async function pushRelax(uid) {
 async function pull(uid = UID_DEFAULT) {
   console.log(`📥 Starte Pull für User: ${uid}`);
 
-  const nutritionDir = join(DATA_DIR, "nutrition");
+  const nutritionDir = nutritionDirFor(uid);
   if (!existsSync(nutritionDir)) mkdirSync(nutritionDir, { recursive: true });
-  
+  console.log(`  → Ziel: ${nutritionDir}${uid === PRIMARY_UID ? " (Primär/Default-Store)" : " (isoliert users/" + uid + ")"}`);
+
   const nutSnap = await db.collection("nutrition").doc(uid).collection("logs").get();
   nutSnap.forEach(doc => {
     const data = doc.data();
@@ -769,9 +792,9 @@ async function pull(uid = UID_DEFAULT) {
     console.log(`  ← Nutrition ${doc.id}`);
   });
 
-  const suppLogsDir = join(DATA_DIR, "supplements", "logs");
+  const suppLogsDir = supplementsLogDirFor(uid);
   if (!existsSync(suppLogsDir)) mkdirSync(suppLogsDir, { recursive: true });
-  
+
   const suppSnap = await db.collection("supplements").doc(uid).collection("logs").get();
   suppSnap.forEach(doc => {
     const data = doc.data();
