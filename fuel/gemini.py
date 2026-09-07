@@ -252,7 +252,11 @@ def estimate_nutrition(description: str, *, retries: int = 2, timeout: int = 30)
 
     parsed = None
     if claude_cli.available():
-        res = claude_cli.call_claude(prompt + CLAUDE_PROMPT_SUFFIX, timeout=60, log_label="estimate_nutrition")
+        # 40s statt 60s: bei einer NL-Mahlzeitbeschreibung ohne Marke braucht
+        # Haiku i.d.R. 15–25s. Zieht sich ein Call länger, steckt er meist in
+        # WebSearch fest — dann lieber schnell auf Gemini (2–5s) fallen, statt
+        # das CLI-Logging eine ganze Minute blockieren zu lassen.
+        res = claude_cli.call_claude(prompt + CLAUDE_PROMPT_SUFFIX, timeout=40, log_label="estimate_nutrition")
         if res["ok"]:
             parsed = claude_cli._extract_json(res["text"])
             if not parsed:
