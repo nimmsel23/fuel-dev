@@ -221,8 +221,13 @@ class MealInput(BaseModel):
     notes: str = Field("")
 
 # Explizite Mengenangabe im Freitext ("200g", "0,5 l", "2 Stück", "1 Portion").
+# Zweiter Zweig: führende blanke Stückzahl vor einem Wort ("5 Eier", "3 Bananen",
+# "2 Semmeln") — die zählt genauso als explizite Menge, auch ohne Einheit-Token.
+# Sonst warnt der Terminal-Hinweis "Menge nicht angegeben", obwohl Gemini/Haiku
+# die Stückzahl sehr wohl exakt rechnet (Zutaten-Breakdown zeigt sie).
 _QTY_IN_TEXT = _re.compile(
-    r"\d+([.,]\d+)?\s*(g|gr|gramm|kg|ml|l|liter|stk|stück|stueck|portion|portionen|scheibe|scheiben|el|tl|tasse|becher)\b",
+    r"\d+([.,]\d+)?\s*(g|gr|gramm|kg|ml|l|liter|stk|stück|stueck|portion|portionen|scheibe|scheiben|el|tl|tasse|becher)\b"
+    r"|^\s*\d+\s+[^\d\s]",
     _re.IGNORECASE,
 )
 # Trockenwaren, die Gemini laut Prompt als Rohgewicht rechnet, sofern nicht
