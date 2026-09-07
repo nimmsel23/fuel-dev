@@ -423,7 +423,13 @@ def do_meal_log(description: str, kcal: float, protein: float, carbs: float, fat
         f"{d_p:.0f} EW / {d_c:.0f} KH / {d_f:.0f} Fett"
     )
 
-    if save_catalog:
+    # Nur echte Neu-Schätzungen in den Catalog schreiben. Kam die Mahlzeit aus
+    # einem Catalog-Hit (catalog_id gesetzt), sind die Makros nur eine Kopie
+    # eines vorhandenen Eintrags — sie unter einem neuen Slug erneut zu
+    # speichern erzeugt Near-Duplikate und schleppt bei zu lockerem Match
+    # (z.B. "Reis mit Brokkoli und 5 Eiern" → Hit auf "Reis mit Brokkoli")
+    # den falschen Wert weiter.
+    if save_catalog and not catalog_id:
         new_id = _catalog_save(
             description,
             {"kcal": kcal/qty, "protein": protein/qty, "carbs": carbs/qty, "fat": fat/qty},
