@@ -95,7 +95,8 @@ WICHTIGE REGELN:
 3. Bei mehreren Komponenten: Summe der Werte über alle Komponenten in den angegebenen Mengen.
 4. Wenn keine Menge/Größenangabe vorhanden ist: realistische durchschnittliche Portion annehmen.
 5. Markenangaben (z.B. "Hubers", "Clever", "Billa") nutzen wenn Etikettwerte bekannt sind.
-6. Trockenwaren (Reis, Nudeln, Pasta, Couscous, Bulgur, Quinoa, Getreide, Mehl, Haferflocken, Hülsenfrüchte/Linsen/Bohnen/Kichererbsen) IMMER als Rohgewicht interpretieren, AUSSER es steht explizit "gekocht", "cooked" oder "zubereitet" dabei. Roher Reis ≈ 350 kcal/100g, gekochter ≈ 130 kcal/100g — das macht einen Faktor ~2,7 aus.
+6. Trockenwaren (Reis, Nudeln, Pasta, Couscous, Bulgur, Quinoa, Getreide, Mehl, Haferflocken, Hülsenfrüchte/Linsen/Bohnen/Kichererbsen) IMMER als Rohgewicht interpretieren, AUSSER es steht explizit "gekocht", "cooked" oder "zubereitet" dabei. Roher Reis ≈ 350 kcal/100g, gekochter ≈ 130 kcal/100g — das macht einen Faktor ~2,7 aus. Im components-Feld immer dazuschreiben, ob roh oder gekocht interpretiert wurde.
+7. Eier ohne Haltungs-/Herkunftsangabe IMMER als Freilandei annehmen (Standard für diesen Nutzer). Ein Ei Größe M = ~50 g Ei-Inhalt ≈ 68 kcal / 6,3 g Protein / 5,0 g Fett. Freilandeier haben etwas mehr Omega-3 und Vitamin D als Bodenhaltung.
 
 Antworte NUR mit JSON (keine Erklärungen, keine Markdown-Codeblöcke):
 {{

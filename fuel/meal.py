@@ -29,7 +29,7 @@ from rich.table import Table
 from .dates import resolve_flags as _resolve_date, extract_date_hint as _extract_date_hint, resolve as _resolve_one
 from .narrative import parse as _parse_narrative, spread_times as _spread_times
 from .gemini import estimate_macros_only as _gemini_macros, estimate_nutrition as _gemini_estimate, discover_item as _gemini_discover
-from .catalog_lookup import find_meal as _catalog_find, extract_macros as _catalog_macros, save_meal as _catalog_save, load_meals as _catalog_load_meals, _normalize_components
+from .catalog_lookup import find_meal as _catalog_find, extract_macros as _catalog_macros, save_meal as _catalog_save, load_meals as _catalog_load_meals, _normalize_components, _amount_to_grams
 
 
 # Mahlzeit-Typ-Präfix am Zeilenanfang ("mittagessen: 2 Semmeln" → "2 Semmeln").
@@ -417,7 +417,22 @@ def do_meal_log(description: str, kcal: float, protein: float, carbs: float, fat
                 m = _catalog_macros(hit)
                 kcal, protein, carbs, fat = m["kcal"], m["protein"], m["carbs"], m["fat"]
                 catalog_id = hit.get("id")
-                msg.good(f"Catalog-Hit: {hit['name']} ({kcal:.0f} kcal/Stück) — kein Gemini-Call")
+                # Zutaten-Bausteine (kind=ingredient) liegen pro yield_g (i.d.R. 100 g)
+                # im Katalog — auf die in der Beschreibung genannte Grammzahl skalieren.
+                _scale, _unit = 1.0, "Stück"
+                if hit.get("kind") == "ingredient" and hit.get("yield_g"):
+                    _grams = _amount_to_grams(description)
+                    if _grams:
+                        _scale = _grams / float(hit["yield_g"])
+                        kcal, protein, carbs, fat = kcal * _scale, protein * _scale, carbs * _scale, fat * _scale
+                        _unit = f"{_grams:.0f} g"
+                # Gespeicherte Mikros aus dem Catalog-Hit übernehmen (wurden bisher
+                # bei jedem Hit verworfen → Log ohne Mikros) und mitskalieren.
+                hit_micros = hit.get("micros") or {}
+                if hit_micros and not micros:
+                    micros = {k: v * _scale for k, v in hit_micros.items()
+                              if isinstance(v, (int, float)) and v > 0}
+                msg.good(f"Catalog-Hit: {hit['name']} ({kcal:.0f} kcal / {_unit}) — kein Gemini-Call")
         if kcal == 0:
             with Console().status(f"[cyan]Gemini schätzt Nährwerte für '{description}'...[/cyan]", spinner="dots"):
                 est = _parse_macros_with_gemini(description)
