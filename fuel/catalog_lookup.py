@@ -27,6 +27,16 @@ DEFAULT_UID = os.getenv("FUEL_CLOUD_UID", "default")
 # Wörter, die in Catalog-Namen typisch für "schlechte" Einträge mit Mengen sind
 _QUANTITY_NOISE = re.compile(r"\d+\s*(g|gr|gramm|ml|stk|stück|x)\b", re.IGNORECASE)
 
+# Verbindungs-/Füllwörter + Mengeneinheiten, die NICHT als inhaltliche
+# Abweichung zwischen Query und Catalog-Name zählen.
+_MATCH_STOPWORDS = frozenset({
+    "mit", "und", "dazu", "plus", "sowie", "an", "auf", "aus", "von", "im", "in",
+    "der", "die", "das", "ein", "eine", "einen", "einem", "einer", "etwas",
+    "mein", "meine", "meinen", "noch", "dann", "extra", "bitte",
+    "g", "gr", "gramm", "kg", "ml", "l", "liter", "stk", "stueck", "stück",
+    "portion", "portionen", "scheibe", "scheiben", "el", "tl", "tasse", "becher", "x",
+})
+
 
 def _normalize(s: str) -> str:
     """Lowercase, Umlaute strip, nur a-z0-9 + Space, mehrfach-Space kollabiert."""
@@ -155,6 +165,19 @@ def _score_match(query_norm: str, item: dict) -> float:
 
     if score == 0:
         return 0.0
+
+    # Inhaltliche Zusatz-Tokens in der Query, die im Catalog-Namen fehlen
+    # ("Reis mit Brokkoli UND 5 FREILAND-EIERN" vs. "Reis mit Brokkoli").
+    # Solche Erweiterungen dürfen NICHT still auf die Basis-Version kollabieren —
+    # dann fehlen die zusätzlichen Zutaten in Makros + Log. Pro echtem
+    # Zusatz-Token kräftig abwerten, damit lieber Gemini rechnet.
+    extra = {
+        t for t in (q_tokens - n_tokens)
+        if t not in _MATCH_STOPWORDS and len(t) > 2
+        and not re.fullmatch(r"\d+[a-z]*", t)  # "5", "330g", "200ml", "2x" zählen nicht
+    }
+    if extra and q != name_norm and (not alias_norm or q != alias_norm):
+        score -= 30.0 * len(extra)
 
     # Ranking-Boni
     name_orig = item.get("name") or ""

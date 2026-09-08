@@ -1,0 +1,14 @@
+#!/usr/bin/env python3
+"""Thin entry point — Logik lebt in fuel/report.py."""
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from fuel.report import week_main as main
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\nAbbruch.")
+        sys.exit(130)

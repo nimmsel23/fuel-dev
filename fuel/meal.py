@@ -32,12 +32,69 @@ from .gemini import estimate_macros_only as _gemini_macros, estimate_nutrition a
 from .catalog_lookup import find_meal as _catalog_find, extract_macros as _catalog_macros, save_meal as _catalog_save, load_meals as _catalog_load_meals, _normalize_components
 
 
+# Mahlzeit-Typ-Präfix am Zeilenanfang ("mittagessen: 2 Semmeln" → "2 Semmeln").
+# Colon verlangt, damit ein Gericht das zufällig mit "Mittag..." beginnt nicht
+# zerschnitten wird.
+_MEAL_TYPE_PREFIX = _re.compile(
+    r"^\s*(fr[uü]hst[uü]ck|mittag(?:essen)?|abend(?:essen|brot)?|nachmittag|"
+    r"vormittag|jause|snack|zwischenmahlzeit|zn[uü]ni|zvieri|"
+    r"breakfast|lunch|dinner|supper|brunch)\s*:\s*",
+    _re.IGNORECASE,
+)
+
+# Präfix-Wort (ascii-gefaltet) → kanonischer meal_type.
+_MEAL_TYPE_WORDS = {
+    "fruhstuck": "breakfast", "breakfast": "breakfast", "brunch": "breakfast",
+    "mittag": "lunch", "mittagessen": "lunch", "lunch": "lunch",
+    "abend": "dinner", "abendessen": "dinner", "abendbrot": "dinner",
+    "dinner": "dinner", "supper": "dinner",
+    "nachmittag": "snack", "vormittag": "snack", "jause": "snack", "snack": "snack",
+    "zwischenmahlzeit": "snack", "znuni": "snack", "zvieri": "snack",
+}
+
+
+def _split_meal_type_prefix(text: str) -> tuple[str | None, str]:
+    """'mittagessen: 2 Semmeln' → ('lunch', '2 Semmeln'). Kein Präfix → (None, text).
+
+    Ein vorangestelltes Mahlzeit-Typ-Wort ist ein expliziter Zeitpunkt-Hinweis
+    und soll den meal_type setzen, nicht im Beschreibungstext stehen bleiben.
+    """
+    m = _MEAL_TYPE_PREFIX.match(text)
+    if not m:
+        return None, text
+    word = (
+        m.group(1).casefold()
+        .replace("ü", "u").replace("ö", "o").replace("ä", "a")
+    )
+    return _MEAL_TYPE_WORDS.get(word), text[m.end():].strip()
+
+
 def _clean_catalog_name(text: str, max_len: int = 80) -> str:
-    """Macht aus items_text einen sauberen Catalog-Namen ohne Gemini-Call."""
-    import re as _re
+    """Roh-Beschreibung → sauberer, wiederverwendbarer Catalog-Name (kein Gemini-Call).
+
+    Entfernt:
+      - Mahlzeit-Typ-Präfix ("mittagessen:", "lunch:")
+      - generischen Prefix-Müll ("Mahlzeit:", "Insgesamt:", "Gericht:")
+      - Klammer-Zusätze, die nur Mengen-/Marken-Aufschlüsselung enthalten
+        ("(240g Käsleberkäse, 2x65g Bio-Kaisersemmel, BILLA)") — die
+        Zutaten-Zerlegung steckt ohnehin schon in `components`
+    Führende Stückzahlen ("2 Semmeln", "5 Eier") bleiben erhalten: die
+    gespeicherten Makros gelten für genau diese Menge.
+    """
+    cleaned = _MEAL_TYPE_PREFIX.sub("", text).strip()
     # Prefix-Müll: "Mahlzeit:", "Insgesamt:", etc.
-    cleaned = _re.sub(r"^\s*(mahlzeit|insgesamt|gericht|essen)\s*:?\s*", "", text, flags=_re.IGNORECASE).strip()
-    cleaned = _re.sub(r"\s+", " ", cleaned)
+    cleaned = _re.sub(r"^\s*(mahlzeit|insgesamt|gericht|essen)\s*:?\s*", "", cleaned, flags=_re.IGNORECASE).strip()
+
+    def _drop_noise_paren(m: "_re.Match[str]") -> str:
+        inner = m.group(1).strip()
+        has_qty = _re.search(r"\d\s*(g|gr|gramm|kg|ml|l|stk|st[uü]ck|stueck|x)\b", inner, _re.IGNORECASE)
+        # Reine Mengen-/Marken-Klammer verwerfen, inhaltliche Klammer ("(vegan)") behalten.
+        if has_qty or (inner and inner.isupper()):
+            return ""
+        return m.group(0)
+
+    cleaned = _re.sub(r"\s*\(([^()]*)\)", _drop_noise_paren, cleaned)
+    cleaned = _re.sub(r"\s+", " ", cleaned).strip(" ,;.–-")
     if len(cleaned) > max_len:
         cleaned = cleaned[: max_len - 1].rsplit(",", 1)[0].rstrip() + "…"
     return cleaned or text
@@ -221,8 +278,13 @@ class MealInput(BaseModel):
     notes: str = Field("")
 
 # Explizite Mengenangabe im Freitext ("200g", "0,5 l", "2 Stück", "1 Portion").
+# Zweiter Zweig: führende blanke Stückzahl vor einem Wort ("5 Eier", "3 Bananen",
+# "2 Semmeln") — die zählt genauso als explizite Menge, auch ohne Einheit-Token.
+# Sonst warnt der Terminal-Hinweis "Menge nicht angegeben", obwohl Gemini/Haiku
+# die Stückzahl sehr wohl exakt rechnet (Zutaten-Breakdown zeigt sie).
 _QTY_IN_TEXT = _re.compile(
-    r"\d+([.,]\d+)?\s*(g|gr|gramm|kg|ml|l|liter|stk|stück|stueck|portion|portionen|scheibe|scheiben|el|tl|tasse|becher)\b",
+    r"\d+([.,]\d+)?\s*(g|gr|gramm|kg|ml|l|liter|stk|stück|stueck|portion|portionen|scheibe|scheiben|el|tl|tasse|becher)\b"
+    r"|^\s*\d+\s+[^\d\s]",
     _re.IGNORECASE,
 )
 # Trockenwaren, die Gemini laut Prompt als Rohgewicht rechnet, sofern nicht
@@ -341,6 +403,12 @@ def do_meal_log(description: str, kcal: float, protein: float, carbs: float, fat
     micros = dict(micros) if micros else {}
     components = list(components) if components else []
 
+    # Vorangestelltes Mahlzeit-Typ-Wort ("mittagessen: ...") setzt den meal_type
+    # und fällt aus der Beschreibung raus — es ist ein Zeitpunkt, kein Name.
+    _pfx_type, description = _split_meal_type_prefix(description)
+    if _pfx_type:
+        meal_type = _pfx_type
+
     if kcal == 0 and protein == 0 and carbs == 0 and fat == 0:
         # Lookup-first: Catalog-Hit spart Gemini-Call komplett
         if not catalog_id:
@@ -418,14 +486,21 @@ def do_meal_log(description: str, kcal: float, protein: float, carbs: float, fat
         f"{d_p:.0f} EW / {d_c:.0f} KH / {d_f:.0f} Fett"
     )
 
-    if save_catalog:
+    # Nur echte Neu-Schätzungen in den Catalog schreiben. Kam die Mahlzeit aus
+    # einem Catalog-Hit (catalog_id gesetzt), sind die Makros nur eine Kopie
+    # eines vorhandenen Eintrags — sie unter einem neuen Slug erneut zu
+    # speichern erzeugt Near-Duplikate und schleppt bei zu lockerem Match
+    # (z.B. "Reis mit Brokkoli und 5 Eiern" → Hit auf "Reis mit Brokkoli")
+    # den falschen Wert weiter.
+    if save_catalog and not catalog_id:
+        catalog_name = _clean_catalog_name(description)
         new_id = _catalog_save(
-            description,
+            catalog_name,
             {"kcal": kcal/qty, "protein": protein/qty, "carbs": carbs/qty, "fat": fat/qty},
             micros={k: v / qty for k, v in micros.items()} if micros else None,
             components=components or None,
         )
-        msg.info(f"Zum Catalog hinzugefügt: {description} (id={new_id})")
+        msg.info(f"Zum Catalog hinzugefügt: {catalog_name} (id={new_id})")
 
 def do_today(day: str | None) -> None:
     today = day or date.today().isoformat()
