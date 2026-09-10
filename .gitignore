@@ -26,6 +26,9 @@ __pycache__/
 # Runtime data (daily logs, journals, user sessions)
 data/
 
+# Eigenständiges clasp/Google-Apps-Script-Projekt, gehört nicht in dieses Repo
+gas-logger/
+
 # Keep catalogs (versioniert) — root anchor (!) wichtig, sonst matched das
 # Pattern auch data/catalogs/ (das sind tägliche Logs, kein Katalog)
 !/catalogs/
