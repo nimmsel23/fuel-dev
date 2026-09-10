@@ -1,6 +1,6 @@
 import { useState, lazy, Suspense } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Settings2, Sparkles, Plus, Repeat } from "lucide-react";
+import { Settings2, Sparkles, Plus, Repeat, Bell } from "lucide-react";
 import { Empty } from "../../components/ui.jsx";
 import { formatMetric } from "../../../shared/utils/utils.js";
 import SupplementEditor from "./SupplementEditor.jsx";
@@ -61,12 +61,20 @@ export default function CatalogCard({ catalog }) {
             </div>
             <div className="mt-2 flex items-center justify-between text-sm text-slate-400">
               <span>{formatMetric(item.default_dose ?? 0)} {item.unit}</span>
-              {item.schedule && (
-                <span className="flex items-center gap-1 text-[11px] text-violet-300">
-                  <Repeat className="h-3 w-3" />
-                  {SCHEDULE_LABEL[item.schedule.type] || item.schedule.type}
-                </span>
-              )}
+              <span className="flex items-center gap-2">
+                {item.reminder?.enabled && (
+                  <span className="flex items-center gap-1 text-[11px] text-violet-300">
+                    <Bell className="h-3 w-3" />
+                    {item.reminder.time}
+                  </span>
+                )}
+                {item.schedule && (
+                  <span className="flex items-center gap-1 text-[11px] text-violet-300">
+                    <Repeat className="h-3 w-3" />
+                    {SCHEDULE_LABEL[item.schedule.type] || item.schedule.type}
+                  </span>
+                )}
+              </span>
             </div>
           </button>
         )) : <Empty text="Kein Supplement-Katalog geladen." />}

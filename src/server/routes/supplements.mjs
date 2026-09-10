@@ -13,12 +13,21 @@ const scheduleSchema = z.object({
   start_date: z.string().optional(),             // nur bei cyclical
 }).nullable().optional();
 
+// Pro-Supplement-Reminder (2026-09-10): eigener Push nur für dieses Supplement
+// zur gewählten Zeit. enabled:false = bewusst aus dem Sammel-Reminder (pro
+// Tageszeit-Slot) ausgenommen. Fehlt das Feld ganz → altes Slot-Verhalten.
+const reminderSchema = z.object({
+  enabled: z.boolean().optional(),
+  time: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+}).nullable().optional();
+
 const catalogPostSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1),
   unit: z.string().optional(),
   default_dose: z.coerce.number().optional(),
   default_time_of_day: z.string().optional(),
+  reminder: reminderSchema,
   // War bisher nie im Schema — GeminiCatalogModal.jsx schätzte längst ein
   // schedule-Objekt, das aber beim Speichern verworfen wurde. utils.js'
   // isDueToday() (genutzt von DailyChecklist.jsx) hing dadurch komplett in

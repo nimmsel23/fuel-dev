@@ -80,16 +80,23 @@ export function addOrUpdateSupplement(catalog, input) {
     // Supplements/utils.js:isDueToday() (genutzt von DailyChecklist.jsx)
     // hing dadurch komplett in der Luft (2026-07-30 entdeckt).
     schedule: input.schedule ?? null,
+    // Pro-Supplement-Reminder — undefined lassen (nicht null), wenn nicht
+    // gesetzt, damit ein YAML-/CLI-angelegtes reminder-Feld beim Merge unten
+    // erhalten bleibt.
+    ...(input.reminder !== undefined ? { reminder: input.reminder } : {}),
   };
 
   const idx = catalog.items.findIndex((i) => i.id === id);
   if (idx >= 0) {
-    catalog.items[idx] = item;
+    // Merge statt Replace: bewahrt Felder, die dieses API-Schema nicht kennt
+    // (product, micros, actives, per_unit, notes, source — von `fuel supplement
+    // add` / catalog.yaml). Explizite Werte aus `item` gewinnen.
+    catalog.items[idx] = { ...catalog.items[idx], ...item };
   } else {
     catalog.items.push(item);
   }
 
-  return item;
+  return catalog.items[idx >= 0 ? idx : catalog.items.length - 1];
 }
 
 export function deleteSupplement(catalog, id) {
