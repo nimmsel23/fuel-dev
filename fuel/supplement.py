@@ -394,6 +394,29 @@ def catalog_tui() -> None:
     from .supplement_catalog_tui import SupplementCatalogTUI
     SupplementCatalogTUI().run()
 
+@app.command(name="add")
+def add_command(
+    query:   str         = typer.Argument(..., help='Produkt, z.B. "Body Attack Ashwagandha + Zink"'),
+    brand:   str | None  = typer.Option(None, "--brand", "-b", help="Marke (schärft die Produktsuche)"),
+    supp_id: str | None  = typer.Option(None, "--id", help="Katalog-ID (default: aus Name abgeleitet)"),
+    dose:    float | None = typer.Option(None, "--dose", "-v", help="Standarddosis überschreiben"),
+    engine:  str         = typer.Option("auto", "--engine", "-e", help="auto|haiku|gemini"),
+    dry_run: bool        = typer.Option(False, "--dry-run", help="Nur anzeigen, nicht schreiben"),
+    yes:     bool        = typer.Option(False, "--yes", "-y", help="Ohne Rückfrage speichern"),
+) -> None:
+    """Supplement per Produktrecherche (Haiku+WebSearch, Gemini-Fallback) in den Katalog aufnehmen."""
+    from .supplement_add import run_add
+    run_add(query, brand=brand, supp_id=supp_id, dose=dose, engine=engine, dry_run=dry_run, assume_yes=yes)
+
+@app.command(name="cloud")
+def cloud_command(
+    uid:  str  = typer.Argument(..., help="Cloud-UID (aus ~/vital/Klienten/*/client.json bzw. FUEL_CLOUD_UID)"),
+    pull: bool = typer.Option(False, "--pull", help="In der App angelegte, lokal fehlende Einträge übernehmen"),
+) -> None:
+    """Supplement-Katalog einer Firebase-App-UID anzeigen (--pull: fehlende Einträge nach catalog.yaml ziehen)."""
+    from .supplement_add import run_cloud
+    run_cloud(uid, pull=pull)
+
 @app.command(name="list")
 def list_supplements() -> None:
     """Katalog der verfügbaren Supplements anzeigen."""
