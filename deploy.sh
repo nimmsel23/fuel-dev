@@ -6,7 +6,19 @@ TARGET="${1:-staging}"
 shift || true
 SCRIPT_DIR="$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")" && pwd)"
 DEV_SOURCE="$SCRIPT_DIR"
-STAGE="$HOME/.local/fuel"
+
+# Echtes User-Home auflösen, nicht blind $HOME: unter pkexec ist $HOME=/root,
+# unter sudo je nach Policy ebenfalls — dann zeigt STAGE auf /root/.local/fuel
+# und der Deploy bricht mit "not a Fuel checkout" ab.
+if [[ -n "${PKEXEC_UID:-}" ]]; then
+  USER_HOME="$(getent passwd "$PKEXEC_UID" | cut -d: -f6)"
+elif [[ -n "${SUDO_USER:-}" ]]; then
+  USER_HOME="$(getent passwd "$SUDO_USER" | cut -d: -f6)"
+else
+  USER_HOME="$HOME"
+fi
+: "${USER_HOME:=$HOME}"
+STAGE="$USER_HOME/.local/fuel"
 NODE_DEST="/opt/fuel"
 PYTHON_DEST="/opt/fuel-python"
 BACKUP_DIR="/opt/fuel_backups"

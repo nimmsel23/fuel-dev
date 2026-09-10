@@ -259,7 +259,7 @@ _PASSTHROUGH_CTX = {"allow_extra_args": True, "ignore_unknown_options": True, "h
 
 @app.command(context_settings=_PASSTHROUGH_CTX)
 def meal(ctx: typer.Context):
-    """Route to fuel-meal. '--help' geht an fuel-meal selbst (eigene Subcommands: log/narrative/list/today/unlog)."""
+    """Route to fuel-meal. '--help' geht an fuel-meal selbst (eigene Subcommands: log/narrative/list/today/unlog/move)."""
     subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-meal"), *ctx.args])
 
 
@@ -273,6 +273,15 @@ def supplement(ctx: typer.Context):
 def today(ctx: typer.Context):
     """Combined today (meals + supplements). Akzeptiert --gestern/--vorgestern/--tag."""
     show_combined_today(ctx.args)
+
+
+@app.command(context_settings=_PASSTHROUGH_CTX)
+def move(ctx: typer.Context):
+    """Mahlzeit zwischen zwei Tagen verschieben — an `fuel-meal move` weiterreichen.
+
+    Beispiel: fuel move --to gestern
+    """
+    subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-meal"), "move", *ctx.args])
 
 
 @app.command()

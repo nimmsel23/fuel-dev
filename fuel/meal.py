@@ -26,10 +26,10 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from rich.console import Console
 from rich.table import Table
 
-from .dates import resolve_flags as _resolve_date, extract_date_hint as _extract_date_hint
+from .dates import resolve_flags as _resolve_date, extract_date_hint as _extract_date_hint, resolve as _resolve_one
 from .narrative import parse as _parse_narrative, spread_times as _spread_times
 from .gemini import estimate_macros_only as _gemini_macros, estimate_nutrition as _gemini_estimate, discover_item as _gemini_discover
-from .catalog_lookup import find_meal as _catalog_find, extract_macros as _catalog_macros, save_meal as _catalog_save, load_meals as _catalog_load_meals, _normalize_components
+from .catalog_lookup import find_meal as _catalog_find, extract_macros as _catalog_macros, save_meal as _catalog_save, load_meals as _catalog_load_meals, _normalize_components, _amount_to_grams
 
 
 # Mahlzeit-Typ-Präfix am Zeilenanfang ("mittagessen: 2 Semmeln" → "2 Semmeln").
@@ -417,7 +417,22 @@ def do_meal_log(description: str, kcal: float, protein: float, carbs: float, fat
                 m = _catalog_macros(hit)
                 kcal, protein, carbs, fat = m["kcal"], m["protein"], m["carbs"], m["fat"]
                 catalog_id = hit.get("id")
-                msg.good(f"Catalog-Hit: {hit['name']} ({kcal:.0f} kcal/Stück) — kein Gemini-Call")
+                # Zutaten-Bausteine (kind=ingredient) liegen pro yield_g (i.d.R. 100 g)
+                # im Katalog — auf die in der Beschreibung genannte Grammzahl skalieren.
+                _scale, _unit = 1.0, "Stück"
+                if hit.get("kind") == "ingredient" and hit.get("yield_g"):
+                    _grams = _amount_to_grams(description)
+                    if _grams:
+                        _scale = _grams / float(hit["yield_g"])
+                        kcal, protein, carbs, fat = kcal * _scale, protein * _scale, carbs * _scale, fat * _scale
+                        _unit = f"{_grams:.0f} g"
+                # Gespeicherte Mikros aus dem Catalog-Hit übernehmen (wurden bisher
+                # bei jedem Hit verworfen → Log ohne Mikros) und mitskalieren.
+                hit_micros = hit.get("micros") or {}
+                if hit_micros and not micros:
+                    micros = {k: v * _scale for k, v in hit_micros.items()
+                              if isinstance(v, (int, float)) and v > 0}
+                msg.good(f"Catalog-Hit: {hit['name']} ({kcal:.0f} kcal / {_unit}) — kein Gemini-Call")
         if kcal == 0:
             with Console().status(f"[cyan]Gemini schätzt Nährwerte für '{description}'...[/cyan]", spinner="dots"):
                 est = _parse_macros_with_gemini(description)
@@ -554,11 +569,111 @@ def do_unlog(day: str | None) -> None:
         log = _load_log_local(target_day)
         log["meals"] = [m for m in log["meals"] if m["id"] != delete_id]
         _save_log_local(log)
+        _tomb_add(target_day, delete_id)
         msg.good(f"Mahlzeit {delete_id} gelöscht.")
 
     except FileNotFoundError:
         msg.fail("fzf nicht gefunden")
         raise SystemExit(1)
+
+# ── Meal verschieben (Tag → Tag) ──────────────────────────────────────────────
+# Tombstones spiegeln src/server/services/log-tombstones.mjs: ein aus dem
+# Tageslog entferntes Meal muss in <date>.deleted.json unter deleted_meal_ids
+# stehen, sonst holt der stündliche Firestore-Merge (firestore-admin.mjs) es
+# beim nächsten Lauf wieder zurück.
+
+def _tomb_path(date_str: str) -> Path:
+    return NUTRITION_DIR / f"{date_str}.deleted.json"
+
+
+def _tomb_load(date_str: str) -> list[str]:
+    p = _tomb_path(date_str)
+    if not p.exists():
+        return []
+    try:
+        ids = json.loads(p.read_text()).get("deleted_meal_ids")
+        return [x for x in ids if x] if isinstance(ids, list) else []
+    except (json.JSONDecodeError, OSError):
+        return []
+
+
+def _tomb_save(date_str: str, ids: list[str]) -> None:
+    NUTRITION_DIR.mkdir(parents=True, exist_ok=True)
+    _tomb_path(date_str).write_text(json.dumps({
+        "deleted_meal_ids": sorted({x for x in ids if x}),
+        "updated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+    }, ensure_ascii=False, indent=2) + "\n")
+
+
+def _tomb_add(date_str: str, meal_id: str) -> None:
+    _tomb_save(date_str, _tomb_load(date_str) + [meal_id])
+
+
+def _tomb_remove(date_str: str, meal_id: str) -> None:
+    _tomb_save(date_str, [x for x in _tomb_load(date_str) if x != meal_id])
+
+
+def do_meal_move(from_day: str, to_day: str, meal_id: str | None = None) -> None:
+    """Verschiebt eine Mahlzeit (inkl. Makros/Mikros/Komponenten) von from_day
+    nach to_day: aus dem Quelltag entfernen + Tombstone, Zeitstempel umdatieren
+    (Uhrzeit bleibt), in den Zieltag einsortieren."""
+    if from_day == to_day:
+        msg.warn(f"Quell- und Zieltag identisch ({from_day}) — nichts zu tun.")
+        return
+
+    src = _load_log_local(from_day)
+    src_meals = src.get("meals", [])
+    if not src_meals:
+        msg.warn(f"Keine Mahlzeiten am {from_day}.")
+        raise SystemExit(1)
+
+    if meal_id is None:
+        fzf_lines = [
+            f"{m['id']} | {m.get('description', '—')} ({m.get('kcal', 0) or 0:.0f} kcal)"
+            for m in src_meals
+        ]
+        try:
+            result = subprocess.run(
+                ["fzf", "--header", f"VERSCHIEBEN  {from_day} → {to_day}",
+                 "--height=15", "--layout=reverse"],
+                input="\n".join(fzf_lines), capture_output=True, text=True,
+            )
+        except FileNotFoundError:
+            msg.fail("fzf nicht gefunden — --id <meal_id> angeben")
+            raise SystemExit(1)
+        if result.returncode != 0 or not result.stdout.strip():
+            return
+        meal_id = result.stdout.strip().split("|")[0].strip()
+
+    meal = next((m for m in src_meals if m.get("id") == meal_id), None)
+    if meal is None:
+        msg.fail(f"Meal {meal_id} nicht am {from_day} gefunden.")
+        raise SystemExit(1)
+
+    # 1. aus Quelltag entfernen + Tombstone
+    src["meals"] = [m for m in src_meals if m.get("id") != meal_id]
+    _save_log_local(src)
+    _tomb_add(from_day, meal_id)
+
+    # 2. Zeitstempel auf den Zieltag umdatieren (Uhrzeit behalten)
+    t = meal.get("time") or ""
+    meal["time"] = (to_day + t[10:]) if (len(t) >= 10 and t[4] == "-" and t[7] == "-") else f"{to_day}T12:00:00Z"
+
+    # 3. in Zieltag einfügen (bei ID-Kollision neue ID)
+    dst = _load_log_local(to_day)
+    dst_meals = dst.get("meals", [])
+    if any(m.get("id") == meal_id for m in dst_meals):
+        meal["id"] = f"meal_{int(datetime.now().timestamp() * 1000)}"
+    dst_meals.append(meal)
+    dst_meals.sort(key=lambda m: m.get("time", ""))
+    dst["meals"] = dst_meals
+    _save_log_local(dst)
+    _tomb_remove(to_day, meal_id)  # falls dort früher mal getombstoned
+
+    msg.good(f"{meal.get('description', '—')} ({meal.get('kcal', 0) or 0:.0f} kcal) "
+             f"verschoben: {from_day} → {to_day}")
+    d_kcal = sum(m.get("kcal", 0) or 0 for m in dst_meals)
+    msg.info(f"  {to_day}: {len(dst_meals)} Mahlzeit(en) · {d_kcal:.0f} kcal")
 
 # ── Typer App ──────────────────────────────────────────────────────────────────
 
@@ -577,6 +692,29 @@ def unlog_command(
     except ValueError as e:
         msg.fail(str(e)); raise typer.Exit(1)
     do_unlog(target)
+
+@app.command(name="move")
+def move_command(
+    to:      str        = typer.Option(..., "--to", "-t", help="Zieltag: heute|gestern|vorgestern|-N|Mo|YYYY-MM-DD"),
+    frm:     str        = typer.Option("heute", "--from", "-f", help="Quelltag (Default: heute)"),
+    meal_id: str | None = typer.Option(None, "--id", help="Meal-ID direkt (sonst fzf-Auswahl aus dem Quelltag)"),
+) -> None:
+    """Eine Mahlzeit von einem Tag auf einen anderen verschieben.
+
+    Verschiebt den kompletten Eintrag (Makros/Mikros/Komponenten), datiert den
+    Zeitstempel auf den Zieltag um und setzt am Quelltag einen Tombstone, damit
+    der Firestore-Sync das Entfernen übernimmt.
+
+    Beispiele:
+      fuel-meal move --to gestern
+      fuel-meal move --from heute --to 2026-09-05 --id meal_1788849645857
+    """
+    try:
+        from_day = _resolve_one(frm)
+        to_day = _resolve_one(to)
+    except ValueError as e:
+        msg.fail(str(e)); raise typer.Exit(1)
+    do_meal_move(from_day, to_day, meal_id)
 
 @app.callback(invoke_without_command=True)
 def _app_callback(ctx: typer.Context) -> None:

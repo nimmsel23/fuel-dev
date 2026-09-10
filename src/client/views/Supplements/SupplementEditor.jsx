@@ -26,6 +26,8 @@ export default function SupplementEditor({ item, onClose, onSaved }) {
   const [days, setDays] = useState(item?.schedule?.days || []);
   const [intervalDays, setIntervalDays] = useState(item?.schedule?.interval_days ?? 2);
   const [startDate, setStartDate] = useState(item?.schedule?.start_date || new Date().toISOString().slice(0, 10));
+  const [reminderEnabled, setReminderEnabled] = useState(Boolean(item?.reminder?.enabled));
+  const [reminderTime, setReminderTime] = useState(item?.reminder?.time || "08:00");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -43,6 +45,13 @@ export default function SupplementEditor({ item, onClose, onSaved }) {
         : scheduleType === "cyclical" ? { type: "cyclical", interval_days: Number(intervalDays), start_date: startDate }
         : { type: "daily" };
 
+      // reminder nur mitschicken, wenn der User es an-/ausschaltet — ein neues,
+      // unberührtes Supplement bleibt beim alten Slot-Verhalten (kein reminder-Feld).
+      const hadReminder = Boolean(item?.reminder);
+      const reminder = reminderEnabled
+        ? { enabled: true, time: reminderTime }
+        : hadReminder ? { enabled: false } : undefined;
+
       await postJson("/supplements/catalog", {
         id: item?.id,
         name: name.trim(),
@@ -50,6 +59,7 @@ export default function SupplementEditor({ item, onClose, onSaved }) {
         default_dose: defaultDose === "" ? undefined : Number(defaultDose),
         default_time_of_day: timeOfDay,
         schedule,
+        reminder,
       });
       onSaved();
     } catch (e) {
@@ -147,6 +157,32 @@ export default function SupplementEditor({ item, onClose, onSaved }) {
                 <input type="date" className={inputCls} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
               </div>
             </div>
+          )}
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+          <label className="flex items-center justify-between gap-3">
+            <div>
+              <span className={labelCls}>Eigener Reminder</span>
+              <p className="text-xs text-slate-500">
+                Push nur für dieses Supplement zur gewählten Uhrzeit — statt im
+                Sammel-Reminder der Tageszeit. Braucht einen Rhythmus oben.
+              </p>
+            </div>
+            <input
+              type="checkbox"
+              checked={reminderEnabled}
+              onChange={(e) => setReminderEnabled(e.target.checked)}
+              className="h-4 w-4 shrink-0 accent-violet-400"
+            />
+          </label>
+          {reminderEnabled && (
+            <input
+              type="time"
+              value={reminderTime}
+              onChange={(e) => setReminderTime(e.target.value)}
+              className={`${inputCls} mt-3`}
+            />
           )}
         </div>
 

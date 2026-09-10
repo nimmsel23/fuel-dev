@@ -56,6 +56,10 @@ export function startPushScheduler(baseDataDir, catalogsDir) {
       console.log(`[PushScheduler] Running supplement check for ${supplementSlot}...`);
       await checkAndSendSupplementReminders(supplementSlot, baseDataDir, catalogsDir);
     }
+    if (settings.supplements.enabled) {
+      // Pro-Supplement-Reminder mit eigener Uhrzeit (unabhängig von den 4 Slots)
+      await checkAndSendPerSupplementReminders(currentTime, baseDataDir, catalogsDir);
+    }
     if (dueDailyPrompts.length > 0) {
       console.log(`[PushScheduler] Running daily prompts: ${dueDailyPrompts.join(", ")}`);
       await sendDailyPrompts(dueDailyPrompts, baseDataDir);
@@ -93,6 +97,11 @@ async function checkAndSendSupplementReminders(timeOfDay, baseDataDir, catalogsD
 
     // Fällige Supplements für diese Tageszeit finden, die noch nicht geloggt wurden
     const dueItems = catalog.filter(item => {
+      // Pro-Supplement-Reminder übersteuert den Slot: enabled:false = ganz raus,
+      // eigene time gesetzt = wird separat von checkAndSendPerSupplementReminders
+      // verschickt (kein Doppel-Ping).
+      if (item.reminder && item.reminder.enabled === false) return false;
+      if (item.reminder?.enabled && item.reminder.time) return false;
       const isDue = isDueToday(item, todayStr) && item.default_time_of_day === timeOfDay;
       if (!isDue) return false;
       const isLogged = intakes.some(intake => intake.supplement_id === item.id);
@@ -120,6 +129,49 @@ async function checkAndSendSupplementReminders(timeOfDay, baseDataDir, catalogsD
     }
   } catch (error) {
     console.error("[PushScheduler] Error checking reminders:", error);
+  }
+}
+
+async function checkAndSendPerSupplementReminders(currentTime, baseDataDir, catalogsDir) {
+  try {
+    const todayStr = format(new Date(), "yyyy-MM-dd");
+    const catalogPath = path.join(catalogsDir, "supplements", "catalog.json");
+    const logsPath = path.join(baseDataDir, "supplements", "logs", `${todayStr}.json`);
+    const subsPath = getSubscriptionsPath(baseDataDir);
+
+    if (!fs.existsSync(catalogPath) || !fs.existsSync(subsPath)) return;
+
+    const catalog = JSON.parse(fs.readFileSync(catalogPath, "utf-8")).items || [];
+    const subscriptions = JSON.parse(fs.readFileSync(subsPath, "utf-8")) || [];
+    if (subscriptions.length === 0) return;
+
+    let intakes = [];
+    if (fs.existsSync(logsPath)) {
+      intakes = JSON.parse(fs.readFileSync(logsPath, "utf-8")).intakes || [];
+    }
+
+    const dueItems = catalog.filter(item => {
+      if (!item.reminder?.enabled || item.reminder.time !== currentTime) return false;
+      if (!isDueToday(item, todayStr)) return false;
+      return !intakes.some(intake => intake.supplement_id === item.id);
+    });
+
+    for (const item of dueItems) {
+      const payload = JSON.stringify(buildSupplementPayload({
+        timeOfDay: item.default_time_of_day || "any",
+        names: item.name,
+      }));
+      for (const sub of subscriptions) {
+        try {
+          await webpush.sendNotification(sub, payload);
+        } catch (err) {
+          console.error("[PushScheduler] Per-supplement send failed:", err.statusCode);
+        }
+      }
+      console.log(`[PushScheduler] Per-supplement reminder sent: ${item.name} @ ${currentTime}`);
+    }
+  } catch (error) {
+    console.error("[PushScheduler] Error in per-supplement reminders:", error);
   }
 }
 
