@@ -1,5 +1,5 @@
 version: 1
-updated_at: 2026-07-30T13:12:56.731Z
+updated_at: 2026-09-10T00:00:00.000Z
 items:
   - id: melatonin
     name: Melatonin
@@ -73,10 +73,26 @@ items:
     notes: geplant — nächste Sunday Natural Bestellung
   - id: ashwagandha
     name: Ashwagandha
-    product: Sunday Natural Ashwagandha KSM-66 Kapseln
+    product: Body Attack Ashwagandha KSM-66 (120 Kapseln, mit Zink, Magnesium & Vitamin B6)
     unit: mg
-    default_dose: 600
+    default_dose: 300
     default_time_of_day: morning
+    notes: "Produktwechsel 2026-09-10 von Sunday Natural KSM-66 (600 mg/Kapsel). Body Attack: 300 mg KSM-66 pro Kapsel, default_dose 300 mg = 1 Kapsel (bewusst halbe Dosis). Etikett: pro Kapsel zusätzlich 1 mg Zink, 32,5 mg Magnesium, 0,11 mg B6. Kein Vitamin C. Quelle: body-attack.de/en/body-attack-ashwagandha"
+    per_unit:
+      capsule_mg: 300
+      zinc_mg: 1
+      magnesium_mg: 32.5
+      vitamin_b6_mg: 0.11
+    actives:
+      ashwagandha_mg: 300
+      withanolides_mg: 15
+      zinc_mg: 1
+      magnesium_mg: 32.5
+      vitamin_b6_mg: 0.11
+    micros:
+      zinc_mg: 1
+      magnesium_mg: 32.5
+      vitamin_b6_mg: 0.11
   - id: tongkat_ali
     name: Tongkat Ali Elixier
     unit: ml
