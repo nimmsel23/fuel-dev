@@ -5,22 +5,26 @@ name: Kaffee mit Mandeldrink
 alias: null
 meal_type: snack
 description: Kaffee mit Mandeldrink
-notes: ""
-kcal: 20
-protein: 1
-carbs: 0
-fat: 2
-yield_g: null
+notes: 'Offizielle Herstellerangabe (https://de.openfoodfacts.org/produkt/5411188128045/alpro-kaffee-mit-mandeldrink-caf%C3%A8-235ml)
+  pro 100g: {''kcal'': 31, ''protein'': 0.4, ''carbs'': 4.9, ''fat'': 0.8}. Alpro
+  Kaffee mit Mandeldrink Caffè — vorverpacktes Fertiggetränk, 235ml-Flasche. Quelle:
+  OpenFoodFacts.org (DE) + fddb.info. Zuckergehalt: 4,9g pro 100ml (identisch mit
+  Kohlenhydraten).'
+kcal: 72.8
+protein: 0.9
+carbs: 11.5
+fat: 1.9
+yield_g: 235.0
 components: []
 addons: []
 default_addon_ids: []
 linked_supplement_ids: []
 source: manual
 use_count: 1
-last_used_at: 2026-08-25T12:17:30.305Z
-created_at: 2026-08-25T12:17:30.305Z
-updated_at: 2026-09-23T19:50:39.483Z
-verified_at: null
+last_used_at: 2026-08-25 12:17:30.305000+00:00
+created_at: 2026-08-25 12:17:30.305000+00:00
+updated_at: '2026-09-23T19:51:41.256561Z'
+verified_at: '2026-09-23T19:51:41.256561Z'
 micros:
   vitamin_a_ug: 45
   vitamin_d_ug: 1
@@ -49,4 +53,4 @@ micros:
 micros_meta:
   source: gemini
   kcal_basis: 20
-  resolved_at: 2026-09-23T19:50:39.483Z
+  resolved_at: 2026-09-23 19:50:39.483000+00:00

@@ -5,22 +5,25 @@ name: 250g Käseleberkäse in 2 Semmeln
 alias: null
 meal_type: meal
 description: 250g Käseleberkäse in 2 Semmeln
-notes: ""
-kcal: 660
-protein: 38
-carbs: 52
-fat: 30
-yield_g: null
+notes: 'Offizielle Herstellerangabe (https://fddb.info/db/de/lebensmittel/diverse_kaeseleberkaese/index.html)
+  pro 100g: {''kcal'': 280, ''protein'': 14, ''carbs'': 0.4, ''fat'': 25}. Käseleberkäse
+  mehrerer Hersteller (Spar, Radatz, Trünkel) in fddb.info; Werte sind Durchschnitt.
+  250g Leberkäse + 2 Semmeln entspricht ca. 400–450g Gesamtportion.'
+kcal: 700.0
+protein: 35.0
+carbs: 1.0
+fat: 62.5
+yield_g: 250.0
 components: []
 addons: []
 default_addon_ids: []
 linked_supplement_ids: []
 source: manual
 use_count: 1
-last_used_at: 2026-08-28T23:10:47.554Z
-created_at: 2026-08-28T23:10:47.554Z
-updated_at: 2026-09-23T19:50:39.448Z
-verified_at: null
+last_used_at: 2026-08-28 23:10:47.554000+00:00
+created_at: 2026-08-28 23:10:47.554000+00:00
+updated_at: '2026-09-23T19:51:28.911195Z'
+verified_at: '2026-09-23T19:51:28.911195Z'
 micros:
   vitamin_a_ug: 180
   vitamin_d_ug: 0.5
@@ -49,4 +52,4 @@ micros:
 micros_meta:
   source: gemini-catalog-import
   kcal_basis: 660
-  resolved_at: 2026-09-23T19:50:39.448Z
+  resolved_at: 2026-09-23 19:50:39.448000+00:00

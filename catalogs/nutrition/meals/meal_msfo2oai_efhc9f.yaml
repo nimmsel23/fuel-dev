@@ -1,13 +1,13 @@
 id: meal_msfo2oai_efhc9f
 kind: meal
 category: meal
-name: McDonald’s Double Cheeseburger Menü mit mittlere Pommes und Cola und extra
-  Double Cheeseburger
+name: McDonald’s Double Cheeseburger Menü mit mittlere Pommes und Cola und extra Double
+  Cheeseburger
 alias: null
 meal_type: snack
-description: McDonald’s Double Cheeseburger Menü mit mittlere Pommes und Cola
-  und extra Double Cheeseburger
-notes: ""
+description: McDonald’s Double Cheeseburger Menü mit mittlere Pommes und Cola und
+  extra Double Cheeseburger
+notes: ''
 kcal: 1398
 protein: 56
 carbs: 151
@@ -19,10 +19,10 @@ default_addon_ids: []
 linked_supplement_ids: []
 source: manual
 use_count: 1
-last_used_at: 2026-08-25T12:17:30.300Z
-created_at: 2026-08-25T12:17:30.300Z
-updated_at: 2026-09-23T19:50:39.523Z
-verified_at: null
+last_used_at: 2026-08-25 12:17:30.300000+00:00
+created_at: 2026-08-25 12:17:30.300000+00:00
+updated_at: 2026-09-23 19:50:39.523000+00:00
+verified_at: '2026-09-23T19:51:34.661253Z'
 micros:
   vitamin_a_ug: 180
   vitamin_d_ug: 1.2
@@ -51,4 +51,4 @@ micros:
 micros_meta:
   source: gemini
   kcal_basis: 1398
-  resolved_at: 2026-09-23T19:50:39.523Z
+  resolved_at: 2026-09-23 19:50:39.523000+00:00
