@@ -10,6 +10,15 @@ import sys
 from pathlib import Path
 
 BIN_DIR = Path(__file__).resolve().parent
+# TODO(2026-09-11, ungeklärt — mit User besprechen): "sync" und "catalog"
+# kollidieren mit gleichnamigen, aber inhaltlich anderen Typer-Commands in
+# fuel/dispatch.py (Tages-Nutrition-Sync bzw. TUI-Catalog-Editor) — die sind
+# über `fuel <name>` aktuell NIE erreichbar, weil hier immer zuerst an
+# fuelctl delegiert wird. Details siehe TODO-Kommentare bei den jeweiligen
+# Commands in fuel/dispatch.py. Diese Liste ist außerdem NICHT identisch mit
+# dispatch.py's STACK_CONTROL_WORDS (dort fehlen "prod", "cloud", "sync",
+# "catalog", "v2" — relevant nur falls fuel.dispatch.main() direkt ohne
+# diesen Entrypoint aufgerufen wird).
 CONTROL_COMMANDS = {"status", "dev", "prod", "cloud", "sync", "catalog", "local", "v2"}
 
 
