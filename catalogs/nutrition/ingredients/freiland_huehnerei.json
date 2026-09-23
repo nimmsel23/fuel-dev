@@ -1,0 +1,91 @@
+{
+  "id": "freiland_huehnerei",
+  "kind": "ingredient",
+  "name": "Freiland-Hühnerei",
+  "basis": "per_100g",
+  "grams_reference": 100,
+  "source": "usda+web_cross_check",
+  "source_refs": {
+    "usda": "USDA FDC 171287 — Egg, whole, raw, fresh",
+    "web": "NIH PMC: The Golden Egg - Nutritional Value, Bioactivities, and Emerging Benefits for Human Health — https://pmc.ncbi.nlm.nih.gov/articles/PMC6470839/"
+  },
+  "macros": {
+    "kcal": 143.0,
+    "protein": 12.58,
+    "carbs": 0.71,
+    "fat": 9.505,
+    "fiber": 0.0
+  },
+  "micros": {
+    "vitamin_a_ug": 270.5,
+    "vitamin_d_ug": 2.0,
+    "vitamin_e_mg": 1.06,
+    "vitamin_k_ug": 0.3,
+    "vitamin_c_mg": 0.0,
+    "vitamin_b1_mg": 0.108,
+    "vitamin_b2_mg": 0.4925,
+    "vitamin_b3_mg": 0.0925,
+    "vitamin_b5_mg": 2.2615,
+    "vitamin_b6_mg": 0.18,
+    "vitamin_b7_ug": 33.0,
+    "folate_ug": 96.5,
+    "vitamin_b12_ug": 1.0,
+    "calcium_mg": 56.0,
+    "phosphorus_mg": 198.0,
+    "magnesium_mg": 12.0,
+    "iron_mg": 1.75,
+    "zinc_mg": 1.29,
+    "selenium_ug": 43.35,
+    "iodine_ug": 26.0,
+    "potassium_mg": 138.0,
+    "sodium_mg": 142.0,
+    "omega3_mg": 102.0
+  },
+  "flagged_diffs": [
+    {
+      "key": "vitamin_a_ug",
+      "usda": 160.0,
+      "web": 381.0,
+      "diff_pct": 81.7
+    },
+    {
+      "key": "vitamin_b1_mg",
+      "usda": 0.04,
+      "web": 0.176,
+      "diff_pct": 125.9
+    },
+    {
+      "key": "vitamin_b3_mg",
+      "usda": 0.075,
+      "web": 0.11,
+      "diff_pct": 37.8
+    },
+    {
+      "key": "vitamin_b5_mg",
+      "usda": 1.533,
+      "web": 2.99,
+      "diff_pct": 64.4
+    },
+    {
+      "key": "folate_ug",
+      "usda": 47.0,
+      "web": 146.0,
+      "diff_pct": 102.6
+    },
+    {
+      "key": "vitamin_b12_ug",
+      "usda": 0.89,
+      "web": 1.11,
+      "diff_pct": 22.0
+    },
+    {
+      "key": "selenium_ug",
+      "usda": 30.7,
+      "web": 56.0,
+      "diff_pct": 58.4
+    }
+  ],
+  "notes": "fiber: nur USDA (Web-Quelle lieferte keinen Wert); vitamin_k_ug: nur USDA (Web-Quelle lieferte keinen Wert); vitamin_b7_ug: nur Web-Quelle (USDA lieferte keinen Wert); iodine_ug: nur Web-Quelle (USDA lieferte keinen Wert)",
+  "created_at": "2026-09-23T15:49:15.591670Z",
+  "updated_at": "2026-09-23T15:49:15.591789Z"
+}

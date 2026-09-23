@@ -269,6 +269,12 @@ def supplement(ctx: typer.Context):
     subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-supplement"), *ctx.args])
 
 
+@app.command(context_settings=_PASSTHROUGH_CTX)
+def ingredient(ctx: typer.Context):
+    """Route to fuel-ingredient. '--help' geht an fuel-ingredient selbst (eigene Subcommands: add)."""
+    subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-ingredient"), *ctx.args])
+
+
 @app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
 def today(ctx: typer.Context):
     """Combined today (meals + supplements). Akzeptiert --gestern/--vorgestern/--tag."""
