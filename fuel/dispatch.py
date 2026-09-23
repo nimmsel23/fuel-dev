@@ -284,6 +284,15 @@ def move(ctx: typer.Context):
     subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-meal"), "move", *ctx.args])
 
 
+@app.command(context_settings=_PASSTHROUGH_CTX)
+def repeat(ctx: typer.Context):
+    """Mahlzeit von einem Tag kopieren (Quelltag bleibt erhalten) — an `fuel-meal repeat` weiterreichen.
+
+    Default: gestern → heute, fzf-Auswahl. Beispiel: fuel repeat --from -3 --to heute
+    """
+    subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-meal"), "repeat", *ctx.args])
+
+
 @app.command()
 def list():
     """List available supplements."""
@@ -303,10 +312,31 @@ def unlog(ctx: typer.Context):
 
 @app.command()
 def sync(
+    # TODO(2026-09-11, ungeklärt — mit User besprechen): `sync` ist in
+    # bin/fuel's CONTROL_COMMANDS gelistet, d.h. `fuel sync ...` wird dort
+    # IMMER an fuelctl (Firestore-Catalog-Sync, sync <uid>) delegiert, bevor
+    # main() hier überhaupt läuft. Dieser Command ist über den `fuel`-
+    # Entrypoint aktuell unerreichbar — nur via `python -m fuel.dispatch sync`
+    # oder direktem Import. Vor jeder Umbenennung/Vereinheitlichung erst
+    # klären welche der beiden "sync"-Bedeutungen den kurzen Namen behält.
+    #
+    # ZUSÄTZLICH KAPUTT (verifiziert 2026-09-11): selbst direkt aufgerufen
+    # crasht der Import unten mit ModuleNotFoundError — `from firestore.fuel
+    # import push_fuel, pull_fuel` setzt ein Top-Level-Package `firestore` in
+    # fitness-dev voraus, das es nicht gibt. Die echten Funktionen liegen
+    # unter `fitness-dev/fitness/firestore/fuel.py` (push_fuel/pull_fuel
+    # existieren dort). Fix: entweder den Importpfad auf
+    # `fitness.firestore.fuel` korrigieren (und "fitness-dev" bleibt auf dem
+    # sys.path) oder ganz auf eine der anderen Sync-Engines umstellen — siehe
+    # [[project_fuel_sync_paths_overview]] für die komplette Landkarte aller
+    # Sync-Pfade (3 verschiedene Engines hinter 5+ CLI-Einstiegen).
     direction: str = typer.Argument("push", help="push | pull"),
     uid: str = typer.Option(None, "--uid", help="Firebase UID (default: aktiver User)"),
 ):
-    """Fuel-Daten ↔ Firestore synchronisieren (via fitness-dev/firestore)."""
+    """Fuel-Daten ↔ Firestore synchronisieren (via fitness-dev/firestore).
+
+    ACHTUNG: über `fuel sync` aktuell nicht erreichbar, siehe TODO oben —
+    bin/fuel routet "sync" immer zu fuelctl (andere Sync-Bedeutung)."""
     sys.path.insert(0, str(FUEL_REPO_DIR.parent / "fitness-dev"))
     try:
         from firestore.fuel import push_fuel, pull_fuel
@@ -388,6 +418,18 @@ def stats(days: int = typer.Option(7, "-d", "--days", help="Anzahl Tage")):
     print(f"  Schnitt: {avg_kcal:.0f} kcal  {avg_p:.0f}P {avg_c:.0f}C {avg_f:.0f}F")
 
 
+@app.command(context_settings=_PASSTHROUGH_CTX)
+def week(ctx: typer.Context):
+    """Wochenreport — an `fuel-week` weiterreichen (Logik in fuel/report.py:week_main)."""
+    subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-week"), *ctx.args])
+
+
+@app.command(context_settings=_PASSTHROUGH_CTX)
+def micro(ctx: typer.Context):
+    """Mikronährstoff-Report — an `fuel-micro` weiterreichen (Logik in fuel/report.py:micro_main)."""
+    subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-micro"), *ctx.args])
+
+
 @app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
 def edit(
     ctx: typer.Context,
@@ -424,6 +466,14 @@ def tui_alias(
 
 @app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True}, name="catalog")
 def catalog_alias(
+    # TODO(2026-09-11, ungeklärt — mit User besprechen): `catalog` ist in
+    # bin/fuel's CONTROL_COMMANDS gelistet, d.h. `fuel catalog ...` wird dort
+    # IMMER an fuelctl (Catalog-SERVICE start/stop/status) delegiert, bevor
+    # main() hier überhaupt läuft. Dieser Command (TUI-Catalog-EDITOR) ist
+    # über den `fuel`-Entrypoint aktuell unerreichbar — nur via
+    # `python -m fuel.dispatch catalog` oder direktem Import. Vor jeder
+    # Umbenennung/Vereinheitlichung erst klären welche der beiden "catalog"-
+    # Bedeutungen den kurzen Namen behält.
     ctx: typer.Context,
     date_arg: str = typer.Option(None, "--date", "-d"),
 ):
@@ -476,6 +526,15 @@ def _known_commands() -> set[str]:
 # hier (die gehören zu bin/fuelctl, einer separaten CLI) und keine Supplement-
 # IDs. Ohne diese Liste würde "fuel status"/"fuel dev" als bare Single-Word-
 # Item durchrutschen und als Freitext-Mahlzeit an Gemini gehen.
+#
+# TODO(2026-09-11, ungeklärt — mit User besprechen): divergiert von bin/fuel's
+# CONTROL_COMMANDS ({"status","dev","prod","cloud","sync","catalog","local",
+# "v2"}) — hier fehlen "prod"/"cloud"/"sync"/"catalog"/"v2", dafür sind
+# "logs"/"start"/"stop"/"restart"/"build"/"health" nur hier gelistet. Nur
+# relevant wenn main() ohne bin/fuel als Entrypoint aufgerufen wird (dann
+# greift ausschließlich diese Liste) — vor Vereinheitlichung erst die
+# sync/catalog-Namenskollision klären (siehe TODOs bei den sync-/catalog-
+# Commands weiter unten).
 STACK_CONTROL_WORDS = {"status", "dev", "local", "logs", "start", "stop", "restart", "build", "deploy", "health"}
 
 

@@ -675,6 +675,68 @@ def do_meal_move(from_day: str, to_day: str, meal_id: str | None = None) -> None
     d_kcal = sum(m.get("kcal", 0) or 0 for m in dst_meals)
     msg.info(f"  {to_day}: {len(dst_meals)} Mahlzeit(en) · {d_kcal:.0f} kcal")
 
+# ── Meal wiederholen (Tag → Tag, Quelle bleibt erhalten) ────────────────────────
+# Wie do_meal_move, nur dass der Quelltag unangetastet bleibt — kein Tombstone,
+# kein Entfernen. Deckt den Alltagsfall "das hab ich gestern schon gegessen,
+# heute wieder" ab, ohne über den vollen Beschreibungstext neu zu gehen.
+
+def do_meal_repeat(from_day: str, to_day: str, meal_id: str | None = None, qty: int = 1) -> None:
+    """Kopiert eine Mahlzeit (inkl. Makros/Mikros/Komponenten) von from_day nach
+    to_day, Quelltag bleibt unverändert. qty skaliert die Makros zusätzlich."""
+    src = _load_log_local(from_day)
+    src_meals = src.get("meals", [])
+    if not src_meals:
+        msg.warn(f"Keine Mahlzeiten am {from_day}.")
+        raise SystemExit(1)
+
+    if meal_id is None:
+        fzf_lines = [
+            f"{m['id']} | {m.get('description', '—')} ({m.get('kcal', 0) or 0:.0f} kcal)"
+            for m in src_meals
+        ]
+        try:
+            result = subprocess.run(
+                ["fzf", "--header", f"WIEDERHOLEN  {from_day} → {to_day}",
+                 "--height=15", "--layout=reverse"],
+                input="\n".join(fzf_lines), capture_output=True, text=True,
+            )
+        except FileNotFoundError:
+            msg.fail("fzf nicht gefunden — --id <meal_id> angeben")
+            raise SystemExit(1)
+        if result.returncode != 0 or not result.stdout.strip():
+            return
+        meal_id = result.stdout.strip().split("|")[0].strip()
+
+    meal = next((m for m in src_meals if m.get("id") == meal_id), None)
+    if meal is None:
+        msg.fail(f"Meal {meal_id} nicht am {from_day} gefunden.")
+        raise SystemExit(1)
+
+    copy = dict(meal)
+    qty = max(1, int(qty))
+    if qty > 1:
+        copy["description"] = f"{qty}x {meal.get('description', '—')}"
+        for k in ("kcal", "protein", "carbs", "fat"):
+            copy[k] = (copy.get(k) or 0) * qty
+        if copy.get("micros"):
+            copy["micros"] = {k: v * qty for k, v in copy["micros"].items()}
+
+    copy["id"] = f"meal_{int(datetime.now().timestamp() * 1000)}"
+    t = meal.get("time") or ""
+    copy["time"] = (to_day + t[10:]) if (len(t) >= 10 and t[4] == "-" and t[7] == "-") else f"{to_day}T12:00:00Z"
+
+    dst = _load_log_local(to_day)
+    dst_meals = dst.get("meals", [])
+    dst_meals.append(copy)
+    dst_meals.sort(key=lambda m: m.get("time", ""))
+    dst["meals"] = dst_meals
+    _save_log_local(dst)
+
+    msg.good(f"{copy.get('description', '—')} ({copy.get('kcal', 0) or 0:.0f} kcal) "
+             f"wiederholt: {from_day} → {to_day}")
+    d_kcal = sum(m.get("kcal", 0) or 0 for m in dst_meals)
+    msg.info(f"  {to_day}: {len(dst_meals)} Mahlzeit(en) · {d_kcal:.0f} kcal")
+
 # ── Typer App ──────────────────────────────────────────────────────────────────
 
 app = typer.Typer(help="Meal Logging CLI — ohne Subcommand: interaktiver Catalog-Browser (fzf)")
@@ -715,6 +777,29 @@ def move_command(
     except ValueError as e:
         msg.fail(str(e)); raise typer.Exit(1)
     do_meal_move(from_day, to_day, meal_id)
+
+@app.command(name="repeat")
+def repeat_command(
+    frm:     str        = typer.Option("gestern", "--from", "-f", help="Quelltag (Default: gestern)"),
+    to:      str        = typer.Option("heute", "--to", "-t", help="Zieltag (Default: heute)"),
+    meal_id: str | None = typer.Option(None, "--id", help="Meal-ID direkt (sonst fzf-Auswahl aus dem Quelltag)"),
+    qty:     int         = typer.Option(1, "--qty", "-q", help="Portionen-Multiplikator — Makros × N"),
+) -> None:
+    """Eine Mahlzeit von einem Tag auf einen anderen KOPIEREN (Quelltag bleibt erhalten).
+
+    Für "das hab ich gestern schon gegessen, heute wieder" — im Unterschied zu
+    `move` bleibt der Quelltag unverändert.
+
+    Beispiele:
+      fuel-meal repeat                          # fzf-Auswahl aus gestern → heute
+      fuel-meal repeat --from 2026-09-05 --to heute --id meal_1788849645857
+    """
+    try:
+        from_day = _resolve_one(frm)
+        to_day = _resolve_one(to)
+    except ValueError as e:
+        msg.fail(str(e)); raise typer.Exit(1)
+    do_meal_repeat(from_day, to_day, meal_id, qty)
 
 @app.callback(invoke_without_command=True)
 def _app_callback(ctx: typer.Context) -> None:

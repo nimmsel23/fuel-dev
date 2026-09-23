@@ -32,3 +32,9 @@ gas-logger/
 # Keep catalogs (versioniert) — root anchor (!) wichtig, sonst matched das
 # Pattern auch data/catalogs/ (das sind tägliche Logs, kein Katalog)
 !/catalogs/
+
+# catalog.json ist Laufzeit-/Nutzungsdaten (use_count, last_used_at, IDs) —
+# churnt bei jedem Log-Write, produziert riesige Diffs zwischen parallelen
+# Sessions. Struktur-Kataloge (catalogs/*/meals/*.json, supplements/catalog.yaml)
+# bleiben getrackt, nur diese eine generierte Datei nicht.
+/catalogs/nutrition/catalog.json
