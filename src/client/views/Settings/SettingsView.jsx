@@ -7,6 +7,7 @@ import GoalsCard from "./GoalsCard.jsx";
 import VersionCard from "./VersionCard.jsx";
 import SystemHealthCard from "./SystemHealthCard.jsx";
 import PushRemindersCard from "./PushRemindersCard.jsx";
+import FrontdoorCard from "./FrontdoorCard.jsx";
 
 const sectionCls = "rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur grid gap-4";
 const labelCls = "text-xs uppercase tracking-[0.18em] text-slate-500 mb-1 block";
@@ -25,6 +26,7 @@ export default function SettingsView() {
         <hr className="border-white/10" />
         <FuelProfile bare />
       </section>
+      <FrontdoorCard sectionCls={sectionCls} />
       <FuelFrameMap sectionCls={sectionCls} />
       <GoalsCard sectionCls={sectionCls} labelCls={labelCls} inputCls={inputCls} />
       <PushRemindersCard sectionCls={sectionCls} labelCls={labelCls} inputCls={inputCls} />
