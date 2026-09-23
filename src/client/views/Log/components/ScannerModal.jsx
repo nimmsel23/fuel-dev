@@ -20,15 +20,22 @@ export default function ScannerModal({ onClose, onResult }) {
     setError("");
 
     try {
+      if (!navigator.onLine) {
+        throw new Error("Offline: Der Scan braucht eine Verbindung. Das Foto bleibt ausgewählt und kann später erneut versucht werden.");
+      }
       // Create an image object to compress via canvas
       const img = new Image();
       const objectUrl = URL.createObjectURL(file);
       
-      await new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = reject;
-        img.src = objectUrl;
-      });
+      try {
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = reject;
+          img.src = objectUrl;
+        });
+      } finally {
+        URL.revokeObjectURL(objectUrl);
+      }
 
       // Compress to max 800px width/height
       const canvas = document.createElement("canvas");
@@ -131,7 +138,11 @@ export default function ScannerModal({ onClose, onResult }) {
     }
   };
 
-  const handleFileChange = (e) => processImage(e.target.files[0]);
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    e.target.value = "";
+    processImage(file);
+  };
 
   return (
     <Modal

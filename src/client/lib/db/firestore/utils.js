@@ -13,10 +13,6 @@ export function zeroMicros() {
 
 export function localToday() { return todayISO(); }
 
-export function randomId(prefix) {
-  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-}
-
 export function getWeekDates(year, week) {
   const simple = new Date(year, 0, 1 + (week - 1) * 7);
   const dow = simple.getDay();
