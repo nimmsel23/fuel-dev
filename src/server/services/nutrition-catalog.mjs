@@ -231,6 +231,8 @@ export function normalizeMeal(input, existingId = null) {
     carbs:            Math.max(0, Math.round((input.carbs ?? 0) * 10) / 10),
     fat:              Math.max(0, Math.round((input.fat ?? 0) * 10) / 10),
     yield_g:          input.yield_g || null,
+    micros:                input.micros || null,
+    micros_meta:            input.micros_meta || null,
     components:            input.components || [],
     addons:                input.addons || [],
     default_addon_ids:     input.default_addon_ids || [],

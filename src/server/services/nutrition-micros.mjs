@@ -25,9 +25,40 @@ export function getMicrosForMeal(mealName, options = {}) {
   return getMealMicros(mealName, options);
 }
 
-// Save Gemini-estimated micros for a meal
+// Save Gemini-estimated micros for a meal. Schreibt zusätzlich zur SQLite-
+// Zeile (Legacy-Cache, bleibt als Fallback für nicht-katalogisierte Meals)
+// direkt in den passenden Katalog-Eintrag — Mikros UND Makros sollen nicht
+// mehr getrennt vorgehalten werden (SQLite war früher die einzige Quelle,
+// jetzt ist der Katalog-Eintrag die primäre, SQLite nur noch Fallback für
+// Freitext-Logs ohne Catalog-Match).
 export function saveMicrosForMeal(mealName, kcal, micros, source = "gemini", options = {}) {
   upsertMealMicros(mealName, kcal, micros, source, options);
+  writeMicrosToCatalogAsync(mealName, kcal, micros, source, options);
+}
+
+function writeMicrosToCatalogAsync(mealName, kcal, micros, source, options = {}) {
+  import("./nutrition-catalog.mjs").then(({ loadCatalog, saveMeal }) => {
+    const catalog = loadCatalog(options.nutritionDir || null, { uid: options.uid || "default" });
+    const target = (catalog.items || []).find((i) => i.name === mealName || i.description === mealName);
+    if (!target) return;
+
+    const resolvedMicros = {};
+    for (const k of MICRO_KEYS) {
+      if (micros[k] != null) resolvedMicros[k] = micros[k];
+    }
+    target.micros = resolvedMicros;
+    target.micros_meta = {
+      source,
+      kcal_basis: kcal || micros.kcal || target.kcal || 0,
+      resolved_at: new Date().toISOString(),
+    };
+
+    if (catalog.__nutritionDir) {
+      saveMeal(target, catalog.__nutritionDir, { uid: catalog.__uid, catalog });
+    } else {
+      saveMeal(target);
+    }
+  }).catch(() => {});
 }
 
 export function listAllMealMicros(options = {}) {
