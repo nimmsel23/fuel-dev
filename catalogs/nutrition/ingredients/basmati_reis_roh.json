@@ -1,0 +1,112 @@
+{
+  "id": "basmati_reis_roh",
+  "kind": "ingredient",
+  "name": "Rice, white, long-grain, basmati, raw",
+  "basis": "per_100g",
+  "grams_reference": 100,
+  "source": "usda+web_cross_check",
+  "source_refs": {
+    "usda": "USDA FDC 2512381 — Rice, white, long grain, unenriched, raw",
+    "web": "Matvaretabellen.no (Norwegian Food Composition Database) — https://www.matvaretabellen.no/en/rice-basmati-uncooked/"
+  },
+  "macros": {
+    "kcal": 177.0,
+    "protein": 8.0194,
+    "carbs": 78.1566,
+    "fat": 1.0165,
+    "fiber": 0.8744
+  },
+  "micros": {
+    "vitamin_b1_mg": 0.0625,
+    "vitamin_b2_mg": 0.055,
+    "vitamin_b3_mg": 2.017,
+    "vitamin_b6_mg": 0.1039,
+    "vitamin_b7_ug": 0.0,
+    "folate_ug": 11.0,
+    "calcium_mg": 5.23,
+    "phosphorus_mg": 129.1,
+    "magnesium_mg": 25.765,
+    "iron_mg": 0.4203,
+    "zinc_mg": 1.227,
+    "selenium_ug": 6.6,
+    "potassium_mg": 98.63,
+    "sodium_mg": 1.2312
+  },
+  "flagged_diffs": [
+    {
+      "key": "kcal",
+      "usda": 0.0,
+      "web": 354.0,
+      "diff_pct": 200.0
+    },
+    {
+      "key": "protein",
+      "usda": 7.03885,
+      "web": 9.0,
+      "diff_pct": 24.5
+    },
+    {
+      "key": "fiber",
+      "usda": 0.1488,
+      "web": 1.6,
+      "diff_pct": 166.0
+    },
+    {
+      "key": "vitamin_b2_mg",
+      "usda": 0.08,
+      "web": 0.03,
+      "diff_pct": 90.9
+    },
+    {
+      "key": "vitamin_b3_mg",
+      "usda": 1.434,
+      "web": 2.6,
+      "diff_pct": 57.8
+    },
+    {
+      "key": "vitamin_b6_mg",
+      "usda": 0.05788,
+      "web": 0.15,
+      "diff_pct": 88.6
+    },
+    {
+      "key": "calcium_mg",
+      "usda": 4.46,
+      "web": 6.0,
+      "diff_pct": 29.4
+    },
+    {
+      "key": "phosphorus_mg",
+      "usda": 108.2,
+      "web": 150.0,
+      "diff_pct": 32.4
+    },
+    {
+      "key": "iron_mg",
+      "usda": 0.1405,
+      "web": 0.7,
+      "diff_pct": 133.1
+    },
+    {
+      "key": "zinc_mg",
+      "usda": 1.354,
+      "web": 1.1,
+      "diff_pct": 20.7
+    },
+    {
+      "key": "potassium_mg",
+      "usda": 82.26,
+      "web": 115.0,
+      "diff_pct": 33.2
+    },
+    {
+      "key": "sodium_mg",
+      "usda": 0.4625,
+      "web": 2.0,
+      "diff_pct": 124.9
+    }
+  ],
+  "notes": "vitamin_b7_ug: nur USDA (Web-Quelle lieferte keinen Wert); folate_ug: nur Web-Quelle (USDA lieferte keinen Wert); selenium_ug: nur USDA (Web-Quelle lieferte keinen Wert)",
+  "created_at": "2026-09-23T15:50:38.922282Z",
+  "updated_at": "2026-09-23T15:50:38.922389Z"
+}

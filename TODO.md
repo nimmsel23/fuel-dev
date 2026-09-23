@@ -18,19 +18,23 @@ Wegwerf-Prototyp — kein Rückbau von Postgres/SQLAlchemy, kein reiner Proxy-La
   bereits Frontend + eigene API tragen und im Zweifelsfall Legacy an v3 zurückreichen.
 - Reine Erreichbarkeits-Routen, kein gemeinsamer Datenlayer.
 
-**Ziel: dev/staging/prod dupliziert sich für v4.** v4 übernimmt schrittweise
-Prod-Verantwortung von v3, parallel zur bestehenden v3-Pipeline, bis v3
-ausläuft — kein Nebenprojekt. Aktuell ist der Desktop-Prod-Entry-Point aber noch
-v3 (`fuel.service`), obwohl v4 bereits Frontend + API bündeln kann. Konkrete
-Stufen (welcher Entry-Point wann kippt, welche Endpoints zuerst wechseln)
-sind noch offen.
+**Ziel:** v4 übernimmt schrittweise Prod-Verantwortung von v3. Der Desktop-
+Einstieg läuft weiter über `fuel.service` (v3). `deploy.sh` liefert v4 bereits
+unter `/opt/fuel-python` aus und definiert `fuel-python.service` auf Port 4000;
+der v3-Einstieg prüft `/v4/health`. Das ist ein paralleler Backend-Betrieb,
+noch keine Umstellung des Produkt-Einstiegs auf v4.
 
 **Offen:**
-- Kein eigener systemd-Service/Prod-Entry-Point für v4.
-- Datenmigration fuel-dev-Store (File+SQLite) → Postgres nicht angegangen.
+- v4 hat einen eigenen Backend-Service, aber noch keinen eigenen öffentlichen
+  Produkt-Einstieg. Vor einem Wechsel Frontend und API im Zielpfad Ende zu Ende prüfen.
+- Datenmigration des v3-Stores (File+SQLite) → Postgres fehlt. Vor Migration
+  Datenbesitzer, Tabellen/Felder und Rückweg inventarisieren; bestehende
+  Laufzeitdaten erst nach gesonderter Freigabe verändern.
 - Rollout-Reihenfolge (welcher Endpoint zuerst v3→v4 wechselt) nicht entschieden.
-- Echte Postgres (statt SQLite-Dev-Fallback) nie aufgesetzt — `backend/docker-compose.yml` liegt bereit, ungenutzt.
-- `/opt`-Prod-Pfad für v4 noch nicht angelegt (Symlink-Idee vs. eigener Deploy — offen).
+- `backend/docker-compose.yml` definiert Postgres, aber `deploy.sh` setzt für
+  `fuel-python.service` ausdrücklich die bestehende SQLite-Datei als
+  `DATABASE_URL`. Ob ein Postgres-Container läuft, ist hier nicht verifiziert.
+- `/opt/fuel-python` ist als v4-Deploy-Ziel im `deploy.sh` implementiert.
 
 **Erledigt (aus `~/fuel/TODO.md`, v4-Historie vor dem Merge):**
 - [x] Poetry-Projekt-Init, Kern-Deps (sqlalchemy/pydantic/google-genai/python-dotenv)
@@ -87,12 +91,9 @@ werden aber im Cloud-Frontend nie geladen.
   `todayISO` jetzt von dort statt es zu duplizieren (`localToday` bleibt
   als lokaler Alias). Verifiziert: Build + beide Module liefern identisches
   Datum.
-- **`randomId()`** — **nicht angefasst.** `client/lib/db/firestore/
-  utils.js::randomId` ist ungenutzter toter Code (kein Importer, auch
-  nicht via `db/index.js`-Barrel-Wildcard-Export real konsumiert — noch
-  nicht verifiziert, ob wirklich niemand ihn zieht). Server nutzt aktiv
-  `shared/utils/ids.mjs::randomId` mit eigenem Präfix-Format. Getrennt
-  klären statt hier mitzuziehen — kein Zeitzonen-Bug, nur Verwirrung.
+- **`randomId()`** — **erledigt (2026-09-23).** Ungenutzte Firestore-Kopie
+  entfernt; `rg` fand keinen Verbraucher in `src/`, `frontend/` oder `backend/`.
+  Der Server behält `shared/utils/ids.mjs::randomId`.
 - `MICRO_KEYS`, `zeroMicros`, `getWeekDates` bleiben in `db/firestore/
   utils.js` — reine DB-Domain-Utilities (Firestore-Feldnamen), gehören
   nicht nach `shared/`.

@@ -1,10 +1,7 @@
 import { useState, useRef } from "react";
 import { Camera, Upload, X, Loader2, RotateCcw } from "lucide-react";
 import { Modal } from "../../../components/ui.jsx";
-import { postJson } from "@api";
-import { vertexAI } from "../../../lib/firebase.js";
-import { getGenerativeModel } from "firebase/vertexai";
-import { withAiRetry } from "../../../lib/aiRetry.js";
+import { analyzeMealImage } from "../../../lib/visionScan.js";
 
 export default function ScannerModal({ onClose, onResult }) {
   const [loading, setLoading] = useState(false);
@@ -20,109 +17,11 @@ export default function ScannerModal({ onClose, onResult }) {
     setError("");
 
     try {
-      // Create an image object to compress via canvas
-      const img = new Image();
-      const objectUrl = URL.createObjectURL(file);
-      
-      await new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = reject;
-        img.src = objectUrl;
-      });
-
-      // Compress to max 800px width/height
-      const canvas = document.createElement("canvas");
-      let width = img.width;
-      let height = img.height;
-      const maxSize = 800;
-
-      if (width > height && width > maxSize) {
-        height *= maxSize / width;
-        width = maxSize;
-      } else if (height > maxSize) {
-        width *= maxSize / height;
-        height = maxSize;
-      }
-
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(img, 0, 0, width, height);
-
-      const base64Data = canvas.toDataURL("image/jpeg", 0.7);
-      const b64Raw = base64Data.split(",")[1];
-      const cloud = import.meta.env.VITE_APP_MODE === "client";
-      
-      let macrosResult;
-      
-      if (cloud) {
-        // Vertex AI Cloud Mode
-        const { MICRO_KEYS } = await import("../../../lib/db/firestore/utils.js");
-        const { SchemaType } = await import("firebase/vertexai");
-        const model = getGenerativeModel(vertexAI, { 
-          model: "gemini-2.5-flash",
-          generationConfig: {
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: SchemaType.OBJECT,
-              properties: {
-                name: { type: SchemaType.STRING, description: "Identifiziertes Essen" },
-                grams: { type: SchemaType.NUMBER, description: "Geschätztes/erkanntes Gewicht der Portion in Gramm, auf das sich die Makros beziehen (z.B. von einer Verpackungsangabe oder geschätzter Portionsgröße)." },
-                macros: {
-                  type: SchemaType.OBJECT,
-                  properties: {
-                    kcal: { type: SchemaType.NUMBER },
-                    protein: { type: SchemaType.NUMBER },
-                    carbs: { type: SchemaType.NUMBER },
-                    fat: { type: SchemaType.NUMBER }
-                  }
-                },
-                micros: {
-                  type: SchemaType.OBJECT,
-                  properties: Object.fromEntries(MICRO_KEYS.map(k => [k, { type: SchemaType.NUMBER, description: "Wert in mg oder ug" }]))
-                }
-              }
-            }
-          }
-        });
-
-        const prompt = "Dies ist ein Foto von Essen, einem Barcode oder einer Einkaufsquittung. Identifiziere die Mahlzeit oder Zutaten und schätze die Nährwerte (Makros) sowie die genauen Mikronährstoffe (Vitamine, Mineralstoffe) so genau wie möglich ab. Gib außerdem in 'grams' an, auf welches Gewicht (in Gramm) sich diese Makros beziehen — von einer erkannten Verpackungsangabe oder sonst deiner besten Schätzung der abgebildeten Portionsgröße.";
-
-        const result = await withAiRetry(() => model.generateContent([
-          prompt,
-          { inlineData: { data: b64Raw, mimeType: "image/jpeg" } }
-        ]));
-        const text = result.response.text();
-        macrosResult = JSON.parse(text);
-
-        if (macrosResult && macrosResult.micros) {
-          const mealName = macrosResult.name || "Gescannte Mahlzeit";
-          await postJson("/nutrition/micros", {
-            items: [{
-              meal_name: mealName,
-              kcal: macrosResult.macros?.kcal || 0,
-              ...Object.fromEntries(MICRO_KEYS.map(k => [k, macrosResult.micros[k] || 0]))
-            }]
-          });
-        }
-      } else {
-        // Local Mode via Python Backend
-        macrosResult = await postJson("/nutrition/vision", {
-          image_b64: b64Raw,
-          mime_type: "image/jpeg"
-        });
-      }
-
-      if (macrosResult && macrosResult.macros) {
-        onResult({
-          description: macrosResult.name || "Gescannte Mahlzeit",
-          grams: macrosResult.grams || null,
-          ...macrosResult.macros
-        });
-        onClose();
-      } else {
-        throw new Error("Konnte keine Makros erkennen.");
-      }
+      // Gemeinsame Vision-Pipeline (lib/visionScan.js) — identisch mit dem
+      // Shutter-Frontdoor, damit es nur eine Implementierung gibt.
+      const res = await analyzeMealImage(file);
+      onResult(res);
+      onClose();
     } catch (e) {
       console.error(e);
       setError(e.message || "Fehler beim Scannen.");
@@ -131,7 +30,11 @@ export default function ScannerModal({ onClose, onResult }) {
     }
   };
 
-  const handleFileChange = (e) => processImage(e.target.files[0]);
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    e.target.value = "";
+    processImage(file);
+  };
 
   return (
     <Modal

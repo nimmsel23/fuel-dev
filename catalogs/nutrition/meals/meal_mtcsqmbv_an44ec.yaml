@@ -5,19 +5,50 @@ name: 2 Käsleberkäsesemmeln
 alias: null
 meal_type: lunch
 description: 2 Käsleberkäsesemmeln
-notes: ""
-kcal: 920
-protein: 42
-carbs: 80
-fat: 48
-yield_g: null
+notes: 'Offizielle Herstellerangabe (https://fddb.mobi/de/billa_kaeseleberkaese-semmel.html)
+  pro 100g: {''kcal'': 400, ''protein'': 8.0, ''carbs'': 11.0, ''fat'': 18.0}. Käseleberkäsesemmel
+  (Billa). 2 Semmeln à ca. 150g. Werte aus fddb.mobi (deutsche Lebensmitteldatenbank).'
+kcal: 1200.0
+protein: 24.0
+carbs: 33.0
+fat: 54.0
+yield_g: 300.0
 components: []
 addons: []
 default_addon_ids: []
 linked_supplement_ids: []
-source: logged
+source: manual
 use_count: 1
-last_used_at: 2026-08-28T10:16:02.948Z
-created_at: 2026-08-28T10:16:02.948Z
-updated_at: 2026-08-28T10:16:02.948Z
-verified_at: null
+last_used_at: 2026-08-28 10:16:02.948000+00:00
+created_at: 2026-08-28 10:16:02.948000+00:00
+updated_at: '2026-09-23T19:51:31.904209Z'
+verified_at: '2026-09-23T19:51:31.904209Z'
+micros:
+  vitamin_a_ug: 180
+  vitamin_d_ug: 0.6
+  vitamin_e_mg: 2.2
+  vitamin_k_ug: 8
+  vitamin_c_mg: 1
+  vitamin_b1_mg: 0.5
+  vitamin_b2_mg: 0.6
+  vitamin_b3_mg: 12
+  vitamin_b5_mg: 2.5
+  vitamin_b6_mg: 0.8
+  vitamin_b7_ug: 6
+  folate_ug: 85
+  vitamin_b12_ug: 3.2
+  calcium_mg: 380
+  phosphorus_mg: 750
+  magnesium_mg: 95
+  iron_mg: 5.4
+  zinc_mg: 7.2
+  selenium_ug: 45
+  iodine_ug: 40
+  potassium_mg: 780
+  sodium_mg: 3800
+  boron_mg: 0.5
+  omega3_mg: 450
+micros_meta:
+  source: gemini-catalog-import
+  kcal_basis: 920
+  resolved_at: 2026-09-23 19:50:39.207000+00:00

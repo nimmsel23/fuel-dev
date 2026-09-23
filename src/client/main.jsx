@@ -1,7 +1,7 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Sparkles, Settings2 } from "lucide-react";
+import { Sparkles, Settings2, Zap } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 import { motion, AnimatePresence } from "framer-motion";
 import { RotateCcw } from "lucide-react";
@@ -13,11 +13,18 @@ import NutritionHeatmap from "./components/NutritionHeatmap.jsx";
 import { IosInstallHint } from "./components/IosInstallHint.jsx";
 import { InstallPromptHandler } from "./components/InstallPromptHandler.jsx";
 import { useApp, useSettings } from "./store.js";
+import { getFrontdoor } from "./views/Frontdoor/frontdoors.js";
 import { useAppData } from "./hooks/useAppData.js";
 import { sumMetric, formatMetric } from "../shared/utils/utils.js";
 import { watchAuth, signIn, signOut, getUid } from "./lib/db.firestore.js";
 import { fetchJson } from "@api";
 import { captureNotificationIntentFromLocation } from "./lib/notification-intents.js";
+
+// Frontdoor = wählbarer Schnelleinstieg (Tap Board / Shutter / Tagesfaden /
+// Klassisch), siehe views/Frontdoor/. Lazy, damit der gewählte Einstieg nicht
+// die anderen mitbundelt.
+const FrontdoorChooser = React.lazy(() => import("./views/Frontdoor/FrontdoorChooser.jsx"));
+const FrontdoorHost = React.lazy(() => import("./views/Frontdoor/FrontdoorHost.jsx"));
 
 
 
@@ -58,6 +65,9 @@ if (typeof window !== "undefined") {
 function App() {
   const { activeTab, setActiveTab, activeDate, setActiveDate } = useApp();
   const [user, setUser] = React.useState(null);
+  const [authReady, setAuthReady] = React.useState(false);
+  const frontdoor = useSettings((s) => s.frontdoor);
+  const [frontdoorOpen, setFrontdoorOpen] = React.useState(true);
   const isCloud = window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com");
   const isClientBuild = import.meta.env.VITE_APP_MODE === "client";
   const isCloudFrontend = isCloud || isClientBuild;
@@ -93,6 +103,7 @@ function App() {
   React.useEffect(() => {
     return watchAuth((u) => {
       setUser(u);
+      setAuthReady(true);
       if (u) {
         useSettings.getState().hydrateFromCloud();
       }
@@ -161,6 +172,40 @@ function App() {
 
   const tabCtx = { nutrition, sup, suppCatalog, suppLog, journal, macroTrend, activeDate, setActiveDate, setActiveTab };
 
+  // Der Schnelleinstieg wird erst entschieden, wenn die Settings-Quelle
+  // feststeht — in der Cloud also nach dem Login, sonst würde der Chooser
+  // kurz erscheinen und die bereits gewählte Frontdoor überschreiben.
+  const frontdoorReady = authReady && (!isCloudFrontend || !!user);
+  const frontdoorEntry = getFrontdoor(frontdoor);
+  const openApp = (tab) => {
+    if (tab) setActiveTab(tab);
+    setFrontdoorOpen(false);
+  };
+
+  if (frontdoorReady && !frontdoor) {
+    return (
+      <React.Suspense fallback={null}>
+        <FrontdoorChooser />
+      </React.Suspense>
+    );
+  }
+
+  if (frontdoorReady && frontdoorOpen && frontdoorEntry?.View) {
+    return (
+      <>
+        <InstallPromptHandler />
+        <React.Suspense fallback={null}>
+          <FrontdoorHost
+            frontdoorKey={frontdoor}
+            userName={user?.displayName?.split(" ")[0] || ""}
+            onEnterApp={() => setFrontdoorOpen(false)}
+            onOpenApp={openApp}
+          />
+        </React.Suspense>
+      </>
+    );
+  }
+
   return (
     <>
       <InstallPromptHandler />
@@ -194,6 +239,16 @@ function App() {
                       Cloud Login
                     </button>
                   )
+                )}
+                {frontdoorEntry?.View && (
+                  <button
+                    onClick={() => setFrontdoorOpen(true)}
+                    title={`Schnelleinstieg: ${frontdoorEntry.label}`}
+                    aria-label={`Schnelleinstieg: ${frontdoorEntry.label}`}
+                    className="inline-flex items-center rounded-full p-1.5 text-slate-500 transition hover:bg-white/10 hover:text-white"
+                  >
+                    <Zap className="h-4 w-4" />
+                  </button>
                 )}
                 {settingsTab && (
                   <button

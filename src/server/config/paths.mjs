@@ -15,6 +15,7 @@ export const CATALOGS_DIR = path.join(ROOT, "catalogs");
 export const FUEL_DIR = path.join(GLOBAL_DATA_DIR, "fuel");
 export const NUTRITION_DIR_REPO = path.join(ROOT, "catalogs", "nutrition");
 export const NUTRITION_MEALS_DIR = path.join(NUTRITION_DIR_REPO, "meals");
+export const NUTRITION_INGREDIENTS_DIR = path.join(NUTRITION_DIR_REPO, "ingredients");
 export const SUPPLEMENTS_CATALOG_PATH = path.join(ROOT, "catalogs", "supplements", "catalog.yaml");
 export const PUBLIC_DIR = path.join(ROOT, "public");
 export const VITE_BUILD_DIR = process.env.FUEL_BUILD_DIR ? path.resolve(process.env.FUEL_BUILD_DIR) : path.join(ROOT, "dist");

@@ -171,6 +171,11 @@ export async function postJson(path, body) {
 
   if (normPath === "/nutrition/log") {
     const existing = await firestore.getNutritionLog(body.date);
+    if (body.water_ml !== undefined) {
+      existing.water_ml = Math.max(0, Math.round(Number(body.water_ml)));
+      await firestore.saveNutritionLog(body.date, { water_ml: existing.water_ml });
+      return { ok: true, data: existing };
+    }
     if (body.delete_meal_id) {
       existing.meals = (existing.meals || []).filter((m) => m.id !== body.delete_meal_id);
       // Tombstone im Tages-Dokument mitschreiben — sonst holt ein späterer

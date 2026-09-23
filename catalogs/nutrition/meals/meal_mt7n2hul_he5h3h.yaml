@@ -1,21 +1,52 @@
 category: lunch
-carbs: 23.0
+carbs: 23
 id: meal_mt7n2hul_he5h3h
 created_at: 2026-08-24 19:38:28.542000+00:00
-updated_at: '2026-08-25T12:14:38.569915Z'
+updated_at: 2026-09-23T19:50:39.622Z
 name: Simply Cola Organics by Red Bull
 source: manual
 use_count: 1
 kind: meal
-protein: 0.0
+protein: 0
 description: Simply Cola Organics by Red Bull
 meal_type: lunch
-notes: 'Offizielle Herstellerangabe (https://www.redbull.com/at-de/energydrink/wie-lauten-die-naehrwertangaben-von-organics-simply-cola-by-red-bull)
-  pro 100g: {''kcal'': 39, ''protein'': 0, ''carbs'': 9.2, ''fat'': 0}. Offizielle
-  Red Bull Nährwerte pro 100ml (Standardportion: 250ml-Dose). Zucker: 8,8g pro 100ml.
-  Quelle: Red Bull AT + Open Food Facts.'
+notes: "Offizielle Herstellerangabe
+  (https://www.redbull.com/at-de/energydrink/wie-lauten-die-naehrwertangaben-vo\
+  n-organics-simply-cola-by-red-bull) pro 100g: {'kcal': 39, 'protein': 0,
+  'carbs': 9.2, 'fat': 0}. Offizielle Red Bull Nährwerte pro 100ml
+  (Standardportion: 250ml-Dose). Zucker: 8,8g pro 100ml. Quelle: Red Bull AT +
+  Open Food Facts."
 last_used_at: 2026-08-24 19:38:28.542000+00:00
-fat: 0.0
+fat: 0
 kcal: 97.5
-yield_g: 250.0
-verified_at: '2026-08-25T12:14:38.569915Z'
+yield_g: 250
+verified_at: 2026-08-25T12:14:38.569915Z
+micros:
+  vitamin_a_ug: 0
+  vitamin_d_ug: 0
+  vitamin_e_mg: 0
+  vitamin_k_ug: 0
+  vitamin_c_mg: 0
+  vitamin_b1_mg: 0
+  vitamin_b2_mg: 0
+  vitamin_b3_mg: 0
+  vitamin_b5_mg: 0
+  vitamin_b6_mg: 0
+  vitamin_b7_ug: 0
+  folate_ug: 0
+  vitamin_b12_ug: 0
+  calcium_mg: 0
+  phosphorus_mg: 0
+  magnesium_mg: 0
+  iron_mg: 0
+  zinc_mg: 0
+  selenium_ug: 0
+  iodine_ug: 0
+  potassium_mg: 0
+  sodium_mg: 25
+  boron_mg: 0
+  omega3_mg: 0
+micros_meta:
+  source: gemini
+  kcal_basis: 148
+  resolved_at: 2026-09-23T19:50:39.622Z

@@ -9,6 +9,7 @@ import FirstMealTrend from "./Dashboard/FirstMealTrend.jsx";
 import QuickAiLog from "../components/QuickAiLog.jsx";
 import IncompleteDayHint from "./Dashboard/IncompleteDayHint.jsx";
 import FastingWindowBadge from "../components/FastingWindowBadge.jsx";
+import WaterTracker from "./Dashboard/WaterTracker.jsx";
 import { format } from "date-fns";
 
 export default function DashboardView({ nutrition, sup, journal, macroTrend, setActiveTab, activeDate }) {
@@ -27,6 +28,7 @@ export default function DashboardView({ nutrition, sup, journal, macroTrend, set
         <FastingWindowBadge />
         <FirstMealTrend activeDate={activeDate} />
         <StatsGrid mealsCount={meals.length} totalProtein={totalProtein} waterMl={waterMl} />
+        <WaterTracker date={activeDate} waterMl={waterMl} />
         <DailyGoals totalKcal={totalKcal} totalProtein={totalProtein} waterMl={waterMl} />
         <MacroTrendChart macroTrend={macroTrend} />
       </div>
@@ -39,4 +41,3 @@ export default function DashboardView({ nutrition, sup, journal, macroTrend, set
     </div>
   );
 }
-

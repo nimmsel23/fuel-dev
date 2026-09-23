@@ -68,6 +68,7 @@ _MACRO_MAP = {
     "Protein": "protein",
     "Carbohydrate, by difference": "carbs",
     "Total lipid (fat)": "fat",
+    "Fiber, total dietary": "fiber",
 }
 
 
@@ -120,9 +121,10 @@ def get_nutrients(fdc_id: int, timeout: int = 6) -> dict | None:
         logger.warning(f"USDA nutrient fetch failed for fdcId={fdc_id}: {e}")
         return None
 
-    macros = {"kcal": 0.0, "protein": 0.0, "carbs": 0.0, "fat": 0.0}
-    micros = {v: 0.0 for v in _NUTRIENT_MAP.values()}
+    macros = {"kcal": 0.0, "protein": 0.0, "carbs": 0.0, "fat": 0.0, "fiber": 0.0}
+    micros: dict[str, float] = {}  # nur tatsächlich von FDC gemeldete Nährstoffe
     omega3_g = 0.0
+    omega3_seen = False
 
     for n in data.get("foodNutrients", []):
         name = n.get("nutrient", {}).get("name")
@@ -138,8 +140,14 @@ def get_nutrients(fdc_id: int, timeout: int = 6) -> dict | None:
             micros[_NUTRIENT_MAP[name]] = amount
         elif name in _OMEGA3_FIELDS:
             omega3_g += amount
+            omega3_seen = True
 
-    micros["omega3_mg"] = round(omega3_g * 1000, 1)
+    if omega3_seen:
+        micros["omega3_mg"] = round(omega3_g * 1000, 1)
+    # micros, die FDC für dieses Lebensmittel nicht führt (z.B. Biotin, Jod
+    # bei vielen Foundation-Foods), bleiben bewusst ausgelassen statt mit
+    # 0.0 vorzutäuschen, es sei gemessen worden — Consumer (ingredient_add.py
+    # etc.) müssen "fehlt" von "ist 0" unterscheiden können.
     return {
         "fdc_id": fdc_id,
         "description": data.get("description", ""),

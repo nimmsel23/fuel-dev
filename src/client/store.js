@@ -58,6 +58,10 @@ export const useSettings = create(
       // Welche der drei Log-Ansichten (Liste/Dashboard/Timeline) im Log-Tab
       // gerendert wird — siehe LogView.jsx + Log/components/MealList*.jsx.
       log_view_mode: "minimal",
+      // Schnelleinstieg beim App-Start: "tapboard" | "shutter" | "tagesfaden"
+      // | "classic". null = noch nie gewählt → FrontdoorChooser wird beim
+      // ersten Start gezeigt (views/Frontdoor/).
+      frontdoor: null,
       setSetting: (key, val) => {
         set({ [key]: val });
         // Im Hintergrund zu Firestore syncen, falls eingeloggt
@@ -99,6 +103,7 @@ export const useSettings = create(
               daily_journal_entry_enabled: current.daily_journal_entry_enabled,
               daily_journal_entry_time: current.daily_journal_entry_time,
               log_view_mode: current.log_view_mode,
+              frontdoor: current.frontdoor,
             }).catch(err => console.error("Cloud sync failed:", err));
           }
         });

@@ -23,20 +23,16 @@ from rich.table import Table
 from . import claude_cli
 from . import gemini
 from . import log as _log
+from .constants.nutrients import MICRO_KEYS as _MICRO_KEYS_LIST
 from .supplement_catalog_tui import CATALOG_PATH, _load, _make_id, _save
 
 _log.setup()
 console = Console()
 
-# DACH-Mikronährstoff-Keys (Quelle: src/shared/config/dach.mjs) — nur diese
-# dürfen in `micros` landen, damit die Wochenheatmap nichts Unbekanntes sieht.
-MICRO_KEYS = {
-    "boron_mg", "calcium_mg", "folate_ug", "iodine_ug", "iron_mg", "magnesium_mg",
-    "omega3_mg", "phosphorus_mg", "potassium_mg", "selenium_ug", "sodium_mg",
-    "vitamin_a_ug", "vitamin_b1_mg", "vitamin_b2_mg", "vitamin_b3_mg", "vitamin_b5_mg",
-    "vitamin_b6_mg", "vitamin_b7_ug", "vitamin_b12_ug", "vitamin_c_mg", "vitamin_d_ug",
-    "vitamin_e_mg", "vitamin_k_ug", "zinc_mg",
-}
+# DACH-Mikronährstoff-Keys (Quelle: fuel/sources/common.py ↔ src/shared/
+# config/dach.mjs) — nur diese dürfen in `micros` landen, damit die
+# Wochenheatmap nichts Unbekanntes sieht.
+MICRO_KEYS = set(_MICRO_KEYS_LIST)
 TIME_OF_DAY = {"morning", "midday", "evening", "night", "any"}
 
 
