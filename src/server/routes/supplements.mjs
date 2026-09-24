@@ -3,6 +3,7 @@ import { loadCatalogForUser, saveCatalog, addOrUpdateSupplement, deleteSupplemen
 import { loadLog, saveLog, addIntake, updateIntake, deleteIntake } from "../services/supplements-log.mjs";
 import { isISODate, todayISO } from "../../shared/utils/validation.mjs";
 import { callV4 } from "../lib/v4-bridge.mjs";
+import { invalidateWeekMicroCache } from "../services/nutrition-weekly.mjs";
 import fs from "fs";
 import path from "path";
 
@@ -170,6 +171,7 @@ export default async function supplementsRoute(app) {
       }
 
       saveLog(log, req.paths.supplementsLog, req.uid);
+      invalidateWeekMicroCache(date, req.paths.nutrition);
       return reply.send({ ok: true, data: log });
     } catch (error) {
       console.error(error);
@@ -206,6 +208,7 @@ export default async function supplementsRoute(app) {
       }
 
       saveLog(log, req.paths.supplementsLog, req.uid);
+      invalidateWeekMicroCache(date, req.paths.nutrition);
       return reply.send({ ok: true, data: log });
     } catch (error) {
       console.error(error);

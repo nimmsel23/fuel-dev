@@ -9,6 +9,7 @@ import { upsertMeal, deleteMeal as deleteMealRow, upsertWater, getMealsForDate, 
 import { addDeletedMealId } from "../../services/log-tombstones.mjs";
 import { callV4 } from "../../lib/v4-bridge.mjs";
 import { pushNutritionLog } from "../../lib/firestore-admin.mjs";
+import { invalidateWeekMicroCache } from "../../services/nutrition-weekly.mjs";
 
 function dbOptions(req) {
   return {
@@ -26,7 +27,7 @@ async function enrichAndPersistLog(req, log) {
   );
   if (!changed) return false;
   log.meals = meals;
-  invalidateMicroCache(log);
+  invalidateMicroCache(log, req.paths.nutrition);
   saveLog(log, req.paths.nutrition, dbOptions(req));
   await pushNutritionLog(log.date, meals, log.water_ml || 0, {
     uid: req.uid,
@@ -117,9 +118,10 @@ function syncLogToDb(log, options = {}) {
 // bei jeder Log-Änderung ungültig — sonst zeigt /nutrition/weekly veraltete
 // Summen. Einfache Invalidierung statt inkrementeller Pflege: nächster Read
 // rechnet den Tag einmalig neu (und cached wieder).
-function invalidateMicroCache(log) {
+function invalidateMicroCache(log, nutritionDir) {
   delete log.micro_totals;
   delete log.micro_totals_complete;
+  if (nutritionDir) invalidateWeekMicroCache(log.date, nutritionDir);
 }
 
 function resolveCatalogItem(catalog, catalogItemId, addonIds = []) {
@@ -338,16 +340,16 @@ export default async function logRoute(app) {
 
       if (new_date && new_date !== date) {
         sourceLog.meals.splice(mealIndex, 1);
-        invalidateMicroCache(sourceLog);
+        invalidateMicroCache(sourceLog, req.paths.nutrition);
         saveLog(sourceLog, req.paths.nutrition, dbOptions(req));
         const targetLog = loadLog(new_date, req.paths.nutrition);
         targetLog.meals.push({ ...meal, id: `meal_${Date.now()}` });
-        invalidateMicroCache(targetLog);
+        invalidateMicroCache(targetLog, req.paths.nutrition);
         saveLog(targetLog, req.paths.nutrition, dbOptions(req));
         return reply.send({ ok: true, data: targetLog });
       } else {
         sourceLog.meals[mealIndex] = meal;
-        invalidateMicroCache(sourceLog);
+        invalidateMicroCache(sourceLog, req.paths.nutrition);
         saveLog(sourceLog, req.paths.nutrition, dbOptions(req));
         return reply.send({ ok: true, data: sourceLog });
       }
@@ -373,7 +375,7 @@ export default async function logRoute(app) {
       try {
         const log = loadLog(date, req.paths.nutrition);
         log.meals = (log.meals || []).filter((m) => m.id !== delId);
-        invalidateMicroCache(log);
+        invalidateMicroCache(log, req.paths.nutrition);
         addDeletedMealId(date, delId, req.paths.nutrition);
         saveLog(log, req.paths.nutrition, dbOptions(req));
         void pushNutritionLog(date, log.meals, log.water_ml || 0, {
@@ -435,7 +437,7 @@ export default async function logRoute(app) {
         log.water_ml = parsed.data.water_ml;
       }
 
-      invalidateMicroCache(log);
+      invalidateMicroCache(log, req.paths.nutrition);
       saveLog(log, req.paths.nutrition, dbOptions(req));
       void enrichAndPersistLog(req, log).catch((e) => {
         console.warn(`[nutrition-enrichment] post-log enrich failed for ${log.date}:`, e.message);

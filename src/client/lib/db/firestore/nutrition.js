@@ -11,7 +11,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../../firebase.js";
 import { getUid } from "./core.js";
-import { MICRO_KEYS, zeroMicros, todayISO, getWeekDates } from "./utils.js";
+import { MICRO_KEYS, zeroMicros, todayISO, getWeekDates, dateToISOWeek } from "./utils.js";
 import { getSupplementsCatalog } from "./supplements.js";
 
 export async function getNutritionCatalog() {
@@ -60,6 +60,9 @@ export async function saveNutritionLog(date, data) {
     payload.micro_totals_complete = deleteField();
   }
   await setDoc(doc(db, "nutrition", getUid(), "logs", date), payload, { merge: true });
+  if ("meals" in data) {
+    void invalidateWeekMicroCache(date).catch(() => {});
+  }
 }
 
 // Schreibt den gecachten Tages-Mikros-Stand zurück — inkl. der pro-Meal
@@ -203,7 +206,53 @@ function computeMealMicroTotals(meals, catalog, microsMap) {
   return { totals, complete, missing };
 }
 
+// Wochen-Aggregat-Cache — analog zum Tages-Cache (micro_totals). Die
+// Summierung über 7 Tage + %DACH-Berechnung ist billig, lief aber bisher bei
+// jedem Request neu, weil kein Schreibpfad wusste, welche Woche betroffen
+// ist. Ablage als eigenes Sub-Collection-Dokument statt im Log selbst, damit
+// die Invalidierung unabhängig von saveNutritionLog() bleibt.
+function weekCacheKey(year, week) {
+  return `${year}-W${String(week).padStart(2, "0")}`;
+}
+
+function weekCacheDocRef(year, week) {
+  return doc(db, "nutrition", getUid(), "weekMicrosCache", weekCacheKey(year, week));
+}
+
+async function getWeekMicroCache(year, week) {
+  try {
+    const snap = await getDoc(weekCacheDocRef(year, week));
+    return snap.exists() ? snap.data() : null;
+  } catch {
+    return null;
+  }
+}
+
+async function setWeekMicroCache(year, week, data) {
+  try {
+    await setDoc(weekCacheDocRef(year, week), { complete: true, data, cached_at: serverTimestamp() });
+  } catch (err) {
+    console.error("[week-micros-cache] write failed:", err);
+  }
+}
+
+// Von den Schreibpfaden aufgerufen (saveNutritionLog, Supplement-Log-Writes),
+// sobald sich an einem Datum etwas ändert, das in die Wochensumme einfließt.
+export async function invalidateWeekMicroCache(dateStr) {
+  try {
+    const { year, week } = dateToISOWeek(dateStr);
+    await setDoc(weekCacheDocRef(year, week), { complete: false }, { merge: true });
+  } catch (err) {
+    console.error("[week-micros-cache] invalidate failed:", err);
+  }
+}
+
 export async function getWeeklyMicros(year, week) {
+  const cached = await getWeekMicroCache(year, week);
+  if (cached && cached.complete) {
+    return cached.data;
+  }
+
   const dates = getWeekDates(year, week);
   const logsMap = await getNutritionLogsInRange(dates);
   const suppLogsSnap = await getDocs(query(collection(db, "supplements", getUid(), "logs"), where("date", "in", dates)));
@@ -328,7 +377,16 @@ export async function getWeeklyMicros(year, week) {
     };
   }
 
-  return { ok: true, year, week, dates, week_totals: weekTotals, rda_comparison, day_breakdown: dayBreakdown, meal_breakdown: mealBreakdown, missing_meals: Array.from(missingMeals) };
+  const result = { ok: true, year, week, dates, week_totals: weekTotals, rda_comparison, day_breakdown: dayBreakdown, meal_breakdown: mealBreakdown, missing_meals: Array.from(missingMeals) };
+
+  // Nur vollständige Wochen cachen — bei offenen missing_meals würde ein
+  // gecachtes 0 sonst nie wieder korrigiert (nichts invalidiert es erneut,
+  // solange der fehlende Eintrag fehlend bleibt).
+  if (missingMeals.size === 0) {
+    await setWeekMicroCache(year, week, result);
+  }
+
+  return result;
 }
 
 export async function getFastingWindows(days = 14) {

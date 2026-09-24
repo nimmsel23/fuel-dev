@@ -8,6 +8,7 @@ import {
 import { db } from "../../firebase.js";
 import { getUid, serverTimestamp } from "./core.js";
 import { todayISO } from "./utils.js";
+import { invalidateWeekMicroCache } from "./nutrition.js";
 
 export async function getSupplementsCatalog() {
   const ref = doc(db, "supplements", getUid(), "meta", "catalog");
@@ -33,6 +34,10 @@ export async function saveSupplementLog(date, data) {
     ...data,
     updated_at: serverTimestamp(),
   }, { merge: true });
+  // Supplement-Mikros sind nicht pro-Tag gecached (addSupplementMicros läuft
+  // in getWeeklyMicros immer frisch) — ohne diese Invalidierung würde der
+  // Wochen-Cache Supplement-Änderungen ignorieren, siehe nutrition.js.
+  void invalidateWeekMicroCache(date).catch(() => {});
 }
 
 export async function updateIntakeInLog(date, intakeId, updates) {

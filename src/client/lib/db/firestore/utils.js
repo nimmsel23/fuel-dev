@@ -28,3 +28,18 @@ export function getWeekDates(year, week) {
   }
   return dates;
 }
+
+// ISO-8601-Woche aus einem YYYY-MM-DD-Datum (Donnerstag-der-Woche-Methode) —
+// Kehrfunktion zu getWeekDates(), gebraucht um bei einem Log-Write zu wissen,
+// welcher Wochen-Mikros-Cache (siehe nutrition.js getWeeklyMicros) invalidiert
+// werden muss.
+export function dateToISOWeek(dateStr) {
+  const d = new Date(`${dateStr}T00:00:00`);
+  const target = new Date(d.valueOf());
+  const dayNr = (d.getDay() + 6) % 7; // Montag=0..Sonntag=6
+  target.setDate(target.getDate() - dayNr + 3);
+  const firstThursday = new Date(target.getFullYear(), 0, 4);
+  const diff = target - firstThursday;
+  const week = 1 + Math.round(diff / (7 * 24 * 3600 * 1000));
+  return { year: target.getFullYear(), week };
+}
