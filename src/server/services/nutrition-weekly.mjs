@@ -16,6 +16,64 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+// Wochen-Aggregat-Cache — analog zum Tages-Cache (log.micro_totals): die
+// eigentliche Summierung über 7 Tage + %DACH-Berechnung ist zwar billig
+// (reine Arithmetik auf bereits gecachten Tageswerten), lief bisher aber bei
+// JEDEM Request neu, weil weder Meal- noch Supplement-Schreibpfade wussten,
+// welche Woche betroffen ist. Fix: eine Datei pro Uid-Verzeichnis
+// (`week_micros_cache.json`), invalidiert von genau den Stellen, die auch
+// schon `log.micro_totals` invalidieren (nutrition/log.mjs) + zusätzlich den
+// Supplement-Log-Routen (supplements.mjs), da addSupplementMicros() nicht
+// pro-Tag gecached ist und sonst am Wochen-Cache vorbeischreiben würde.
+function weekCacheFilePath(nutritionDir) {
+  return path.join(nutritionDir, "week_micros_cache.json");
+}
+
+function loadWeekCacheStore(nutritionDir) {
+  const p = weekCacheFilePath(nutritionDir);
+  if (fs.existsSync(p)) {
+    try { return JSON.parse(fs.readFileSync(p, "utf-8")); } catch { /* corrupt → neu aufbauen */ }
+  }
+  return {};
+}
+
+function saveWeekCacheStore(nutritionDir, store) {
+  fs.writeFileSync(weekCacheFilePath(nutritionDir), JSON.stringify(store, null, 2), "utf-8");
+}
+
+function weekCacheKey(year, week) {
+  return `${year}-W${String(week).padStart(2, "0")}`;
+}
+
+// ISO-8601-Woche aus einem YYYY-MM-DD-Datum (Donnerstag-der-Woche-Methode) —
+// muss zu getWeekDates() (unten) passen, das dieselbe ISO-Woche annimmt.
+export function dateToISOWeek(dateStr) {
+  const d = new Date(`${dateStr}T00:00:00`);
+  const target = new Date(d.valueOf());
+  const dayNr = (d.getDay() + 6) % 7; // Montag=0..Sonntag=6
+  target.setDate(target.getDate() - dayNr + 3);
+  const firstThursday = new Date(target.getFullYear(), 0, 4);
+  const diff = target - firstThursday;
+  const week = 1 + Math.round(diff / (7 * 24 * 3600 * 1000));
+  return { year: target.getFullYear(), week };
+}
+
+// Von den Schreibpfaden aufgerufen (nutrition/log.mjs, supplements.mjs),
+// sobald sich an einem Datum etwas ändert, das in die Wochen-Summe einfließt.
+export function invalidateWeekMicroCache(dateStr, nutritionDir) {
+  try {
+    const { year, week } = dateToISOWeek(dateStr);
+    const store = loadWeekCacheStore(nutritionDir);
+    const key = weekCacheKey(year, week);
+    if (store[key]) {
+      delete store[key];
+      saveWeekCacheStore(nutritionDir, store);
+    }
+  } catch (e) {
+    console.warn("[week-micros-cache] invalidate failed:", e.message);
+  }
+}
+
 export function getWeekDates(year, week) {
   const simple = new Date(year, 0, 1 + (week - 1) * 7);
   const dow = simple.getDay();
@@ -100,6 +158,14 @@ function addSupplementMicros(dayTotals, date, supplementCatalogMap, supplementsL
 // Rückgabe: { dates, week_totals, rda_comparison, day_breakdown, meal_breakdown }.
 export async function assembleWeek(year, week, ctx) {
   const { paths: reqPaths, uid } = ctx;
+
+  const cacheStore = loadWeekCacheStore(reqPaths.nutrition);
+  const cacheKey = weekCacheKey(year, week);
+  const cached = cacheStore[cacheKey];
+  if (cached && cached.complete) {
+    return cached.data;
+  }
+
   const dates = getWeekDates(year, week);
   const catalog = loadCatalog(reqPaths.nutrition, { uid });
   const suppCatalog = loadSupplementsCatalog(reqPaths.supplements, { uid });
@@ -109,6 +175,7 @@ export async function assembleWeek(year, week, ctx) {
   const weekTotals = zeroMicros();
   const dayBreakdown = {};
   const mealBreakdown = {};
+  let weekComplete = true;
 
   for (const date of dates) {
     const log = loadNutritionLog(date, reqPaths.nutrition);
@@ -121,6 +188,7 @@ export async function assembleWeek(year, week, ctx) {
       const hadPersistedMicros = (log.meals || []).some((m) => m.micros);
       const { totals, complete } = computeMealMicroTotals(log.meals, catalog, microOptions);
       mealTotals = totals;
+      if (!complete) weekComplete = false;
 
       // Selbstheilend zurückschreiben, sobald irgendeine Mahlzeit neu
       // aufgelöst wurde (per-Meal-Cache spart beim nächsten Lauf Zeit).
@@ -169,6 +237,7 @@ export async function assembleWeek(year, week, ctx) {
                     delete refreshed.micro_totals;
                     delete refreshed.micro_totals_complete;
                     saveNutritionLog(refreshed, reqPaths.nutrition);
+                    invalidateWeekMicroCache(date, reqPaths.nutrition);
                     void pushNutritionLog(date, refreshed.meals, refreshed.water_ml || 0, {
                       uid,
                       nutritionDir: reqPaths.nutrition,
@@ -214,11 +283,21 @@ export async function assembleWeek(year, week, ctx) {
     };
   }
 
-  return {
+  const result = {
     dates,
     week_totals: weekTotals,
     rda_comparison: status,
     day_breakdown: dayBreakdown,
     meal_breakdown: mealBreakdown,
   };
+
+  // Nur vollständige Wochen cachen — bei einer unvollständigen (noch
+  // laufende Background-Estimate-Aufrufe oben) würde ein gecachtes 0
+  // sonst nie wieder korrigiert, weil nichts es invalidiert.
+  if (weekComplete) {
+    cacheStore[cacheKey] = { complete: true, data: result, cached_at: nowIso() };
+    saveWeekCacheStore(reqPaths.nutrition, cacheStore);
+  }
+
+  return result;
 }
