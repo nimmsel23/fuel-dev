@@ -140,6 +140,8 @@ def _load_log_local(date_str: str) -> dict:
             # Firestore-Pull (firestore-sync.mjs pull()) schreibt Docs 1:1 ohne
             # "date"-Feld — das Datum steckt dort nur in der Doc-ID/Dateiname.
             log.setdefault("date", date_str)
+            log.setdefault("meals", [])
+            log.setdefault("water_ml", 0)
             return log
         except:
             pass
