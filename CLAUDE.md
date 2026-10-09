@@ -287,7 +287,7 @@ Deaktivieren falls nötig: `systemctl --user disable --now fuel-catalog-verify.t
 npm run dev          # nodemon + vite, watches src/ + server.mjs
 npm run build:local  # Vite → ./opt-fuel target (VITE_APP_MODE=coach)
 npm run prod         # PORT=7000 HOST=0.0.0.0 FUEL_STATIC_DIR=/opt/fuel
-npm run deploy:local # = ./deploy.sh — versioned backup → rsync → build → systemctl restart
+npm run deploy:local # = ./deploy.sh — rsync → dependency install → systemctl restart
 ./deploy.sh          # Bash deploy script (siehe unten)
 fuelctl local deploy # Python-Wrapper, ruft deploy.sh
 ```

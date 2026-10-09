@@ -21,7 +21,6 @@ fi
 STAGE="$USER_HOME/.local/fuel"
 NODE_DEST="/opt/fuel"
 PYTHON_DEST="/opt/fuel-python"
-BACKUP_DIR="/opt/fuel_backups"
 SERVICE="fuel.service"
 PY_SERVICE="fuel-python.service"
 UNIT_TARGET="/etc/systemd/system/fuel.service"
@@ -221,15 +220,6 @@ if [[ "$INSTALL_UNIT" == true ]]; then
 fi
 
 # ── 2. Prod: ~/.local/fuel → /opt ────────────────────────────────────────────
-
-timestamp=$(date +%Y%m%d_%H%M%S)
-backup_path="$BACKUP_DIR/fuel_$timestamp"
-
-if [[ -d "$NODE_DEST" ]]; then
-  msg "📦 Creating versioned backup: $backup_path"
-  sudo mkdir -p "$BACKUP_DIR"
-  sudo cp -a "$NODE_DEST" "$backup_path"
-fi
 
 if [[ ! -d "$NODE_DEST" ]]; then
   msg "📂 Creating target directory $NODE_DEST"
