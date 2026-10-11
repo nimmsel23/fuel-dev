@@ -2,6 +2,7 @@ import React from "react";
 import { Camera, Mic, Search, Check, Undo2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { twMerge } from "tailwind-merge";
+import { useSwipeToDismiss } from "@fitness/hooks/useSwipeToDismiss.js";
 import { SLOT_LABEL, slotOf } from "./useFrontdoorLog.js";
 
 const PORTIONS = [
@@ -17,6 +18,8 @@ const PORTIONS = [
 export default function TapBoardFrontdoor({ fd, onOpenApp }) {
   const { suggestions, logMeal, undoLast, lastLogged, clearLastLogged, totals, kcalGoal } = fd;
   const [sheet, setSheet] = React.useState(null);
+  // Auf sm+ ist das Sheet ein zentriertes Modal — dort keine Wisch-Geste
+  const sheetSwipeRef = useSwipeToDismiss(() => setSheet(null), { enabled: Boolean(sheet), media: "(max-width: 639px)" });
   const [factor, setFactor] = React.useState(1);
   const holdRef = React.useRef(null);
   const heldRef = React.useRef(false);
@@ -143,6 +146,7 @@ export default function TapBoardFrontdoor({ fd, onOpenApp }) {
       {sheet && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/70 p-0 sm:items-center sm:p-6" onClick={() => setSheet(null)}>
           <div
+            ref={sheetSwipeRef}
             className="w-full max-w-md rounded-t-3xl border border-white/10 bg-slate-900 p-6 sm:rounded-3xl"
             onClick={(e) => e.stopPropagation()}
           >
