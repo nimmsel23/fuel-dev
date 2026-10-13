@@ -115,10 +115,26 @@ self.addEventListener("push", (event) => {
 });
 
 // Supplement-Quick-Actions: laufen komplett im SW, ohne ein Client-Window zu
-// fokussieren. "quick-yes" loggt alle due_items direkt gegen /supplements/log,
-// "snooze" haelt sie 30min zurueck (push-scheduler respektiert das). Danach
-// jeweils eine kurze Bestaetigungs-Notification statt Navigation.
-async function logSupplementIntake(item, dateStr) {
+// fokussieren. "quick-yes" loggt alle due_items direkt, "snooze" haelt sie
+// 30min zurueck. Zwei Backends je Origin:
+// - local (Fastify, /opt/fuel): /supplements/log + /push/snooze
+// - cloud (fuel-vos.web.app): keine eigene API hinter der Origin — ruft die
+//   quickLogSupplement/snoozeSupplement Cloud Functions direkt an
+//   (functions/index.js, Projekt fitness-aos, region europe-west1). Die uid
+//   kommt im Push-Payload selbst mit (meta.uid), kein Login-State im SW.
+const IS_CLOUD = self.location.hostname.includes("web.app") || self.location.hostname.includes("firebaseapp.com");
+const CLOUD_FN_BASE = "https://europe-west1-fitness-aos.cloudfunctions.net";
+
+async function logSupplementIntake(item, dateStr, uid) {
+  if (IS_CLOUD) {
+    const response = await fetch(`${CLOUD_FN_BASE}/quickLogSupplement`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ uid, date: dateStr, item }),
+    });
+    if (!response.ok) throw new Error(`cloud log failed: ${response.status}`);
+    return;
+  }
   const response = await fetch(withBase("/supplements/log"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -139,7 +155,7 @@ async function logSupplementIntake(item, dateStr) {
 async function handleQuickYes(data) {
   const items = Array.isArray(data.due_items) ? data.due_items : [];
   const dateStr = data.date || new Date().toISOString().slice(0, 10);
-  const results = await Promise.allSettled(items.map((item) => logSupplementIntake(item, dateStr)));
+  const results = await Promise.allSettled(items.map((item) => logSupplementIntake(item, dateStr, data.uid)));
   const failed = results.filter((r) => r.status === "rejected").length;
   const names = items.map((i) => i.name).join(", ") || "Supplements";
   return self.registration.showNotification(failed > 0 ? "Teilweise nicht geloggt" : "Erledigt ✓", {
@@ -155,12 +171,22 @@ async function handleSnooze(data) {
   const dateStr = data.date || new Date().toISOString().slice(0, 10);
   const itemIds = items.map((i) => i.id);
   try {
+    if (IS_CLOUD) {
+      await fetch(`${CLOUD_FN_BASE}/snoozeSupplement`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uid: data.uid, item_ids: itemIds, date: dateStr }),
+      });
+      return;
+    }
     await fetch(withBase("/push/snooze"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ item_ids: itemIds, date: dateStr }),
     });
   } catch (err) {
+    // Lokaler Server offline oder Cloud-Function nicht erreichbar — bewusst
+    // stumm, der Nutzer bekommt den naechsten regulaeren Reminder ohnehin.
     console.error("[SW] Snooze request failed", err);
   }
 }
