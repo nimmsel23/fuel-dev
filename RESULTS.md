@@ -2,6 +2,41 @@
 
 Session-Log mit datierten Ergebnis-Bullets.
 
+## 2026-10-13: fuel-dev + frontend/ auf pnpm umgestellt
+
+- Analog zur fitness-dev/vitalos-Migration (gleiche Session): `package.json`
+  (root `fuelctx` + `frontend/` React-Package für den Python-Server) von
+  npm auf pnpm umgestellt — `packageManager`-Feld, interne `npm run` →
+  `pnpm run`, `allowScripts` → `pnpm-workspace.yaml`/`allowBuilds`.
+- `@vos/cross-app-aliases`: `file:../vitalos/packages/cross-app-aliases` →
+  `optionalDependencies`-Eintrag `workspace:*`. Außerhalb von vitalos
+  (Standalone-`~/fuel-dev`) wird die Dependency jetzt beim Install sauber
+  übersprungen ("failed compatibility check, excluding") statt per
+  `file:`-Copy-Bug auf einen falschen Pfad zu zeigen.
+- In `frontend/` deckte der Umstieg zwei echte **Phantom-Dependencies** auf,
+  die unter npm nur per Zufalls-Hoisting liefen: `@radix-ui/react-dialog`
+  braucht `@radix-ui/react-dismissable-layer` top-level (für
+  `useDismissableLayerSurface`), `firebase/auth` braucht `@firebase/auth`
+  top-level — beide fehlten unter pnpms striktem `node_modules` und wurden
+  jetzt als explizite `dependencies` ergänzt.
+- `deploy.sh`: systemd-`ExecStart` (`npm run prod` → `pnpm run prod`),
+  Staging-Build-Schritte (`npm run build:local`/`npm run build` im
+  `frontend/`) und Prod-Node-Install (`npm ci --include=dev` →
+  `pnpm install --frozen-lockfile`) umgestellt.
+- `.githooks/pre-push`: `npm run firebase` → `pnpm run firebase`.
+- CI (`.github/workflows/{deploy-master,preview-dev}.yml`, beide checken das
+  vitalos-Meta-Repo aus für die Cross-Repo-Aliase): `pnpm/action-setup`
+  ergänzt, `npm ci` → `pnpm install --frozen-lockfile`,
+  `npm run X --workspace=Y` → `pnpm --filter ./Y run X`.
+- `package-lock.json` (root + `frontend/`) lossless per `pnpm import` nach
+  `pnpm-lock.yaml` konvertiert, dann entfernt.
+- Beide Builds (`build:local`/`build:cloud` root, `build` in `frontend/`)
+  grün verifiziert, Push auf `dev` inkl. automatischem Staging-Deploy
+  (`~/.local/fuel`) erfolgreich durchgelaufen.
+- Nebenbei: Bug in `~/vitalos/bin/vos-sync-submodule-pointers` gefunden und
+  gefixt — `SUBMODULE_PATHS` listete `"learn-dev"` statt `"learn-app"`
+  (einziger Eintrag, der beim *-app-Rename übersehen wurde).
+
 ## 2026-09-06 (Nachtrag 4: Cloud-Nachzug Vertex)
 
 - Cloud-Pfad (`src/client/lib/aiMealLogger.js` → Firebase Vertex AI,
