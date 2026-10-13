@@ -155,7 +155,21 @@ function saveMealLegacy(item) {
   return item;
 }
 
+// Meal-Katalog ist nur für Meals/Rezepte — rohe Zutaten gehören nach
+// catalogs/nutrition/ingredients/ (fuel-ingredient CLI). Verhindert ein
+// Wiederauftauchen der historischen Dopplung (kind=ingredient-Items lagen
+// bis 2026-09-24 parallel in catalog.json UND in ingredients/).
+function assertNotIngredient(item) {
+  if (item?.kind === "ingredient") {
+    throw new Error(
+      `[nutrition-catalog] kind="ingredient" gehört nicht in den Meal-Katalog (Item: ${item.name || item.id}) — ` +
+      `stattdessen "python3 -m fuel.ingredient '<Name>'" nutzen (schreibt nach catalogs/nutrition/ingredients/).`
+    );
+  }
+}
+
 export function saveMeal(item, nutritionDir = null, { uid = "default", catalog = null } = {}) {
+  assertNotIngredient(item);
   if (!nutritionDir) return saveMealLegacy(item);
   const nextCatalog = catalog || loadCatalog(nutritionDir, { uid });
   const items = [...(nextCatalog.items || [])];

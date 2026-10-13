@@ -179,6 +179,20 @@ def _score_match(query_norm: str, item: dict) -> float:
     if extra and q != name_norm and (not alias_norm or q != alias_norm):
         score -= 30.0 * len(extra)
 
+    # Umgekehrter Fall: inhaltliche Tokens im Catalog-Namen, die in der Query
+    # GAR NICHT vorkommen ("Eier" vs. "5 Eier MIT REIS UND BROKKOLI") —
+    # sonst matcht eine blanke Einzelzutat-Query einen Komposit-Eintrag, dessen
+    # Gesamt-kcal (für alle Komponenten) fälschlich als Pro-Stück-Wert der
+    # Einzelzutat übernommen und von dispatch.py zusätzlich ×qty skaliert wird
+    # (Bug: "5 Eier" → 3665 kcal statt ~400, 2026-10-08).
+    missing = {
+        t for t in (n_tokens - q_tokens)
+        if t not in _MATCH_STOPWORDS and len(t) > 2
+        and not re.fullmatch(r"\d+[a-z]*", t)
+    }
+    if missing and q != name_norm and (not alias_norm or q != alias_norm):
+        score -= 30.0 * len(missing)
+
     # Ranking-Boni
     name_orig = item.get("name") or ""
     if _QUANTITY_NOISE.search(name_orig):

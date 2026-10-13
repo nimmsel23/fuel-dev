@@ -611,6 +611,17 @@ def main() -> None:
     # NL-Mahlzeitbeschreibung(en) → EIN Meal-Log. Mehrere Quoted-Args werden
     # zu einem Text zusammengefügt — Gemini summiert Komponenten selbst
     # (siehe PROMPT_TEMPLATE Punkt 3 in fuel/gemini.py).
+    # -z/--zeit HH:MM rausziehen, bevor der Rest zur Beschreibung wird — sonst
+    # landet "12:00" im Freitext und geht an Gemini statt an --zeit.
+    zeit_args: list[str] = []
+    for flag in ("-z", "--zeit"):
+        if flag in rest:
+            i = rest.index(flag)
+            if i + 1 < len(rest):
+                zeit_args = ["--zeit", rest[i + 1]]
+                rest = rest[:i] + rest[i + 2:]
+            break
+
     description = " ".join(rest)
 
     # Führende Menge abtrennen ("3 käsleberkässemmeln" → qty=3, "käsleberkässemmeln").
@@ -632,7 +643,7 @@ def main() -> None:
             qty_args = ["--qty", m.group(1)]
             description = m.group(2)
 
-    sys.exit(_meal_log(description, date_flags + qty_args, meal_type))
+    sys.exit(_meal_log(description, date_flags + qty_args + zeit_args, meal_type))
 
 
 if __name__ == "__main__":

@@ -8,6 +8,7 @@ import {
   getSubscriptionsPath,
   loadPushSettings,
 } from "../lib/push-config.mjs";
+import { isSnoozed } from "./push-snooze.mjs";
 
 const PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "BOafCxLae9KCsYm5j6NJv0csS_Qmvtef8XWszQBootQiX6Cpvkih3fL3P71dXP_2T05CMSXO3bwGxLNZN_SbF_w";
 const PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "zD3-SRxK2iGrs8XVEavlgkgQn9X9XtrXVef7ams3VXI";
@@ -105,12 +106,13 @@ async function checkAndSendSupplementReminders(timeOfDay, baseDataDir, catalogsD
       const isDue = isDueToday(item, todayStr) && item.default_time_of_day === timeOfDay;
       if (!isDue) return false;
       const isLogged = intakes.some(intake => intake.supplement_id === item.id);
-      return !isLogged;
+      if (isLogged) return false;
+      return !isSnoozed(baseDataDir, todayStr, item.id);
     });
 
     if (dueItems.length > 0) {
       const names = dueItems.map(i => i.name).join(", ");
-      const payload = JSON.stringify(buildSupplementPayload({ timeOfDay, names }));
+      const payload = JSON.stringify(buildSupplementPayload({ timeOfDay, names, dueItems, date: todayStr }));
 
       console.log(`[PushScheduler] Sending reminders for: ${names}`);
 
@@ -153,13 +155,16 @@ async function checkAndSendPerSupplementReminders(currentTime, baseDataDir, cata
     const dueItems = catalog.filter(item => {
       if (!item.reminder?.enabled || item.reminder.time !== currentTime) return false;
       if (!isDueToday(item, todayStr)) return false;
-      return !intakes.some(intake => intake.supplement_id === item.id);
+      if (intakes.some(intake => intake.supplement_id === item.id)) return false;
+      return !isSnoozed(baseDataDir, todayStr, item.id);
     });
 
     for (const item of dueItems) {
       const payload = JSON.stringify(buildSupplementPayload({
         timeOfDay: item.default_time_of_day || "any",
         names: item.name,
+        dueItems: [item],
+        date: todayStr,
       }));
       for (const sub of subscriptions) {
         try {

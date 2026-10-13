@@ -1,0 +1,35 @@
+{
+  "id": "clever_parboiled_reis_roh",
+  "kind": "ingredient",
+  "name": "CLEVER Parboiled Reis roh",
+  "basis": "per_100g",
+  "grams_reference": 100,
+  "source": "reference",
+  "source_refs": {
+    "reference": "Offizielle Herstellerangabe pro 100 g (fatsecret.at – CLEVER Parboiled Reis, ungekocht): 351 kcal / 7.4 EW / 76.0 KH / 1.7 Fett / 1.4 Ballaststoff. Rohgewicht. Parboiled behaelt durch die Druck-Dampf-Behandlung mehr B-Vitamine als weisser Reis. Gekocht ~2,7x schwerer -> 100 g roh = ~270 g gekocht."
+  },
+  "macros": {
+    "kcal": 351,
+    "protein": 7.4,
+    "carbs": 76,
+    "fat": 1.7,
+    "fiber": 1.4
+  },
+  "micros": {
+    "vitamin_b1_mg": 0.22,
+    "vitamin_b3_mg": 3.5,
+    "vitamin_b5_mg": 0.5,
+    "vitamin_b6_mg": 0.15,
+    "folate_ug": 6,
+    "magnesium_mg": 25,
+    "phosphorus_mg": 100,
+    "potassium_mg": 90,
+    "iron_mg": 0.7,
+    "zinc_mg": 0.9,
+    "selenium_ug": 15
+  },
+  "flagged_diffs": [],
+  "notes": "Migriert aus dem Meal-Katalog (war dort als kind=ingredient abgelegt, id=ingredient_clever_parboiled_reis_roh). Offizielle Herstellerangabe pro 100 g (fatsecret.at – CLEVER Parboiled Reis, ungekocht): 351 kcal / 7.4 EW / 76.0 KH / 1.7 Fett / 1.4 Ballaststoff. Rohgewicht. Parboiled behaelt durch die Druck-Dampf-Behandlung mehr B-Vitamine als weisser Reis. Gekocht ~2,7x schwerer -> 100 g roh = ~270 g gekocht.",
+  "created_at": "2026-09-08T20:37:28.355021Z",
+  "updated_at": "2026-09-08T20:37:28.355021Z"
+}
