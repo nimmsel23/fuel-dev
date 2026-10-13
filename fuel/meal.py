@@ -399,7 +399,7 @@ def do_meal_interactive() -> None:
 
 # ── Meal Logging ───────────────────────────────────────────────────────────────
 
-def do_meal_log(description: str, kcal: float, protein: float, carbs: float, fat: float, notes: str, day: str | None, save_catalog: bool, qty: int = 1, catalog_id: str | None = None, meal_type: str = "lunch", micros: dict | None = None, components: list | None = None) -> None:
+def do_meal_log(description: str, kcal: float, protein: float, carbs: float, fat: float, notes: str, day: str | None, save_catalog: bool, qty: int = 1, catalog_id: str | None = None, meal_type: str = "lunch", micros: dict | None = None, components: list | None = None, zeit: str | None = None) -> None:
     today = day or date.today().isoformat()
     qty = max(1, int(qty))
     micros = dict(micros) if micros else {}
@@ -463,7 +463,18 @@ def do_meal_log(description: str, kcal: float, protein: float, carbs: float, fat
         msg.fail(f"Validation error: {e.error_count()} Fehler")
         raise SystemExit(1)
 
-    now_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    if zeit:
+        try:
+            h, m = (int(p) for p in zeit.split(":", 1))
+            local_dt = datetime.now().astimezone().replace(
+                hour=h, minute=m, second=0, microsecond=0
+            )
+            now_iso = local_dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+        except (ValueError, TypeError):
+            msg.fail(f"Ungültige --zeit '{zeit}' (erwartet HH:MM) — nutze aktuelle Uhrzeit.")
+            now_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    else:
+        now_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     meal_entry = {
         "id": f"meal_{int(datetime.now().timestamp() * 1000)}",
         "catalog_id": catalog_id,
@@ -823,6 +834,7 @@ def log_command(
     save_catalog: bool = typer.Option(False, "--save-catalog", "-s", help="Im Catalog speichern für spätere Wiederverwendung"),
     qty: int = typer.Option(1, "--qty", "-q", help="Portionen-Multiplikator — Makros × N"),
     meal_type: str = typer.Option("lunch", "--meal-type", "-m", help="breakfast|lunch|dinner|snack"),
+    zeit: str | None = typer.Option(None, "--zeit", "-z", help="Explizite Uhrzeit HH:MM (statt 'jetzt')"),
 ) -> None:
     """Einzelne Mahlzeit loggen. Reihenfolge: --kcal (falls gesetzt) → Catalog-Hit → Gemini-Schätzung.
 
@@ -847,7 +859,7 @@ def log_command(
             description = cleaned
             msg.info(f"Datumswort erkannt: Log-Datum → {target}")
 
-    do_meal_log(description, kcal, protein, carbs, fat, notes, target, save_catalog, qty, meal_type=meal_type)
+    do_meal_log(description, kcal, protein, carbs, fat, notes, target, save_catalog, qty, meal_type=meal_type, zeit=zeit)
 
 @app.command(name="narrative")
 def narrative_command(

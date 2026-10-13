@@ -1,140 +1,199 @@
 version: 1
-updated_at: 2026-09-10T00:00:00.000Z
+updated_at: '2026-10-11T10:25:21.842206Z'
 items:
-  - id: melatonin
-    name: Melatonin
-    product: Kneipp Melatonin plus
-    unit: mg
-    default_dose: 2
-    default_time_of_day: night
-    micros:
-      zinc_mg: 10
-      vitamin_b6_mg: 1.4
-    # Wirkstoffe pro default_dose (1 Tablette). Reine Produktdoku — keine
-    # DACH-Nährstoffe, gehen NICHT in die Wochen-Aggregation/Heatmap ein.
-    actives:
-      melatonin_mg: 2
-      vitamin_b6_mg: 1.4
-      zinc_mg: 10
-      valerian_root_extract_mg: 120
-      passionflower_extract_mg: 50
-  - id: glycin
-    name: Glycin
-    product: Sunday Natural Glycin pur
-    unit: g
-    default_dose: 3
-    default_time_of_day: night
-  - id: kollagen
-    name: Kollagen
-    product: Naduria Kollagenhydrolysat mit Zink + C
-    unit: g
-    default_dose: 10
-    default_time_of_day: morning
-    micros:
-      vitamin_c_mg: 80
-      zinc_mg: 5
-  - id: magnesium
-    name: Magnesium
-    unit: mg
-    default_dose: 200
-    default_time_of_day: evening
-    micros:
-      magnesium_mg: 200
-  - id: dha
-    name: DHA
-    product: Sunday Natural DHA Kapseln
-    unit: mg
-    default_dose: 500
-    default_time_of_day: morning
-    notes: geplant — nächste Sunday Natural Bestellung
-    micros:
-      omega3_mg: 500
-  - id: zink
-    name: Zink
-    product: Sunday Natural Zink Komplex (mehrere Zink-Verbindungen) + Vitamin C
-    unit: mg
-    default_dose: 25
-    default_time_of_day: any
-    notes: selten — nur bei bekanntem Mangel
-    micros:
-      zinc_mg: 25
-      vitamin_c_mg: 100
-  - id: kreatin
-    name: Kreatin
-    unit: g
-    default_dose: 5
-    default_time_of_day: any
-  - id: brahmi
-    name: Brahmi
-    product: Sunday Natural Brahmi Extrakt (500mg, 20% Bacoside)
-    unit: mg
-    default_dose: 500
-    default_time_of_day: morning
-    notes: geplant — nächste Sunday Natural Bestellung
-  - id: ashwagandha
-    name: Ashwagandha
-    product: Body Attack Ashwagandha KSM-66 (120 Kapseln, mit Zink, Magnesium & Vitamin B6)
-    unit: mg
-    default_dose: 300
-    default_time_of_day: morning
-    notes: "Produktwechsel 2026-09-10 von Sunday Natural KSM-66 (600 mg/Kapsel). Body Attack: 300 mg KSM-66 pro Kapsel, default_dose 300 mg = 1 Kapsel (bewusst halbe Dosis). Etikett: pro Kapsel zusätzlich 1 mg Zink, 32,5 mg Magnesium, 0,11 mg B6. Kein Vitamin C. Quelle: body-attack.de/en/body-attack-ashwagandha"
-    per_unit:
-      capsule_mg: 300
-      zinc_mg: 1
-      magnesium_mg: 32.5
-      vitamin_b6_mg: 0.11
-    actives:
-      ashwagandha_mg: 300
-      withanolides_mg: 15
-      zinc_mg: 1
-      magnesium_mg: 32.5
-      vitamin_b6_mg: 0.11
-    micros:
-      zinc_mg: 1
-      magnesium_mg: 32.5
-      vitamin_b6_mg: 0.11
-  - id: tongkat_ali
-    name: Tongkat Ali Elixier
-    unit: ml
-    default_dose: 250
-    default_time_of_day: morning
-  - id: mulungu
-    name: Mulungu Tee
-    unit: ml
-    default_dose: 250
-    default_time_of_day: evening
-  - id: hohes_c_beauty
-    name: Hohes C All-in-One Beauty
-    product: Hohes C All-in-One Beauty (Biotin-Zink)
-    unit: ml
-    default_dose: 850
-    default_time_of_day: morning
-    notes: "Werte für 850ml (ganze Flasche/Tag) — hochgerechnet aus NRV-Prozentangaben pro 250ml-Glas des Herstellers (Faktor 3,4, nicht Labor-exakt) — Quelle hohesc.de. Vit C/B12/B6/Biotin je 100% NRV pro Glas, Vit A/E/Zink/Selen je 38% NRV pro Glas."
-    micros:
-      vitamin_c_mg: 272
-      vitamin_b12_ug: 8.5
-      vitamin_b6_mg: 4.76
-      vitamin_b7_ug: 51.68
-      vitamin_a_ug: 1033.6
-      vitamin_e_mg: 15.5
-      zinc_mg: 12.92
-      selenium_ug: 71.06
-  - id: hohes_c_everyday
-    name: Hohes C All-in-One Everyday
-    product: Hohes C All-in-One Everyday (Multivitamin)
-    unit: ml
-    default_dose: 850
-    default_time_of_day: morning
-    notes: "Werte für 850ml (ganze Flasche/Tag) — hochgerechnet aus NRV-Prozentangaben pro 250ml-Glas des Herstellers (Faktor 3,4, nicht Labor-exakt) — Quelle hohesc.de. Vit C/E/B12/B1/Niacin/Folsäure/Biotin/B5 je 100% NRV pro Glas, Vit A 75%, Vit D 50%, Eisen 38% NRV pro Glas."
-    micros:
-      vitamin_c_mg: 272
-      vitamin_e_mg: 40.8
-      vitamin_b12_ug: 8.5
-      vitamin_b1_mg: 3.74
-      vitamin_b3_mg: 54.4
-      folate_ug: 680
-      vitamin_b7_ug: 51.68
-      vitamin_b5_mg: 20.4
-      vitamin_a_ug: 2040
-      vitamin_d_ug: 8.5
-      iron_mg: 18.09
+- id: melatonin
+  name: Melatonin (Kneipp Kräuterkombi)
+  product: Kneipp Melatonin plus
+  unit: mg
+  default_dose: 2
+  default_time_of_day: night
+  micros:
+    zinc_mg: 10
+    vitamin_b6_mg: 1.4
+  actives:
+    melatonin_mg: 2
+    vitamin_b6_mg: 1.4
+    zinc_mg: 10
+    valerian_root_extract_mg: 120
+    passionflower_extract_mg: 50
+- id: glycin
+  name: Glycin
+  unit: mg
+  default_dose: 1000
+  default_time_of_day: morning
+  product: Glycin Pulver 500g Sunday Natural
+  per_unit:
+    glycine_mg: 1000.0
+  actives:
+    glycine_mg: 1000.0
+  notes: 98,5% Reinheit, vegan, Deutschland, ohne Zusatzstoffe, Messlöffel ≈ 1g ·
+    Etikettwerte laut https://www.sunday.de/en/glycine-powder-ultrapure-vegan.html
+  source: manual
+  verified_at: '2026-10-11T10:22:54.427476Z'
+- id: kollagen
+  name: Kollagen
+  product: Naduria Kollagenhydrolysat mit Zink + C
+  unit: g
+  default_dose: 10
+  default_time_of_day: morning
+  micros:
+    vitamin_c_mg: 80
+    zinc_mg: 5
+- id: magnesium
+  name: Magnesium
+  unit: mg
+  default_dose: 200
+  default_time_of_day: evening
+  micros:
+    magnesium_mg: 200
+- id: dha
+  name: DHA
+  product: Sunday Natural DHA Kapseln
+  unit: mg
+  default_dose: 500
+  default_time_of_day: morning
+  notes: geplant — nächste Sunday Natural Bestellung
+  micros:
+    omega3_mg: 500
+- id: zink
+  name: Zink
+  product: Sunday Natural Zink Komplex (mehrere Zink-Verbindungen) + Vitamin C
+  unit: mg
+  default_dose: 25
+  default_time_of_day: any
+  notes: selten — nur bei bekanntem Mangel
+  micros:
+    zinc_mg: 25
+    vitamin_c_mg: 100
+- id: kreatin
+  name: Kreatin
+  unit: g
+  default_dose: 5
+  default_time_of_day: any
+- id: brahmi
+  name: Brahmi
+  unit: mg
+  default_dose: 100
+  default_time_of_day: morning
+  product: Sunday Natural Brahmi Extract 500mg 20% Bacosides
+  per_unit:
+    bacosides_mg: 100.0
+  actives:
+    bacosides_mg: 100.0
+  notes: Brahmi Extract Bacopa monnieri mit 20% Bacosides, 500mg pro Kapsel, reine
+    Pflanzenextrakte ohne Zusatzstoffe, Alkoholextraktion (lebensmittelqualität),
+    kein PEG/Carrageenan in den Kapselhüllen · Etikettwerte laut https://www.sunday.de/en/brahmi-extract-capsules.html
+  source: manual
+  verified_at: '2026-10-11T10:21:53.837057Z'
+- id: ashwagandha
+  name: Ashwagandha
+  unit: mg
+  default_dose: 500
+  default_time_of_day: morning
+  product: Organic Ashwagandha KSM-66® Royal Capsules - Sunday Natural
+  per_unit:
+    ashwagandha_extract_mg: 500.0
+    withanolides_mg: 25.0
+  actives:
+    ashwagandha_extract_mg: 500.0
+    withanolides_mg: 25.0
+  notes: KSM-66® Extract (5% Withanolide-Gehalt), aus 100% Ashwagandha-Wurzeln, vegan,
+    glutenfrei, keine Additive oder Lösungsmittel · Etikettwerte laut https://www.sunday-natural.co.uk/ashwagandha-extract-capsules-high-dose.html
+  source: manual
+  verified_at: '2026-10-11T10:22:31.564832Z'
+- id: tongkat_ali
+  name: Tongkat Ali Elixier
+  unit: ml
+  default_dose: 250
+  default_time_of_day: morning
+- id: mulungu
+  name: Mulungu Tee
+  unit: ml
+  default_dose: 250
+  default_time_of_day: evening
+- id: hohes_c_beauty
+  name: Hohes C All-in-One Beauty
+  product: Hohes C All-in-One Beauty (Biotin-Zink)
+  unit: ml
+  default_dose: 850
+  default_time_of_day: morning
+  notes: Werte für 850ml (ganze Flasche/Tag) — hochgerechnet aus NRV-Prozentangaben
+    pro 250ml-Glas des Herstellers (Faktor 3,4, nicht Labor-exakt) — Quelle hohesc.de.
+    Vit C/B12/B6/Biotin je 100% NRV pro Glas, Vit A/E/Zink/Selen je 38% NRV pro Glas.
+  micros:
+    vitamin_c_mg: 272
+    vitamin_b12_ug: 8.5
+    vitamin_b6_mg: 4.76
+    vitamin_b7_ug: 51.68
+    vitamin_a_ug: 1033.6
+    vitamin_e_mg: 15.5
+    zinc_mg: 12.92
+    selenium_ug: 71.06
+- id: hohes_c_everyday
+  name: Hohes C All-in-One Everyday
+  product: Hohes C All-in-One Everyday (Multivitamin)
+  unit: ml
+  default_dose: 850
+  default_time_of_day: morning
+  notes: Werte für 850ml (ganze Flasche/Tag) — hochgerechnet aus NRV-Prozentangaben
+    pro 250ml-Glas des Herstellers (Faktor 3,4, nicht Labor-exakt) — Quelle hohesc.de.
+    Vit C/E/B12/B1/Niacin/Folsäure/Biotin/B5 je 100% NRV pro Glas, Vit A 75%, Vit
+    D 50%, Eisen 38% NRV pro Glas.
+  micros:
+    vitamin_c_mg: 272
+    vitamin_e_mg: 40.8
+    vitamin_b12_ug: 8.5
+    vitamin_b1_mg: 3.74
+    vitamin_b3_mg: 54.4
+    folate_ug: 680
+    vitamin_b7_ug: 51.68
+    vitamin_b5_mg: 20.4
+    vitamin_a_ug: 2040
+    vitamin_d_ug: 8.5
+    iron_mg: 18.09
+- id: vitamin_c
+  name: Vitamin C
+  unit: mg
+  default_dose: 500
+  default_time_of_day: morning
+  product: Vitamin C 500 Sun-C Long Release (Sunday Natural)
+  per_unit:
+    vitamin_c_mg: 500.0
+  actives:
+    vitamin_c_mg: 500.0
+  micros:
+    vitamin_c_mg: 500.0
+  notes: Depot-Formel mit Mikroverkapselung in pflanzlichen Fettsäuren, kontrollierte
+    Freisetzung über 8 Stunden, vegan, non-GMO · Etikettwerte laut https://www.sunday.de/vitamin-c-depot-kapseln.html
+  source: manual
+  verified_at: '2026-10-11T10:20:37.099418Z'
+- id: omega_3
+  name: Omega-3
+  unit: mg
+  default_dose: 350
+  default_time_of_day: any
+  product: Sunday Natural Omega-3 Vegan DHA 350 EPA 180
+  per_unit:
+    dha_mg: 175.0
+    epa_mg: 90.0
+  actives:
+    dha_mg: 350.0
+    epa_mg: 180.0
+  notes: Algenöl aus Schizochytrium sp., 100% vegan, frei von PEG und Carrageenan,
+    laborgeprüft · Etikettwerte laut https://www.sunday.de/en/omega-3-dha-epa-softgels-vegan350.html
+  source: manual
+  verified_at: '2026-10-11T10:21:29.819617Z'
+- id: melatonin_1mg
+  name: Melatonin (Sunday Natural 1mg)
+  unit: mg
+  default_dose: 1
+  default_time_of_day: night
+  product: Melatonin 1mg Sunday Natural
+  per_unit:
+    melatonin_mg: 1.0
+  actives:
+    melatonin_mg: 1.0
+  notes: 99% reine N-Acetyl-5-Methoxytryptamin, vegan, non-GMO, sublingual, natürliches
+    Gummi arabicum, keine unnötigen Zusatzstoffe · Etikettwerte laut https://www.sunday.de/en/melatonin-1mg-tablets-vegan.html
+  source: manual
+  verified_at: '2026-10-11T10:25:21.796229Z'
