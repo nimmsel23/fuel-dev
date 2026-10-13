@@ -203,11 +203,12 @@ if [[ "$TARGET" == "staging" ]]; then
   fi
 
   msg "🩺 Verifying staged artifacts"
+  require_file "$STAGE/package.json" "Fuel checkout manifest"
   require_file "$STAGE/dist/index.html" "Node staging dist"
   require_file "$STAGE/frontend/dist/index.html" "Python frontend dist"
   require_file "$STAGE/backend/requirements.txt" "Python backend requirements"
 
-  msg "✅ Staging deployment complete."
+  msg "✅ Deployment to $STAGE complete (staging, no running service)."
   exit 0
 fi
 
@@ -325,4 +326,4 @@ if ! wait_for_http "http://127.0.0.1:7000/v4/health" "Prod v4 proxy health" >/de
 fi
 
 msg "✅ backend/ (Python) + frontend/ (React) deployed to $PYTHON_DEST."
-msg "✅ Deployment complete."
+msg "✅ Deployment to $NODE_DEST (:7000) + $PYTHON_DEST (:4000) complete."
