@@ -95,7 +95,7 @@ WorkingDirectory=/opt/fuel
 Environment=PORT=7000
 Environment=HOST=0.0.0.0
 Environment=FUEL_STATIC_DIR=/opt/fuel
-ExecStart=/usr/bin/npm run prod
+ExecStart=/usr/bin/pnpm run prod
 Restart=always
 RestartSec=10
 
@@ -166,10 +166,10 @@ if [[ "$TARGET" == "staging" ]]; then
   # dist/ standalone gebündelt — Stage/Prod brauchen die Sibling-Repos danach
   # nicht mehr.
   msg "🔨 Building Node UI in $SOURCE"
-  (cd "$SOURCE" && npm run build:local > /dev/null)
+  (cd "$SOURCE" && pnpm run build:local > /dev/null)
 
   msg "🔨 Building frontend/ (React, für den Python-Server)"
-  (cd "$SOURCE/frontend" && npm run build > /dev/null)
+  (cd "$SOURCE/frontend" && pnpm run build > /dev/null)
 
   msg "📦 Staging: $SOURCE → $STAGE"
   mkdir -p "$STAGE"
@@ -246,7 +246,7 @@ msg "🔗 $NODE_DEST/catalogs → $SOURCE/catalogs (Daten-Symlink)"
 
 msg "📦 Installing Node server dependencies"
 sudo chown -R "$(id -u):$(id -g)" "$NODE_DEST"
-(cd "$NODE_DEST" && npm ci --silent --include=dev)
+(cd "$NODE_DEST" && pnpm install --frozen-lockfile)
 
 if systemctl list-unit-files "$SERVICE" >/dev/null 2>&1; then
   msg "🔄 Restarting $SERVICE"

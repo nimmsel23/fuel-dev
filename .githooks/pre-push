@@ -30,12 +30,12 @@ while read -r local_ref local_sha remote_ref remote_sha; do
   # frontend/-Build, endet mit `exit 0` VOR dem Prod-Block — kein /opt,
   # kein systemctl, kein sudo. Schlägt es fehl, läuft der Push trotzdem
   # weiter (dev-Push ist das Primärziel, Staging nur der Spiegel);
-  # manuell nachziehen mit `npm run deploy:local`.
+  # manuell nachziehen mit `pnpm run deploy:local`.
   echo "📦 fuel-dev: dev-Push → Staging-Deploy nach ~/.local/fuel…" >&2
   if ./deploy.sh; then
     echo "✅ Staging aktualisiert (~/.local/fuel)." >&2
   else
-    echo "⚠️  Staging-Deploy fehlgeschlagen — Push läuft weiter. Nachziehen: npm run deploy:local" >&2
+    echo "⚠️  Staging-Deploy fehlgeschlagen — Push läuft weiter. Nachziehen: pnpm run deploy:local" >&2
   fi
   break
 done <<< "$pushed_refs"
@@ -75,11 +75,11 @@ else
   echo "🔍 fuel-dev: relevante Änderungen im Push zu master — baue + deploye zu Firebase…"
 fi
 
-npm run firebase
+pnpm run firebase
 status=$?
 
 if [ $status -ne 0 ]; then
-  echo "❌ npm run firebase fehlgeschlagen — Push wird abgebrochen (kein halb-deployter Stand)." >&2
+  echo "❌ pnpm run firebase fehlgeschlagen — Push wird abgebrochen (kein halb-deployter Stand)." >&2
   echo "   Mit 'git push --no-verify' kannst du den Hook überspringen, falls das Absicht ist." >&2
   exit 1
 fi
