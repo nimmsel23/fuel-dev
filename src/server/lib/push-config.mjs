@@ -208,45 +208,40 @@ export function buildDailyPromptPayload(promptId) {
   };
 }
 
-export function buildSupplementPayload({ timeOfDay, names }) {
+export function buildSupplementPayload({ timeOfDay, names, dueItems = [], date }) {
   return {
     title: `Time for your ${timeOfDay} Supplements`,
     body: `Noch offen: ${names}`,
     icon: "/favicon-192x192.png",
     badge: "/favicon-192x192.png",
     tag: `fuel-supplements-${timeOfDay}`,
+    requireInteraction: true,
     url: buildIntentUrl({
       tab: "supplements",
       date: "today",
       intent: "supplements.daily-checklist",
       focus: "supplements-checklist",
     }),
+    // Zwei Quick-Actions statt Deep-Links: "Ja" loggt alle faelligen Items
+    // direkt aus dem SW heraus (kein App-Open noetig), "Spaeter" snoozed sie
+    // fuer 30min — beide Branches werden im SW's notificationclick behandelt,
+    // nicht ueber die url-Navigation wie die uebrigen Reminder-Typen.
     actions: [
-      {
-        action: "open-checklist",
-        title: "Checklist",
-        url: buildIntentUrl({
-          tab: "supplements",
-          date: "today",
-          intent: "supplements.daily-checklist",
-          focus: "supplements-checklist",
-        }),
-      },
-      {
-        action: "open-quick-log",
-        title: "Quick Log",
-        url: buildIntentUrl({
-          tab: "supplements",
-          date: "today",
-          intent: "supplements.quick-log",
-          focus: "supplements-quick-log",
-        }),
-      },
+      { action: "quick-yes", title: "✓ Ja, genommen" },
+      { action: "snooze", title: "⏰ Später" },
     ],
     meta: {
       kind: "supplement_reminder",
       time_of_day: timeOfDay,
       due_names: names,
+      due_items: dueItems.map((item) => ({
+        id: item.id,
+        name: item.name,
+        dose: item.default_dose ?? 0,
+        unit: item.unit || "",
+        time_of_day: item.default_time_of_day || timeOfDay,
+      })),
+      date: date || null,
       app: "habits",
       feature: "supplements",
     },

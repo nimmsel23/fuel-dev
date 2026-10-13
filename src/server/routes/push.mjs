@@ -8,6 +8,8 @@ import {
   savePushSettings,
   saveSubscriptions,
 } from "../lib/push-config.mjs";
+import { snoozeItems } from "../services/push-snooze.mjs";
+import { todayISO } from "../../shared/utils/validation.mjs";
 
 // Konfiguration der VAPID Keys
 // Für Produktion sollten diese aus Umgebungsvariablen kommen (.env)
@@ -61,6 +63,19 @@ export default async function pushRoute(fastify, options) {
       supplements: normalized.supplements,
     }, "Saved push settings");
     reply.send({ ok: true, settings: normalized });
+  });
+
+  // "Später"-Button auf Supplement-Notifications: haelt den Reminder fuer
+  // 30min zurueck statt ihn sofort wieder zu senden (push-scheduler prueft
+  // isSnoozed() bei jedem Tick).
+  fastify.post("/push/snooze", async (req, reply) => {
+    const { item_ids, date } = req.body || {};
+    if (!Array.isArray(item_ids) || item_ids.length === 0) {
+      return reply.status(400).send({ ok: false, error: "item_ids required" });
+    }
+    const dateStr = typeof date === "string" && date ? date : todayISO();
+    const until = snoozeItems(req.paths.dataDir, dateStr, item_ids);
+    reply.send({ ok: true, until });
   });
 
   fastify.post("/push/test", async (req, reply) => {

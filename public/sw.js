@@ -114,14 +114,78 @@ self.addEventListener("push", (event) => {
   }
 });
 
+// Supplement-Quick-Actions: laufen komplett im SW, ohne ein Client-Window zu
+// fokussieren. "quick-yes" loggt alle due_items direkt gegen /supplements/log,
+// "snooze" haelt sie 30min zurueck (push-scheduler respektiert das). Danach
+// jeweils eine kurze Bestaetigungs-Notification statt Navigation.
+async function logSupplementIntake(item, dateStr) {
+  const response = await fetch(withBase("/supplements/log"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      date: dateStr,
+      intake: {
+        supplement_id: item.id,
+        name: item.name,
+        dose: item.dose,
+        unit: item.unit,
+        time_of_day: item.time_of_day,
+      },
+    }),
+  });
+  if (!response.ok) throw new Error(`log failed: ${response.status}`);
+}
+
+async function handleQuickYes(data) {
+  const items = Array.isArray(data.due_items) ? data.due_items : [];
+  const dateStr = data.date || new Date().toISOString().slice(0, 10);
+  const results = await Promise.allSettled(items.map((item) => logSupplementIntake(item, dateStr)));
+  const failed = results.filter((r) => r.status === "rejected").length;
+  const names = items.map((i) => i.name).join(", ") || "Supplements";
+  return self.registration.showNotification(failed > 0 ? "Teilweise nicht geloggt" : "Erledigt ✓", {
+    body: failed > 0 ? `${names} — ${failed} fehlgeschlagen, bitte App öffnen.` : `${names} eingetragen.`,
+    icon: "/favicon-192x192.png",
+    badge: "/favicon-192x192.png",
+    tag: "fuel-supplements-ack",
+  });
+}
+
+async function handleSnooze(data) {
+  const items = Array.isArray(data.due_items) ? data.due_items : [];
+  const dateStr = data.date || new Date().toISOString().slice(0, 10);
+  const itemIds = items.map((i) => i.id);
+  try {
+    await fetch(withBase("/push/snooze"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ item_ids: itemIds, date: dateStr }),
+    });
+  } catch (err) {
+    console.error("[SW] Snooze request failed", err);
+  }
+}
+
 self.addEventListener("notificationclick", (event) => {
-  event.notification.close();
   const data = event.notification.data || {};
+  const meta = data.meta || {};
+
+  if (event.action === "quick-yes" && Array.isArray(meta.due_items) && meta.due_items.length > 0) {
+    event.notification.close();
+    event.waitUntil(handleQuickYes(meta));
+    return;
+  }
+  if (event.action === "snooze" && Array.isArray(meta.due_items) && meta.due_items.length > 0) {
+    event.notification.close();
+    event.waitUntil(handleSnooze(meta));
+    return;
+  }
+
+  event.notification.close();
   const actionMatch = Array.isArray(data.actions)
     ? data.actions.find((entry) => entry.action === event.action)
     : null;
   const urlToOpen = actionMatch?.url || data.url || "/";
-  
+
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
       for (let i = 0; i < windowClients.length; i++) {
