@@ -36,7 +36,7 @@ export function productToMeal(product, barcode) {
     description: [product.product_name, product.brands].filter(Boolean).join(" · "),
     grams: 100, kcal: Number(n[keys[0]]), protein: Number(n[keys[1]]), carbs: Number(n[keys[2]]), fat: Number(n[keys[3]]),
     barcode, source: "openfoodfacts", source_url: `https://world.openfoodfacts.org/product/${barcode}`,
-    micros: {}, micros_meta: { source: "openfoodfacts", method: "product_label", reference_grams: 100, barcode },
+    micros_meta: { source: "openfoodfacts", method: "product_label", reference_grams: 100, barcode },
   };
 }
 

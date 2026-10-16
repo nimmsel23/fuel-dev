@@ -1,3 +1,4 @@
+import { mealDetails } from "../../../client/lib/mealDetails.js";
 import { z } from "zod";
 import { isISODate, todayISO } from "../../../shared/utils/validation.mjs";
 import path from "path";
@@ -50,6 +51,15 @@ const logPostSchema = z.object({
     // Vom Client vorausberechneter ISO-Timestamp (echte Essenszeit statt
     // "jetzt") — siehe toLoggedAt() in LogView.jsx. Optional, fällt sonst
     // auf new Date().toISOString() zurück (Quicklog-Fall).
+    id: z.string().optional(),
+    logged_at: z.string().optional(),
+    grams: z.coerce.number().nonnegative().nullable().optional(),
+    micros: z.record(z.number().finite().nonnegative()).optional(),
+    micros_meta: z.record(z.unknown()).optional(),
+    components: z.array(z.record(z.unknown())).optional(),
+    source: z.string().optional(),
+    source_url: z.string().optional(),
+    barcode: z.string().optional(),
     time: z.string().optional(),
   }).optional(),
   // Quicklog from catalog: resolve macros server-side
@@ -195,6 +205,15 @@ const logPatchSchema = z.object({
     protein: z.coerce.number().min(0).optional(),
     carbs: z.coerce.number().min(0).optional(),
     fat: z.coerce.number().min(0).optional(),
+    id: z.string().optional(),
+    logged_at: z.string().optional(),
+    grams: z.coerce.number().nonnegative().nullable().optional(),
+    micros: z.record(z.number().finite().nonnegative()).optional(),
+    micros_meta: z.record(z.unknown()).optional(),
+    components: z.array(z.record(z.unknown())).optional(),
+    source: z.string().optional(),
+    source_url: z.string().optional(),
+    barcode: z.string().optional(),
     time: z.string().optional(),
   }).optional(),
 });
@@ -334,8 +353,10 @@ export default async function logRoute(app) {
       if (updates) {
         Object.assign(meal, Object.fromEntries(Object.entries(updates).filter(([, v]) => v !== undefined)));
         // kcal/description geändert → gecachte Mikros (auf altes kcal skaliert) sind stale.
-        delete meal.micros;
-        delete meal.micros_meta;
+        if (!updates.micros && ["kcal", "description", "grams"].some(k => updates[k] !== undefined && updates[k] !== sourceLog.meals[mealIndex][k])) {
+          delete meal.micros;
+          delete meal.micros_meta;
+        }
       }
 
       if (new_date && new_date !== date) {
@@ -418,15 +439,16 @@ export default async function logRoute(app) {
       } else if (parsed.data.meal) {
         const m = parsed.data.meal;
         log.meals.push({
-          id: `meal_${Date.now()}`,
+          ...mealDetails(m),
+          id: m.id || `meal_${Date.now()}`,
           catalog_id: m.catalog_id || null,
           type: m.type || "meal",
           description: m.description,
           notes: m.notes || "",
           kcal: m.kcal || 0, protein: m.protein || 0, carbs: m.carbs || 0, fat: m.fat || 0,
-          time: m.time || new Date().toISOString(),
+          time: m.time || m.logged_at || new Date().toISOString(),
         });
-        fireMicrosEstimate(m.description, m.kcal || 0, dbOptions(req));
+        if (!m.micros) fireMicrosEstimate(m.description, m.kcal || 0, dbOptions(req));
         autoUpsertCatalog(m, req.paths.nutrition, req.uid);
       }
 

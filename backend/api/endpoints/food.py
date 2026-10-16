@@ -35,6 +35,15 @@ class NutritionCatalogPost(BaseModel):
     item: MealCatalogUpsert
 
 
+def _adjust_micros_sum(journal: DailyJournal, before: dict, after: dict) -> None:
+    # Apply a delta so aggregate-only legacy entries retain their contribution.
+    totals = dict(journal.micros_sum or {})
+    for key in set(before) | set(after):
+        totals[key] = max(0, totals.get(key, 0) - (before.get(key) or 0) + (after.get(key) or 0))
+    journal.micros_sum = totals
+    flag_modified(journal, "micros_sum")
+
+
 def _normalize_catalog_name(name: str | None) -> str:
     return " ".join(str(name or "").strip().lower().split())
 
@@ -118,6 +127,8 @@ def log_food(request: FoodLogRequest, db: Session = Depends(get_db)):
         remaining = [meal for meal in journal.food_logs if meal.get("id") != request.delete_meal_id]
         if len(remaining) == before:
             raise HTTPException(status_code=404, detail="Meal not found")
+        removed = next(meal for meal in journal.food_logs if meal.get("id") == request.delete_meal_id)
+        _adjust_micros_sum(journal, removed.get("micros") or {}, {})
         journal.food_logs = remaining
         flag_modified(journal, "food_logs")
         db.commit()
@@ -173,6 +184,11 @@ def log_food(request: FoodLogRequest, db: Session = Depends(get_db)):
             "logged_at": meal.get("logged_at") or meal.get("time") or datetime.now(timezone.utc).isoformat(),
             "time": meal.get("time") or meal.get("logged_at") or datetime.now(timezone.utc).isoformat(),
         }
+        # Keep the scan profile with its portion and provenance on the entry.
+        # Daily totals alone cannot survive portion edits or a move to another day.
+        for key in ("grams", "micros", "micros_meta", "components", "source", "source_url", "barcode"):
+            if key in meal:
+                meal_dict[key] = meal[key]
         micros = meal.get("micros") or {}
     else:
         if not request.text or not request.text.strip():
@@ -321,6 +337,7 @@ def patch_meal_log(request: FoodLogPatchRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Meal not found")
 
     # Update durchführen
+    previous_micros = journal.food_logs[meal_idx].get("micros") or {}
     updated_meal = journal.food_logs[meal_idx].copy()
     if request.meal:
         updated_meal.update(request.meal)
@@ -335,6 +352,8 @@ def patch_meal_log(request: FoodLogPatchRequest, db: Session = Depends(get_db)):
             db.commit()
             db.refresh(new_journal)
 
+        _adjust_micros_sum(journal, previous_micros, {})
+        _adjust_micros_sum(new_journal, {}, updated_meal.get("micros") or {})
         # Von altem Datum entfernen
         journal.food_logs.pop(meal_idx)
         flag_modified(journal, "food_logs")
@@ -343,6 +362,7 @@ def patch_meal_log(request: FoodLogPatchRequest, db: Session = Depends(get_db)):
         new_journal.food_logs.append(updated_meal)
         flag_modified(new_journal, "food_logs")
     else:
+        _adjust_micros_sum(journal, previous_micros, updated_meal.get("micros") or {})
         # Im gleichen Datum-Journal updaten
         journal.food_logs[meal_idx] = updated_meal
         flag_modified(journal, "food_logs")

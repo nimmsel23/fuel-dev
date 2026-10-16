@@ -207,3 +207,10 @@ Session-Log mit datierten Ergebnis-Bullets.
 - Eigener Barcode-Modus: native EAN/UPC-Fotodecodierung, Prüfziffer-Prüfung, Open-Food-Facts-Abfrage mit Timeout und 30-Tage-Produktcache. Nummerneingabe als Fallback für Browser ohne BarcodeDetector.
 - Produktwerte werden pro 100 g in das bearbeitbare Log-Formular übernommen; unbekannte Produkte/unvollständige Werte ergeben eine konkrete Fehlermeldung. Quellenhinweis und ODbL-Link im Scanner.
 - Prüfung: 4 Tests für Prüfziffern, Produktdaten, Offline-Cache, fehlende Werte und native Decoder-Ressourcen; Cloud-Build erfolgreich. Physische Kamera und externer Produktabruf nicht live geprüft.
+
+## 2026-10-16 — Scan-Profile durchgängig erhalten
+
+- Bildanalyse gibt Mikronährstoffe, Bezugsgewicht, Herkunft und vorhandene Zutaten direkt an den Eintrag zurück. Formular, Katalog-Speichern, Wiederholen und Shutter-Schnelleinstieg erhalten diese Daten.
+- Portionsänderungen skalieren Makros, Mikros und Zutatenmengen gemeinsam; kleine Mikronährstoffwerte bleiben erhalten. Barcode-Herkunft wird ebenfalls weitergereicht.
+- Lokaler v3-HTTP-/SQLite-Pfad und v4-JSON-Pfad erhalten die Scan-Details. v4 aktualisiert Mikronährstoff-Tagesaggregate beim Bearbeiten, Verschieben und Löschen dieser Einträge.
+- Prüfung: 3 Profil-/Skalierungstests, HTTP→SQLite→Edit-Test mit isoliertem temporärem Speicher, v4-Speicher-/Move-/Delete-Test mit In-Memory-SQLite; Cloud-Build erfolgreich. Keine Laufzeitdaten migriert.

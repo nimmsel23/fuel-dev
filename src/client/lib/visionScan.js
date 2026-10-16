@@ -1,3 +1,4 @@
+import { scanToMeal } from "./mealDetails.js";
 import { postJson } from "@api";
 import { vertexAI } from "./firebase.js";
 import { getGenerativeModel } from "firebase/vertexai";
@@ -90,16 +91,7 @@ export async function analyzeMealImage(file) {
     ]));
     macrosResult = JSON.parse(result.response.text());
 
-    if (macrosResult?.micros) {
-      const mealName = macrosResult.name || "Gescannte Mahlzeit";
-      await postJson("/nutrition/micros", {
-        items: [{
-          meal_name: mealName,
-          kcal: macrosResult.macros?.kcal || 0,
-          ...Object.fromEntries(MICRO_KEYS.map((k) => [k, macrosResult.micros[k] || 0])),
-        }],
-      }).catch((err) => console.error("Mikros speichern fehlgeschlagen:", err));
-    }
+
   } else {
     macrosResult = await postJson("/nutrition/vision", {
       image_b64: b64Raw,
@@ -107,16 +99,5 @@ export async function analyzeMealImage(file) {
     });
   }
 
-  if (!macrosResult?.macros) {
-    throw new Error("Konnte keine Makros erkennen.");
-  }
-
-  return {
-    description: macrosResult.name || "Gescannte Mahlzeit",
-    grams: macrosResult.grams || null,
-    kcal: macrosResult.macros.kcal || 0,
-    protein: macrosResult.macros.protein || 0,
-    carbs: macrosResult.macros.carbs || 0,
-    fat: macrosResult.macros.fat || 0,
-  };
+  return scanToMeal(macrosResult);
 }

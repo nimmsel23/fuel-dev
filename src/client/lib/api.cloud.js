@@ -117,7 +117,7 @@ async function autoUpsertCatalog(meal) {
     // Mikros/Zutaten aus dem Schätz-Call (aiMealLogger) mit auf den Katalog-
     // Eintrag ziehen — Parität mit fuel/catalog_lookup.py::save_meal.
     const comps = Array.isArray(meal.components) ? meal.components : [];
-    const yieldG = comps.reduce((s, c) => s + (c.amount_g || 0), 0) || null;
+    const yieldG = meal.grams || comps.reduce((s, c) => s + (c.amount_g || 0), 0) || null;
     const hasMicros = meal.micros && Object.values(meal.micros).some((v) => v > 0);
     if (idx >= 0) {
       const cur = items[idx];
@@ -152,7 +152,7 @@ async function autoUpsertCatalog(meal) {
         micros: hasMicros ? meal.micros : {},
         micros_meta: hasMicros ? (meal.micros_meta || null) : null,
         components: comps,
-        source: "logged",
+        source: meal.source || "logged",
         use_count: 1,
         last_used_at: nowIso,
         created_at: nowIso,

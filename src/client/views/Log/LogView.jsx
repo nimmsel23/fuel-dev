@@ -1,3 +1,4 @@
+import { mealDetails, scaleMeal } from "../../lib/mealDetails.js";
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { NotebookPen, UtensilsCrossed, Pencil, Sparkles, AlertTriangle, RefreshCw, Check, X, ScanSearch, Clock, AlignJustify, LayoutGrid, GitCommitVertical } from "lucide-react";
@@ -230,20 +231,15 @@ export default function LogView({ date, nutrition, notes }) {
         return { ...f, grams: newGrams };
       }
       const factor = Number(newGrams) / scanBaseline.grams;
-      return {
-        ...f,
-        grams: newGrams,
-        kcal: Math.round(scanBaseline.kcal * factor * 10) / 10,
-        protein: Math.round(scanBaseline.protein * factor * 10) / 10,
-        carbs: Math.round(scanBaseline.carbs * factor * 10) / 10,
-        fat: Math.round(scanBaseline.fat * factor * 10) / 10,
-      };
+      const scaled = scaleMeal(scanBaseline, factor);
+      return { ...f, ...mealDetails(scaled), kcal: scaled.kcal, protein: scaled.protein, carbs: scaled.carbs, fat: scaled.fat, grams: newGrams };
     });
   };
-  const cancelEdit = () => { setForm(emptyForm()); setMoveDate(""); };
+  const cancelEdit = () => { setForm(emptyForm()); setScanBaseline(null); setMoveDate(""); };
 
   function loadForEdit(meal) {
-    setForm({ id: meal.id, type: meal.type, description: meal.description,
+    setScanBaseline(meal.grams ? { ...meal } : null);
+    setForm({ ...mealDetails(meal), id: meal.id, type: meal.type, description: meal.description,
       notes: meal.notes || "", kcal: meal.kcal, protein: meal.protein,
       carbs: meal.carbs, fat: meal.fat, grams: meal.grams || "",
       time: hhmmFromISO(meal.time || meal.logged_at) });
@@ -256,7 +252,7 @@ export default function LogView({ date, nutrition, notes }) {
       if (isEditing) {
         const body = {
           date, meal_id: form.id,
-          meal: { type: form.type, description: form.description, notes: form.notes,
+          meal: { ...mealDetails(form), type: form.type, description: form.description, notes: form.notes,
             kcal: form.kcal, protein: form.protein, carbs: form.carbs, fat: form.fat,
             grams: Number(form.grams) || null,
             time: toLoggedAt(moveDate || date, form.time) },
@@ -266,7 +262,7 @@ export default function LogView({ date, nutrition, notes }) {
       }
       return postJson("/nutrition/log", {
         date,
-        meal: { type: form.type, description: form.description, notes: form.notes,
+        meal: { ...mealDetails(form), type: form.type, description: form.description, notes: form.notes,
           kcal: form.kcal, protein: form.protein, carbs: form.carbs, fat: form.fat,
           grams: Number(form.grams) || null,
           time: toLoggedAt(date, form.time) },
@@ -278,6 +274,7 @@ export default function LogView({ date, nutrition, notes }) {
       qc.invalidateQueries({ queryKey: ["week-logs"] });
       qc.invalidateQueries({ queryKey: ["nutrition-catalog"] });
       setForm(emptyForm());
+      setScanBaseline(null);
       setMoveDate("");
     },
   });
@@ -285,6 +282,7 @@ export default function LogView({ date, nutrition, notes }) {
   const saveCatalog = useMutation({
     mutationFn: () => postJson("/nutrition/catalog", { 
       item: {
+        ...mealDetails(form),
         kind: "meal",
         category: "meal",
         name: form.description.trim(),
@@ -296,7 +294,7 @@ export default function LogView({ date, nutrition, notes }) {
         carbs: Number(form.carbs) || 0,
         fat: Number(form.fat) || 0,
         yield_g: Number(form.grams) || null,
-        source: "manual",
+        source: form.source || "manual",
       }
     }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["nutrition-catalog"] }),
@@ -318,6 +316,7 @@ export default function LogView({ date, nutrition, notes }) {
     mutationFn: (meal) => postJson("/nutrition/log", {
       date,
       meal: {
+        ...mealDetails(meal),
         type: meal.type, description: meal.description, notes: meal.notes || "",
         kcal: meal.kcal, protein: meal.protein, carbs: meal.carbs, fat: meal.fat,
         grams: meal.grams ?? null, catalog_item_id: meal.catalog_item_id || null,
@@ -411,7 +410,8 @@ export default function LogView({ date, nutrition, notes }) {
             onClose={() => setScannerOpen(false)}
             onResult={(res) => {
               setForm(f => ({
-                ...f,
+                ...emptyForm(),
+                ...mealDetails(res),
                 description: res.description,
                 kcal: res.kcal || "",
                 protein: res.protein || "",
@@ -422,7 +422,7 @@ export default function LogView({ date, nutrition, notes }) {
               // Nur setzen wenn die Analyse eine Mengenangabe mitliefert —
               // sonst bleibt das Gewicht-Feld wie vorher rein deskriptiv.
               setScanBaseline(res.grams
-                ? { grams: res.grams, kcal: res.kcal || 0, protein: res.protein || 0, carbs: res.carbs || 0, fat: res.fat || 0 }
+                ? { ...res }
                 : null);
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
@@ -432,7 +432,7 @@ export default function LogView({ date, nutrition, notes }) {
         {!isEditing && (
           <FoodSearch
             onSelect={({ description, kcal, protein, carbs, fat }) =>
-              setForm((f) => ({ ...f, description, kcal, protein, carbs, fat }))
+              { setScanBaseline(null); setForm((f) => ({ ...emptyForm(), type: f.type, description, kcal, protein, carbs, fat })); }
             }
           />
         )}

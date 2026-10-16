@@ -1,3 +1,4 @@
+import { mealDetails } from "../../client/lib/mealDetails.js";
 import Database from "better-sqlite3";
 import path from "path";
 import { NUTRITION_DB_PATH } from "../config/paths.mjs";
@@ -133,6 +134,7 @@ function initDb(db) {
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
+  try { db.exec(`ALTER TABLE meals ADD COLUMN details_json TEXT`); } catch { /* column exists */ }
 }
 
 // ── Meals (Tages-Log, normalisiert) ───────────────────────────────────────────
@@ -142,13 +144,13 @@ export function upsertMeal(meal, options = {}) {
   const nutritionDir = options.nutritionDir || (options.nutritionDbPath ? path.dirname(options.nutritionDbPath) : null);
   const uid = options.uid || "default";
   db.prepare(`
-    INSERT INTO meals (id, date, catalog_id, type, description, notes, kcal, protein, carbs, fat, micros_json, micros_meta_json, logged_at)
-    VALUES (@id, @date, @catalog_id, @type, @description, @notes, @kcal, @protein, @carbs, @fat, @micros_json, @micros_meta_json, @logged_at)
+    INSERT INTO meals (id, date, catalog_id, type, description, notes, kcal, protein, carbs, fat, micros_json, micros_meta_json, details_json, logged_at)
+    VALUES (@id, @date, @catalog_id, @type, @description, @notes, @kcal, @protein, @carbs, @fat, @micros_json, @micros_meta_json, @details_json, @logged_at)
     ON CONFLICT(id) DO UPDATE SET
       date = excluded.date, catalog_id = excluded.catalog_id, type = excluded.type,
       description = excluded.description, notes = excluded.notes,
       kcal = excluded.kcal, protein = excluded.protein, carbs = excluded.carbs, fat = excluded.fat,
-      micros_json = excluded.micros_json, micros_meta_json = excluded.micros_meta_json, logged_at = excluded.logged_at,
+      micros_json = excluded.micros_json, micros_meta_json = excluded.micros_meta_json, details_json = excluded.details_json, logged_at = excluded.logged_at,
       updated_at = CURRENT_TIMESTAMP
   `).run({
     id: meal.id,
@@ -161,6 +163,7 @@ export function upsertMeal(meal, options = {}) {
     protein: meal.protein ?? 0,
     carbs: meal.carbs ?? 0,
     fat: meal.fat ?? 0,
+    details_json: JSON.stringify(mealDetails(meal)),
     micros_json: meal.micros ? JSON.stringify(meal.micros) : null,
     micros_meta_json: meal.micros_meta ? JSON.stringify(meal.micros_meta) : null,
     logged_at: meal.logged_at ?? meal.time ?? null,
@@ -216,7 +219,8 @@ export function deleteMealsByIds(date, ids = [], options = {}) {
 export function getMealsForDate(date, options = {}) {
   const rows = getDb(options).prepare("SELECT * FROM meals WHERE date = ? ORDER BY logged_at, id").all(date);
   return rows.map((r) => {
-    const { micros_json, micros_meta_json, ...rest } = r;
+    const { micros_json, micros_meta_json, details_json, ...rest } = r;
+    if (details_json) Object.assign(rest, JSON.parse(details_json));
     // `undefined` statt gelöschtem Key wurde von Firestore Admin abgelehnt
     // ("Cannot use 'undefined' as a Firestore value") — deshalb Destructuring
     // statt `micros_json: undefined`, damit der Key im Objekt fehlt statt

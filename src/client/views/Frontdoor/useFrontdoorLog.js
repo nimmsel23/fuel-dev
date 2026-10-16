@@ -1,3 +1,4 @@
+import { mealDetails } from "../../lib/mealDetails.js";
 import { useCallback, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchJson, postJson } from "@api";
@@ -74,6 +75,7 @@ export function useFrontdoorLog() {
     mutationFn: async (meal) => {
       const id = meal.id || `meal_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
       const payload = {
+        ...mealDetails(meal),
         id,
         type: meal.type || "meal",
         description: meal.description,
