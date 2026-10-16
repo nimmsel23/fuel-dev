@@ -214,3 +214,10 @@ Session-Log mit datierten Ergebnis-Bullets.
 - Portionsänderungen skalieren Makros, Mikros und Zutatenmengen gemeinsam; kleine Mikronährstoffwerte bleiben erhalten. Barcode-Herkunft wird ebenfalls weitergereicht.
 - Lokaler v3-HTTP-/SQLite-Pfad und v4-JSON-Pfad erhalten die Scan-Details. v4 aktualisiert Mikronährstoff-Tagesaggregate beim Bearbeiten, Verschieben und Löschen dieser Einträge.
 - Prüfung: 3 Profil-/Skalierungstests, HTTP→SQLite→Edit-Test mit isoliertem temporärem Speicher, v4-Speicher-/Move-/Delete-Test mit In-Memory-SQLite; Cloud-Build erfolgreich. Keine Laufzeitdaten migriert.
+
+## 2026-10-16 — Cloud-Backup und Wiederherstellung
+
+- Setup bietet JSON-Export für eigene Firestore-Tageslogs, Wasser, Tagesnotizen/AI-Pending-Texte, private Essens-/Supplement-Kataloge, Profil/Settings und Fuel Frame. Export wartet auf bestätigte SDK-Schreibvorgänge; offene Outbox-Befehle müssen zuerst synchronisiert werden.
+- Import prüft Formatversion, Konto, erlaubte Dokumenttypen/IDs, Eintrags-IDs, Mengen und Größen. Vorschau vor einer eigenen Wiederherstellen-Schaltfläche; additive Transaktionen erhalten aktuelle Werte und Löschmarkierungen. Unterbrochene Wiederherstellung nennt Fortschritt und kann ohne Duplikate wiederholt werden.
+- Quelle ist ausdrücklich die Cloud, auch wenn Setup lokal geöffnet wird. Server-/SQLite-Daten gehören nicht zu diesem Cloud-Backup.
+- Prüfung: 5 Tests für Validierung, Konto-/Pfadgrenzen, konfliktfreie Zusammenführung, Export/Import-Roundtrip, konkurrierende Änderungen und Wiederaufnahme; Cloud-Build erfolgreich.
