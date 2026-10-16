@@ -11,6 +11,7 @@ import { TAB_CONFIG } from "./routes.js";
 import { createFuelQueryClient } from "./lib/queryClient.js";
 import StorageStatus from "./components/StorageStatus.jsx";
 import TabContent from "./components/TabContent.jsx";
+import SoloShell from "./SoloShell.jsx";
 import NutritionHeatmap from "./components/NutritionHeatmap.jsx";
 import { IosInstallHint } from "./components/IosInstallHint.jsx";
 import { InstallPromptHandler } from "./components/InstallPromptHandler.jsx";
@@ -31,6 +32,9 @@ const FrontdoorHost = React.lazy(() => import("./views/Frontdoor/FrontdoorHost.j
 
 
 const qc = createFuelQueryClient();
+
+// Mini-App-Build (VITE_SOLO=…, siehe routes.js/SoloShell.jsx): schlanke Ein-Tab-Shell statt App.
+const SOLO = import.meta.env.VITE_SOLO || "";
 
 function localToday() {
   return new Date().toISOString().slice(0, 10);
@@ -338,7 +342,7 @@ createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <QueryClientProvider client={qc}>
       <StorageStatus />
-      <App />
+      {SOLO ? <SoloShell /> : <App />}
     </QueryClientProvider>
   </React.StrictMode>,
 );

@@ -1,0 +1,33 @@
+{
+  "defaults": { "bg": "#090b10", "themeColor": "#090b10", "start": "./", "scope": "./", "sw": { "mode": "keep" } },
+  "apps": {
+    "log": {
+      "name": "VitalOS Fuel Log",
+      "short": "Fuel Log",
+      "description": "Mahlzeiten loggen, Tagessumme und Makros — der Log-Tab von Fuel als eigene App",
+      "accent": "#fb923c",
+      "iconDir": "solo-icons/log"
+    },
+    "supplements": {
+      "name": "VitalOS Fuel Supplements",
+      "short": "Supplements",
+      "description": "Supplements loggen und Einnahme-Erinnerungen — der Supplements-Tab von Fuel als eigene App",
+      "accent": "#a3e635",
+      "iconDir": "solo-icons/supplements"
+    },
+    "micros": {
+      "name": "VitalOS Fuel Mikros",
+      "short": "Mikros",
+      "description": "Mikronährstoffe als Wochenheatmap gegen die DACH-Referenzwerte — der Mikros-Tab von Fuel als eigene App",
+      "accent": "#f472b6",
+      "iconDir": "solo-icons/micros"
+    },
+    "report": {
+      "name": "VitalOS Fuel Protokoll",
+      "short": "Protokoll",
+      "description": "Abgabefertiges 7-/14-Tage-Ernährungsprotokoll mit Druck/PDF — der Protokoll-Tab von Fuel als eigene App",
+      "accent": "#38bdf8",
+      "iconDir": "solo-icons/report"
+    }
+  }
+}

@@ -39,3 +39,6 @@ gas-logger/
 # bleiben getrackt, nur diese eine generierte Datei nicht.
 /catalogs/nutrition/catalog.json
 .claude/hooks/*.log
+
+# Mini-App-Builds (pnpm run build:solo)
+dist-solo-*/
