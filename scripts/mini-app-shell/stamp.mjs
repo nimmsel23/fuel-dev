@@ -129,3 +129,15 @@ export function stampSw({ outDir, app, root = process.cwd(), log = console.log }
   log(`🔢 ${out}/${file}: CACHE → ${sw.prefix || `vos-${app.id}-`}v${version}`);
   return { version };
 }
+
+// Nur den Splash (+ Update-Loader) in die index.html des Build-Outputs setzen — für Haupt-Apps, die Manifest,
+// Titel, Icons und SW-Registrierung selbst verwalten (Fitness, Fuel). Idempotent.
+export function stampSplash({ outDir, app, log = console.log }) {
+  if (!app.short || !app.accent) throw new Error("mini-app.json: short und accent sind für den Splash Pflicht");
+  const htmlPath = resolve(outDir, app.html || "index.html");
+  if (!existsSync(htmlPath)) { log(`⚠️  ${htmlPath} nicht gefunden — kein Splash`); return { done: false }; }
+  const opts = { name: app.short, accent: app.accent, icon: "./icon-192.png", ...(app.bg && { bg: app.bg }), ...(typeof app.splash === "object" && app.splash) };
+  writeFileSync(htmlPath, injectSplash(readFileSync(htmlPath, "utf8"), opts));
+  log(`✨ ${htmlPath}: Splash "${opts.name}" (${opts.icon})`);
+  return { done: true };
+}

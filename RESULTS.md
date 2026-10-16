@@ -1,3 +1,7 @@
+# Splash-Screen auch in der Fuel-Haupt-App (2026-10-16)
+
+- `cli.mjs splash` im Build der Haupt-App (`build:local`, `build:cloud`); Geprüft am Cloud-Build (Splash "Fuel", Icon `./icons/icon-192.png`). Auth-Domains der vier Mini-Apps (8 Einträge) per Identity-Toolkit-API nochmals live geprüft: vollständig. Preview-Channel-URLs (`…--dev-xxxx.web.app`) sind nicht eingetragen → Google-Login nur dort nicht möglich.
+
 # Fuel-Service-Worker auf das Mini-App-Shell-Template umgestellt (2026-10-16)
 
 - `public/sw.js` (231 Zeilen) → `docs/archive/sw.fuel-main-v1.js`; Fuel-Teil (Push, Supplement-Quick-Actions, eigener notificationclick) nach `scripts/fuel-sw-extra.js`, Rest aus `mini-app.json` (`apps.fuel`). Gilt für `dist` (build:local), `dist-firebase` (build:cloud) und alle Solo-Apps; Build-Skripte/`stamp-solo.mjs` rufen `cli.mjs sw`.

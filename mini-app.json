@@ -61,6 +61,9 @@
         "notificationClick": false,
         "extraFile": "scripts/fuel-sw-extra.js",
         "assetFallback": "none"
+      },
+      "splash": {
+        "icon": "./icons/icon-192.png"
       }
     }
   }

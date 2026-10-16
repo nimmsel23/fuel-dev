@@ -7,7 +7,7 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { stampApp, stampSw } from "./stamp.mjs";
+import { stampApp, stampSw, stampSplash } from "./stamp.mjs";
 import { runParity } from "./parity.mjs";
 
 // Consumer-Repos bauen standalone (GitHub Actions, ohne vitalos) → das Paket wird in sie kopiert.
@@ -45,8 +45,8 @@ async function main(argv) {
   }
   const [cmd, outDir, ...rest] = argv;
   const arg = (k) => (rest.includes(`--${k}`) ? rest[rest.indexOf(`--${k}`) + 1] : undefined);
-  if (!["stamp", "sw"].includes(cmd) || !outDir || !arg("app")) {
-    console.error("Aufruf: vos-mini-app stamp|sw <outDir> --app <id> [--config mini-app.json]   (sw = nur Service Worker + Manifest-Version)\n       vos-mini-app vendor <zielordner> [--check]\n       vos-mini-app parity --app <id> --old <alter-sw.js> [--ignore a,b]");
+  if (!["stamp", "sw", "splash"].includes(cmd) || !outDir || !arg("app")) {
+    console.error("Aufruf: vos-mini-app stamp|sw|splash <outDir> --app <id> [--config mini-app.json]   (sw = nur Service Worker + Manifest-Version, splash = nur Splash)\n       vos-mini-app vendor <zielordner> [--check]\n       vos-mini-app parity --app <id> --old <alter-sw.js> [--ignore a,b]");
     process.exit(1);
   }
   const cfgPath = resolve(arg("config") || "mini-app.json");
@@ -57,7 +57,7 @@ async function main(argv) {
     process.exit(1);
   }
   const full = { id: arg("app"), ...cfg.defaults, ...app };
-  (cmd === "sw" ? stampSw : stampApp)({ outDir, app: full, root: dirname(cfgPath) });
+  ({ sw: stampSw, splash: stampSplash }[cmd] || stampApp)({ outDir, app: full, root: dirname(cfgPath) });
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) main(process.argv.slice(2));
