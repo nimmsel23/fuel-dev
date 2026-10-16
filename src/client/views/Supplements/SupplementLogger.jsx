@@ -119,7 +119,7 @@ export default function SupplementLogger({ date, catalog, intakes }) {
         <p className="mt-3 text-sm text-rose-300">{createIntake.error.message}</p>
       )}
       {createIntake.isSuccess && (
-        <p className="mt-3 text-sm text-emerald-300">Supplement gespeichert.</p>
+        <p className="mt-3 text-sm text-emerald-300">Einnahme lokal erfasst.</p>
       )}
       <button disabled={createIntake.isPending || catalog.length === 0} className="mt-4 inline-flex items-center gap-2 rounded-full bg-violet-300 px-5 py-3 font-medium text-slate-950 disabled:opacity-60">
         <Pill className="h-4 w-4" />

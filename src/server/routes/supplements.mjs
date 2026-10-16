@@ -40,6 +40,7 @@ const catalogPostSchema = z.object({
 const logPostSchema = z.object({
   date: z.string().optional(),
   intake: z.object({
+    id: z.string().uuid().optional(),
     supplement_id: z.string().min(1),
     name: z.string().optional(),
     dose: z.coerce.number().optional(),

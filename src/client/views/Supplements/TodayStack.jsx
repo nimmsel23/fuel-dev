@@ -26,7 +26,6 @@ export default function TodayStack({ date, intakes }) {
               <button
                 type="button"
                 onClick={() => deleteIntake.mutate({ delete_id: intake.id })}
-                disabled={deleteIntake.isPending}
                 className="rounded-full border border-rose-300/30 bg-rose-300/10 px-3 py-2 text-xs uppercase tracking-[0.18em] text-rose-100 disabled:opacity-60"
               >
                 Entfernen

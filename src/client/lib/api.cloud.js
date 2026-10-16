@@ -159,7 +159,7 @@ export async function postJson(path, body) {
       intake.name = (await firestore.getSupplementsCatalog()).find(i => i.id === intake.supplement_id)?.name || intake.supplement_id;
     }
     if (intake) intake.id = intake.id || crypto.randomUUID();
-    return submitCloudLog("supplements", body.date, { ...body, intake });
+    return submitCloudLog("supplements", body.date, { ...body, intake }, { background: true });
   }
 
   if (normPath === "/supplements/catalog") {

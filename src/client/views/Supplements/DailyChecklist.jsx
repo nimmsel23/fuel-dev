@@ -77,7 +77,6 @@ export default function DailyChecklist({ date, catalog, intakes }) {
   }
 
   function toggleIntake(item, isChecked) {
-    if (createIntake.isPending || deleteIntake.isPending) return;
     if (isChecked) {
       const lastIntake = intakes.slice().reverse().find(i => i.supplement_id === item.id);
       if (lastIntake) deleteIntake.mutate({ delete_id: lastIntake.id });
@@ -93,7 +92,7 @@ export default function DailyChecklist({ date, catalog, intakes }) {
 
   return (
     <section className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur">
-      <div className="mb-4 flex items-center justify-between gap-3">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="mb-2 flex items-center gap-2">
             <Check className="h-5 w-5 text-emerald-400" />
@@ -120,7 +119,7 @@ export default function DailyChecklist({ date, catalog, intakes }) {
                 {items.map((item) => {
                   const isChecked = (intakeCountBySupplement[item.id] || 0) > 0;
                   return (
-                    <button type="button" aria-pressed={isChecked} disabled={createIntake.isPending || deleteIntake.isPending} key={item.id} className={`group relative text-left disabled:opacity-50 rounded-2xl border ${isChecked ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-white/10 bg-slate-950/60'} p-4 transition hover:bg-slate-900 cursor-pointer`} onClick={() => toggleIntake(item, isChecked)}>
+                    <button type="button" aria-pressed={isChecked} key={item.id} className={`group relative text-left disabled:opacity-50 rounded-2xl border ${isChecked ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-white/10 bg-slate-950/60'} p-4 transition hover:bg-slate-900 cursor-pointer`} onClick={() => toggleIntake(item, isChecked)}>
                       <div className="flex items-start justify-between gap-3">
                         <strong className={isChecked ? 'text-emerald-300' : 'text-slate-100'}>{item.name}</strong>
                         <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${isChecked ? 'border-emerald-400 bg-emerald-400 text-slate-950' : 'border-slate-500'}`}>

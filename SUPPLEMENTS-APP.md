@@ -21,7 +21,8 @@ Der Deploy betrifft ausschließlich dieses Hosting-Ziel. Firestore-Regeln bleibe
 
 - Tagesfortschritt und nach Tageszeit gruppierte Routine.
 - Schnellerfassung und freie Einnahmen mit Notizen.
-- Sieben-Tage-Planvorschau mit Datumsnavigation.
+- Habit-Wochentracker pro Supplement (Montag bis Sonntag), Wochenwechsel, Suche, Plan-/Einnahmestatus und rückwirkende Erfassung. Mehrere Einnahmen sind sichtbar; ein erneuter Klick entfernt die letzte. Zukünftige Tage zeigen nur den Plan.
+- Einnahmen und Entfernen erscheinen sofort im gemeinsamen Tagescache. Cloud-Befehle werden zuerst kontogebunden im lokalen Outbox-Speicher gesichert, danach im Hintergrund synchronisiert. Bei Fehlern bleibt die Änderung sichtbar in der Statusleiste und kann erneut synchronisiert oder verworfen werden; abgelehnte Befehle werden nicht als erfolgreiche Einnahmen projiziert.
 - Katalogsuche, Planfilter, tägliche/wöchentliche/zyklische Pläne und Einnahme bei Bedarf.
 - 30-Tage-Auswertung bis zum gewählten Datum: tatsächliche Einnahmetage und Tages-Serie.
 - Reminder-Zeiten und Push-Registrierung; Änderungen speichern nur die zugehörigen Settings-Felder.

@@ -41,8 +41,8 @@ export function useSuppCatalog() {
   });
 }
 
-export function useSuppLog(date) {
-  return useQuery({
+export function suppLogOptions(date) {
+  return {
     queryKey: ["supp-log", date],
     queryFn: async () => {
       if (isCloud()) {
@@ -57,5 +57,9 @@ export function useSuppLog(date) {
       }
     },
     staleTime: 30_000,
-  });
+  };
+}
+
+export function useSuppLog(date) {
+  return useQuery(suppLogOptions(date));
 }

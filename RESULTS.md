@@ -2,6 +2,17 @@
 
 Session-Log mit datierten Ergebnis-Bullets.
 
+## 2026-10-16: Optimistische Einnahmen und Supplement-Wochentracker
+
+- Einnahmen und Entfernen aktualisieren den gemeinsamen Tagescache sofort. Stabile IDs erlauben direktes Rückgängigmachen; Fehler-Rücknahme betrifft nur den eigenen Befehl und lässt andere Eingaben stehen. Kontowechsel wird beim Patchen und Senden berücksichtigt.
+- Cloud-Einnahmen werden zuerst dauerhaft in der bestehenden kontogebundenen Outbox gesichert und sofort lokal bestätigt; Transaktionen/Replay laufen im Hintergrund. Fehlgeschlagene Befehle bleiben mit Fehler sichtbar und werden nicht als erfolgreiche Einnahmen projiziert. Die Statusleiste aktualisiert gezielt den betroffenen Tag bei Outbox-Änderungen.
+- Wochentracker (Mo–So) pro Supplement auf der Tagesseite und als eigener Bereich: Wochenwechsel, Suche, geplante/freie/erfasste Tage, Einnahmetage und Mehrfach-Einnahmen. Vergangenheit und heute sind anklickbar; Zukunft ist eine reine Planansicht. Tagesansicht und Tracker teilen dieselben Query-Keys.
+- Lokales API akzeptiert ebenfalls die clientseitige Einnahme-UUID, damit optimistische Einträge beim Wechsel zwischen Ansichten ihre Identität behalten. Ein schmaler Header-Überlauf wurde behoben.
+- Verifiziert: alle 9 Node-Testdateien erfolgreich (zusätzliche Tests für gezielte Rücknahme, lokale Bestätigung vor Cloud-Abschluss und blockierte Hintergrundfehler), Solo-Produktionsbuild, `git diff --check`.
+- Isolierter Firefox mit Testdaten und künstlich drei Sekunden langsamen Schreibvorgängen: sofortiges Setzen/Rücknehmen und andere Supplement-Eingaben bleiben bedienbar. Inhaltsbreiten 390 und 320 Pixel ohne horizontalen Überlauf geprüft. Keine echten Nutzerdaten verändert.
+- Solo-Hosting-Deploy erfolgreich: https://vos-fuel-supplements.web.app. Authentifizierte echte Cloud-Schreibvorgänge/Push wurden nicht auf einem Nutzerkonto getestet.
+
+
 ## 2026-10-16: Eigenständige Supplements-Mini-App
 
 - Eigener Solo-Einstieg (`solo-main.jsx`), Supplements-Datenabruf erst nach Login und ohne Nutrition-/Journal-Abfragen. Kontowechsel leert den Query-Cache; Login-Fehler werden angezeigt.

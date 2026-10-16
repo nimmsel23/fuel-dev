@@ -42,7 +42,6 @@ export default function QuickLog({ date, catalog, stats }) {
             key={item.id}
             type="button"
             onClick={() => logItem(item)}
-            disabled={createIntake.isPending}
             className="flex items-center justify-between gap-3 rounded-2xl border border-orange-400/20 bg-orange-400/5 p-4 text-left transition hover:bg-orange-400/10 disabled:opacity-50"
           >
             <div>
@@ -56,7 +55,7 @@ export default function QuickLog({ date, catalog, stats }) {
         ))}
       </div>
       {createIntake.isError && <p role="alert" className="mt-3 text-sm text-rose-300">{createIntake.error.message}</p>}
-      {createIntake.isSuccess && <p role="status" className="mt-3 text-sm text-emerald-300">Einnahme gespeichert.</p>}
+      {createIntake.isSuccess && <p role="status" className="mt-3 text-sm text-emerald-300">Einnahme lokal erfasst.</p>}
     </section>
   );
 }

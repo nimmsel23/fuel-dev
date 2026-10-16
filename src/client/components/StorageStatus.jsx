@@ -42,7 +42,11 @@ export default function StorageStatus() {
   }, [qc]);
   useEffect(() => {
     if (!cloud || !uid) { setEntries([]); return; }
-    const refresh = () => {
+    const refresh = event => {
+      if (event?.entry?.uid === uid && event.entry.kind === "supplements") {
+        void qc.invalidateQueries({ queryKey: ["supp-log", event.entry.date], exact: true });
+        void qc.invalidateQueries({ queryKey: ["supp-stats"] });
+      }
       try { setEntries(outboxEntries(uid)); } catch (e) { setError(`Warteschlange nicht lesbar: ${e.message}`); }
     };
     let running = false;

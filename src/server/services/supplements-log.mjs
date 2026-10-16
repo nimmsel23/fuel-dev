@@ -50,7 +50,7 @@ export function addIntake(log, intakeInput, supplementsLogDir = SUPPLEMENTS_LOG_
   const notes = (intakeInput.notes || "").toString().trim();
 
   const intake = {
-    id: randomId("supp"),
+    id: intakeInput.id || randomId("supp"),
     supplement_id: supplementId,
     name,
     dose,

@@ -33,3 +33,17 @@ test('stats count unique days in the requested window and retain zero-count prod
   assert.equal(rows[1].days_taken, 0);
   assert.equal(summarizeSupplementLogs([{ id: 'a' }], logs, dates, '2026-11-01')[0].current_streak, 0);
 });
+
+test('optimistic commands are idempotent and rolling back one preserves concurrent work', async () => {
+  const { applyIntakeCommand, undoIntakeCommand } = await import('../src/client/views/Supplements/optimistic.js');
+  const a = { intake: { id: 'a', supplement_id: 'one' } };
+  const b = { intake: { id: 'b', supplement_id: 'two' } };
+  let log = applyIntakeCommand({ intakes: [] }, a);
+  log = applyIntakeCommand(log, a);
+  log = applyIntakeCommand(log, b);
+  assert.equal(log.intakes.length, 2);
+  assert.deepEqual(undoIntakeCommand(log, a).intakes.map(item => item.id), ['b']);
+  const deleted = applyIntakeCommand(log, { delete_id: 'a' });
+  assert.deepEqual(deleted.intakes.map(item => item.id), ['b']);
+  assert.deepEqual(undoIntakeCommand(deleted, { delete_id: 'a' }, a.intake).intakes.map(item => item.id), ['b', 'a']);
+});
