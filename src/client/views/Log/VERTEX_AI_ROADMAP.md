@@ -1,6 +1,6 @@
 # Roadmap: Vertex AI for Firebase Integration
 
-Stand 2026-09-23: Die Browser-Integration ist implementiert. Die verbleibenden Punkte betreffen Betriebssicherung und Offline-Verhalten. Der Scanner erkennt Barcodes nur als Teil eines Fotos per Modell; eine eigene Barcode-Erkennung oder Produktdatenbank-Abfrage gibt es nicht.
+Stand 2026-09-23: Die Browser-Integration ist implementiert. Die verbleibenden Punkte betreffen Betriebssicherung und Offline-Verhalten. Update 2026-10-16: Der Scanner hat einen eigenen Barcode-Modus mit nativer EAN/UPC-Fotodecodierung, Nummerneingabe als Browser-Fallback, Open-Food-Facts-Produktabfrage und 30-Tage-Cache. Essens-/Etikettfotos bleiben ein separater KI-Ablauf.
 
 ## 📌 Aktueller Stand
 - Im **lokalen Modus** (`VITE_APP_MODE=coach`) läuft ein Node-Server (`server.mjs`), der per Fastify die Route `POST /nutrition/vision` bereitstellt.
@@ -41,7 +41,7 @@ Dies wird durch das offizielle **Vertex AI for Firebase Web SDK** (`@firebase/ve
 ### Phase 5: Reliability & Robustness (Verlässlichkeit)
 - [x] **Structured Outputs:** Scanner, AI-Logger und Supplement-Schätzung nutzen `responseMimeType: "application/json"` und `responseSchema` mit `gemini-2.5-flash`. JSON-Parsing und fachliche Prüfung der Antwort bleiben erforderlich.
 - [x] **Fehlerbehandlung & Retry:** `withAiRetry` wiederholt transiente Fehler; Scanner, AI-Logger und Supplement-Modal zeigen Fehler mit einer Wiederholen-Aktion.
-- [ ] **Caching von Barcodes:** Ein lokales Cache-System (z.B. IndexedDB) einführen, sodass ein bereits gescannter Barcode sofort aus dem Speicher geladen wird, ohne dass Vertex AI noch einmal kontaktiert werden muss (spart Zeit und API-Kosten).
+- [x] **Caching von Barcodes (2026-10-16, `lib/barcode.js`):** Ein lokales Cache-System (z.B. IndexedDB) einführen, sodass ein bereits gescannter Barcode sofort aus dem Speicher geladen wird, ohne dass Vertex AI noch einmal kontaktiert werden muss (spart Zeit und API-Kosten).
 - [ ] **Offline-Warteschlange für KI-Anfragen:** `public/offline-queue.js` puffert lokale HTTP-POSTs, aber keine direkten Vertex-AI-Aufrufe im Cloud-Client. Für Scans/Prompts braucht es eine gesonderte, nutzergebundene Queue mit sichtbarem Status.
 
 ### Phase 6: UX Polish (Benutzererlebnis)

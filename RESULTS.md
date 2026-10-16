@@ -201,3 +201,9 @@ Session-Log mit datierten Ergebnis-Bullets.
 - Kontoabhängige, persistente Befehlswarteschlange für Tageslogs (Mahlzeiten/Wasser/Supplements), automatische Wiederholung nach Reconnect sowie manuelles Wiederholen/Verwerfen fehlgeschlagener Änderungen. Cloud-Transaktionsbelege verhindern doppelte Wiederholung nach verlorener Bestätigung.
 - Ausstehende Änderungen werden in Tagesansichten projiziert. Statusleiste auch im Schnelleinstieg: Offline, lokaler Cache, ausstehende Cloud-Bestätigung, Schreib-/Lesefehler. Kontowechsel leert den React-Query-Cache.
 - Prüfung: 5 Transaktions- und 3 Outbox-Tests (Konflikt, atomarer Move, Replay, Kontoisolation, Berechtigungsfehler, voller Speicher); Cloud-Build erfolgreich. Browser-/Live-Firebase-Prüfung steht aus.
+
+## 2026-10-16 — Barcode-Produkterfassung
+
+- Eigener Barcode-Modus: native EAN/UPC-Fotodecodierung, Prüfziffer-Prüfung, Open-Food-Facts-Abfrage mit Timeout und 30-Tage-Produktcache. Nummerneingabe als Fallback für Browser ohne BarcodeDetector.
+- Produktwerte werden pro 100 g in das bearbeitbare Log-Formular übernommen; unbekannte Produkte/unvollständige Werte ergeben eine konkrete Fehlermeldung. Quellenhinweis und ODbL-Link im Scanner.
+- Prüfung: 4 Tests für Prüfziffern, Produktdaten, Offline-Cache, fehlende Werte und native Decoder-Ressourcen; Cloud-Build erfolgreich. Physische Kamera und externer Produktabruf nicht live geprüft.
