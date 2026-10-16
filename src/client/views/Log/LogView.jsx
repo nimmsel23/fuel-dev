@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { NotebookPen, UtensilsCrossed, Pencil, Sparkles, AlertTriangle, RefreshCw, Check, X, ScanSearch, Clock, AlignJustify, LayoutGrid, GitCommitVertical } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 import { postJson, patchJson } from "@api";
+import { patchNutritionDay, reloadNutritionDay } from "../../lib/optimisticMeal.js";
 import { vertexAI } from "../../lib/firebase.js";
 import { getGenerativeModel } from "firebase/vertexai";
 import { withAiRetry } from "../../lib/aiRetry.js";
@@ -247,27 +248,28 @@ export default function LogView({ date, nutrition, notes }) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  // Speicher-Plan: Request-Body UND der optimistische Befehl aus denselben Werten (inkl. vorab erzeugter ID),
+  // damit der sofort angezeigte Eintrag exakt dem entspricht, was später in die Cloud geschrieben wird.
+  function buildSavePlan() {
+    const fields = {
+      ...mealDetails(form), type: form.type, description: form.description, notes: form.notes,
+      kcal: form.kcal, protein: form.protein, carbs: form.carbs, fat: form.fat,
+      grams: Number(form.grams) || null,
+    };
+    if (isEditing) {
+      const body = { date, meal_id: form.id, meal: { ...fields, time: toLoggedAt(moveDate || date, form.time) } };
+      if (moveDate && moveDate !== date) body.new_date = moveDate;
+      // Verschieben auf einen anderen Tag bleibt ohne optimistische Anzeige (zwei Tage betroffen) — der Refetch zeigt es.
+      return { edit: true, body, optimistic: body.new_date ? null : { meal_id: form.id, meal: { ...body.meal, logged_at: body.meal.time } } };
+    }
+    const meal = { ...fields, id: crypto.randomUUID(), time: toLoggedAt(date, form.time) };
+    return { edit: false, body: { date, meal }, optimistic: { meal: { ...meal, logged_at: meal.time } } };
+  }
+
   const saveMeal = useMutation({
-    mutationFn: () => {
-      if (isEditing) {
-        const body = {
-          date, meal_id: form.id,
-          meal: { ...mealDetails(form), type: form.type, description: form.description, notes: form.notes,
-            kcal: form.kcal, protein: form.protein, carbs: form.carbs, fat: form.fat,
-            grams: Number(form.grams) || null,
-            time: toLoggedAt(moveDate || date, form.time) },
-        };
-        if (moveDate && moveDate !== date) body.new_date = moveDate;
-        return patchJson("/nutrition/log", body);
-      }
-      return postJson("/nutrition/log", {
-        date,
-        meal: { ...mealDetails(form), type: form.type, description: form.description, notes: form.notes,
-          kcal: form.kcal, protein: form.protein, carbs: form.carbs, fat: form.fat,
-          grams: Number(form.grams) || null,
-          time: toLoggedAt(date, form.time) },
-      });
-    },
+    mutationFn: (plan) => (plan.edit ? patchJson("/nutrition/log", plan.body) : postJson("/nutrition/log", plan.body)),
+    onMutate: async (plan) => { if (plan.optimistic) await patchNutritionDay(qc, date, plan.optimistic); },
+    onError: () => reloadNutritionDay(qc, date),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["nutrition", date] });
       if (moveDate) qc.invalidateQueries({ queryKey: ["nutrition", moveDate] });
@@ -302,6 +304,8 @@ export default function LogView({ date, nutrition, notes }) {
 
   const deleteMeal = useMutation({
     mutationFn: (id) => postJson("/nutrition/log", { date, delete_meal_id: id }),
+    onMutate: (id) => patchNutritionDay(qc, date, { delete_meal_id: id }),
+    onError: () => reloadNutritionDay(qc, date),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["nutrition", date] });
       qc.invalidateQueries({ queryKey: ["week-logs"] });
@@ -312,22 +316,25 @@ export default function LogView({ date, nutrition, notes }) {
   // "Nochmal loggen" — legt denselben Eintrag ein weiteres Mal an, ohne
   // erneut Text eintippen oder durch den AI Logger zu müssen. Löst den Fall
   // "3x dasselbe Getränk" direkt über einen Klick pro Wiederholung.
+  const repeatMealBody = (meal) => ({
+    ...mealDetails(meal),
+    id: meal.repeat_id, logged_at: meal.repeat_at,
+    type: meal.type, description: meal.description, notes: meal.notes || "",
+    kcal: meal.kcal, protein: meal.protein, carbs: meal.carbs, fat: meal.fat,
+    grams: meal.grams ?? null, catalog_item_id: meal.catalog_item_id || null,
+  });
   const repeatMeal = useMutation({
-    mutationFn: (meal) => postJson("/nutrition/log", {
-      date,
-      meal: {
-        ...mealDetails(meal),
-        type: meal.type, description: meal.description, notes: meal.notes || "",
-        kcal: meal.kcal, protein: meal.protein, carbs: meal.carbs, fat: meal.fat,
-        grams: meal.grams ?? null, catalog_item_id: meal.catalog_item_id || null,
-      },
-    }),
+    mutationFn: (meal) => postJson("/nutrition/log", { date, meal: repeatMealBody(meal) }),
+    onMutate: (meal) => patchNutritionDay(qc, date, { meal: repeatMealBody(meal) }),
+    onError: () => reloadNutritionDay(qc, date),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["nutrition", date] });
       qc.invalidateQueries({ queryKey: ["week-logs"] });
       qc.invalidateQueries({ queryKey: ["nutrition-catalog"] });
     },
   });
+  // ID und Zeitpunkt des Duplikats vorab festlegen (variables.id bleibt die Quell-ID für repeatPendingId)
+  const repeat = (meal) => repeatMeal.mutate({ ...meal, repeat_id: crypto.randomUUID(), repeat_at: new Date().toISOString() });
 
   const totals = {
     kcal: sumMetric(meals, "kcal"),
@@ -529,7 +536,7 @@ export default function LogView({ date, nutrition, notes }) {
           )}
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <button onClick={() => saveMeal.mutate()} disabled={saveMeal.isPending || !form.description}
+            <button onClick={() => saveMeal.mutate(buildSavePlan())} disabled={saveMeal.isPending || !form.description}
               className={twMerge("w-full rounded-2xl py-4 font-bold transition shadow-lg",
                 saveMeal.isPending || !form.description
                   ? "bg-slate-800 text-slate-500 cursor-not-allowed"
@@ -561,7 +568,7 @@ export default function LogView({ date, nutrition, notes }) {
       meals={meals}
       mealLabel={MEAL_LABEL}
       formId={form.id}
-      onRepeat={(m) => repeatMeal.mutate(m)}
+      onRepeat={repeat}
       onEdit={loadForEdit}
       onDelete={(id) => deleteMeal.mutate(id)}
       repeatPendingId={repeatMeal.isPending ? repeatMeal.variables?.id : null}
@@ -575,7 +582,7 @@ export default function LogView({ date, nutrition, notes }) {
       meals={meals}
       mealLabel={MEAL_LABEL}
       formId={form.id}
-      onRepeat={(m) => repeatMeal.mutate(m)}
+      onRepeat={repeat}
       onEdit={loadForEdit}
       onDelete={(id) => deleteMeal.mutate(id)}
       repeatPendingId={repeatMeal.isPending ? repeatMeal.variables?.id : null}
@@ -596,7 +603,7 @@ export default function LogView({ date, nutrition, notes }) {
                   meals={meals}
                   mealLabel={MEAL_LABEL}
                   formId={form.id}
-                  onRepeat={(m) => repeatMeal.mutate(m)}
+                  onRepeat={repeat}
                   onEdit={loadForEdit}
                   onDelete={(id) => deleteMeal.mutate(id)}
         repeatPendingId={repeatMeal.isPending ? repeatMeal.variables?.id : null}

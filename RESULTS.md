@@ -1,3 +1,10 @@
+# Fuel-Mini-Apps: optimistisches Speichern (2026-10-16)
+
+- Mahlzeiten, Notizen, Kataloge und Mikros werden in der Cloud-Version nach dem lokalen Sichern quittiert (`background: true`); Log-Tab (`LogView`): Hinzufügen/Ändern/Löschen/Nochmal loggen patchen den Tages-Cache sofort (`optimisticMeal.js`, gleicher `changeLog` wie Outbox/Transaktion), ID und Zeitpunkt werden vorab erzeugt, damit der angezeigte Eintrag dem späteren Cloud-Eintrag entspricht.
+- Tests: 6 neue, Suite 51/51; `build:cloud` und `build:solo:log` ok.
+- Nicht getestet: Gefühl/Timing auf dem Gerät, Fehlerfall nach der Quittung (geblockter Eintrag im StorageStatus).
+- Offen/Beobachtung: Login auf dem iPad (Google-Popup läuft durch, App bleibt abgemeldet) — Verdacht Safari-Speicherpartitionierung wegen `authDomain: fitness-aos.firebaseapp.com` (Drittanbieter zur Mini-App-Domain); siehe Gespräch 2026-10-16, braucht Konsolen-Schritt (OAuth-Redirect-URIs).
+
 # Offline-Schreiben: Katalog, Notizen und Mikros über die Outbox (2026-10-16)
 
 - Befund: Das Kern-Schreiben (Mahlzeiten, Supplement-Einnahmen) war in der Cloud-Version bereits offline-fähig (localStorage-Outbox, Operations-Quittung, StorageStatus). Lücken: Katalog (Transaktion → offline Fehler), Notizen, Mikros.

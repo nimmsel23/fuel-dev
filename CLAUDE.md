@@ -612,3 +612,10 @@ Vier Fuel-Tabs sind als eigene installierbare Apps veröffentlicht — Muster wi
 - **Grenzen:** (1) Der Flush läuft nur bei geöffneter App (`localStorage` ist im SW nicht lesbar) — kein Hintergrund-Sync bei geschlossener App; dafür wäre ein Umzug der Outbox nach IndexedDB + `sync`-Handler im SW nötig. (2) Der lokale Build (`api.local.js`, Fastify) hat weiterhin keine Warteschlange. (3) Direkte Firestore-Schreibzugriffe außerhalb von `api.cloud.js` (z. B. `deleteSupplementFromCatalog`, Wasser/Gewicht/Einstellungen) laufen nicht über die Outbox.
 - Tests: `tests/cloud-outbox-ops.test.mjs`, `tests/cloud-outbox-kinds.test.mjs` (+ bestehende `cloud-outbox.test.mjs`); `pnpm run test:unit`.
 
+### Optimistisches Speichern (Cloud-Build + Mini-Apps; Stand 2026-10-16)
+
+- **Zwei Stufen:** (1) `api.cloud.js` quittiert Schreibaufrufe (Mahlzeiten POST/PATCH, Notizen, Kataloge, Mikros, Supplements) mit `background: true`, sobald der Befehl dauerhaft in der Outbox liegt — die Cloud-Transaktion läuft danach im Hintergrund. (2) Die Mutationen im Log-Tab patchen den Tages-Cache `["nutrition", date]` sofort per `lib/optimisticMeal.js::patchNutritionDay` mit demselben `changeLog` wie Outbox-Projektion und Transaktion (Hinzufügen mit vorab erzeugter ID, Ändern, Löschen, „Nochmal loggen"). Supplements haben das Muster schon (`views/Supplements/optimistic.js`).
+- **Fehler:** Bei einem Fehler wird nur neu geladen (`reloadNutritionDay`), nie ein alter Snapshot zurückgeschrieben. Cloud-Fehler nach der Quittung erscheinen als geblockter Eintrag im `StorageStatus` („Fehlgeschlagene Änderung verwerfen"), nicht mehr als Fehler der Mutation.
+- **Bewusst ohne optimistische Anzeige:** Verschieben einer Mahlzeit auf einen anderen Tag (zwei Tage betroffen), Wasser (patcht nach Antwort mit Fallback), AI-Logger, Frontdoor, FoodCatalog, HistoryView-Löschen — laufen über denselben Hintergrund-Pfad, zeigen aber erst nach dem Refetch.
+- Tests: `tests/optimistic-meal.test.mjs` (6).
+

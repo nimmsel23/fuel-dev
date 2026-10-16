@@ -25,6 +25,10 @@ async function searchOFF(query, limit) {
   }
 }
 
+// Optimistisch: Schreibaufrufe kehren zurück, sobald der Befehl dauerhaft auf dem Gerät liegt; die Outbox schreibt
+// im Hintergrund in die Cloud (Fehler bleiben sichtbar: StorageStatus, "Fehlgeschlagene Änderung verwerfen").
+const BG = { background: true };
+
 function normalizePath(path) {
   return path.startsWith("/api/") ? path.slice(4) : path;
 }
@@ -115,14 +119,14 @@ export async function postJson(path, body) {
       id: meal.id || crypto.randomUUID(),
       logged_at: meal.logged_at || meal.time || new Date().toISOString(),
     } : null;
-    const result = await submitCloudLog("nutrition", body.date, { ...body, meal: prepared });
+    const result = await submitCloudLog("nutrition", body.date, { ...body, meal: prepared }, BG);
     return result;
   }
 
   // Notizen, Kataloge und Mikros laufen wie die Logs über die Offline-Outbox (cloudOutbox.js):
   // ohne Netz auf dem Gerät gespeichert und später in Reihenfolge nachgeschrieben.
   if (normPath === "/nutrition/notes") {
-    const result = await submitCloudLog("notes", body.date, { content: body.content });
+    const result = await submitCloudLog("notes", body.date, { content: body.content }, BG);
     return { ok: true, ...(result.queued && { queued: true }) };
   }
 
@@ -132,13 +136,13 @@ export async function postJson(path, body) {
     // inkl. offener Änderungen projizierten Katalog), damit Rückgabe und späterer Replay dieselbe ID tragen.
     const known = (await firestore.getNutritionCatalog().catch(() => [])).find(i => i.id === input.id || normalizeMealName(i.name) === normalizeMealName(input.name));
     const item = { ...input, id: known ? known.id : input.id };
-    const result = await submitCloudLog("catalog:nutrition", null, { op: "upsert", item, matchName: true });
+    const result = await submitCloudLog("catalog:nutrition", null, { op: "upsert", item, matchName: true }, BG);
     return { ok: true, item, ...(result.queued && { queued: true }) };
   }
 
   if (normPath === "/nutrition/micros") {
     // body.items = neue Mikro-Schätzungen; Merge (gleicher meal_name ersetzt) passiert beim Schreiben in der Outbox.
-    const result = await submitCloudLog("micros", null, { items: body.items });
+    const result = await submitCloudLog("micros", null, { items: body.items }, BG);
     return { ok: true, ...(result.queued && { queued: true }) };
   }
 
@@ -153,7 +157,7 @@ export async function postJson(path, body) {
 
   if (normPath === "/supplements/catalog") {
     const item = { ...body, id: body.id || crypto.randomUUID() };
-    const result = await submitCloudLog("catalog:supplements", null, { op: "upsert", item });
+    const result = await submitCloudLog("catalog:supplements", null, { op: "upsert", item }, BG);
     return { ok: true, item, ...(result.queued && { queued: true }) };
   }
 
@@ -167,10 +171,10 @@ export async function patchJson(path, body) {
     const sourceMeal = body.new_date ? (await firestore.getNutritionLog(body.date)).meals?.find(m => m.id === body.meal_id) : null;
     return submitCloudLog("nutrition", body.date, {
       ...body, source_meal: sourceMeal || null, move_id: body.new_date ? crypto.randomUUID() : null, meal: body.meal?.time ? { ...body.meal, logged_at: body.meal.time } : body.meal,
-    });
+    }, BG);
   }
   if (normPath === "/supplements/log") {
-    return submitCloudLog("supplements", body.date, body);
+    return submitCloudLog("supplements", body.date, body, BG);
   }
 
   throw new Error(`patchJson: unmapped cloud path: ${path}`);
@@ -180,11 +184,11 @@ export async function deleteJson(path) {
   const normPath = normalizePath(path);
 
   if (normPath.startsWith("/nutrition/catalog/")) {
-    const result = await submitCloudLog("catalog:nutrition", null, { op: "delete", id: normPath.split("/").pop() });
+    const result = await submitCloudLog("catalog:nutrition", null, { op: "delete", id: normPath.split("/").pop() }, BG);
     return { ok: true, ...(result.queued && { queued: true }) };
   }
   if (normPath.startsWith("/supplements/catalog/")) {
-    const result = await submitCloudLog("catalog:supplements", null, { op: "delete", id: normPath.split("/").pop() });
+    const result = await submitCloudLog("catalog:supplements", null, { op: "delete", id: normPath.split("/").pop() }, BG);
     return { ok: true, ...(result.queued && { queued: true }) };
   }
 
