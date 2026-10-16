@@ -8,10 +8,13 @@ import { db } from "../../firebase.js";
 import { getUid } from "./core.js";
 const setDoc = (...args) => withStorageFeedback("Tagesnotizen / KI-Entwurf", () => firestoreSetDoc(...args));
 import { todayISO } from "./utils.js";
+import { projectCloudNotes, hasPendingFor } from "../../cloudOutbox.js";
 
 export async function getNotes(date = todayISO()) {
-  const snap = await getDoc(doc(db, "nutrition", getUid(), "journal", date));
-  return snap.exists() ? snap.data().content : "";
+  let content = "";
+  try { const snap = await getDoc(doc(db, "nutrition", getUid(), "journal", date)); content = snap.exists() ? snap.data().content : ""; }
+  catch (error) { if (navigator.onLine || !hasPendingFor("notes", date)) throw error; }
+  return projectCloudNotes(date, content); // + noch nicht bestätigte Offline-Notiz
 }
 
 export async function saveNotes(date = todayISO(), content) {

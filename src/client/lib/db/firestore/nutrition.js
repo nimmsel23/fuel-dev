@@ -1,4 +1,4 @@
-import { projectCloudLog, outboxEntries } from "../../cloudOutbox.js";
+import { projectCloudLog, outboxEntries, projectCloudCatalog, hasPendingFor } from "../../cloudOutbox.js";
 /**
  * Firestore Nutrition — Katalog, Tages-Logs, History, Wochen-Mikros
  *
@@ -18,8 +18,10 @@ import { getSupplementsCatalog } from "./supplements.js";
 
 export async function getNutritionCatalog() {
   const ref = doc(db, "nutrition", getUid(), "meta", "catalog");
-  const snap = await getDoc(ref);
-  return snap.exists() ? (snap.data().items || []) : [];
+  let items = [];
+  try { const snap = await getDoc(ref); items = snap.exists() ? (snap.data().items || []) : []; }
+  catch (error) { if (navigator.onLine || !hasPendingFor("catalog:nutrition")) throw error; }
+  return projectCloudCatalog("nutrition", items); // + noch nicht bestätigte Offline-Änderungen
 }
 
 export async function getMicrosCatalog() {

@@ -99,7 +99,7 @@ export default function StorageStatus() {
       {(pending || problem || queryErrors.length > 0) && <button type="button" onClick={retry} disabled={!online || retrying} className="mt-1 underline disabled:opacity-50">{retrying ? "Prüft …" : "Erneut synchronisieren / laden"}</button>}
       {writeFailure && <button type="button" className="ml-3 underline" onClick={() => setWriteFailure(null)}>Meldung ausblenden</button>}
       {entries.filter(e => e.blocked).map(entry => <div key={entry.id} className="mt-2 text-rose-300">
-        {entry.date}: {entry.error}
+        {entry.date || entry.kind}: {entry.error}
         <button type="button" className="ml-3 underline" onClick={() => {
           discardCloudOperation(entry.id); qc.invalidateQueries();
         }}>Fehlgeschlagene Änderung verwerfen</button>

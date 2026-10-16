@@ -1,7 +1,6 @@
 // Cloud channel — Firestore only. No Fastify/local fetch for data.
 import * as firestore from "./db.firestore.js";
 import { submitCloudLog } from "./cloudOutbox.js";
-import { mutateCloudCatalog } from "./cloudMutations.js";
 
 async function searchOFF(query, limit) {
   const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=${limit}`;
@@ -120,37 +119,27 @@ export async function postJson(path, body) {
     return result;
   }
 
+  // Notizen, Kataloge und Mikros laufen wie die Logs über die Offline-Outbox (cloudOutbox.js):
+  // ohne Netz auf dem Gerät gespeichert und später in Reihenfolge nachgeschrieben.
   if (normPath === "/nutrition/notes") {
-    await firestore.saveNotes(body.date, body.content);
-    return { ok: true };
+    const result = await submitCloudLog("notes", body.date, { content: body.content });
+    return { ok: true, ...(result.queued && { queued: true }) };
   }
 
   if (normPath === "/nutrition/catalog") {
     const input = { ...body.item, id: body.item?.id || crypto.randomUUID() };
-    let item;
-    await mutateCloudCatalog("nutrition", items => {
-      const idx = items.findIndex(i => i.id === input.id || normalizeMealName(i.name) === normalizeMealName(input.name));
-      item = { ...input, id: idx >= 0 ? items[idx].id : input.id };
-      if (idx >= 0) items[idx] = item; else items.push(item);
-      return items;
-    });
-    return { ok: true, item };
+    // Namens-Treffer behält die ID des bestehenden Eintrags — hier schon auflösen (aus dem lokal sichtbaren,
+    // inkl. offener Änderungen projizierten Katalog), damit Rückgabe und späterer Replay dieselbe ID tragen.
+    const known = (await firestore.getNutritionCatalog().catch(() => [])).find(i => i.id === input.id || normalizeMealName(i.name) === normalizeMealName(input.name));
+    const item = { ...input, id: known ? known.id : input.id };
+    const result = await submitCloudLog("catalog:nutrition", null, { op: "upsert", item, matchName: true });
+    return { ok: true, item, ...(result.queued && { queued: true }) };
   }
 
   if (normPath === "/nutrition/micros") {
-    const items = await firestore.getMicrosCatalog();
-    // body.items is an array of new micros estimates
-    const newItemsMap = new Map(body.items.map(i => [i.meal_name, i]));
-    const merged = items.map(i => newItemsMap.has(i.meal_name) ? newItemsMap.get(i.meal_name) : i);
-    
-    body.items.forEach(newItem => {
-      if (!items.find(i => i.meal_name === newItem.meal_name)) {
-        merged.push(newItem);
-      }
-    });
-
-    await firestore.saveMicrosCatalog(merged);
-    return { ok: true };
+    // body.items = neue Mikro-Schätzungen; Merge (gleicher meal_name ersetzt) passiert beim Schreiben in der Outbox.
+    const result = await submitCloudLog("micros", null, { items: body.items });
+    return { ok: true, ...(result.queued && { queued: true }) };
   }
 
   if (normPath === "/supplements/log") {
@@ -164,12 +153,8 @@ export async function postJson(path, body) {
 
   if (normPath === "/supplements/catalog") {
     const item = { ...body, id: body.id || crypto.randomUUID() };
-    await mutateCloudCatalog("supplements", items => {
-      const idx = items.findIndex(i => i.id === item.id);
-      if (idx >= 0) items[idx] = item; else items.push(item);
-      return items;
-    });
-    return { ok: true, item };
+    const result = await submitCloudLog("catalog:supplements", null, { op: "upsert", item });
+    return { ok: true, item, ...(result.queued && { queued: true }) };
   }
 
   throw new Error(`postJson: unmapped cloud path: ${path}`);
@@ -195,14 +180,12 @@ export async function deleteJson(path) {
   const normPath = normalizePath(path);
 
   if (normPath.startsWith("/nutrition/catalog/")) {
-    const id = normPath.split("/").pop();
-    await mutateCloudCatalog("nutrition", items => items.filter(i => i.id !== id));
-    return { ok: true };
+    const result = await submitCloudLog("catalog:nutrition", null, { op: "delete", id: normPath.split("/").pop() });
+    return { ok: true, ...(result.queued && { queued: true }) };
   }
   if (normPath.startsWith("/supplements/catalog/")) {
-    const id = normPath.split("/").pop();
-    await mutateCloudCatalog("supplements", items => items.filter(i => i.id !== id));
-    return { ok: true };
+    const result = await submitCloudLog("catalog:supplements", null, { op: "delete", id: normPath.split("/").pop() });
+    return { ok: true, ...(result.queued && { queued: true }) };
   }
 
   throw new Error(`deleteJson: unmapped cloud path: ${path}`);

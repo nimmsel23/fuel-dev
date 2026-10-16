@@ -1,5 +1,5 @@
 import { summarizeSupplementLogs } from "../../../views/Supplements/stats.js";
-import { projectCloudLog, outboxEntries } from "../../cloudOutbox.js";
+import { projectCloudLog, outboxEntries, projectCloudCatalog, hasPendingFor } from "../../cloudOutbox.js";
 /**
  * Firestore Supplements — supplements/{uid}/meta/catalog + logs
  */
@@ -15,8 +15,10 @@ import { invalidateWeekMicroCache } from "./nutrition.js";
 
 export async function getSupplementsCatalog() {
   const ref = doc(db, "supplements", getUid(), "meta", "catalog");
-  const snap = await getDoc(ref);
-  return snap.exists() ? (snap.data().items || []) : [];
+  let items = [];
+  try { const snap = await getDoc(ref); items = snap.exists() ? (snap.data().items || []) : []; }
+  catch (error) { if (navigator.onLine || !hasPendingFor("catalog:supplements")) throw error; }
+  return projectCloudCatalog("supplements", items); // + noch nicht bestätigte Offline-Änderungen
 }
 
 export async function deleteSupplementFromCatalog(id) {

@@ -1,3 +1,10 @@
+# Offline-Schreiben: Katalog, Notizen und Mikros über die Outbox (2026-10-16)
+
+- Befund: Das Kern-Schreiben (Mahlzeiten, Supplement-Einnahmen) war in der Cloud-Version bereits offline-fähig (localStorage-Outbox, Operations-Quittung, StorageStatus). Lücken: Katalog (Transaktion → offline Fehler), Notizen, Mikros.
+- Neu: Outbox-Arten `catalog:nutrition|supplements`, `notes`, `micros` (`cloudOutbox.js`, Logik in `cloudOutboxOps.js`), `api.cloud.js` schreibt darüber; Lese-Sichten rechnen offene Änderungen ein. Ströme getrennt: ein geblockter Log-Eintrag hält Katalog/Notizen/Mikros nicht mehr auf (und umgekehrt).
+- Tests: 13 neue (Ops, Outbox-Arten, Ströme, Reihenfolge, Idempotenz), gesamte Suite 45/45 grün; Builds `build:cloud` und `build:solo:supplements` ok. `weekly-micros.test.mjs`-Mock um die neuen Exports ergänzt.
+- NICHT gebaut: Hintergrund-Sync bei geschlossener App (Outbox in localStorage; bräuchte IndexedDB + SW-`sync`), Warteschlange für den lokalen Fastify-Build, Outbox für Wasser/Gewicht/Einstellungen. NICHT getestet: echter Offline-Durchlauf auf dem Gerät (Flugmodus: Katalog bearbeiten, Notiz schreiben, wieder online).
+
 # Splash-Screen auch in der Fuel-Haupt-App (2026-10-16)
 
 - `cli.mjs splash` im Build der Haupt-App (`build:local`, `build:cloud`); Geprüft am Cloud-Build (Splash "Fuel", Icon `./icons/icon-192.png`). Auth-Domains der vier Mini-Apps (8 Einträge) per Identity-Toolkit-API nochmals live geprüft: vollständig. Preview-Channel-URLs (`…--dev-xxxx.web.app`) sind nicht eingetragen → Google-Login nur dort nicht möglich.
