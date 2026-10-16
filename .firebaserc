@@ -1,1 +1,26 @@
-{"projects":{"default":"fitness-aos"}}
+{
+  "projects": {
+    "default": "fitness-aos"
+  },
+  "targets": {
+    "fitness-aos": {
+      "hosting": {
+        "client": [
+          "fuel-vos"
+        ],
+        "log": [
+          "vos-fuel-log"
+        ],
+        "supplements": [
+          "vos-fuel-supplements"
+        ],
+        "mikros": [
+          "vos-fuel-mikros"
+        ],
+        "protokoll": [
+          "vos-fuel-protokoll"
+        ]
+      }
+    }
+  }
+}

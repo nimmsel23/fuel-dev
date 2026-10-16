@@ -19,8 +19,11 @@ module.exports = defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const appMode = process.env.VITE_APP_MODE || env.VITE_APP_MODE || "coach";
 
+  // Mini-App-Build (VITE_SOLO=log|supplements|micros|report): ein Tab, eigener Output dist-solo-<tab>
+  const solo = process.env.VITE_SOLO || env.VITE_SOLO || "";
+
   // coach builds to dist/ (local server), client builds to dist-firebase/ (for firebase deploy)
-  const outDir = appMode === "client" ? "./dist-firebase" : "./dist";
+  const outDir = solo ? `./dist-solo-${solo}` : appMode === "client" ? "./dist-firebase" : "./dist";
 
   console.log(`🚀 Building for mode: ${mode}, APP_MODE: ${appMode} -> outDir: ${outDir}`);
 
@@ -28,6 +31,7 @@ module.exports = defineConfig(({ mode }) => {
     base: "/",
     define: {
       "import.meta.env.VITE_APP_MODE": JSON.stringify(appMode),
+      "import.meta.env.VITE_SOLO": JSON.stringify(solo),
     },
     resolve: {
       preserveSymlinks: true,
