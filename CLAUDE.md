@@ -570,3 +570,23 @@ _http.nutrition_log(date)       # GET /nutrition/log?date=YYYY-MM-DD
 _http.supplements_log(date)     # GET /supplements/log?date=YYYY-MM-DD
 _http.daily(date)               # GET /nutrition/daily/<date>
 ```
+
+---
+
+## Mini-Apps (seit 2026-10-16)
+
+Vier Fuel-Tabs sind als eigene installierbare Apps veröffentlicht — Muster wie `vos-training`/`vos-atlas` in fitness-dev (ein Repo, ein Modus je App, kein Fork):
+
+| Tab (`VITE_SOLO`) | Site / URL | Hosting-Target | Icon-Farbe |
+|---|---|---|---|
+| `log` | `vos-fuel-log` → https://vos-fuel-log.web.app | `log` | orange, Teller |
+| `supplements` | `vos-fuel-supplements` | `supplements` | lime, Kapsel |
+| `micros` | `vos-fuel-mikros` | `mikros` | rosa, Molekül |
+| `report` | `vos-fuel-protokoll` | `protokoll` | himmelblau, Protokollblatt |
+
+- **Build:** `pnpm run build:solo` (alle) bzw. `build:solo:log|supplements|micros|report` → `dist-solo-<tab>/`. `routes.js` bündelt bei `VITE_SOLO` nur den einen Tab, `src/client/SoloShell.jsx` ist die schlanke Shell (Login-Pflicht, Tagesnavigation, Update-Button), `vite.config.cjs` schreibt nach `dist-solo-<tab>`.
+- **Stamp:** `scripts/stamp-solo.mjs <tab>` = `stamp-sw.mjs` + `@vos/mini-app-shell` (Splash, Manifest, Titel „<App> - VitalOS", Icons; vendored unter `scripts/mini-app-shell/`, Quelle `~/vitalos/packages/mini-app-shell`, aktualisieren per `node ~/vitalos/packages/mini-app-shell/cli.mjs vendor scripts/mini-app-shell`) und räumt Haupt-App-Icons/`*.bak` aus dem Output. Konfig je App: `mini-app.json`.
+- **Icons:** `solo-icons/<tab>/`, erzeugt von `pnpm run solo:icons` (`scripts/solo-icons.py`, rsvg-convert, PNGs eingecheckt).
+- **Deploy:** `pnpm run deploy:solo:<log|supplements|mikros|protokoll>`. Die volle App heißt im Hosting jetzt Target `client` (Site `fuel-vos`): `deploy:firebase`/`deploy:cloud`/`deploy-preview.mjs` nutzen `--only hosting:client`; ein nacktes `firebase deploy --only hosting` würde alle fünf Targets deployen. Mapping Target→Site in `.firebaserc`.
+- **Auth:** Firebase-Auth-Domains (`vos-fuel-<x>.web.app` + `.firebaseapp.com`, 8 Einträge) sind im Projekt `fitness-aos` eingetragen (2026-10-16, Identity-Toolkit-Admin-API). Neue Mini-App ⇒ Domain dort ergänzen, sonst scheitert der Google-Login. App Check ist für Firestore/Auth/ML `UNENFORCED`; reCAPTCHA-v3-Key-Domains sind nicht per API prüfbar.
+- **Nicht gebaut / offen:** CI für die Mini-Apps im Meta-Repo (neue Workflows `deploy-fuel-<x>.yml`, Pfadfilter auf `fuel-app/**` — der Pointer-Bump von `fuel-app` würde sonst nur `hosting:client` deployen).
