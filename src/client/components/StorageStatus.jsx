@@ -4,6 +4,7 @@ import { doc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "../lib/firebase.js";
 import { watchAuth } from "../lib/db/firestore/core.js";
 import { discardCloudOperation, flushCloudOutbox, outboxEntries, OUTBOX_EVENT } from "../lib/cloudOutbox.js";
+import { STORAGE_FEEDBACK_EVENT } from "../lib/storageFeedback.js";
 import { useApp } from "../store.js";
 
 export default function StorageStatus() {
@@ -16,13 +17,19 @@ export default function StorageStatus() {
   const [snapshots, setSnapshots] = useState({});
   const [queryErrors, setQueryErrors] = useState([]);
   const [error, setError] = useState("");
+  const [writeFailure, setWriteFailure] = useState(null);
   const [retrying, setRetrying] = useState(false);
   const mutating = useIsMutating();
   const mutationErrors = useMutationState({ filters: { status: "error" }, select: m => ({ error: m.state.error, time: m.state.submittedAt }) });
   const [dismissedAt, setDismissedAt] = useState(0);
   const recentError = mutationErrors.find(e => e.time > dismissedAt)?.error;
 
-  useEffect(() => watchAuth(user => { setUid(user?.uid); setError(""); setDismissedAt(Date.now()); }), []);
+  useEffect(() => watchAuth(user => { setUid(user?.uid); setError(""); setWriteFailure(null); setDismissedAt(Date.now()); }), []);
+  useEffect(() => {
+    const feedback = e => setWriteFailure(old => e.detail.error ? e.detail : old?.label === e.detail.label ? null : old);
+    window.addEventListener(STORAGE_FEEDBACK_EVENT, feedback);
+    return () => window.removeEventListener(STORAGE_FEEDBACK_EVENT, feedback);
+  }, []);
   useEffect(() => {
     const update = () => setOnline(navigator.onLine);
     window.addEventListener("online", update); window.addEventListener("offline", update);
@@ -69,7 +76,7 @@ export default function StorageStatus() {
 
   const values = Object.values(snapshots);
   const pending = entries.length || values.some(s => s.pending);
-  const problem = error || recentError?.message || values.find(s => s.error)?.error;
+  const problem = error || (writeFailure ? `${writeFailure.label}: ${writeFailure.error}. Bitte erneut speichern.` : "") || recentError?.message || values.find(s => s.error)?.error;
   const retry = async () => {
     setRetrying(true); setError(""); setDismissedAt(Date.now());
     try { if (cloud && uid) await flushCloudOutbox(); await qc.refetchQueries({ type: "active" }); }
@@ -80,12 +87,13 @@ export default function StorageStatus() {
   return (
     <aside aria-label="Speicherstatus" className="sticky top-0 z-50 border-b border-white/10 bg-slate-950 px-4 py-2 text-xs text-slate-300">
       <div role="status" aria-live="polite">
-        {!online ? "Offline" : mutating ? "Speichert …" : pending ? "Synchronisierung ausstehend" : cloud ? (values.length === 5 && values.every(s => !s.cached && !s.error) ? "Aktueller Tag synchronisiert" : "Cloud-Verbindung wird geprüft …") : "Lokal verbunden"}
+        {!online ? "Offline" : problem || queryErrors.length ? "Speichern / Laden fehlgeschlagen" : mutating ? "Speichert …" : pending ? "Synchronisierung ausstehend" : cloud ? (values.length === 5 && values.every(s => !s.cached && !s.error) ? "Aktueller Tag synchronisiert" : "Cloud-Verbindung wird geprüft …") : "Lokaler Speicher"}
         {entries.length > 0 && ` · ${entries.length} Änderung(en) auf diesem Gerät gespeichert, Cloud-Bestätigung ausstehend`}
         {values.some(s => s.cached) && " · Daten aus lokalem Cache"}
       </div>
       {(problem || queryErrors.length > 0) && <p role="alert" className="mt-1 text-rose-300">{problem || "Daten konnten nicht geladen werden. Angezeigte Werte sind möglicherweise unvollständig."}</p>}
       {(pending || problem || queryErrors.length > 0) && <button type="button" onClick={retry} disabled={!online || retrying} className="mt-1 underline disabled:opacity-50">{retrying ? "Prüft …" : "Erneut synchronisieren / laden"}</button>}
+      {writeFailure && <button type="button" className="ml-3 underline" onClick={() => setWriteFailure(null)}>Meldung ausblenden</button>}
       {entries.filter(e => e.blocked).map(entry => <div key={entry.id} className="mt-2 text-rose-300">
         {entry.date}: {entry.error}
         <button type="button" className="ml-3 underline" onClick={() => {

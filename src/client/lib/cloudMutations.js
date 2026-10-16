@@ -2,6 +2,7 @@ import { doc, runTransaction, serverTimestamp, deleteField } from "firebase/fire
 import { db } from "./firebase.js";
 import { getUid } from "./db/firestore/core.js";
 import { dateToISOWeek } from "./db/firestore/utils.js";
+import { catalogFromLoggedMeal } from "./loggedMealCatalog.js";
 import { changeLog } from "./cloudLogState.js";
 
 function invalidateWeek(tx, uid, date) {
@@ -25,6 +26,9 @@ export async function mutateCloudLog(kind, date, command) {
     // All reads precede writes. A concurrent change retries the entire move.
     const targetRef = targetDate ? doc(db, kind, uid, "logs", targetDate) : null;
     const targetSnap = targetRef ? await tx.get(targetRef) : null;
+    const shouldCatalog = kind === "nutrition" && command.meal?.description && !command.meal_id && !command.meal.catalog_id;
+    const catalogRef = shouldCatalog ? doc(db, "nutrition", uid, "meta", "catalog") : null;
+    const catalogSnap = catalogRef ? await tx.get(catalogRef) : null;
     const next = changeLog(kind, current, command);
     const payload = log => ({ ...log, updated_at: serverTimestamp(), ...(kind === "nutrition" ? {
       micro_totals: deleteField(), micro_totals_complete: deleteField(),
@@ -43,6 +47,7 @@ export async function mutateCloudLog(kind, date, command) {
       tx.set(targetRef, payload({ ...target, date: targetDate }), { merge: true });
       invalidateWeek(tx, uid, targetDate);
     }
+    if (catalogRef) tx.set(catalogRef, { items: catalogFromLoggedMeal(catalogSnap.exists() ? catalogSnap.data().items || [] : [], command.meal), updated_at: serverTimestamp() }, { merge: true });
     tx.set(ref, payload({ ...next, date }), { merge: true });
     if (receiptRef) tx.set(receiptRef, { date, applied_at: serverTimestamp() });
     invalidateWeek(tx, uid, date);
@@ -54,6 +59,7 @@ export async function mutateCloudCatalog(kind, change) {
   const uid = getUid();
   const ref = doc(db, kind, uid, "meta", "catalog");
   return runTransaction(db, async tx => {
+    if (getUid() !== uid) throw new Error("Konto hat gewechselt.");
     const snap = await tx.get(ref);
     const items = change(snap.exists() ? snap.data().items || [] : []);
     tx.set(ref, { items, updated_at: serverTimestamp() }, { merge: true });

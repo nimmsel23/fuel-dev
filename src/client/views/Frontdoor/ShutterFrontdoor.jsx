@@ -101,7 +101,7 @@ export default function ShutterFrontdoor({ fd, onOpenApp }) {
 
   const save = (source) => {
     const base = source === "catalog" && catalogHit
-      ? { ...catalogHit, grams: catalogHit.yield_g || null, description: catalogHit.name, kcal: catalogHit.kcal, protein: catalogHit.protein, carbs: catalogHit.carbs, fat: catalogHit.fat, catalog_id: catalogHit.id }
+      ? { ...catalogHit, id: undefined, grams: catalogHit.yield_g || null, description: catalogHit.name, kcal: catalogHit.kcal, protein: catalogHit.protein, carbs: catalogHit.carbs, fat: catalogHit.fat, catalog_id: catalogHit.id }
       : result;
     logMeal.mutate({
       ...scaleMeal(base, factor),

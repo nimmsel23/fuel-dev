@@ -67,3 +67,13 @@ test('receipt prevents a replayed water increment after lost acknowledgement', a
   await mutateCloudLog('nutrition', '2026-10-16', command);
   assert.equal(documents.get('nutrition/alice/logs/2026-10-16').water_ml, 250);
 });
+
+test('offline replay adds the catalog profile in the same transaction exactly once', async () => {
+  documents.clear(); retry = null;
+  const command = { operation_id: 'log-with-catalog', meal: { id: 'scan', description: 'Scanned lunch', logged_at: '2026-10-16T12:00:00Z', grams: 200, micros: { calcium_mg: 20 }, micros_meta: { source: 'gemini' } } };
+  await mutateCloudLog('nutrition', '2026-10-16', command);
+  await mutateCloudLog('nutrition', '2026-10-16', command);
+  const catalog = documents.get('nutrition/alice/meta/catalog').items;
+  assert.equal(catalog.length, 1); assert.equal(catalog[0].use_count, 1);
+  assert.equal(catalog[0].yield_g, 200); assert.equal(catalog[0].micros.calcium_mg, 20);
+});

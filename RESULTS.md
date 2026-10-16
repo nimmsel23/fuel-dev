@@ -226,3 +226,11 @@ Session-Log mit datierten Ergebnis-Bullets.
 
 - Der gebaute Cloud-Client blieb im Firefox mit `Component app-check has not been registered yet` leer. App Check und Messaging fehlten in den gemeinsamen Firebase-Package-Aliasen; beide Build-Konfigurationen lösen sie nun wie die übrigen SDK-Module auf.
 - Verifiziert: Cloud-Build und isolierter Firefox-Browserlauf bei 390×844. Setup/Backup wird gerendert, Backup-Aktionen sind ohne Konto gesperrt; Barcode-Nummer → simulierte OFF-Antwort → Beschreibung, 100-g-Bezugsportion und Makros im editierbaren Formular. Screenshot unter `/tmp/fuel-barcode-mobile.png`. Kein echter Cloud-Login/Schreibzugriff, kein Live-OFF-Abruf.
+
+## 2026-10-16 — Abschließende Integration und Prüfung
+
+- React Query führt Offline-Lese-/Schreibaufrufe sofort aus, damit Firestore-Cache und persistente Outbox erreichbar bleiben. Offline-Replay ergänzt den Mahlzeiten-Katalog im selben Transaktionsschritt und verhindert doppelte Nutzungszählung.
+- Direkte SDK-Schreibfehler von Profil, Fuel Frame und Tagesnotizen werden sichtbar gemeldet. Supplement-Löschmarkierungen bleiben erhalten. Wochen-Mikronährstoffe werden ohne Rückschreiben berechneter Tagesdaten ausgewertet, einschließlich Herkunft je Mahlzeit.
+- Mobile Dialoge sind auf die Viewport-Höhe begrenzt, scrollbar und haben einen zugänglichen Schließen-Button; Katalog-Fotologs erzeugen neue Ereignis-IDs.
+- Verifiziert: 25 JavaScript-Tests in 8 Dateien (`npm run test:unit`), 1 Python-Test mit In-Memory-SQLite, Local- und Cloud-Build inklusive SW-Versionierung, `git diff --check`. Isolierter Firefox-Browserlauf bei 390×844 und 320×568: Backup ohne Login gesperrt; Barcode-Abfrage mit simulierten OFF-Daten übernimmt Beschreibung, Bezugsgewicht und Makros ins editierbare Formular; kleiner Dialog scrollt ohne horizontalen Überlauf.
+- Kein Live-Firebase-Login oder Schreibtest mit echten Nutzerdaten, kein physischer Kameratest. Änderungen sind noch nicht deployed.

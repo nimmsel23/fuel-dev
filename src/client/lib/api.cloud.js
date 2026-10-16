@@ -1,6 +1,5 @@
 // Cloud channel — Firestore only. No Fastify/local fetch for data.
 import * as firestore from "./db.firestore.js";
-import { doc, setDoc } from "firebase/firestore";
 import { submitCloudLog } from "./cloudOutbox.js";
 import { mutateCloudCatalog } from "./cloudMutations.js";
 
@@ -100,72 +99,6 @@ function normalizeMealName(n) {
   return String(n || "").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
-// Cloud-Äquivalent zu autoUpsertCatalog() im lokalen Fastify-Backend
-// (src/server/routes/nutrition/log.mjs) — baut den Meal-Katalog automatisch
-// aus geloggten Meals auf, statt dass er nur manuell kuratiert wächst. Nur
-// für Meals OHNE catalog_id — ein bereits aus dem Katalog geloggtes Meal ist
-// definitionsgemäß schon drin. Getrennt von der Food-Verlauf-Card (die zeigt
-// die echte Log-Chronik aus /nutrition/history, nicht den Katalog) — dieser
-// Upsert dient nur der Katalog-Kuratierung, nicht dem Verlauf.
-async function autoUpsertCatalog(meal) {
-  if (!meal?.description || meal.catalog_id) return;
-  try {
-    await mutateCloudCatalog("nutrition", (items) => {
-    const inputName = normalizeMealName(meal.description);
-    const idx = items.findIndex((i) => normalizeMealName(i.name) === inputName);
-    const nowIso = meal.logged_at || meal.time || new Date().toISOString();
-    // Mikros/Zutaten aus dem Schätz-Call (aiMealLogger) mit auf den Katalog-
-    // Eintrag ziehen — Parität mit fuel/catalog_lookup.py::save_meal.
-    const comps = Array.isArray(meal.components) ? meal.components : [];
-    const yieldG = meal.grams || comps.reduce((s, c) => s + (c.amount_g || 0), 0) || null;
-    const hasMicros = meal.micros && Object.values(meal.micros).some((v) => v > 0);
-    if (idx >= 0) {
-      const cur = items[idx];
-      items[idx] = {
-        ...cur,
-        use_count: (cur.use_count || 0) + 1,
-        last_used_at: nowIso,
-        updated_at: new Date().toISOString(),
-        // Nur befüllen wenn am bestehenden Eintrag noch nichts steht — einen
-        // kuratierten Eintrag nicht mit einer Schätzung überschreiben.
-        ...(hasMicros && !(cur.micros && Object.keys(cur.micros).length)
-          ? { micros: meal.micros, micros_meta: meal.micros_meta || null }
-          : {}),
-        ...(comps.length && !(cur.components && cur.components.length)
-          ? { components: comps, yield_g: cur.yield_g ?? yieldG }
-          : {}),
-      };
-    } else {
-      items.push({
-        id: `meal_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
-        kind: "meal",
-        category: meal.type || "meal",
-        name: meal.description,
-        meal_type: meal.type || "meal",
-        description: meal.description,
-        notes: meal.notes || "",
-        kcal: meal.kcal || 0,
-        protein: meal.protein || 0,
-        carbs: meal.carbs || 0,
-        fat: meal.fat || 0,
-        yield_g: yieldG,
-        micros: hasMicros ? meal.micros : {},
-        micros_meta: hasMicros ? (meal.micros_meta || null) : null,
-        components: comps,
-        source: meal.source || "logged",
-        use_count: 1,
-        last_used_at: nowIso,
-        created_at: nowIso,
-        updated_at: nowIso,
-      });
-    }
-    return items;
-    });
-  } catch (e) {
-    console.warn(`[nutrition-catalog] auto-upsert failed for "${meal.description}":`, e);
-  }
-}
-
 export async function postJson(path, body) {
   const normPath = normalizePath(path);
 
@@ -184,7 +117,6 @@ export async function postJson(path, body) {
       logged_at: meal.logged_at || meal.time || new Date().toISOString(),
     } : null;
     const result = await submitCloudLog("nutrition", body.date, { ...body, meal: prepared });
-    if (prepared && !result.queued) await autoUpsertCatalog(prepared);
     return result;
   }
 

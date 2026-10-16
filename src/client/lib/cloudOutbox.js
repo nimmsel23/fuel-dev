@@ -75,7 +75,7 @@ export function discardCloudOperation(id) {
 }
 
 export function projectCloudLog(kind, date, data) {
-  let projected = structuredClone(data);
+  let projected = { ...data };
   for (const entry of outboxEntries(getUid())) {
     if (entry.kind !== kind || entry.blocked) continue;
     const c = entry.command;

@@ -1,10 +1,12 @@
+import { withStorageFeedback } from "../../storageFeedback.js";
 /**
  * Firestore Notes — nutrition/{uid}/journal/{date} (Freitext-Notizen)
  */
 
-import { doc, getDoc, setDoc, serverTimestamp, collection, query, getDocs, orderBy, limit, arrayUnion, arrayRemove } from "firebase/firestore";
+import { doc, getDoc, setDoc as firestoreSetDoc, serverTimestamp, collection, query, getDocs, orderBy, limit, arrayUnion, arrayRemove } from "firebase/firestore";
 import { db } from "../../firebase.js";
 import { getUid } from "./core.js";
+const setDoc = (...args) => withStorageFeedback("Tagesnotizen / KI-Entwurf", () => firestoreSetDoc(...args));
 import { todayISO } from "./utils.js";
 
 export async function getNotes(date = todayISO()) {

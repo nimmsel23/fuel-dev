@@ -44,3 +44,19 @@ test('full storage never reports a successful offline save', async () => {
   await assert.rejects(submitCloudLog('nutrition', '2026-10-16', { meal: { id: 'd' } }), /Storage full/);
   localStorage.setItem = original;
 });
+
+
+test('React Query executes durable writes and cached reads while offline', async () => {
+  const { onlineManager } = await import('@tanstack/react-query');
+  const { createFuelQueryClient } = await import('../src/client/lib/queryClient.js');
+  localStorage.clear(); navigator.onLine = false; onlineManager.setOnline(false);
+  const client = createFuelQueryClient();
+  const defaults = client.getDefaultOptions();
+  client.setDefaultOptions({ queries: { ...defaults.queries, gcTime: Infinity }, mutations: { ...defaults.mutations, gcTime: Infinity } });
+  try {
+    const mutation = client.getMutationCache().build(client, { mutationFn: () => submitCloudLog('nutrition', '2026-10-16', { meal: { id: 'offline-ui' } }) });
+    assert.equal((await mutation.execute()).queued, true);
+    assert.equal(outboxEntries(uid).length, 1);
+    assert.equal(await client.fetchQuery({ queryKey: ['offline-cache'], queryFn: async () => 'cached' }), 'cached');
+  } finally { client.clear(); onlineManager.setOnline(true); }
+});

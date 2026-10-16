@@ -2,7 +2,7 @@ import { MICRO_KEYS } from "../../shared/config/dach.mjs";
 
 const DETAIL_KEYS = ["grams", "micros", "micros_meta", "components", "source", "source_url", "barcode"];
 export function mealDetails(meal) {
-  return Object.fromEntries(DETAIL_KEYS.filter(k => meal[k] !== undefined).map(k => [k, structuredClone(meal[k])]));
+  return Object.fromEntries(DETAIL_KEYS.filter(k => meal[k] !== undefined).map(k => [k, meal[k]]));
 }
 
 export function scaleMeal(meal, factor) {

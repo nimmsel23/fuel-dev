@@ -8,7 +8,7 @@ import { projectCloudLog, outboxEntries } from "../../cloudOutbox.js";
 
 import {
   doc, getDoc, setDoc, collection, query, where, getDocs,
-  orderBy, limit, documentId, serverTimestamp, writeBatch, deleteField, runTransaction,
+  orderBy, limit, documentId, serverTimestamp, writeBatch, deleteField,
 } from "firebase/firestore";
 import { db } from "../../firebase.js";
 import { getUid } from "./core.js";
@@ -60,8 +60,7 @@ export async function saveNutritionLog(date, data) {
   const payload = { ...data, updated_at: serverTimestamp() };
   // Mikros-Tages-Cache (siehe getWeeklyMicros) wird ungültig, sobald die
   // Mahlzeiten-Liste angefasst wird — sonst zeigt die Wochenansicht veraltete
-  // Summen. Der Cache-Write selbst läuft über cacheDayMicroTotals() (unten),
-  // nicht über diese Funktion, kollidiert also nicht mit der Invalidierung hier.
+  // Summen. Der Cloud-Read berechnet aus aktuellen Einträgen und Katalogen.
   if ("meals" in data) {
     payload.micro_totals = deleteField();
     payload.micro_totals_complete = deleteField();
@@ -70,22 +69,6 @@ export async function saveNutritionLog(date, data) {
   if ("meals" in data) {
     void invalidateWeekMicroCache(date).catch(() => {});
   }
-}
-
-// Schreibt den gecachten Tages-Mikros-Stand zurück — inkl. der pro-Meal
-// aufgelösten Mikros (meal.micros), die computeMealMicroTotals() in-place
-// auf den übergebenen meals-Objekten gesetzt hat. Bewusst getrennt von
-// saveNutritionLog(), damit dieser Cache-Write sich nicht selbst invalidiert.
-async function cacheDayMicroTotals(date, expectedMeals, totals, complete) {
-  // Never write the read-time meals snapshot back over a newer log.
-  const ref = doc(db, "nutrition", getUid(), "logs", date);
-  await runTransaction(db, async tx => {
-    const snap = await tx.get(ref);
-    if (!snap.exists()) return;
-    const current = snap.data();
-    if (JSON.stringify(current.meals || []) !== expectedMeals) return;
-    tx.set(ref, { micro_totals: totals, micro_totals_complete: complete }, { merge: true });
-  });
 }
 
 export async function getNutritionLogsInRange(dates) {
@@ -225,23 +208,6 @@ function weekCacheDocRef(year, week) {
   return doc(db, "nutrition", getUid(), "weekMicrosCache", weekCacheKey(year, week));
 }
 
-async function getWeekMicroCache(year, week) {
-  try {
-    const snap = await getDoc(weekCacheDocRef(year, week));
-    return snap.exists() ? snap.data() : null;
-  } catch {
-    return null;
-  }
-}
-
-async function setWeekMicroCache(year, week, data) {
-  try {
-    await setDoc(weekCacheDocRef(year, week), { complete: true, data, cached_at: serverTimestamp() });
-  } catch (err) {
-    console.error("[week-micros-cache] write failed:", err);
-  }
-}
-
 // Von den Schreibpfaden aufgerufen (saveNutritionLog, Supplement-Log-Writes),
 // sobald sich an einem Datum etwas ändert, das in die Wochensumme einfließt.
 export async function invalidateWeekMicroCache(dateStr) {
@@ -277,27 +243,10 @@ export async function getWeeklyMicros(year, week) {
 
   for (const date of dates) {
     const log = logsMap[date] || { meals: [] };
-    let mealTotals;
-
-    if (log.micro_totals && log.micro_totals_complete) {
-      // Gecacht (voriger Request oder beim Loggen aufgelöst) — kein Rechnen nötig.
-      mealTotals = log.micro_totals;
-    } else {
-      const expectedMeals = JSON.stringify(log.meals || []);
-      const { totals, complete, missing } = computeMealMicroTotals(log.meals, catalog, microsMap);
-      mealTotals = totals;
-      missing.forEach((m) => missingMeals.add(m));
-
-      // Selbstheilend zurückschreiben, sobald irgendeine Mahlzeit neu
-      // aufgelöst wurde. complete=false wird mitgespeichert, aber die
-      // Read-Prüfung oben verlangt complete=true — ein unvollständiger Tag
-      // wird beim nächsten Request automatisch erneut versucht.
-      if ((log.meals || []).some((m) => m.micros)) {
-        await cacheDayMicroTotals(date, expectedMeals, totals, complete).catch((err) =>
-          console.error(`[getWeeklyMicros] Cache-Write für ${date} fehlgeschlagen:`, err)
-        );
-      }
-    }
+    // Compute the small seven-day aggregate in memory. Persisting a read-time
+    // cache can race with edits and loses the per-meal provenance on cache hits.
+    const { totals: mealTotals, missing } = computeMealMicroTotals(log.meals, catalog, microsMap);
+    missing.forEach(m => missingMeals.add(m));
 
     const dayTotals = { ...mealTotals };
     const suppLog = suppLogsMap[date] || { intakes: [] };
