@@ -97,3 +97,9 @@ werden aber im Cloud-Frontend nie geladen.
 - `MICRO_KEYS`, `zeroMicros`, `getWeekDates` bleiben in `db/firestore/
   utils.js` — reine DB-Domain-Utilities (Firestore-Feldnamen), gehören
   nicht nach `shared/`.
+
+## Supplements-Mini-App (2026-10-16)
+
+- [x] Supplements eigenständig bedienbar machen: Tagesübersicht, Bereiche, Wochenplan und Katalogsuche.
+- [x] Eigener Einstieg und Datenabruf ohne Fuel-Dashboard; Reminder-Einstellungen in der Mini-App.
+- [x] Tageszählung, zyklische Planung und Mutation-Feedback korrigieren; Solo-Build prüfen und separat deployen.

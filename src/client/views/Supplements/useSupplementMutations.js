@@ -16,21 +16,26 @@ export function useSupplementMutations(date) {
           notes: values.notes || "",
         },
       }),
-    onSuccess: (_, values) => {
+    onSuccess: async (_, values) => {
       const targetDate = values.date || date;
-      qc.invalidateQueries({ queryKey: ["supp-log", targetDate] });
-      qc.invalidateQueries({ queryKey: ["supp-stats", targetDate] });
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["supp-log", targetDate] }),
+        qc.invalidateQueries({ queryKey: ["nutrition-weekly"] }),
+        qc.invalidateQueries({ queryKey: ["supp-stats"] }),
+      ]);
     },
   });
 
   const deleteIntake = useMutation({
     mutationFn: ({ date: intakeDate, delete_id }) =>
       postJson("/supplements/log", { date: intakeDate || date, delete_id }),
-    onSuccess: (_, values) => {
+    onSuccess: async (_, values) => {
       const targetDate = values.date || date;
-      qc.invalidateQueries({ queryKey: ["supp-log", targetDate] });
-      qc.invalidateQueries({ queryKey: ["supp-stats", targetDate] });
-      qc.invalidateQueries({ queryKey: ["nutrition-weekly"] });
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["supp-log", targetDate] }),
+        qc.invalidateQueries({ queryKey: ["nutrition-weekly"] }),
+        qc.invalidateQueries({ queryKey: ["supp-stats"] }),
+      ]);
     },
   });
 

@@ -9,9 +9,9 @@
       "iconDir": "solo-icons/log"
     },
     "supplements": {
-      "name": "VitalOS Fuel Supplements",
+      "name": "VitalOS Supplements",
       "short": "Supplements",
-      "description": "Supplements loggen und Einnahme-Erinnerungen — der Supplements-Tab von Fuel als eigene App",
+      "description": "Deine Supplement-Routine: Einnahmen, Wochenplan und persönlicher Katalog",
       "accent": "#a3e635",
       "iconDir": "solo-icons/supplements"
     },

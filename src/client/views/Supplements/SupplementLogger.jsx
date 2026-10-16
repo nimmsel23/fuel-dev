@@ -74,12 +74,12 @@ export default function SupplementLogger({ date, catalog, intakes }) {
         <div>
           <div className="mb-2 flex items-center gap-2">
             <Pill className="h-5 w-5 text-violet-300" />
-            <h2 className="text-xl font-semibold">Supplement logger</h2>
+            <h2 className="text-xl font-semibold">Einnahme erfassen</h2>
           </div>
           <p className="text-sm text-slate-400">Loggt direkt für das gewählte Datum.</p>
         </div>
         <span className="rounded-full border border-white/10 bg-slate-950/60 px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-400">
-          {intakes.length} intakes
+          {intakes.length} Einnahmen
         </span>
       </div>
       <div className="grid gap-3 md:grid-cols-2">
@@ -93,10 +93,10 @@ export default function SupplementLogger({ date, catalog, intakes }) {
             ))}
           </select>
         </Field>
-        <Field label="Dose">
+        <Field label="Dosis">
           <Input type="number" min="0" step="0.1" {...form.register("dose")} />
         </Field>
-        <Field label="Unit">
+        <Field label="Einheit">
           <Input {...form.register("unit")} />
         </Field>
         <Field label="Time of day">
@@ -123,7 +123,7 @@ export default function SupplementLogger({ date, catalog, intakes }) {
       )}
       <button disabled={createIntake.isPending || catalog.length === 0} className="mt-4 inline-flex items-center gap-2 rounded-full bg-violet-300 px-5 py-3 font-medium text-slate-950 disabled:opacity-60">
         <Pill className="h-4 w-4" />
-        {createIntake.isPending ? "Saving..." : "Log supplement"}
+        {createIntake.isPending ? "Speichert…" : "Einnahme speichern"}
       </button>
     </form>
   );

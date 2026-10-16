@@ -28,7 +28,7 @@ module.exports = defineConfig(({ mode }) => {
   console.log(`🚀 Building for mode: ${mode}, APP_MODE: ${appMode} -> outDir: ${outDir}`);
 
   return {
-    base: "/",
+    base: "./",
     define: {
       "import.meta.env.VITE_APP_MODE": JSON.stringify(appMode),
       "import.meta.env.VITE_SOLO": JSON.stringify(solo),
@@ -93,6 +93,13 @@ module.exports = defineConfig(({ mode }) => {
       ],
     },
     plugins: [
+      ...(solo === "supplements" ? [{
+        name: "supplements-entry",
+        transformIndexHtml: {
+          order: "pre",
+          handler: html => html.replace("/src/client/main.jsx", "/src/client/solo-main.jsx"),
+        },
+      }] : []),
       react(),
     ],
     build: {

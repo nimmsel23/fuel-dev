@@ -10,7 +10,7 @@ export default function TodayStack({ date, intakes }) {
     <section className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur">
       <div className="mb-4 flex items-center gap-2">
         <Pill className="h-5 w-5 text-violet-300" />
-        <h3 className="text-lg font-semibold">Today stack</h3>
+        <h3 className="text-lg font-semibold">Erfasste Einnahmen</h3>
       </div>
       <div className="grid gap-3">
         {intakes.length ? intakes.slice().reverse().map((intake) => (
@@ -29,7 +29,7 @@ export default function TodayStack({ date, intakes }) {
                 disabled={deleteIntake.isPending}
                 className="rounded-full border border-rose-300/30 bg-rose-300/10 px-3 py-2 text-xs uppercase tracking-[0.18em] text-rose-100 disabled:opacity-60"
               >
-                Remove
+                Entfernen
               </button>
             </div>
           </div>

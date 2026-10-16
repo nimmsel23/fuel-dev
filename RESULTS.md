@@ -2,6 +2,19 @@
 
 Session-Log mit datierten Ergebnis-Bullets.
 
+## 2026-10-16: Eigenständige Supplements-Mini-App
+
+- Eigener Solo-Einstieg (`solo-main.jsx`), Supplements-Datenabruf erst nach Login und ohne Nutrition-/Journal-Abfragen. Kontowechsel leert den Query-Cache; Login-Fehler werden angezeigt.
+- Neues Frontend mit Tagesfortschritt, Bereichen für Routine/Einnahmen/Katalog/Auswertung/Erinnerungen, Wochenvorschau, Datumsauswahl und Katalogsuche samt Planfilter.
+- Reminder-Zeiten und FCM-Registrierung direkt in der Mini-App; Settings-Updates schreiben ausschließlich die zugehörigen Felder per Merge.
+- Tages-Checkliste als Tastatur-bedienbare Buttons, Schutz während Speichern/Refetch und Fehlerfeedback. Katalog-Editor validiert Pläne, erlaubt „Bei Bedarf“ und bewahrt Metadaten bei Cloud-Updates.
+- Zyklische UI-Pläne gelten nicht mehr vor dem Startdatum. Cloud-Statistik liest das tatsächliche Datumfenster und zählt eindeutige Einnahmetage statt Dosen; auch Produkte ohne Einnahmen werden angezeigt.
+- Eigenes Branding „VitalOS Supplements“, relative Build-Pfade, bestehende gemeinsame Firestore-Daten ohne Migration. Anleitung: `SUPPLEMENTS-APP.md`.
+- Verifiziert: alle 9 Node-Testdateien erfolgreich, darunter 4 neue Supplement-Testfälle; Solo-Produktionsbuild; isolierte Render-Prüfung für leer/geplant/erledigt; `git diff --check`.
+- Firebase-Deploy ausschließlich `hosting:supplements` erfolgreich: https://vos-fuel-supplements.web.app. Live-HTML, Manifest und Service Worker liefern HTTP 200 und stimmen bytegenau mit dem finalen Build überein.
+- Offen: angemeldeter Geräte-Test für Cloud-Schreibvorgänge und tatsächliche Push-Zustellung. Bestehende Reminder-Functions wurden nicht verändert/deployed. Vite meldet weiterhin große Vendor-Chunks. pnpm-Engine-Store war im Sandbox-Lauf read-only; Build und Stamp wurden über die installierten Node-Einstiegspunkte ausgeführt.
+
+
 ## 2026-10-16: PreCompact-Hook: Gemini-Review-Fix (RESULTS/NEXT-Handoff)
 
 Prüfung, ob die Compact-Hooks für `RESULTS.md`/`NEXT.md` tatsächlich laufen: konfiguriert waren sie,

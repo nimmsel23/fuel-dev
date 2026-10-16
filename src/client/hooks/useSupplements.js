@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchJson } from "@api";
 import * as firestore from "../lib/db.firestore.js";
 
-const isCloud = () => window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com");
+const isCloud = () => import.meta.env.VITE_APP_MODE === "client" || window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com");
 
 export function useSuppStats(date) {
   return useQuery({

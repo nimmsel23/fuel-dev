@@ -1,10 +1,11 @@
+import { summarizeSupplementLogs } from "../../../views/Supplements/stats.js";
 import { projectCloudLog, outboxEntries } from "../../cloudOutbox.js";
 /**
  * Firestore Supplements — supplements/{uid}/meta/catalog + logs
  */
 
 import {
-  doc, getDoc, setDoc, collection, query, getDocs, orderBy, limit, documentId,
+  doc, getDoc, setDoc, collection, query, getDocs, orderBy, limit, documentId, startAt, endAt,
 } from "firebase/firestore";
 import { mutateCloudLog, mutateCloudCatalog } from "../../cloudMutations.js";
 import { db } from "../../firebase.js";
@@ -68,46 +69,9 @@ export async function getSupplementStats(anchorDate, days = 30) {
     return d.toISOString().slice(0, 10);
   });
 
-  const snap = await getDocs(query(collection(db, "supplements", getUid(), "logs"), orderBy("date", "desc"), limit(days)));
+  const snap = await getDocs(query(collection(db, "supplements", getUid(), "logs"), orderBy(documentId(), "desc"), startAt(dates[0]), endAt(dates[dates.length - 1])));
   const logsMap = {};
   snap.forEach(doc => { logsMap[doc.id] = doc.data(); });
-
   const catalog = await getSupplementsCatalog();
-  const stats = {};
-
-  // Initialize stats from intakes found in logs
-  Object.values(logsMap).forEach(log => {
-    (log.intakes || []).forEach(intake => {
-      const suppId = intake.supplement_id;
-      if (!stats[suppId]) {
-        const catalogItem = catalog.find(i => i.id === suppId);
-        stats[suppId] = {
-          supplement: catalogItem || { id: suppId, name: intake.name || suppId },
-          days_taken: 0,
-          current_streak: 0,
-        };
-      }
-      stats[suppId].days_taken += 1;
-    });
-  });
-
-  // Calculate streaks
-  const todayStr = todayISO();
-  for (const suppId in stats) {
-    let streak = 0;
-    for (const dateStr of dates) {
-      const log = logsMap[dateStr];
-      const hasIntake = log && (log.intakes || []).some(i => i.supplement_id === suppId);
-      if (hasIntake) {
-        streak += 1;
-      } else if (dateStr === todayStr) {
-        continue; // Don't break streak if today isn't logged yet
-      } else {
-        break;
-      }
-    }
-    stats[suppId].current_streak = streak;
-  }
-
-  return { ok: true, anchor: anchorDate, days, stats: Object.values(stats) };
+  return { ok: true, anchor: anchorDate, days, stats: summarizeSupplementLogs(catalog, logsMap, dates, todayISO()) };
 }
