@@ -221,3 +221,8 @@ Session-Log mit datierten Ergebnis-Bullets.
 - Import prüft Formatversion, Konto, erlaubte Dokumenttypen/IDs, Eintrags-IDs, Mengen und Größen. Vorschau vor einer eigenen Wiederherstellen-Schaltfläche; additive Transaktionen erhalten aktuelle Werte und Löschmarkierungen. Unterbrochene Wiederherstellung nennt Fortschritt und kann ohne Duplikate wiederholt werden.
 - Quelle ist ausdrücklich die Cloud, auch wenn Setup lokal geöffnet wird. Server-/SQLite-Daten gehören nicht zu diesem Cloud-Backup.
 - Prüfung: 5 Tests für Validierung, Konto-/Pfadgrenzen, konfliktfreie Zusammenführung, Export/Import-Roundtrip, konkurrierende Änderungen und Wiederaufnahme; Cloud-Build erfolgreich.
+
+## 2026-10-16 — Browser-Startblocker behoben
+
+- Der gebaute Cloud-Client blieb im Firefox mit `Component app-check has not been registered yet` leer. App Check und Messaging fehlten in den gemeinsamen Firebase-Package-Aliasen; beide Build-Konfigurationen lösen sie nun wie die übrigen SDK-Module auf.
+- Verifiziert: Cloud-Build und isolierter Firefox-Browserlauf bei 390×844. Setup/Backup wird gerendert, Backup-Aktionen sind ohne Konto gesperrt; Barcode-Nummer → simulierte OFF-Antwort → Beschreibung, 100-g-Bezugsportion und Makros im editierbaren Formular. Screenshot unter `/tmp/fuel-barcode-mobile.png`. Kein echter Cloud-Login/Schreibzugriff, kein Live-OFF-Abruf.
