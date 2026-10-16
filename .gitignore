@@ -42,3 +42,7 @@ gas-logger/
 
 # Mini-App-Builds (pnpm run build:solo)
 dist-solo-*/
+
+# Secrets: alle env-Dateien (z. B. vapid.env mit Private Key) nie tracken
+*.env
+.env.*
