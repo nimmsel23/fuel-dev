@@ -2,6 +2,37 @@
 
 Session-Log mit datierten Ergebnis-Bullets.
 
+## 2026-10-16: Vier Fuel-Views als eigene Mini-Apps veröffentlicht
+
+Muster wie `vos-training`/`vos-atlas` in fitness-dev: ein Repo, ein Modus je App, kein Fork
+(vier schon angelegte Forks `~/fuel-<x>-dev` wurden verworfen und nach
+`~/.archive/fuel-solo-forks-2026-10-16/` verschoben, nie auf GitHub angelegt).
+
+- **Solo-Modus:** `VITE_SOLO=log|supplements|micros|report` — `src/client/routes.js` bündelt nur den
+  gewählten Tab (Literal-Vergleich, damit Rollup die übrigen Imports verwirft),
+  `src/client/SoloShell.jsx` ist die schlanke Shell (Login-Pflicht, Tagesnavigation, Update-Button),
+  `vite.config.cjs` schreibt nach `dist-solo-<tab>/`. Build: `pnpm run build:solo[:<tab>]`.
+- **Splash/SW/Manifest:** `@vos/mini-app-shell` (vendored nach `scripts/mini-app-shell/`, Konfig
+  `mini-app.json`), `scripts/stamp-solo.mjs` stempelt SW-Version + Shell und räumt Haupt-App-Icons
+  und `*.bak` aus dem Output. Der bestehende `public/sw.js` bleibt (`sw.mode: keep`).
+- **Icons:** `solo-icons/<tab>/` aus `scripts/solo-icons.py` (Teller orange, Kapsel lime, Molekül rosa,
+  Protokollblatt himmelblau).
+- **Hosting:** `firebase.json` als Array (Targets `client`=`fuel-vos`, `log`, `supplements`, `mikros`,
+  `protokoll`), Mapping in `.firebaserc`; `deploy:firebase`/`deploy:cloud`/`deploy-preview.mjs` nur noch
+  `--only client`; neu `pnpm run deploy:solo:<log|supplements|mikros|protokoll>`.
+  Im Meta-Repo `vitalos/.github/workflows/deploy-fuel.yml` auf `hosting:client` umgestellt.
+- **Firebase:** Sites `vos-fuel-log|supplements|mikros|protokoll` angelegt; Auth-Domains
+  (`.web.app` + `.firebaseapp.com`, 8 Einträge) in `fitness-aos` additiv ergänzt (Vorher/Nachher-Diff
+  ohne Verlust). App Check ist für Firestore/Auth/ML `UNENFORCED`.
+- **Live:** alle vier Sites deployt (`https://vos-fuel-<x>.web.app`), Links per wacli an den User.
+  `fuel-release --yes` hat dev/vitalos/master gepusht (Pointer-Bump `5f93106`).
+- **Secrets:** `vapid.env` (VAPID-Private-Key) war im öffentlichen Repo getrackt → `*.env`/`.env.*`
+  gitignored, Datei enttrackt (`59b23b5`). Der Key steht weiter in der History.
+- Verifiziert: vier Solo-Builds, Dry-Run der Hosting-Targets, Deploy-Meldungen. **Nicht** verifiziert:
+  Rendering/Login im Browser (kein Headless-Browser verfügbar).
+
+---
+
 ## 2026-10-13: fuel-dev + frontend/ auf pnpm umgestellt
 
 - Analog zur fitness-dev/vitalos-Migration (gleiche Session): `package.json`

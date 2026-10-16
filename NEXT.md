@@ -2,6 +2,18 @@
 
 Aktive Arbeitsliste (max. 5 Punkte).
 
+## 2026-10-16
+
+- [ ] Mini-Apps (`vos-fuel-*`) einmal am Handy prüfen: Google-Login, Splash, Icon, Installation.
+- [ ] VAPID-Key rotieren (`vapid.env`, Private Key steht in der History des öffentlichen Repos
+  `nimmsel23/fuel-dev`), danach Push-Abos der Supplement-Erinnerungen neu registrieren lassen.
+- [ ] CI für die Mini-Apps im Meta-Repo (`vitalos/.github/workflows/deploy-fuel-<x>.yml`, Pfadfilter
+  `fuel-app/**`) — ein Pointer-Bump deployt sonst nur `hosting:client`. Berührt Workspace/Lockfile
+  in `~/vitalos`.
+- [ ] Universelles Setup-Dev (Idee des Users, Satz brach ab) — klären, was gemeint ist.
+- [ ] `scripts/mini-app-shell/` driftet, wenn `~/vitalos/packages/mini-app-shell` sich ändert
+  (`node ~/vitalos/packages/mini-app-shell/cli.mjs vendor scripts/mini-app-shell --check`).
+
 ## 2026-09-06
 
 - [x] Redundanz Food-Tab vs. Katalog-Tab geklärt (2026-09-06): beide rendern
