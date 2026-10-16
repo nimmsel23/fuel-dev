@@ -5,6 +5,7 @@ const { VitePWA } = require("vite-plugin-pwa");
 module.exports = defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const appMode = process.env.VITE_APP_MODE || env.VITE_APP_MODE || "coach";
+  const base = process.env.FUEL_HUB_BUILD === "1" ? "/fuel/" : "/";
 
   // coach builds to dist/ (local server), client builds to dist-firebase/ (for firebase deploy)
   const outDir = appMode === "client" ? "./dist-firebase" : "./dist";
@@ -12,9 +13,10 @@ module.exports = defineConfig(({ mode }) => {
   console.log(`🚀 Building for mode: ${mode}, APP_MODE: ${appMode} -> outDir: ${outDir}`);
 
   return {
-    base: "./",
+    base: process.env.FUEL_HUB_BUILD === "1" ? base : "./",
     define: {
       "import.meta.env.VITE_APP_MODE": JSON.stringify(appMode),
+      "import.meta.env.VITE_FUEL_API_BASE": JSON.stringify(process.env.FUEL_HUB_BUILD === "1" ? "/fuel-api" : ""),
     },
     resolve: {
       preserveSymlinks: true,
@@ -25,8 +27,8 @@ module.exports = defineConfig(({ mode }) => {
     plugins: [
       react(),
       VitePWA({
-        base: "/",
-        scope: "/",
+        base,
+        scope: base,
         registerType: "autoUpdate",
         injectRegister: "auto",
         manifest: {
@@ -36,19 +38,19 @@ module.exports = defineConfig(({ mode }) => {
           theme_color: "#080b12",
           background_color: "#080b12",
           display: "standalone",
-          start_url: "/",
-          scope: "/",
+          start_url: base,
+          scope: base,
           icons: [
-            { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
-            { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
-            { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "maskable" },
-            { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+            { src: `${base}icons/icon-192.png`, sizes: "192x192", type: "image/png", purpose: "any" },
+            { src: `${base}icons/icon-512.png`, sizes: "512x512", type: "image/png", purpose: "any" },
+            { src: `${base}icons/icon-192.png`, sizes: "192x192", type: "image/png", purpose: "maskable" },
+            { src: `${base}icons/icon-512.png`, sizes: "512x512", type: "image/png", purpose: "maskable" },
           ],
         },
         workbox: {
           globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
-          navigateFallback: "/index.html",
-          navigateFallbackDenylist: [/^\/api/, /^\/nutrition/, /^\/supplements/, /^\/fuel/, /^\/health/],
+          navigateFallback: `${base}index.html`,
+          navigateFallbackDenylist: [/^\/api/, /^\/nutrition/, /^\/supplements/, /^\/health/],
           runtimeCaching: [
             {
               urlPattern: /^\/nutrition\//,
