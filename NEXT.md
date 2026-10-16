@@ -12,6 +12,9 @@ Aktive Arbeitsliste (max. 5 Punkte).
   in `~/vitalos`.
 - [ ] CI-Lauf `Deploy Fuel PWA` (Meta-Repo `vitalos`, Commit `5f93106`) prüfen — erster Lauf mit
   `--only hosting:client`, `fuel-vos` hängt davon ab; war beim Abschluss noch `queued`, Ergebnis nicht gesehen.
+- [ ] PreCompact-Hook (`.claude/hooks/pre-compact-fill-docs.sh`): Gemini-Review nach dem Argument-Limit-Fix
+  im Log (`pre-compact-fill-docs.log`) gegenprüfen — letzter Eintrag war noch „kein Ergebnis“. `.claude/` ist
+  gitignored, Hook-Änderungen sind nicht versioniert.
 - [ ] Universelles Setup-Dev (Idee des Users, Satz brach ab) — klären, was gemeint ist.
 - [ ] `scripts/mini-app-shell/` driftet, wenn `~/vitalos/packages/mini-app-shell` sich ändert
   (`node ~/vitalos/packages/mini-app-shell/cli.mjs vendor scripts/mini-app-shell --check`).
@@ -49,3 +52,7 @@ Aktive Arbeitsliste (max. 5 Punkte).
 - `src/client/lib/api.js` (ohne local/cloud-Suffix) scheint ebenfalls unbenutzt (nichts importiert `lib/api` direkt, alles läuft über `@api` → `api.local.js`/`api.cloud.js`) — nicht verifiziert/gelöscht, nur aufgefallen bei der Suche.
 - `client/lib/db/firestore/utils.js::randomId()` ist vermutlich ungenutzter toter Code (kein direkter Importer gefunden, Format unterscheidet sich von `shared/utils/ids.mjs::randomId()`, das der Server aktiv nutzt). Nicht gelöscht — nach dem `db/index.js`-Fehltritt heute bewusst vorsichtig, erst mit Cross-Repo-Grep (`habits-dev`, `journal-dev`, ggf. `vitalos`) sauber verifizieren, bevor angefasst wird.
 - Nach dem `todayISO()`-Fix: Bestehende Log-Einträge, die vor dem Fix zwischen 00:00–02:00 Uhr lokaler Zeit ohne explizites `date`-Param angelegt wurden, könnten auf dem falschen (Vor-)Tag liegen. Kein automatischer Korrekturlauf gemacht — falls Datenqualität in `~/.aos/fuel/nutrition/` auffällt, dort gezielt nach Einträgen mit `created_at`-Zeitstempel kurz nach Mitternacht suchen.
+
+**Gemini-Review (potenzielle blinde Flecken, 2026-10-16):**
+*   **Ungeprüfte Annahme/Teilweise gelöst:** Die anfängliche Behauptung, die Gemini-API funktioniere "einwandfrei", wurde durch `RESOURCE_EXHAUSTED`-Fehler im End-zu-Ende-Lauf widerlegt. Dies deutet darauf hin, dass das Problem des erfolgreichen Gemini-Reviews über die Argumentlänge hinaus (z.B. Modellkapazität, Prompt-Komplexität) weiterhin besteht.
+*   **Übersehener Edge-Case:** Der erste Commit (`9a7d83f`) enthielt laut Transkript "ungewollt" gestagte Änderungen am `6pack-app`-Pointer und an `pnpm-lock.yaml`,

@@ -2,6 +2,24 @@
 
 Session-Log mit datierten Ergebnis-Bullets.
 
+## 2026-10-16: PreCompact-Hook: Gemini-Review-Fix (RESULTS/NEXT-Handoff)
+
+Prüfung, ob die Compact-Hooks für `RESULTS.md`/`NEXT.md` tatsächlich laufen: konfiguriert waren sie,
+Lebenszeichen gab es keins (kein `pre-compact-fill-docs.log`, letzter `docs: auto-update`-Commit alt).
+
+- **`.claude/hooks/pre-compact-fill-docs.sh`:** Ursache gefunden — `gemini_call()` übergab den Prompt als
+  Argument (`jq --arg` / `curl -d "$body"`); große Transcript-Ausschnitte sprengten das Linux-Limit von
+  131072 Bytes pro Argument, der Fehler wurde von `2>/dev/null` verschluckt, alle Modelle galten als
+  „fehlgeschlagen“. Jetzt: Prompt über stdin → Temp-Datei → `curl --data-binary @file`, Fehlerursache je
+  Modell steht im Log. Funktion isoliert mit 220-KB-Prompt getestet. Sicherung: `pre-compact-fill-docs.sh.bak-gemini`.
+- **Hook-Lauf belegt:** der Hook läuft (`claude -p` ändert die Doku, `pre-compact-fill-docs.log` entsteht);
+  ein Lauf schrieb `NEXT.md` fort (`e3a8ff7`, `docs: auto-update NEXT.md`) ohne `RESULTS.md` zu doppeln.
+- **Hinweis:** `.claude/` ist in diesem Repo gitignored — die Hook-Änderung ist lokal, nicht versioniert.
+- Verifiziert: Gemini-Funktion isoliert. **Nicht** bestätigt: erfolgreicher Gemini-Review im
+  Ende-zu-Ende-Lauf nach dem Fix (Log zeigte zuletzt „kein Ergebnis“).
+
+---
+
 ## 2026-10-16: Vier Fuel-Views als eigene Mini-Apps veröffentlicht
 
 Muster wie `vos-training`/`vos-atlas` in fitness-dev: ein Repo, ein Modus je App, kein Fork
