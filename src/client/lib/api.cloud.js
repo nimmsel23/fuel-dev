@@ -1,7 +1,8 @@
 // Cloud channel — Firestore only. No Fastify/local fetch for data.
 import * as firestore from "./db.firestore.js";
 import { doc, setDoc } from "firebase/firestore";
-import { mutateCloudLog, mutateCloudCatalog } from "./cloudMutations.js";
+import { submitCloudLog } from "./cloudOutbox.js";
+import { mutateCloudCatalog } from "./cloudMutations.js";
 
 async function searchOFF(query, limit) {
   const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=${limit}`;
@@ -182,9 +183,9 @@ export async function postJson(path, body) {
       id: meal.id || crypto.randomUUID(),
       logged_at: meal.logged_at || meal.time || new Date().toISOString(),
     } : null;
-    const result = await mutateCloudLog("nutrition", body.date, { ...body, meal: prepared });
-    if (prepared) await autoUpsertCatalog(prepared);
-    return { ok: true, data: result };
+    const result = await submitCloudLog("nutrition", body.date, { ...body, meal: prepared });
+    if (prepared && !result.queued) await autoUpsertCatalog(prepared);
+    return result;
   }
 
   if (normPath === "/nutrition/notes") {
@@ -226,8 +227,7 @@ export async function postJson(path, body) {
       intake.name = (await firestore.getSupplementsCatalog()).find(i => i.id === intake.supplement_id)?.name || intake.supplement_id;
     }
     if (intake) intake.id = intake.id || crypto.randomUUID();
-    await mutateCloudLog("supplements", body.date, { ...body, intake });
-    return { ok: true };
+    return submitCloudLog("supplements", body.date, { ...body, intake });
   }
 
   if (normPath === "/supplements/catalog") {
@@ -247,14 +247,13 @@ export async function patchJson(path, body) {
   const normPath = normalizePath(path);
 
   if (normPath === "/nutrition/log") {
-    await mutateCloudLog("nutrition", body.date, {
-      ...body, move_id: body.new_date ? crypto.randomUUID() : null, meal: body.meal?.time ? { ...body.meal, logged_at: body.meal.time } : body.meal,
+    const sourceMeal = body.new_date ? (await firestore.getNutritionLog(body.date)).meals?.find(m => m.id === body.meal_id) : null;
+    return submitCloudLog("nutrition", body.date, {
+      ...body, source_meal: sourceMeal || null, move_id: body.new_date ? crypto.randomUUID() : null, meal: body.meal?.time ? { ...body.meal, logged_at: body.meal.time } : body.meal,
     });
-    return { ok: true };
   }
   if (normPath === "/supplements/log") {
-    await mutateCloudLog("supplements", body.date, body);
-    return { ok: true };
+    return submitCloudLog("supplements", body.date, body);
   }
 
   throw new Error(`patchJson: unmapped cloud path: ${path}`);

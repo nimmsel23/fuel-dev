@@ -1,3 +1,4 @@
+import { projectCloudLog, outboxEntries } from "../../cloudOutbox.js";
 /**
  * Firestore Nutrition — Katalog, Tages-Logs, History, Wochen-Mikros
  *
@@ -46,8 +47,13 @@ function applyMealTombstones(data) {
 }
 
 export async function getNutritionLog(date = todayISO()) {
-  const snap = await getDoc(doc(db, "nutrition", getUid(), "logs", date));
-  return snap.exists() ? applyMealTombstones(snap.data()) : { date, meals: [], water_ml: 0 };
+  let snap;
+  try { snap = await getDoc(doc(db, "nutrition", getUid(), "logs", date)); }
+  catch (error) {
+    if (navigator.onLine || !outboxEntries(getUid()).some(e => e.kind === "nutrition" && e.date === date)) throw error;
+    snap = { exists: () => false };
+  }
+  return projectCloudLog("nutrition", date, snap.exists() ? applyMealTombstones(snap.data()) : { date, meals: [], water_ml: 0 });
 }
 
 export async function saveNutritionLog(date, data) {
@@ -378,12 +384,6 @@ export async function getWeeklyMicros(year, week) {
 
   const result = { ok: true, year, week, dates, week_totals: weekTotals, rda_comparison, day_breakdown: dayBreakdown, meal_breakdown: mealBreakdown, missing_meals: Array.from(missingMeals) };
 
-  // Nur vollständige Wochen cachen — bei offenen missing_meals würde ein
-  // gecachtes 0 sonst nie wieder korrigiert (nichts invalidiert es erneut,
-  // solange der fehlende Eintrag fehlend bleibt).
-  if (missingMeals.size === 0) {
-    await setWeekMicroCache(year, week, result);
-  }
 
   return result;
 }

@@ -195,3 +195,9 @@ Session-Log mit datierten Ergebnis-Bullets.
 - Mahlzeiten, Wasser-Deltas, Supplement-Einnahmen und private Katalogänderungen nutzen Firestore-Transaktionen. Verschieben schreibt beide Tage atomar und hinterlässt einen Quell-Tombstone.
 - Mikronährstoff-Auswertungen schreiben keine alten Mahlzeitenlisten mehr zurück; Tages-Caches werden nur bei unverändertem Ausgangslog geschrieben, Wochenansichten lesen aktuelle Tagesdaten.
 - Prüfung: Konflikt-/Retry-/Move-/Tombstone-Tests mit simuliertem Firestore-Adapter; Firebase-Frontend-Build erfolgreich. Keine Live-Nutzerdaten verändert.
+
+## 2026-10-16 — Speicherstatus und Offline-Änderungen
+
+- Kontoabhängige, persistente Befehlswarteschlange für Tageslogs (Mahlzeiten/Wasser/Supplements), automatische Wiederholung nach Reconnect sowie manuelles Wiederholen/Verwerfen fehlgeschlagener Änderungen. Cloud-Transaktionsbelege verhindern doppelte Wiederholung nach verlorener Bestätigung.
+- Ausstehende Änderungen werden in Tagesansichten projiziert. Statusleiste auch im Schnelleinstieg: Offline, lokaler Cache, ausstehende Cloud-Bestätigung, Schreib-/Lesefehler. Kontowechsel leert den React-Query-Cache.
+- Prüfung: 5 Transaktions- und 3 Outbox-Tests (Konflikt, atomarer Move, Replay, Kontoisolation, Berechtigungsfehler, voller Speicher); Cloud-Build erfolgreich. Browser-/Live-Firebase-Prüfung steht aus.

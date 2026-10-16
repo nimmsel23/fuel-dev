@@ -59,3 +59,11 @@ test('replayed additions are idempotent and deletion blocks resurrection', () =>
   const deleted = changeLog('nutrition', added, { delete_meal_id: 'one' });
   assert.equal(changeLog('nutrition', deleted, { meal: { id: 'one' } }).meals.length, 0);
 });
+
+test('receipt prevents a replayed water increment after lost acknowledgement', async () => {
+  documents.clear(); retry = null;
+  const command = { water_delta: 250, operation_id: 'same-command' };
+  await mutateCloudLog('nutrition', '2026-10-16', command);
+  await mutateCloudLog('nutrition', '2026-10-16', command);
+  assert.equal(documents.get('nutrition/alice/logs/2026-10-16').water_ml, 250);
+});

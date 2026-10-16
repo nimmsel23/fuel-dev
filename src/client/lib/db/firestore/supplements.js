@@ -1,3 +1,4 @@
+import { projectCloudLog, outboxEntries } from "../../cloudOutbox.js";
 /**
  * Firestore Supplements — supplements/{uid}/meta/catalog + logs
  */
@@ -22,8 +23,13 @@ export async function deleteSupplementFromCatalog(id) {
 }
 
 export async function getSupplementLog(date = todayISO()) {
-  const snap = await getDoc(doc(db, "supplements", getUid(), "logs", date));
-  return snap.exists() ? snap.data() : { date, intakes: [] };
+  let snap;
+  try { snap = await getDoc(doc(db, "supplements", getUid(), "logs", date)); }
+  catch (error) {
+    if (navigator.onLine || !outboxEntries(getUid()).some(e => e.kind === "supplements" && e.date === date)) throw error;
+    snap = { exists: () => false };
+  }
+  return projectCloudLog("supplements", date, snap.exists() ? snap.data() : { date, intakes: [] });
 }
 
 export async function saveSupplementLog(date, data) {

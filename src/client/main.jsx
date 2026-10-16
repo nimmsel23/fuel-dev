@@ -8,6 +8,7 @@ import { RotateCcw } from "lucide-react";
 
 import "./styles.css";
 import { TAB_CONFIG } from "./routes.js";
+import StorageStatus from "./components/StorageStatus.jsx";
 import TabContent from "./components/TabContent.jsx";
 import NutritionHeatmap from "./components/NutritionHeatmap.jsx";
 import { IosInstallHint } from "./components/IosInstallHint.jsx";
@@ -99,9 +100,15 @@ function App() {
     }
   };
 
+  const previousUid = React.useRef(null);
+
   // The update button is rendered in the header when needRefresh is true.
   React.useEffect(() => {
     return watchAuth((u) => {
+      if (previousUid.current !== (u?.uid || null)) {
+        qc.clear();
+        previousUid.current = u?.uid || null;
+      }
       setUser(u);
       setAuthReady(true);
       if (u) {
@@ -329,6 +336,7 @@ function App() {
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <QueryClientProvider client={qc}>
+      <StorageStatus />
       <App />
     </QueryClientProvider>
   </React.StrictMode>,

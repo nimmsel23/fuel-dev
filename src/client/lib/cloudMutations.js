@@ -16,7 +16,11 @@ export async function mutateCloudLog(kind, date, command) {
   const targetDate = command.new_date && command.new_date !== date ? command.new_date : null;
   if (targetDate && !/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) throw new Error("Ungültiges Zieldatum.");
   return runTransaction(db, async tx => {
+    if (getUid() !== uid) throw new Error("Konto hat gewechselt.");
+    const receiptRef = command.operation_id ? doc(db, kind, uid, "operations", command.operation_id) : null;
+    const receipt = receiptRef ? await tx.get(receiptRef) : null;
     const snap = await tx.get(ref);
+    if (receipt?.exists()) return snap.exists() ? snap.data() : { date };
     const current = snap.exists() ? snap.data() : { date, [kind === "nutrition" ? "meals" : "intakes"]: [] };
     // All reads precede writes. A concurrent change retries the entire move.
     const targetRef = targetDate ? doc(db, kind, uid, "logs", targetDate) : null;
@@ -40,6 +44,7 @@ export async function mutateCloudLog(kind, date, command) {
       invalidateWeek(tx, uid, targetDate);
     }
     tx.set(ref, payload({ ...next, date }), { merge: true });
+    if (receiptRef) tx.set(receiptRef, { date, applied_at: serverTimestamp() });
     invalidateWeek(tx, uid, date);
     return next;
   });
