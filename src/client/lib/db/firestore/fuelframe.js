@@ -1,3 +1,4 @@
+import { withStorageFeedback } from "../../storageFeedback.js";
 /**
  * Fuel Frame Map — users/{uid}/meta/fuelFrame
  *
@@ -6,9 +7,10 @@
  * Reflexionsfragen, EIN aktueller Stand, keine Snapshot-Historie.
  */
 
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc as firestoreSetDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../../firebase.js";
 import { getUid } from "./core.js";
+const setDoc = (...args) => withStorageFeedback("Fuel Frame", () => firestoreSetDoc(...args));
 
 export async function getFuelFrame() {
   const snap = await getDoc(doc(db, "users", getUid(), "meta", "fuelFrame"));

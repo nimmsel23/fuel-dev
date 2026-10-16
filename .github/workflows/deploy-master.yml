@@ -36,13 +36,17 @@ jobs:
           git fetch origin "$SHA"
           git checkout "$SHA"
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.3.0
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
+          cache: pnpm
 
       - name: Install (Workspaces)
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Firebase config bereitstellen
         run: |
@@ -59,10 +63,10 @@ jobs:
           FIREBASE_CONFIG: ${{ secrets.FIREBASE_CONFIG }}
 
       - name: Build Fitness KB data
-        run: npm run build:kb-data --workspace=fitness-app
+        run: pnpm --filter ./fitness-app run build:kb-data
 
       - name: Build Fuel (Live)
-        run: npm run build:firebase --workspace=fuel-app
+        run: pnpm --filter ./fuel-app run build:firebase
 
       - name: Deploy Live
         id: firebase_deploy

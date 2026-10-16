@@ -1,11 +1,13 @@
+const apiPath = (path) => `${import.meta.env.VITE_FUEL_API_BASE || ""}${path}`;
+
 export async function fetchJson(path) {
-  const res = await fetch(path);
+  const res = await fetch(apiPath(path));
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
 
 export async function deleteJson(path) {
-  const res = await fetch(path, {
+  const res = await fetch(apiPath(path), {
     method: "DELETE",
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -13,7 +15,7 @@ export async function deleteJson(path) {
 }
 
 export async function patchJson(path, body) {
-  const res = await fetch(path, {
+  const res = await fetch(apiPath(path), {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -23,7 +25,7 @@ export async function patchJson(path, body) {
 }
 
 export async function postJson(path, body) {
-  const res = await fetch(path, {
+  const res = await fetch(apiPath(path), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),

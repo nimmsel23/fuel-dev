@@ -77,7 +77,7 @@ Es gibt **zwei parallele, überlappende Sync-Engines**. Beide schreiben `~/.aos/
 |---|---|---|---|
 | **`src/server/lib/firestore-admin.mjs`** | **`fuel.service` :7000** (nur wenn `serverMode()==="prod"`) | **Stündlich** bidirektional Pull **und** Push über **alle** Klienten-UIDs (`discoverSyncUids()` = `FUEL_CLOUD_UID` + `FUEL_CLOUD_UIDS` + `getAllClientUids()` aus `~/vital/Klienten/*/client.json` + Ordner unter `~/.aos/fuel/users/`). Zusätzlich Fire-and-forget-Push bei jedem Log-Write (`log.mjs`/`daily.mjs`/`nutrition-weekly.mjs`). Realtime `onSnapshot` nur für den Katalog. Per-UID → `~/.aos/fuel/users/<uid>/`; Operator läuft als `uid="default"` → **Push wird geskippt**, nur der Katalog geht raus. | **JA — der Haupt-Sync** |
 | **`fitness-firestore-daemon.service`** | eigener user-Service (`python -m fitness.firestore.mirror`, Repo `~/fitness-dev`) | Realtime `on_snapshot` von `nutrition/<operator-uid>/logs` + `supplements/<operator-uid>/logs`+`meta/catalog` → `~/.aos/fuel/users/<operator-uid>/`. Bulk via `fitness sync` (`fitness/firestore/fuel.py` `push_fuel`/`pull_fuel`). **Nur die Operator-UID**, keine Klienten. | **JA — überlappt Zeile 1 für die Operator-UID** |
-| `scripts/firestore-sync.mjs` (`npm run cloud:push`/`cloud:pull`/`cloud:watch`) | fuel-dev CLI, **kein Service** | manueller Bulk-Push/Pull/Watchdog. `PRIMARY_UID=FUEL_CLOUD_UID` → flacher Default-Store, jede andere UID → `users/<uid>/`. | nur wenn manuell gestartet |
+| `scripts/firestore-sync.mjs` (`pnpm run cloud:push`/`cloud:pull`/`cloud:watch`) | fuel-dev CLI, **kein Service** | manueller Bulk-Push/Pull/Watchdog. `PRIMARY_UID=FUEL_CLOUD_UID` → flacher Default-Store, jede andere UID → `users/<uid>/`. | nur wenn manuell gestartet |
 | v4 `fuel-python.service` :4000 | `/opt/fuel-python` | **kein Firestore** (kein `firebase_admin` im Code) | — |
 | Cloud-PWA | Browser | schreibt Firestore direkt via Client-SDK — das ist die App, kein „Sync" | — |
 
@@ -98,28 +98,28 @@ Daniels Store).
 ## Quick Start
 
 ```bash
-npm install
-npm run dev          # nodemon + vite dev (Port 9000 + 5173)
-npm run build:local  # Vite build → coach mode (für /opt/fuel)
-npm run build:cloud  # Vite build → client mode → dist-firebase/
-npm run prod         # node server.mjs auf 0.0.0.0:9000 (Desktop-Prod läuft aktuell ebenfalls über die Node-Schicht, aber auf :7000 aus /opt/fuel)
-npm start            # bare server port 9000
-npm run ui:dev       # Vite dev only (kein Backend)
+pnpm install
+pnpm run dev          # nodemon + vite dev (Port 9000 + 5173)
+pnpm run build:local  # Vite build → coach mode (für /opt/fuel)
+pnpm run build:cloud  # Vite build → client mode → dist-firebase/
+pnpm run prod         # node server.mjs auf 0.0.0.0:9000 (Desktop-Prod läuft aktuell ebenfalls über die Node-Schicht, aber auf :7000 aus /opt/fuel)
+pnpm start            # bare server port 9000
+pnpm run ui:dev       # Vite dev only (kein Backend)
 
 # Deploy
-npm run deploy:local   # ./deploy.sh — rsync + build + systemctl restart
-npm run deploy:cloud   # build:cloud + firebase deploy --only hosting (LIVE auf fuel-vos.web.app)
-npm run deploy:preview # build:cloud + 24h-Preview-Channel + Telegram-Link (scripts/deploy-preview.mjs)
+pnpm run deploy:local   # ./deploy.sh — rsync + build + systemctl restart
+pnpm run deploy:cloud   # build:cloud + firebase deploy --only hosting (LIVE auf fuel-vos.web.app)
+pnpm run deploy:preview # build:cloud + 24h-Preview-Channel + Telegram-Link (scripts/deploy-preview.mjs)
 ./deploy.sh            # direkt (= deploy:local)
 
 # Sync
-npm run cloud:push   # lokale Cloud-Payloads → Firestore
-npm run cloud:pull   # Firestore → lokale Dateien
-npm run cloud:watch  # firestore-sync.mjs im Watch-Modus
-npm run catalog:sync -- <uid> # echter Catalog-Sync: nur fehlende oder neuere Items
+pnpm run cloud:push   # lokale Cloud-Payloads → Firestore
+pnpm run cloud:pull   # Firestore → lokale Dateien
+pnpm run cloud:watch  # firestore-sync.mjs im Watch-Modus
+pnpm run catalog:sync -- <uid> # echter Catalog-Sync: nur fehlende oder neuere Items
 ```
 
-**Auto-Deploy via pre-push Hook (seit 2026-07-30 aktiv):** `.githooks/pre-push` (`core.hooksPath=.githooks`) prüft bei jedem Push auf `master`, ob relevante Dateien (`src/`, `public/`, `index.html`, `vite.config*`, `package.json`, `firebase.json`, `firestore.rules`) im Diff sind — wenn ja, läuft automatisch `npm run firebase` (= `build:cloud` + `deploy:firebase`) **vor** dem Push. Fehlschlag bricht den Push ab (kein halb-deployter Stand). Umgehen mit `git push --no-verify`, falls explizit gewünscht. **Push auf `dev` (seit 2026-09-06):** spiegelt zusätzlich den Staging-Stand nach `~/.local/fuel` (`./deploy.sh` = `TARGET=staging`, reiner rsync+build, kein `/opt`/`systemctl`/sudo); Fehlschlag blockiert den dev-Push **nicht** (Staging ist nur Spiegel, nachziehen mit `npm run deploy:local`). Das früher dokumentierte "kein Auto-Deploy mehr" (Entfernung eines alten `post-commit`-Hooks) bezog sich auf einen anderen, älteren Mechanismus — dieser pre-push-Hook ist der aktuell gewollte Deploy-Flow.
+**Auto-Deploy via pre-push Hook (seit 2026-07-30 aktiv):** `.githooks/pre-push` (`core.hooksPath=.githooks`) prüft bei jedem Push auf `master`, ob relevante Dateien (`src/`, `public/`, `index.html`, `vite.config*`, `package.json`, `firebase.json`, `firestore.rules`) im Diff sind — wenn ja, läuft automatisch `pnpm run firebase` (= `build:cloud` + `deploy:firebase`) **vor** dem Push. Fehlschlag bricht den Push ab (kein halb-deployter Stand). Umgehen mit `git push --no-verify`, falls explizit gewünscht. **Push auf `dev` (seit 2026-09-06):** spiegelt zusätzlich den Staging-Stand nach `~/.local/fuel` (`./deploy.sh` = `TARGET=staging`, reiner rsync+build, kein `/opt`/`systemctl`/sudo); Fehlschlag blockiert den dev-Push **nicht** (Staging ist nur Spiegel, nachziehen mit `pnpm run deploy:local`). Das früher dokumentierte "kein Auto-Deploy mehr" (Entfernung eines alten `post-commit`-Hooks) bezog sich auf einen anderen, älteren Mechanismus — dieser pre-push-Hook ist der aktuell gewollte Deploy-Flow.
 
 ---
 
@@ -284,10 +284,10 @@ Deaktivieren falls nötig: `systemctl --user disable --now fuel-catalog-verify.t
 
 ### local channel (aktueller Desktop-Entry-Point: v3/Node)
 ```bash
-npm run dev          # nodemon + vite, watches src/ + server.mjs
-npm run build:local  # Vite → ./opt-fuel target (VITE_APP_MODE=coach)
-npm run prod         # PORT=7000 HOST=0.0.0.0 FUEL_STATIC_DIR=/opt/fuel
-npm run deploy:local # = ./deploy.sh — rsync → dependency install → systemctl restart
+pnpm run dev          # nodemon + vite, watches src/ + server.mjs
+pnpm run build:local  # Vite → ./opt-fuel target (VITE_APP_MODE=coach)
+pnpm run prod         # PORT=7000 HOST=0.0.0.0 FUEL_STATIC_DIR=/opt/fuel
+pnpm run deploy:local # = ./deploy.sh — rsync → dependency install → systemctl restart
 ./deploy.sh          # Bash deploy script (siehe unten)
 fuelctl local deploy # Python-Wrapper, ruft deploy.sh
 ```
@@ -310,12 +310,12 @@ entfernt (Unit-File gelöscht, disabled, `daemon-reload`).
 
 ### cloud channel (Firebase PWA)
 ```bash
-npm run build:cloud  # VITE_APP_MODE=client → dist-firebase/
-npm run deploy:cloud # build:cloud + firebase deploy --only hosting
-npm run cloud:push   # Lokale Cloud-Payloads → Firestore (scripts/firestore-sync.mjs)
-npm run cloud:pull   # Firestore → lokale Dateien
-npm run catalog:sync -- <uid> # echter Catalog-Sync für nutrition/supplements
-npm run deploy:preview # 24h-Preview-Channel + Telegram-Link
+pnpm run build:cloud  # VITE_APP_MODE=client → dist-firebase/
+pnpm run deploy:cloud # build:cloud + firebase deploy --only hosting
+pnpm run cloud:push   # Lokale Cloud-Payloads → Firestore (scripts/firestore-sync.mjs)
+pnpm run cloud:pull   # Firestore → lokale Dateien
+pnpm run catalog:sync -- <uid> # echter Catalog-Sync für nutrition/supplements
+pnpm run deploy:preview # 24h-Preview-Channel + Telegram-Link
 ```
 
 **Firebase Config:** `src/client/lib/firebase.config.js` — Project: `fitness-aos` (Hosting-Site: `fuel-vos` → fuel-vos.web.app). Das frühere Projekt `fuel-aos` ist abgelöst — alle VitalOS-Apps deployen ins gemeinsame Projekt `fitness-aos`, unterschieden per Hosting-Site.
@@ -332,7 +332,7 @@ npm run deploy:preview # 24h-Preview-Channel + Telegram-Link
 | `~/fuel-dev` (home, Worktree) | `dev` | Entwicklung — hier wird committet |
 | `~/vitalos/fuel-dev` (Submodule des vitalos-Superprojekts) | `master` | Produktions-Stand |
 
-Flow: auf `dev` entwickeln → `npm run deploy:preview` (24h-Link testen) → wenn OK, Merge `dev` → `master` → `npm run deploy:cloud`. Beide Branches liegen auf GitHub (`dev` seit 2026-07-05 gepusht — davor existierte er nur lokal, daher der Eindruck „kein dev-Zweig").
+Flow: auf `dev` entwickeln → `pnpm run deploy:preview` (24h-Link testen) → wenn OK, Merge `dev` → `master` → `pnpm run deploy:cloud`. Beide Branches liegen auf GitHub (`dev` seit 2026-07-05 gepusht — davor existierte er nur lokal, daher der Eindruck „kein dev-Zweig").
 
 ---
 

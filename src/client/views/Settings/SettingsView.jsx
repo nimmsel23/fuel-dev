@@ -1,4 +1,5 @@
 import React from "react";
+import BackupCard from "./BackupCard.jsx";
 import AccountCard from "./AccountCard.jsx";
 import ProfileCard from "./ProfileCard.jsx";
 import FuelProfile from "./FuelProfile.jsx";
@@ -30,6 +31,7 @@ export default function SettingsView() {
       <FuelFrameMap sectionCls={sectionCls} />
       <GoalsCard sectionCls={sectionCls} labelCls={labelCls} inputCls={inputCls} />
       <PushRemindersCard sectionCls={sectionCls} labelCls={labelCls} inputCls={inputCls} />
+      <BackupCard sectionCls={sectionCls} />
       <VersionCard sectionCls={sectionCls} />
       <SystemHealthCard sectionCls={sectionCls} />
     </div>

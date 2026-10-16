@@ -1,3 +1,4 @@
+import { scaleMeal } from "../../lib/mealDetails.js";
 import React from "react";
 import { Camera, Loader2, RotateCcw, Type, X, ImageUp } from "lucide-react";
 import { analyzeMealImage } from "../../lib/visionScan.js";
@@ -100,10 +101,10 @@ export default function ShutterFrontdoor({ fd, onOpenApp }) {
 
   const save = (source) => {
     const base = source === "catalog" && catalogHit
-      ? { description: catalogHit.name, kcal: catalogHit.kcal, protein: catalogHit.protein, carbs: catalogHit.carbs, fat: catalogHit.fat, catalog_id: catalogHit.id }
+      ? { ...catalogHit, id: undefined, grams: catalogHit.yield_g || null, description: catalogHit.name, kcal: catalogHit.kcal, protein: catalogHit.protein, carbs: catalogHit.carbs, fat: catalogHit.fat, catalog_id: catalogHit.id }
       : result;
     logMeal.mutate({
-      ...base,
+      ...scaleMeal(base, factor),
       kcal: (base.kcal || 0) * factor,
       protein: (base.protein || 0) * factor,
       carbs: (base.carbs || 0) * factor,

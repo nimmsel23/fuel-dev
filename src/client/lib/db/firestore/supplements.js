@@ -1,3 +1,4 @@
+import { projectCloudLog, outboxEntries } from "../../cloudOutbox.js";
 /**
  * Firestore Supplements — supplements/{uid}/meta/catalog + logs
  */
@@ -5,6 +6,7 @@
 import {
   doc, getDoc, setDoc, collection, query, getDocs, orderBy, limit, documentId,
 } from "firebase/firestore";
+import { mutateCloudLog, mutateCloudCatalog } from "../../cloudMutations.js";
 import { db } from "../../firebase.js";
 import { getUid, serverTimestamp } from "./core.js";
 import { todayISO } from "./utils.js";
@@ -17,16 +19,17 @@ export async function getSupplementsCatalog() {
 }
 
 export async function deleteSupplementFromCatalog(id) {
-  const items = await getSupplementsCatalog();
-  const filtered = items.filter((i) => i.id !== id);
-  const ref = doc(db, "supplements", getUid(), "meta", "catalog");
-  await setDoc(ref, { items: filtered, updated_at: serverTimestamp() });
-  return filtered;
+  return mutateCloudCatalog("supplements", items => items.filter(i => i.id !== id));
 }
 
 export async function getSupplementLog(date = todayISO()) {
-  const snap = await getDoc(doc(db, "supplements", getUid(), "logs", date));
-  return snap.exists() ? snap.data() : { date, intakes: [] };
+  let snap;
+  try { snap = await getDoc(doc(db, "supplements", getUid(), "logs", date)); }
+  catch (error) {
+    if (navigator.onLine || !outboxEntries(getUid()).some(e => e.kind === "supplements" && e.date === date)) throw error;
+    snap = { exists: () => false };
+  }
+  return projectCloudLog("supplements", date, snap.exists() ? snap.data() : { date, intakes: [] });
 }
 
 export async function saveSupplementLog(date, data) {
@@ -41,13 +44,8 @@ export async function saveSupplementLog(date, data) {
 }
 
 export async function updateIntakeInLog(date, intakeId, updates) {
-  const log = await getSupplementLog(date);
-  const intakes = [...(log.intakes || [])];
-  const idx = intakes.findIndex((i) => i.id === intakeId);
-  if (idx === -1) return null;
-  intakes[idx] = { ...intakes[idx], ...updates };
-  await saveSupplementLog(date, { ...log, intakes });
-  return intakes[idx];
+  const log = await mutateCloudLog("supplements", date, { intake_id: intakeId, updates });
+  return log.intakes.find(i => i.id === intakeId);
 }
 
 export async function getSupplementsHistory(limitCount = 30) {

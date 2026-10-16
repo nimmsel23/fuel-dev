@@ -2,6 +2,41 @@
 
 Session-Log mit datierten Ergebnis-Bullets.
 
+## 2026-10-13: fuel-dev + frontend/ auf pnpm umgestellt
+
+- Analog zur fitness-dev/vitalos-Migration (gleiche Session): `package.json`
+  (root `fuelctx` + `frontend/` React-Package für den Python-Server) von
+  npm auf pnpm umgestellt — `packageManager`-Feld, interne `npm run` →
+  `pnpm run`, `allowScripts` → `pnpm-workspace.yaml`/`allowBuilds`.
+- `@vos/cross-app-aliases`: `file:../vitalos/packages/cross-app-aliases` →
+  `optionalDependencies`-Eintrag `workspace:*`. Außerhalb von vitalos
+  (Standalone-`~/fuel-dev`) wird die Dependency jetzt beim Install sauber
+  übersprungen ("failed compatibility check, excluding") statt per
+  `file:`-Copy-Bug auf einen falschen Pfad zu zeigen.
+- In `frontend/` deckte der Umstieg zwei echte **Phantom-Dependencies** auf,
+  die unter npm nur per Zufalls-Hoisting liefen: `@radix-ui/react-dialog`
+  braucht `@radix-ui/react-dismissable-layer` top-level (für
+  `useDismissableLayerSurface`), `firebase/auth` braucht `@firebase/auth`
+  top-level — beide fehlten unter pnpms striktem `node_modules` und wurden
+  jetzt als explizite `dependencies` ergänzt.
+- `deploy.sh`: systemd-`ExecStart` (`npm run prod` → `pnpm run prod`),
+  Staging-Build-Schritte (`npm run build:local`/`npm run build` im
+  `frontend/`) und Prod-Node-Install (`npm ci --include=dev` →
+  `pnpm install --frozen-lockfile`) umgestellt.
+- `.githooks/pre-push`: `npm run firebase` → `pnpm run firebase`.
+- CI (`.github/workflows/{deploy-master,preview-dev}.yml`, beide checken das
+  vitalos-Meta-Repo aus für die Cross-Repo-Aliase): `pnpm/action-setup`
+  ergänzt, `npm ci` → `pnpm install --frozen-lockfile`,
+  `npm run X --workspace=Y` → `pnpm --filter ./Y run X`.
+- `package-lock.json` (root + `frontend/`) lossless per `pnpm import` nach
+  `pnpm-lock.yaml` konvertiert, dann entfernt.
+- Beide Builds (`build:local`/`build:cloud` root, `build` in `frontend/`)
+  grün verifiziert, Push auf `dev` inkl. automatischem Staging-Deploy
+  (`~/.local/fuel`) erfolgreich durchgelaufen.
+- Nebenbei: Bug in `~/vitalos/bin/vos-sync-submodule-pointers` gefunden und
+  gefixt — `SUBMODULE_PATHS` listete `"learn-dev"` statt `"learn-app"`
+  (einziger Eintrag, der beim *-app-Rename übersehen wurde).
+
 ## 2026-09-06 (Nachtrag 4: Cloud-Nachzug Vertex)
 
 - Cloud-Pfad (`src/client/lib/aiMealLogger.js` → Firebase Vertex AI,
@@ -154,3 +189,48 @@ Session-Log mit datierten Ergebnis-Bullets.
   - Dedupe: `client/lib/db/firestore/utils.js` importiert `todayISO` jetzt aus `shared/utils/validation.mjs` statt es erneut zu implementieren. `localToday()` bleibt als lokaler Alias bestehen.
   - Verifiziert: `npm run build:local` erfolgreich, beide Module (`node --input-type=module`-Testaufruf) liefern identisches lokales Datum.
   - `randomId()`-Duplikat (unterschiedliches Format in Client vs. Server) bewusst nicht angefasst — kein Bug, nur Doppelimplementierung; separat zu klären (siehe NEXT.md).
+
+## 2026-10-16 — Cloud-Schreibkonflikte
+
+- Mahlzeiten, Wasser-Deltas, Supplement-Einnahmen und private Katalogänderungen nutzen Firestore-Transaktionen. Verschieben schreibt beide Tage atomar und hinterlässt einen Quell-Tombstone.
+- Mikronährstoff-Auswertungen schreiben keine alten Mahlzeitenlisten mehr zurück; Tages-Caches werden nur bei unverändertem Ausgangslog geschrieben, Wochenansichten lesen aktuelle Tagesdaten.
+- Prüfung: Konflikt-/Retry-/Move-/Tombstone-Tests mit simuliertem Firestore-Adapter; Firebase-Frontend-Build erfolgreich. Keine Live-Nutzerdaten verändert.
+
+## 2026-10-16 — Speicherstatus und Offline-Änderungen
+
+- Kontoabhängige, persistente Befehlswarteschlange für Tageslogs (Mahlzeiten/Wasser/Supplements), automatische Wiederholung nach Reconnect sowie manuelles Wiederholen/Verwerfen fehlgeschlagener Änderungen. Cloud-Transaktionsbelege verhindern doppelte Wiederholung nach verlorener Bestätigung.
+- Ausstehende Änderungen werden in Tagesansichten projiziert. Statusleiste auch im Schnelleinstieg: Offline, lokaler Cache, ausstehende Cloud-Bestätigung, Schreib-/Lesefehler. Kontowechsel leert den React-Query-Cache.
+- Prüfung: 5 Transaktions- und 3 Outbox-Tests (Konflikt, atomarer Move, Replay, Kontoisolation, Berechtigungsfehler, voller Speicher); Cloud-Build erfolgreich. Browser-/Live-Firebase-Prüfung steht aus.
+
+## 2026-10-16 — Barcode-Produkterfassung
+
+- Eigener Barcode-Modus: native EAN/UPC-Fotodecodierung, Prüfziffer-Prüfung, Open-Food-Facts-Abfrage mit Timeout und 30-Tage-Produktcache. Nummerneingabe als Fallback für Browser ohne BarcodeDetector.
+- Produktwerte werden pro 100 g in das bearbeitbare Log-Formular übernommen; unbekannte Produkte/unvollständige Werte ergeben eine konkrete Fehlermeldung. Quellenhinweis und ODbL-Link im Scanner.
+- Prüfung: 4 Tests für Prüfziffern, Produktdaten, Offline-Cache, fehlende Werte und native Decoder-Ressourcen; Cloud-Build erfolgreich. Physische Kamera und externer Produktabruf nicht live geprüft.
+
+## 2026-10-16 — Scan-Profile durchgängig erhalten
+
+- Bildanalyse gibt Mikronährstoffe, Bezugsgewicht, Herkunft und vorhandene Zutaten direkt an den Eintrag zurück. Formular, Katalog-Speichern, Wiederholen und Shutter-Schnelleinstieg erhalten diese Daten.
+- Portionsänderungen skalieren Makros, Mikros und Zutatenmengen gemeinsam; kleine Mikronährstoffwerte bleiben erhalten. Barcode-Herkunft wird ebenfalls weitergereicht.
+- Lokaler v3-HTTP-/SQLite-Pfad und v4-JSON-Pfad erhalten die Scan-Details. v4 aktualisiert Mikronährstoff-Tagesaggregate beim Bearbeiten, Verschieben und Löschen dieser Einträge.
+- Prüfung: 3 Profil-/Skalierungstests, HTTP→SQLite→Edit-Test mit isoliertem temporärem Speicher, v4-Speicher-/Move-/Delete-Test mit In-Memory-SQLite; Cloud-Build erfolgreich. Keine Laufzeitdaten migriert.
+
+## 2026-10-16 — Cloud-Backup und Wiederherstellung
+
+- Setup bietet JSON-Export für eigene Firestore-Tageslogs, Wasser, Tagesnotizen/AI-Pending-Texte, private Essens-/Supplement-Kataloge, Profil/Settings und Fuel Frame. Export wartet auf bestätigte SDK-Schreibvorgänge; offene Outbox-Befehle müssen zuerst synchronisiert werden.
+- Import prüft Formatversion, Konto, erlaubte Dokumenttypen/IDs, Eintrags-IDs, Mengen und Größen. Vorschau vor einer eigenen Wiederherstellen-Schaltfläche; additive Transaktionen erhalten aktuelle Werte und Löschmarkierungen. Unterbrochene Wiederherstellung nennt Fortschritt und kann ohne Duplikate wiederholt werden.
+- Quelle ist ausdrücklich die Cloud, auch wenn Setup lokal geöffnet wird. Server-/SQLite-Daten gehören nicht zu diesem Cloud-Backup.
+- Prüfung: 5 Tests für Validierung, Konto-/Pfadgrenzen, konfliktfreie Zusammenführung, Export/Import-Roundtrip, konkurrierende Änderungen und Wiederaufnahme; Cloud-Build erfolgreich.
+
+## 2026-10-16 — Browser-Startblocker behoben
+
+- Der gebaute Cloud-Client blieb im Firefox mit `Component app-check has not been registered yet` leer. App Check und Messaging fehlten in den gemeinsamen Firebase-Package-Aliasen; beide Build-Konfigurationen lösen sie nun wie die übrigen SDK-Module auf.
+- Verifiziert: Cloud-Build und isolierter Firefox-Browserlauf bei 390×844. Setup/Backup wird gerendert, Backup-Aktionen sind ohne Konto gesperrt; Barcode-Nummer → simulierte OFF-Antwort → Beschreibung, 100-g-Bezugsportion und Makros im editierbaren Formular. Screenshot unter `/tmp/fuel-barcode-mobile.png`. Kein echter Cloud-Login/Schreibzugriff, kein Live-OFF-Abruf.
+
+## 2026-10-16 — Abschließende Integration und Prüfung
+
+- React Query führt Offline-Lese-/Schreibaufrufe sofort aus, damit Firestore-Cache und persistente Outbox erreichbar bleiben. Offline-Replay ergänzt den Mahlzeiten-Katalog im selben Transaktionsschritt und verhindert doppelte Nutzungszählung.
+- Direkte SDK-Schreibfehler von Profil, Fuel Frame und Tagesnotizen werden sichtbar gemeldet. Supplement-Löschmarkierungen bleiben erhalten. Wochen-Mikronährstoffe werden ohne Rückschreiben berechneter Tagesdaten ausgewertet, einschließlich Herkunft je Mahlzeit.
+- Mobile Dialoge sind auf die Viewport-Höhe begrenzt, scrollbar und haben einen zugänglichen Schließen-Button; Katalog-Fotologs erzeugen neue Ereignis-IDs.
+- Verifiziert: 25 JavaScript-Tests in 8 Dateien (`npm run test:unit`), 1 Python-Test mit In-Memory-SQLite, Local- und Cloud-Build inklusive SW-Versionierung, `git diff --check`. Isolierter Firefox-Browserlauf bei 390×844 und 320×568: Backup ohne Login gesperrt; Barcode-Abfrage mit simulierten OFF-Daten übernimmt Beschreibung, Bezugsgewicht und Makros ins editierbare Formular; kleiner Dialog scrollt ohne horizontalen Überlauf.
+- Kein Live-Firebase-Login oder Schreibtest mit echten Nutzerdaten, kein physischer Kameratest. Änderungen sind noch nicht deployed.

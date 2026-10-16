@@ -7,9 +7,9 @@ export default function WaterTracker({ date, waterMl }) {
   const [amount, setAmount] = useState(250);
   const [error, setError] = useState("");
   const save = useMutation({
-    mutationFn: (next) => postJson("/nutrition/log", { date, water_ml: next }),
-    onSuccess: (_result, next) => {
-      qc.setQueryData(["nutrition", date], (old) => ({ ...old, date, water_ml: next }));
+    mutationFn: (next) => postJson("/nutrition/log", { date, water_ml: next, water_delta: next - waterMl }),
+    onSuccess: (result, next) => {
+      qc.setQueryData(["nutrition", date], (old) => ({ ...old, date, water_ml: result?.data?.water_ml ?? next }));
       qc.invalidateQueries({ queryKey: ["nutrition", date] });
       setError("");
     },
