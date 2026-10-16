@@ -189,3 +189,9 @@ Session-Log mit datierten Ergebnis-Bullets.
   - Dedupe: `client/lib/db/firestore/utils.js` importiert `todayISO` jetzt aus `shared/utils/validation.mjs` statt es erneut zu implementieren. `localToday()` bleibt als lokaler Alias bestehen.
   - Verifiziert: `npm run build:local` erfolgreich, beide Module (`node --input-type=module`-Testaufruf) liefern identisches lokales Datum.
   - `randomId()`-Duplikat (unterschiedliches Format in Client vs. Server) bewusst nicht angefasst — kein Bug, nur Doppelimplementierung; separat zu klären (siehe NEXT.md).
+
+## 2026-10-16 — Cloud-Schreibkonflikte
+
+- Mahlzeiten, Wasser-Deltas, Supplement-Einnahmen und private Katalogänderungen nutzen Firestore-Transaktionen. Verschieben schreibt beide Tage atomar und hinterlässt einen Quell-Tombstone.
+- Mikronährstoff-Auswertungen schreiben keine alten Mahlzeitenlisten mehr zurück; Tages-Caches werden nur bei unverändertem Ausgangslog geschrieben, Wochenansichten lesen aktuelle Tagesdaten.
+- Prüfung: Konflikt-/Retry-/Move-/Tombstone-Tests mit simuliertem Firestore-Adapter; Firebase-Frontend-Build erfolgreich. Keine Live-Nutzerdaten verändert.

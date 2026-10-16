@@ -7,11 +7,12 @@
 
 import {
   doc, getDoc, setDoc, collection, query, where, getDocs,
-  orderBy, limit, documentId, serverTimestamp, writeBatch, deleteField,
+  orderBy, limit, documentId, serverTimestamp, writeBatch, deleteField, runTransaction,
 } from "firebase/firestore";
 import { db } from "../../firebase.js";
 import { getUid } from "./core.js";
 import { MICRO_KEYS, zeroMicros, todayISO, getWeekDates, dateToISOWeek } from "./utils.js";
+import { mutateCloudLog } from "../../cloudMutations.js";
 import { getSupplementsCatalog } from "./supplements.js";
 
 export async function getNutritionCatalog() {
@@ -69,13 +70,16 @@ export async function saveNutritionLog(date, data) {
 // aufgelösten Mikros (meal.micros), die computeMealMicroTotals() in-place
 // auf den übergebenen meals-Objekten gesetzt hat. Bewusst getrennt von
 // saveNutritionLog(), damit dieser Cache-Write sich nicht selbst invalidiert.
-async function cacheDayMicroTotals(date, meals, totals, complete) {
-  await setDoc(doc(db, "nutrition", getUid(), "logs", date), {
-    meals,
-    micro_totals: totals,
-    micro_totals_complete: complete,
-    updated_at: serverTimestamp(),
-  }, { merge: true });
+async function cacheDayMicroTotals(date, expectedMeals, totals, complete) {
+  // Never write the read-time meals snapshot back over a newer log.
+  const ref = doc(db, "nutrition", getUid(), "logs", date);
+  await runTransaction(db, async tx => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) return;
+    const current = snap.data();
+    if (JSON.stringify(current.meals || []) !== expectedMeals) return;
+    tx.set(ref, { micro_totals: totals, micro_totals_complete: complete }, { merge: true });
+  });
 }
 
 export async function getNutritionLogsInRange(dates) {
@@ -114,11 +118,7 @@ export async function getMealsHistory(limitCount = 30) {
 }
 
 export async function deleteMealFromLog(date, mealId) {
-  const log = await getNutritionLog(date);
-  if (!log.meals) return;
-  const filtered = log.meals.filter(m => m.id !== mealId);
-  const deleted_meal_ids = Array.from(new Set([...(log.deleted_meal_ids || []), mealId]));
-  await saveNutritionLog(date, { ...log, meals: filtered, deleted_meal_ids });
+  await mutateCloudLog("nutrition", date, { delete_meal_id: mealId });
 }
 
 export async function searchNutritionCatalog(q, limit = 20) {
@@ -248,10 +248,8 @@ export async function invalidateWeekMicroCache(dateStr) {
 }
 
 export async function getWeeklyMicros(year, week) {
-  const cached = await getWeekMicroCache(year, week);
-  if (cached && cached.complete) {
-    return cached.data;
-  }
+  // Aggregate from current daily documents; a cross-document cache can race
+  // with edits while the week is being computed.
 
   const dates = getWeekDates(year, week);
   const logsMap = await getNutritionLogsInRange(dates);
@@ -279,6 +277,7 @@ export async function getWeeklyMicros(year, week) {
       // Gecacht (voriger Request oder beim Loggen aufgelöst) — kein Rechnen nötig.
       mealTotals = log.micro_totals;
     } else {
+      const expectedMeals = JSON.stringify(log.meals || []);
       const { totals, complete, missing } = computeMealMicroTotals(log.meals, catalog, microsMap);
       mealTotals = totals;
       missing.forEach((m) => missingMeals.add(m));
@@ -288,7 +287,7 @@ export async function getWeeklyMicros(year, week) {
       // Read-Prüfung oben verlangt complete=true — ein unvollständiger Tag
       // wird beim nächsten Request automatisch erneut versucht.
       if ((log.meals || []).some((m) => m.micros)) {
-        await cacheDayMicroTotals(date, log.meals, totals, complete).catch((err) =>
+        await cacheDayMicroTotals(date, expectedMeals, totals, complete).catch((err) =>
           console.error(`[getWeeklyMicros] Cache-Write für ${date} fehlgeschlagen:`, err)
         );
       }

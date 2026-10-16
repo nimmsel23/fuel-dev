@@ -1,6 +1,7 @@
 // Cloud channel — Firestore only. No Fastify/local fetch for data.
 import * as firestore from "./db.firestore.js";
 import { doc, setDoc } from "firebase/firestore";
+import { mutateCloudLog, mutateCloudCatalog } from "./cloudMutations.js";
 
 async function searchOFF(query, limit) {
   const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=${limit}`;
@@ -108,7 +109,7 @@ function normalizeMealName(n) {
 async function autoUpsertCatalog(meal) {
   if (!meal?.description || meal.catalog_id) return;
   try {
-    const items = await firestore.getNutritionCatalog();
+    await mutateCloudCatalog("nutrition", (items) => {
     const inputName = normalizeMealName(meal.description);
     const idx = items.findIndex((i) => normalizeMealName(i.name) === inputName);
     const nowIso = meal.logged_at || meal.time || new Date().toISOString();
@@ -157,8 +158,8 @@ async function autoUpsertCatalog(meal) {
         updated_at: nowIso,
       });
     }
-    const ref = doc(firestore.db, "nutrition", firestore.getUid(), "meta", "catalog");
-    await setDoc(ref, { items, updated_at: firestore.serverTimestamp() });
+    return items;
+    });
   } catch (e) {
     console.warn(`[nutrition-catalog] auto-upsert failed for "${meal.description}":`, e);
   }
@@ -170,50 +171,20 @@ export async function postJson(path, body) {
   if (normPath === "/fuel-firestore/ping") return { ok: true };
 
   if (normPath === "/nutrition/log") {
-    const existing = await firestore.getNutritionLog(body.date);
-    if (body.water_ml !== undefined) {
-      existing.water_ml = Math.max(0, Math.round(Number(body.water_ml)));
-      await firestore.saveNutritionLog(body.date, { water_ml: existing.water_ml });
-      return { ok: true, data: existing };
+    let meal = body.meal;
+    if (body.catalog_item_id) {
+      const item = (await firestore.getNutritionCatalog()).find(i => i.id === body.catalog_item_id);
+      if (!item) throw new Error("Katalogeintrag nicht gefunden.");
+      meal = { ...item, id: undefined, description: item.name || item.description,
+        type: item.meal_type || "meal", catalog_id: item.id };
     }
-    if (body.delete_meal_id) {
-      existing.meals = (existing.meals || []).filter((m) => m.id !== body.delete_meal_id);
-      // Tombstone im Tages-Dokument mitschreiben — sonst holt ein späterer
-      // Merge/Push (lokaler Server, v4-Re-Import) die Mahlzeit zurück.
-      existing.deleted_meal_ids = Array.from(
-        new Set([...(existing.deleted_meal_ids || []), body.delete_meal_id])
-      );
-    } else if (body.catalog_item_id) {
-      const catalog = await firestore.getNutritionCatalog();
-      const item = catalog.find((i) => i.id === body.catalog_item_id);
-      if (item) {
-        existing.meals = [...(existing.meals || []), {
-          id: `meal_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
-          type: item.meal_type || item.type || "meal",
-          description: item.name || item.description,
-          notes: item.notes || "",
-          kcal: item.kcal || 0,
-          protein: item.protein || 0,
-          carbs: item.carbs || 0,
-          fat: item.fat || 0,
-          catalog_id: item.id,
-          logged_at: new Date().toISOString(),
-        }];
-      }
-    } else if (body.meal) {
-      const loggedAt = body.meal.logged_at || body.meal.time || new Date().toISOString();
-      existing.meals = [...(existing.meals || []), {
-        ...body.meal,
-        id: body.meal.id || `meal_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
-        // "time" ist das lokale (Fastify/SQLite) Feld für die echte Essenszeit
-        // (LogView.jsx toLoggedAt()) — hier auf logged_at mappen, damit beide
-        // Channels dieselbe vom User gesetzte Zeit übernehmen statt "jetzt".
-        logged_at: loggedAt,
-      }];
-      await autoUpsertCatalog({ ...body.meal, logged_at: loggedAt });
-    }
-    await firestore.saveNutritionLog(body.date, existing);
-    return { ok: true };
+    const prepared = meal ? { ...meal,
+      id: meal.id || crypto.randomUUID(),
+      logged_at: meal.logged_at || meal.time || new Date().toISOString(),
+    } : null;
+    const result = await mutateCloudLog("nutrition", body.date, { ...body, meal: prepared });
+    if (prepared) await autoUpsertCatalog(prepared);
+    return { ok: true, data: result };
   }
 
   if (normPath === "/nutrition/notes") {
@@ -222,23 +193,14 @@ export async function postJson(path, body) {
   }
 
   if (normPath === "/nutrition/catalog") {
-    const items = await firestore.getNutritionCatalog();
-    const normalizeName = (n) => String(n || "").trim().toLowerCase().replace(/\s+/g, " ");
-    const inputName = normalizeName(body.item?.name);
-    const existingIdx = items.findIndex(
-      (i) => (body.item?.id && i.id === body.item.id) || normalizeName(i.name) === inputName
-    );
-    const item = {
-      ...body.item,
-      id: (existingIdx >= 0 ? items[existingIdx].id : body.item.id) || `meal_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
-    };
-    if (existingIdx >= 0) {
-      items[existingIdx] = item;
-    } else {
-      items.push(item);
-    }
-    const ref = doc(firestore.db, "nutrition", firestore.getUid(), "meta", "catalog");
-    await setDoc(ref, { items, updated_at: firestore.serverTimestamp() });
+    const input = { ...body.item, id: body.item?.id || crypto.randomUUID() };
+    let item;
+    await mutateCloudCatalog("nutrition", items => {
+      const idx = items.findIndex(i => i.id === input.id || normalizeMealName(i.name) === normalizeMealName(input.name));
+      item = { ...input, id: idx >= 0 ? items[idx].id : input.id };
+      if (idx >= 0) items[idx] = item; else items.push(item);
+      return items;
+    });
     return { ok: true, item };
   }
 
@@ -259,30 +221,22 @@ export async function postJson(path, body) {
   }
 
   if (normPath === "/supplements/log") {
-    const existing = await firestore.getSupplementLog(body.date);
-    if (body.delete_id) {
-      existing.intakes = (existing.intakes || []).filter((i) => i.id !== body.delete_id);
-    } else {
-      let intake = { ...body.intake };
-      if (!intake.name && intake.supplement_id) {
-        const catalog = await firestore.getSupplementsCatalog();
-        const catalogItem = catalog.find((i) => i.id === intake.supplement_id);
-        if (catalogItem) intake.name = catalogItem.name;
-      }
-      existing.intakes = [...(existing.intakes || []), { ...intake, id: `supp_${Date.now()}` }];
+    let intake = body.intake ? { ...body.intake } : null;
+    if (intake && !intake.name && intake.supplement_id) {
+      intake.name = (await firestore.getSupplementsCatalog()).find(i => i.id === intake.supplement_id)?.name || intake.supplement_id;
     }
-    const ref = doc(firestore.db, "supplements", firestore.getUid(), "logs", body.date);
-    await setDoc(ref, { ...existing, updated_at: firestore.serverTimestamp() });
+    if (intake) intake.id = intake.id || crypto.randomUUID();
+    await mutateCloudLog("supplements", body.date, { ...body, intake });
     return { ok: true };
   }
 
   if (normPath === "/supplements/catalog") {
-    const items = await firestore.getSupplementsCatalog();
-    const item = { ...body, id: body.id || `supp_${Date.now().toString(36)}` };
-    const idx = items.findIndex((i) => i.id === item.id);
-    if (idx >= 0) items[idx] = item; else items.push(item);
-    const ref = doc(firestore.db, "supplements", firestore.getUid(), "meta", "catalog");
-    await setDoc(ref, { items, updated_at: firestore.serverTimestamp() });
+    const item = { ...body, id: body.id || crypto.randomUUID() };
+    await mutateCloudCatalog("supplements", items => {
+      const idx = items.findIndex(i => i.id === item.id);
+      if (idx >= 0) items[idx] = item; else items.push(item);
+      return items;
+    });
     return { ok: true, item };
   }
 
@@ -293,35 +247,13 @@ export async function patchJson(path, body) {
   const normPath = normalizePath(path);
 
   if (normPath === "/nutrition/log") {
-    // "time" ist das lokale Feld für die Essenszeit (siehe LogView.jsx
-    // toLoggedAt()) — Cloud-Meals nutzen logged_at als kanonisches Feld dafür
-    // (vgl. postJson oben), sonst würde ein Zeit-Edit hier folgenlos bleiben.
-    const mealUpdate = body.meal?.time
-      ? { ...body.meal, logged_at: body.meal.time }
-      : body.meal;
-
-    const existing = await firestore.getNutritionLog(body.date);
-    const meals = [...(existing.meals || [])];
-    const idx = meals.findIndex((m) => m.id === body.meal_id);
-    if (idx !== -1) {
-      if (body.new_date && body.new_date !== body.date) {
-        const movedMeal = { ...meals[idx], ...mealUpdate, id: body.meal_id };
-        meals.splice(idx, 1);
-        await firestore.saveNutritionLog(body.date, { ...existing, meals });
-        const targetLog = await firestore.getNutritionLog(body.new_date);
-        targetLog.meals = [...(targetLog.meals || []), movedMeal];
-        await firestore.saveNutritionLog(body.new_date, targetLog);
-      } else {
-        meals[idx] = { ...meals[idx], ...mealUpdate };
-        await firestore.saveNutritionLog(body.date, { ...existing, meals });
-      }
-    }
+    await mutateCloudLog("nutrition", body.date, {
+      ...body, move_id: body.new_date ? crypto.randomUUID() : null, meal: body.meal?.time ? { ...body.meal, logged_at: body.meal.time } : body.meal,
+    });
     return { ok: true };
   }
-
   if (normPath === "/supplements/log") {
-    const updated = await firestore.updateIntakeInLog(body.date, body.intake_id, body.updates || {});
-    if (!updated) throw new Error("Intake not found");
+    await mutateCloudLog("supplements", body.date, body);
     return { ok: true };
   }
 
@@ -333,16 +265,12 @@ export async function deleteJson(path) {
 
   if (normPath.startsWith("/nutrition/catalog/")) {
     const id = normPath.split("/").pop();
-    const items = await firestore.getNutritionCatalog();
-    const filtered = items.filter((i) => i.id !== id);
-    const ref = doc(firestore.db, "nutrition", firestore.getUid(), "meta", "catalog");
-    await setDoc(ref, { items: filtered, updated_at: firestore.serverTimestamp() });
+    await mutateCloudCatalog("nutrition", items => items.filter(i => i.id !== id));
     return { ok: true };
   }
-
   if (normPath.startsWith("/supplements/catalog/")) {
     const id = normPath.split("/").pop();
-    await firestore.deleteSupplementFromCatalog(id);
+    await mutateCloudCatalog("supplements", items => items.filter(i => i.id !== id));
     return { ok: true };
   }
 
