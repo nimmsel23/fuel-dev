@@ -592,3 +592,12 @@ Vier Fuel-Tabs sind als eigene installierbare Apps veröffentlicht — Muster wi
 - **Nicht gebaut / offen:** CI für die Mini-Apps im Meta-Repo (neue Workflows `deploy-fuel-<x>.yml`, Pfadfilter auf `fuel-app/**` — der Pointer-Bump von `fuel-app` würde sonst nur `hosting:client` deployen).
 
 > **Mini-Apps: kein CI-Deploy (Entscheidung 2026-10-16).** `vos-fuel-log|supplements|mikros|protokoll` sind stable-prod-/Fallback-Apps. Es gibt bewusst keine GitHub-Actions-Deploys dafür (auch nicht per Pointer-Bump in vitalos); deployt wird nur manuell mit `pnpm run deploy:solo:<x>`.
+
+### Service Worker ist generiert (seit 2026-10-16)
+
+- `public/sw.js` gibt es nicht mehr (archiviert: `docs/archive/sw.fuel-main-v1.js`). Der SW entsteht beim Build aus `mini-app.json` → App `fuel` und dem Template aus `@vos/mini-app-shell` (`node scripts/mini-app-shell/cli.mjs sw <outDir> --app fuel`): `build:local` (→ `dist`), `build:cloud`/`stamp:sw` (→ `dist-firebase`) und alle `build:solo:*` (`stamp-solo.mjs`). `stamp-sw.mjs` wird nicht mehr aufgerufen.
+- Fuel-spezifisch bleibt in **`scripts/fuel-sw-extra.js`** (wird angehängt): Push (FCM-Payload), Supplement-Quick-Actions (`quick-yes` loggt, `snooze` hält 30 min zurück; lokal `/supplements/log` + `/push/snooze`, in der Cloud die Functions `quickLogSupplement`/`snoozeSupplement`) und der eigene `notificationclick` (im Template per `notificationClick:false` abgeschaltet).
+- Verhalten gegenüber früher: API-Pfade (`/health /coach/ /fuel/ /nutrition/ /supplements/`) weiter netz-first mit Cache-Rückfall; sonstige Same-Origin-GETs cache-first mit Laufzeit-Cache, offline ohne Treffer weiter Netzwerkfehler (`assetFallback:"none"`). **Geändert:** Seitenaufrufe (`index.html`) sind jetzt netz-first (Update kommt sofort) statt cache-first; Nicht-GET-Anfragen laufen am SW vorbei (vorher durchgereicht — gleiche Wirkung); `activate` räumt nur Caches `fuel-*` auf.
+- **Änderungen am SW-Verhalten** in `mini-app.json`/`fuel-sw-extra.js` machen und prüfen mit `node scripts/mini-app-shell/cli.mjs parity --app fuel --old docs/archive/sw.fuel-main-v1.js --ignore Navigation,POST` (0 Abweichungen erwartet; spielt 30 Szenarien online/offline + Install/Activate/Messages). Der Push-/Quick-Action-Teil ist dort nicht abgedeckt — Smoke-Test siehe RESULTS.md 2026-10-16 (lokal/Cloud/Base-Pfad), echter Push auf dem Gerät weiter ungetestet.
+- Pre-Push-Trigger deckt `mini-app.json`, `scripts/mini-app-shell/`, `scripts/fuel-sw-extra.js` ab.
+

@@ -1,5 +1,13 @@
 {
-  "defaults": { "bg": "#090b10", "themeColor": "#090b10", "start": "./", "scope": "./", "sw": { "mode": "keep" } },
+  "defaults": {
+    "bg": "#090b10",
+    "themeColor": "#090b10",
+    "start": "./",
+    "scope": "./",
+    "sw": {
+      "mode": "keep"
+    }
+  },
   "apps": {
     "log": {
       "name": "VitalOS Fuel Log",
@@ -28,6 +36,32 @@
       "description": "Abgabefertiges 7-/14-Tage-Ernährungsprotokoll mit Druck/PDF — der Protokoll-Tab von Fuel als eigene App",
       "accent": "#38bdf8",
       "iconDir": "solo-icons/report"
+    },
+    "fuel": {
+      "name": "VitalOS Fuel",
+      "short": "Fuel",
+      "accent": "#fb923c",
+      "sw": {
+        "prefix": "fuel-",
+        "shell": [
+          "./",
+          "./index.html",
+          "./manifest.json"
+        ],
+        "cacheAllSameOrigin": true,
+        "api": {
+          "networkFirst": [
+            "/health",
+            "/coach/",
+            "/fuel/",
+            "/nutrition/",
+            "/supplements/"
+          ]
+        },
+        "notificationClick": false,
+        "extraFile": "scripts/fuel-sw-extra.js",
+        "assetFallback": "none"
+      }
     }
   }
 }

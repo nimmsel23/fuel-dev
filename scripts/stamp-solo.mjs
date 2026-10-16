@@ -1,6 +1,6 @@
 // Nach `vite build` mit VITE_SOLO=<app>: macht aus dist-solo-<app>/ eine eigene installierbare Mini-App.
 // Aufruf: node scripts/stamp-solo.mjs <app>   (app = Schlüssel in mini-app.json: log|supplements|micros|report)
-//  1. stamp-sw.mjs      — Cache-Version in sw.js/manifest.json (damit der Splash "Update wird geladen …" zeigen kann)
+//  1. mini-app-shell sw — Haupt-SW (apps.fuel) erzeugen, Cache-Version in sw.js/manifest.json (damit der Splash "Update wird geladen …" zeigen kann)
 //  2. mini-app-shell    — Icons, Manifest, Titel, Splash (@vos/mini-app-shell, vendored unter scripts/mini-app-shell/)
 //  3. Aufräumen         — index.html zeigt noch auf die Icons der Haupt-App (favicon, /icons/…) → auf die App-Icons umbiegen;
 //                         *.bak und icons/ (Haupt-App-Icons) aus dem Output entfernen, damit sie nicht mitdeployed werden
@@ -24,7 +24,7 @@ if (!existsSync(resolve(out, "index.html"))) {
 }
 
 const run = (...args) => execFileSync("node", args, { cwd: root, stdio: "inherit" });
-run("scripts/stamp-sw.mjs", `dist-solo-${app}`);
+run("scripts/mini-app-shell/cli.mjs", "sw", `dist-solo-${app}`, "--app", "fuel"); // Haupt-SW (apps.fuel), Version in sw.js + manifest.json
 run("scripts/mini-app-shell/cli.mjs", "stamp", `dist-solo-${app}`, "--app", app);
 
 const htmlPath = resolve(out, "index.html");

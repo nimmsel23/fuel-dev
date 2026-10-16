@@ -1,3 +1,12 @@
+# Fuel-Service-Worker auf das Mini-App-Shell-Template umgestellt (2026-10-16)
+
+- `public/sw.js` (231 Zeilen) → `docs/archive/sw.fuel-main-v1.js`; Fuel-Teil (Push, Supplement-Quick-Actions, eigener notificationclick) nach `scripts/fuel-sw-extra.js`, Rest aus `mini-app.json` (`apps.fuel`). Gilt für `dist` (build:local), `dist-firebase` (build:cloud) und alle Solo-Apps; Build-Skripte/`stamp-solo.mjs` rufen `cli.mjs sw`.
+- Paritätstest (`cli.mjs parity`, neu im Paket): 0 Abweichungen bei 30 Szenarien online/offline; gewollt abweichend nur Seitenaufruf (netz-first statt cache-first) und Nicht-GET (am SW vorbei).
+- Funktionstest in vm-Sandbox: FCM-Push → Notification; Quick-Yes/Snooze rufen lokal `/supplements/log` + `/push/snooze`, in der Cloud die Functions `quickLogSupplement`/`snoozeSupplement`, mit Base-Pfad `/app/…`; genau ein push- und ein notificationclick-Listener.
+- Builds geprüft: build:cloud, build:solo:log (SW syntaktisch ok, Stempel `fuel-v<build>`, Manifest-Version).
+- NICHT getestet: echter Push/Quick-Action auf dem Gerät, SW-Update einer bestehenden Installation.
+- Nicht angefasst: `frontend/public/sw.js` (`fuel-v12`, von Hand versioniert, eigenes workbox-Setup im Fork — Besitzer prüfen, ob noch genutzt) und `~/vitalos/fuel-os/public/sw.js`.
+
 # RESULTS.md
 
 Session-Log mit datierten Ergebnis-Bullets.
