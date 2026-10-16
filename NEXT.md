@@ -10,6 +10,8 @@ Aktive Arbeitsliste (max. 5 Punkte).
 - [ ] CI für die Mini-Apps im Meta-Repo (`vitalos/.github/workflows/deploy-fuel-<x>.yml`, Pfadfilter
   `fuel-app/**`) — ein Pointer-Bump deployt sonst nur `hosting:client`. Berührt Workspace/Lockfile
   in `~/vitalos`.
+- [ ] CI-Lauf `Deploy Fuel PWA` (Meta-Repo `vitalos`, Commit `5f93106`) prüfen — erster Lauf mit
+  `--only hosting:client`, `fuel-vos` hängt davon ab; war beim Abschluss noch `queued`, Ergebnis nicht gesehen.
 - [ ] Universelles Setup-Dev (Idee des Users, Satz brach ab) — klären, was gemeint ist.
 - [ ] `scripts/mini-app-shell/` driftet, wenn `~/vitalos/packages/mini-app-shell` sich ändert
   (`node ~/vitalos/packages/mini-app-shell/cli.mjs vendor scripts/mini-app-shell --check`).
