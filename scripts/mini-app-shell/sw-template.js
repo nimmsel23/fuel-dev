@@ -16,7 +16,8 @@ const CFG = /*__VOS_CONFIG__*/ {}
 
 const CACHE = CFG.cache // z. B. "vos-6pack-v<build>"
 const PREFIX = CFG.prefix // nur Caches mit diesem Präfix räumt activate ab
-const KEEP = [CACHE, ...(CFG.keepCaches || []), ...(CFG.imageCaches || []).map((c) => c.cache)]
+const DATA_CACHE = CFG.dataCache || `${PREFIX}offline-data-v1`
+const KEEP = [CACHE, DATA_CACHE, ...(CFG.keepCaches || []), ...(CFG.imageCaches || []).map((c) => c.cache)]
 const SCOPE = new URL(self.registration.scope)
 const BASE = SCOPE.pathname.replace(/\/$/, '')
 const SHELL = (CFG.shell || ['./', './index.html']).map((p) => new URL(p, SCOPE).href)
@@ -27,23 +28,38 @@ const rel = (pathname) => (BASE && pathname.startsWith(BASE + '/') ? pathname.sl
 const hit = (list, path) => (list || []).some((p) => path === p || path.startsWith(p.endsWith('/') ? p : p + '/') || path.startsWith(p + '?'))
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL).catch(() => {})))
-  self.skipWaiting()
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()))
 })
 
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((k) => k.startsWith(PREFIX) && !KEEP.includes(k)).map((k) => caches.delete(k))))
+      .then(async (keys) => {
+        const data = await caches.open(DATA_CACHE)
+        // Migrate public API responses from the previous combined build cache.
+        // Never overwrite a response already refreshed by the new worker.
+        for (const name of keys.filter((k) => k.startsWith(PREFIX) && !KEEP.includes(k))) {
+          const old = await caches.open(name)
+          for (const req of await old.keys()) {
+            const url = new URL(req.url)
+            const path = rel(url.pathname)
+            if (url.origin !== SCOPE.origin || req.headers.has('authorization') || req.cache === 'no-store') continue
+            if (hit(CFG.neverCache, path) || !(hit(CFG.api && CFG.api.swr, path) || hit(CFG.api && CFG.api.networkFirst, path))) continue
+            const response = await old.match(req)
+            if (response && response.ok && !(await data.match(req))) await data.put(req, response)
+          }
+          await caches.delete(name)
+        }
+      })
       .then(() => self.clients.claim())
   )
 })
 
-const put = (req, res) => {
+const put = (req, res, name = CACHE) => {
   if (res && res.ok) {
     const copy = res.clone()
-    caches.open(CACHE).then((c) => c.put(req, copy))
+    caches.open(name).then((c) => c.put(req, copy))
   }
   return res
 }
@@ -76,7 +92,7 @@ function networkFirstNav(req, timeoutMs) {
 }
 
 async function swr(req) {
-  const cache = await caches.open(CACHE)
+  const cache = await caches.open(DATA_CACHE)
   const cached = await cache.match(req)
   const net = fetch(req)
     .then((fresh) => { if (fresh && fresh.ok) cache.put(req, fresh.clone()); return fresh })
@@ -90,6 +106,8 @@ async function swr(req) {
 
 self.addEventListener('fetch', (e) => {
   const req = e.request
+  // Authenticated and explicitly private fetches must never enter a shared cache.
+  if (req.headers.has('authorization') || req.cache === 'no-store') return
   if (req.method !== 'GET') return
   const url = new URL(req.url)
 
@@ -108,9 +126,10 @@ self.addEventListener('fetch', (e) => {
   const path = rel(url.pathname)
 
   if (req.mode === 'navigate') { e.respondWith(networkFirstNav(req, CFG.navTimeoutMs === undefined ? 4000 : CFG.navTimeoutMs)); return }
+  if (hit(CFG.neverCache, path)) return
   if (hit(CFG.api && CFG.api.swr, path)) { e.respondWith(swr(req)); return }
   if (hit(CFG.api && CFG.api.networkFirst, path)) {
-    e.respondWith(fetch(req).then((res) => put(req, res)).catch(() => caches.match(req)))
+    e.respondWith(fetch(req).then((res) => put(req, res, DATA_CACHE)).catch(() => caches.open(DATA_CACHE).then((c) => c.match(req))))
     return
   }
   // Pfade, die nie gecacht werden (z. B. Sync-/Health-Endpunkte der API): direkt ans Netz, SW antwortet nicht

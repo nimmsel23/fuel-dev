@@ -334,3 +334,6 @@ Muster wie `vos-training`/`vos-atlas` in fitness-dev: ein Repo, ein Modus je App
 - Mobile Dialoge sind auf die Viewport-Höhe begrenzt, scrollbar und haben einen zugänglichen Schließen-Button; Katalog-Fotologs erzeugen neue Ereignis-IDs.
 - Verifiziert: 25 JavaScript-Tests in 8 Dateien (`npm run test:unit`), 1 Python-Test mit In-Memory-SQLite, Local- und Cloud-Build inklusive SW-Versionierung, `git diff --check`. Isolierter Firefox-Browserlauf bei 390×844 und 320×568: Backup ohne Login gesperrt; Barcode-Abfrage mit simulierten OFF-Daten übernimmt Beschreibung, Bezugsgewicht und Makros ins editierbare Formular; kleiner Dialog scrollt ohne horizontalen Überlauf.
 - Kein Live-Firebase-Login oder Schreibtest mit echten Nutzerdaten, kein physischer Kameratest. Änderungen sind noch nicht deployed.
+
+## 2026-10-17 — Offline-Cache bei Updates
+Gemeinsame mini-app-shell erweitert bzw. aktualisiert: versionsunabhängiger öffentlicher API-Cache mit Migration, Asset-Precache standardmäßig aktiv, fehlgeschlagene Installation ersetzt bestehenden Worker nicht. IndexedDB/localStorage bleiben unverändert. Geprüft: 13 Shell-/Update-Tests, Private-Request-Test, Vendor-Parität. Kein Push/Release; kein physischer Geräte-Test.

@@ -166,6 +166,10 @@ export async function runParity({ root, appName, oldPath, configPath = "mini-app
     if ((ca[k] || 0) !== (cb[k] || 0)) { failures++; diffs.push({ szenario: `Listener "${k}"`, alt: ca[k] || 0, neu: cb[k] || 0 }); }
   }
 
+  // gewollte Lebenszyklus-Abweichungen (--ignore, z. B. "activate", "install-Precache", "Listener") nicht als Fehler zählen
+  for (let i = diffs.length - 1; i >= 0; i--) {
+    if (ignore.some((g) => String(diffs[i].szenario).includes(g))) { accepted.push(diffs[i]); diffs.splice(i, 1); failures--; }
+  }
   log(`Szenarien: ${scenarios.length * 2} + Lebenszyklus — Abweichungen: ${failures}${accepted.length ? `, gewollt (--ignore): ${accepted.length}` : ""}`);
   for (const d of diffs) log("✖ " + JSON.stringify(d, null, 1));
   for (const d of accepted) log("≈ gewollt: " + d.szenario);

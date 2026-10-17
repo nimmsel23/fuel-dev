@@ -109,3 +109,5 @@ werden aber im Cloud-Frontend nie geladen.
 - [x] Einnahmen und Entfernen optimistisch anzeigen, lokal dauerhaft sichern und Cloud im Hintergrund synchronisieren.
 - [x] Wochenzeile pro Supplement mit Tagen, Navigation, Suche und nachträglicher Erfassung.
 - [x] Langsame Schreibvorgänge, Rücknahme, Fehlerfälle und schmale Ansichten prüfen; Solo-Update veröffentlichen.
+
+- [x] Offline-Cache über App-Updates erhalten: gemeinsame SW-Strategie, API-Migration, vollständiges Asset-Precache und sichere Installation.
