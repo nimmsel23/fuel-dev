@@ -3,7 +3,11 @@ import { withStorageFeedback } from "../../storageFeedback.js";
  * Firestore Devices — users/{uid}/devices/{deviceId}
  *
  * Jedes Gerät, auf dem sich der Nutzer einloggt, legt hier einen eigenen
- * Eintrag an (Schnelleinstieg `frontdoor`, Label, Zeitstempel). Eigene
+ * Eintrag an. Die Collection ist app-übergreifend (fuel/fitness/vitalos teilen
+ * sich dasselbe Schema): `app` sagt, welche App den Eintrag angelegt hat,
+ * app-spezifische Geräte-Wahlen liegen unter `prefs.<app>` (hier
+ * `prefs.fuel.frontdoor`). Die Geräte-ID liegt im localStorage und gilt nur pro
+ * Origin — dasselbe Telefon hat in fuel und fitness daher zwei Einträge. Eigene
  * Collection statt Feld in meta/settings, weil saveUserSettings() das
  * Settings-Doc komplett überschreibt. Die Rules (`users/{uid}/**`) decken
  * die Collection bereits ab.
@@ -14,6 +18,7 @@ import { db } from "../../firebase.js";
 import { getUid } from "./core.js";
 const setDoc = (...args) => withStorageFeedback("Gerät", () => firestoreSetDoc(...args));
 
+const APP = "fuel";
 const DEVICE_ID_KEY = "fuel-device-id";
 
 // Pro Browser-Profil stabile ID. Gelöschter Speicher = neues Gerät, das ist gewollt.
@@ -59,7 +64,8 @@ export async function saveDevice(frontdoor) {
   if (!id) return;
   const existing = await getDevice();
   await setDoc(doc(db, "users", getUid(), "devices", id), {
-    frontdoor,
+    app: APP,
+    prefs: { [APP]: { frontdoor } },
     label: deviceLabel(),
     ...(existing?.registered_at ? {} : { registered_at: serverTimestamp() }),
     last_seen_at: serverTimestamp(),

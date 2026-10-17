@@ -13,6 +13,17 @@ export const useApp = create((set) => ({
   setActiveDate: (activeDate) => set({ activeDate }),
 }));
 
+// fuel-Settings-Key → Feld im app-übergreifenden Profil (users/{uid}/meta/profile,
+// lib/db/firestore/profile.js). Diese Keys landen nicht mehr in meta/settings.
+const PROFILE_MAP = {
+  gender: "gender",
+  age: "age",
+  height_cm: "heightCm",
+  weight_kg: "weightKg",
+  chronic_conditions: "chronicConditions",
+  medications: "medications",
+};
+
 export const useSettings = create(
   persist(
     (set, get) => ({
@@ -78,6 +89,14 @@ export const useSettings = create(
           });
           return;
         }
+        if (PROFILE_MAP[key]) {
+          import("./lib/db.firestore.js").then((db) => {
+            if (db.getUidOrNull?.()) {
+              db.saveSharedProfile({ [PROFILE_MAP[key]]: val }).catch(err => console.error("Profile sync failed:", err));
+            }
+          });
+          return;
+        }
         // Im Hintergrund zu Firestore syncen, falls eingeloggt
         import("./lib/db.firestore.js").then((db) => {
           if (db.getUidOrNull?.()) {
@@ -87,10 +106,6 @@ export const useSettings = create(
               protein_goal: current.protein_goal,
               water_goal: current.water_goal,
               carb_ratio: current.carb_ratio,
-              age: current.age,
-              gender: current.gender,
-              height_cm: current.height_cm,
-              weight_kg: current.weight_kg,
               activity_level: current.activity_level,
               protein_per_kg: current.protein_per_kg,
               nutrition_goal: current.nutrition_goal,
@@ -102,8 +117,6 @@ export const useSettings = create(
               hunger_notes: current.hunger_notes,
               nutrition_satisfaction: current.nutrition_satisfaction,
               intolerances: current.intolerances,
-              chronic_conditions: current.chronic_conditions,
-              medications: current.medications,
               digestive_notes: current.digestive_notes,
               nutrition_working: current.nutrition_working,
               nutrition_not_working: current.nutrition_not_working,
@@ -131,10 +144,23 @@ export const useSettings = create(
               const { frontdoor: _legacyFrontdoor, ...rest } = cloudSettings;
               set(rest);
             }
+            // Gemeinsames Profil: gewinnt gegen Altwerte aus meta/settings; fehlende
+            // Felder werden aus diesen Altwerten einmalig ins Profil übernommen.
+            const profile = await db.getSharedProfile();
+            const backfill = {};
+            for (const [key, pKey] of Object.entries(PROFILE_MAP)) {
+              if (profile?.[pKey] !== undefined) set({ [key]: profile[pKey] });
+              else if (cloudSettings?.[key] !== undefined && cloudSettings[key] !== "") backfill[pKey] = cloudSettings[key];
+            }
+            if (Object.keys(backfill).length) {
+              // await: das nächste saveUserSettings() überschreibt meta/settings ohne diese Felder.
+              await db.saveSharedProfile(backfill);
+            }
             const device = await db.getDevice();
-            if (device?.frontdoor) {
-              set({ frontdoor: device.frontdoor });
-              db.saveDevice(device.frontdoor).catch(() => {}); // last_seen_at
+            const deviceFrontdoor = device?.prefs?.fuel?.frontdoor;
+            if (deviceFrontdoor) {
+              set({ frontdoor: deviceFrontdoor });
+              db.saveDevice(deviceFrontdoor).catch(() => {}); // last_seen_at
             } else if (get().frontdoor) {
               // Gerät kennt seine Wahl lokal, hat aber noch keinen Eintrag
               // (Altbestand / offline gewählt) → still registrieren, nicht neu fragen.
