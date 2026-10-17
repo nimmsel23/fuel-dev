@@ -5,6 +5,10 @@ import { format } from "date-fns";
 export const useApp = create((set) => ({
   activeTab: "dashboard",
   activeDate: format(new Date(), "yyyy-MM-dd"),
+  // Cloud: true, sobald hydrateFromCloud() den Geräte-Eintrag (Schnelleinstieg)
+  // aufgelöst hat — vorher darf der FrontdoorChooser nicht erscheinen.
+  frontdoorResolved: false,
+  setFrontdoorResolved: (frontdoorResolved) => set({ frontdoorResolved }),
   setActiveTab: (activeTab) => set({ activeTab }),
   setActiveDate: (activeDate) => set({ activeDate }),
 }));
@@ -59,11 +63,21 @@ export const useSettings = create(
       // gerendert wird — siehe LogView.jsx + Log/components/MealList*.jsx.
       log_view_mode: "minimal",
       // Schnelleinstieg beim App-Start: "tapboard" | "shutter" | "tagesfaden"
-      // | "classic". null = noch nie gewählt → FrontdoorChooser wird beim
-      // ersten Start gezeigt (views/Frontdoor/).
+      // | "classic". null = auf diesem Gerät noch nie gewählt → FrontdoorChooser
+      // (views/Frontdoor/). Gilt pro Gerät: in der Cloud liegt er nicht in
+      // meta/settings, sondern in users/{uid}/devices/{deviceId}
+      // (lib/db/firestore/devices.js) — ein neues Gerät wird neu gefragt.
       frontdoor: null,
       setSetting: (key, val) => {
         set({ [key]: val });
+        if (key === "frontdoor") {
+          import("./lib/db.firestore.js").then((db) => {
+            if (db.getUidOrNull?.()) {
+              db.saveDevice(val).catch(err => console.error("Device sync failed:", err));
+            }
+          });
+          return;
+        }
         // Im Hintergrund zu Firestore syncen, falls eingeloggt
         import("./lib/db.firestore.js").then((db) => {
           if (db.getUidOrNull?.()) {
@@ -103,7 +117,6 @@ export const useSettings = create(
               daily_journal_entry_enabled: current.daily_journal_entry_enabled,
               daily_journal_entry_time: current.daily_journal_entry_time,
               log_view_mode: current.log_view_mode,
-              frontdoor: current.frontdoor,
             }).catch(err => console.error("Cloud sync failed:", err));
           }
         });
@@ -114,11 +127,25 @@ export const useSettings = create(
           if (db.getUidOrNull?.()) {
             const cloudSettings = await db.getUserSettings();
             if (cloudSettings) {
-              set(cloudSettings);
+              // frontdoor ist geräte-, nicht kontoweit (Altbestand im Settings-Doc ignorieren).
+              const { frontdoor: _legacyFrontdoor, ...rest } = cloudSettings;
+              set(rest);
             }
+            const device = await db.getDevice();
+            if (device?.frontdoor) {
+              set({ frontdoor: device.frontdoor });
+              db.saveDevice(device.frontdoor).catch(() => {}); // last_seen_at
+            } else if (get().frontdoor) {
+              // Gerät kennt seine Wahl lokal, hat aber noch keinen Eintrag
+              // (Altbestand / offline gewählt) → still registrieren, nicht neu fragen.
+              db.saveDevice(get().frontdoor).catch(err => console.error("Device sync failed:", err));
+            }
+            // sonst: neues Gerät → frontdoor bleibt null → FrontdoorChooser
           }
         } catch (err) {
           console.error("Failed to fetch settings from cloud:", err);
+        } finally {
+          useApp.getState().setFrontdoorResolved(true);
         }
       }
     }),

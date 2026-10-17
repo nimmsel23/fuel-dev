@@ -73,6 +73,7 @@ function App() {
   const [user, setUser] = React.useState(null);
   const [authReady, setAuthReady] = React.useState(false);
   const frontdoor = useSettings((s) => s.frontdoor);
+  const frontdoorResolved = useApp((s) => s.frontdoorResolved);
   const [frontdoorOpen, setFrontdoorOpen] = React.useState(true);
   const isCloud = window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com");
   const isClientBuild = import.meta.env.VITE_APP_MODE === "client";
@@ -118,6 +119,8 @@ function App() {
       setAuthReady(true);
       if (u) {
         useSettings.getState().hydrateFromCloud();
+      } else {
+        useApp.getState().setFrontdoorResolved(false);
       }
     });
   }, []);
@@ -185,9 +188,10 @@ function App() {
   const tabCtx = { nutrition, sup, suppCatalog, suppLog, journal, macroTrend, activeDate, setActiveDate, setActiveTab };
 
   // Der Schnelleinstieg wird erst entschieden, wenn die Settings-Quelle
-  // feststeht — in der Cloud also nach dem Login, sonst würde der Chooser
-  // kurz erscheinen und die bereits gewählte Frontdoor überschreiben.
-  const frontdoorReady = authReady && (!isCloudFrontend || !!user);
+  // feststeht — in der Cloud also nach Login und aufgelöstem Geräte-Eintrag
+  // (hydrateFromCloud), sonst würde der Chooser kurz erscheinen und die
+  // bereits gewählte Frontdoor überschreiben bzw. ein bekanntes Gerät neu fragen.
+  const frontdoorReady = authReady && (!isCloudFrontend || (!!user && frontdoorResolved));
   const frontdoorEntry = getFrontdoor(frontdoor);
   const openApp = (tab) => {
     if (tab) setActiveTab(tab);
