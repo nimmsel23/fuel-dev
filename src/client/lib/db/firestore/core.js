@@ -23,15 +23,6 @@ export function watchAuth(callback) {
   });
 }
 
-// iOS (Safari/PWA/In-App-Browser) blockt Auth-Popups bzw. verliert ihren Rückkanal
-// → dort Redirect-Flow. iPadOS meldet sich als "MacIntel" mit Touch.
-function needsRedirectAuth() {
-  const ua = navigator.userAgent || "";
-  const iOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-  const standalone = window.matchMedia?.("(display-mode: standalone)").matches || navigator.standalone;
-  return iOS || standalone;
-}
-
 // Ergebnis eines vorangegangenen Redirect-Logins einsammeln (beim App-Start aufrufen;
 // onAuthStateChanged feuert danach ohnehin, das hier fängt vor allem Fehler ab).
 getRedirectResult(auth).catch((error) => {
@@ -40,12 +31,14 @@ getRedirectResult(auth).catch((error) => {
 
 export async function signIn() {
   try {
-    if (needsRedirectAuth()) {
+    await signInWithPopup(auth, googleProvider);
+  } catch (error) {
+    // Popup vom Browser geblockt → Redirect als Fallback (bei Redirect über fremde authDomain
+    // kann iOS den Login-Status verlieren, deshalb nur als Notlösung).
+    if (error?.code === "auth/popup-blocked") {
       await signInWithRedirect(auth, googleProvider);
       return;
     }
-    await signInWithPopup(auth, googleProvider);
-  } catch (error) {
     console.error("Login Fehler:", error);
     throw error;
   }
