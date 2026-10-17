@@ -81,7 +81,7 @@ export const TAB_CONFIG = [
     label: "Supplements",
     Icon: Pill,
     View: lazy(() => import("./views/SupplementsView.jsx")),
-    getProps: (ctx) => ({ date: ctx.activeDate, sup: ctx.sup, catalog: ctx.suppCatalog || [], suppLog: ctx.suppLog }),
+    getProps: (ctx) => ({ date: ctx.activeDate, sup: ctx.sup, catalog: ctx.suppCatalog || [], suppLog: ctx.suppLog, onDateChange: ctx.setActiveDate }),
   }] : []),
   ...((!SOLO || SOLO === "micros") ? [{
     key: "micros",

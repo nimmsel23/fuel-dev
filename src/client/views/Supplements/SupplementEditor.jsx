@@ -22,7 +22,7 @@ export default function SupplementEditor({ item, onClose, onSaved }) {
   const [unit, setUnit] = useState(item?.unit || "mg");
   const [defaultDose, setDefaultDose] = useState(item?.default_dose ?? "");
   const [timeOfDay, setTimeOfDay] = useState(item?.default_time_of_day || "any");
-  const [scheduleType, setScheduleType] = useState(item?.schedule?.type || "daily");
+  const [scheduleType, setScheduleType] = useState(item ? (item.schedule?.type || "none") : "daily");
   const [days, setDays] = useState(item?.schedule?.days || []);
   const [intervalDays, setIntervalDays] = useState(item?.schedule?.interval_days ?? 2);
   const [startDate, setStartDate] = useState(item?.schedule?.start_date || new Date().toISOString().slice(0, 10));
@@ -37,11 +37,15 @@ export default function SupplementEditor({ item, onClose, onSaved }) {
 
   async function handleSave() {
     if (!name.trim()) return;
+    if (defaultDose !== "" && (!Number.isFinite(Number(defaultDose)) || Number(defaultDose) <= 0)) return setError("Bitte eine positive Dosis eingeben.");
+    if (scheduleType === "weekly" && !days.length) return setError("Bitte mindestens einen Wochentag wählen.");
+    if (scheduleType === "cyclical" && (!Number.isInteger(Number(intervalDays)) || Number(intervalDays) < 1 || !startDate)) return setError("Bitte Startdatum und ein ganzzahliges Intervall ab 1 eingeben.");
     setSaving(true);
     setError("");
     try {
       const schedule =
-        scheduleType === "weekly" ? { type: "weekly", days }
+        scheduleType === "none" ? null
+        : scheduleType === "weekly" ? { type: "weekly", days }
         : scheduleType === "cyclical" ? { type: "cyclical", interval_days: Number(intervalDays), start_date: startDate }
         : { type: "daily" };
 
@@ -53,10 +57,11 @@ export default function SupplementEditor({ item, onClose, onSaved }) {
         : hadReminder ? { enabled: false } : undefined;
 
       await postJson("/supplements/catalog", {
+        ...(item || {}),
         id: item?.id,
         name: name.trim(),
         unit,
-        default_dose: defaultDose === "" ? undefined : Number(defaultDose),
+        default_dose: defaultDose === "" ? null : Number(defaultDose),
         default_time_of_day: timeOfDay,
         schedule,
         reminder,
@@ -124,6 +129,7 @@ export default function SupplementEditor({ item, onClose, onSaved }) {
         <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
           <label className={labelCls}>Rhythmus (für Habit-Tracking)</label>
           <select className={inputCls} value={scheduleType} onChange={(e) => setScheduleType(e.target.value)}>
+            <option value="none">Bei Bedarf (ohne Plan)</option>
             <option value="daily">Täglich</option>
             <option value="weekly">Bestimmte Wochentage</option>
             <option value="cyclical">Alle X Tage</option>
@@ -195,7 +201,7 @@ export default function SupplementEditor({ item, onClose, onSaved }) {
               disabled={saving}
               className="flex items-center justify-center gap-2 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm font-semibold text-rose-300 transition hover:bg-rose-500/20 disabled:opacity-40"
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="h-4 w-4" /> Löschen
             </button>
           )}
           <button

@@ -1,9 +1,21 @@
 // Erzeugt den Service Worker einer Mini-App aus sw-template.js + Konfiguration.
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const TEMPLATE = resolve(dirname(fileURLToPath(import.meta.url)), "sw-template.js");
+const HERE = dirname(fileURLToPath(import.meta.url));
+const TEMPLATE = resolve(HERE, "sw-template.js");
+
+// Gemeinsame SW-Bausteine aus extras/<name>.js (z. B. "workout-notifications")
+export function loadExtras(names = []) {
+  return names
+    .map((n) => {
+      const p = resolve(HERE, "extras", `${n}.js`);
+      if (!existsSync(p)) throw new Error(`SW-Extra "${n}" nicht gefunden (${p})`);
+      return `// ---- extra: ${n}\n${readFileSync(p, "utf8")}`;
+    })
+    .join("\n");
+}
 
 // Default-Konfiguration einer Mini-App; alles per mini-app.json (Block "sw") überschreibbar.
 export function swConfig(appId, sw = {}, version) {
@@ -16,13 +28,19 @@ export function swConfig(appId, sw = {}, version) {
     assetsPath: "/assets/",
     cacheAllSameOrigin: false,
     api: { swr: [], networkFirst: [] },
+    neverCache: [],
     imageCaches: [],
     keepCaches: [],
     notificationLink: "./",
+    notificationClick: true,
     ...sw,
-    // prefix/cache stehen oben bereits aufgelöst; "extra"/"extraFile" gehören nicht in die Laufzeit-Config
+    // Build-Zeit-Optionen gehören nicht in die Laufzeit-Config
     extra: undefined,
     extraFile: undefined,
+    extras: undefined,
+    file: undefined,
+    mode: undefined,
+    precacheAssets: undefined,
   };
 }
 
@@ -34,7 +52,7 @@ export function buildSw({ appId, sw = {}, version, extra = "" }) {
   const tpl = readFileSync(TEMPLATE, "utf8");
   return tpl
     .replace("/*__VOS_CONFIG__*/ {}", () => JSON.stringify(cfg, null, 2))
-    .replace("/*__VOS_EXTRA__*/", () => extra);
+    .replace("/*__VOS_EXTRA__*/", () => [loadExtras(sw.extras), extra].filter(Boolean).join("\n"));
 }
 
 export const newVersion = () => Date.now().toString(36);

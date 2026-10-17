@@ -1,18 +1,32 @@
-// Inline-Snippet für die SW-Registrierung. Lädt bei einem Update einmal neu —
-// nicht bei der Erstinstallation (kein Controller vorher). Der Splash deckt den Reload ab.
+// Inline-Snippet für die SW-Registrierung. Lädt bei einem Update einmal neu — nur direkt nach dem Start
+// (Update-Loader im Splash, reloadWindowMs), nie mitten in einer Sitzung und nicht bei der Erstinstallation.
+// exposeRegistration: setzt window.__swRegistration und feuert 'sw-update-available' (Settings-/Banner-UI der Fitness-Apps).
 const START = "<!-- vos-sw-register:start -->";
 const END = "<!-- vos-sw-register:end -->";
 
-export function registerSnippet({ swUrl = "./sw.js" } = {}) {
+export function registerSnippet({ swUrl = "./sw.js", exposeRegistration = false, reloadWindowMs = 10000 } = {}) {
+  const expose = exposeRegistration
+    ? `.then(function (reg) {
+            window.__swRegistration = reg
+            var notify = function () { window.dispatchEvent(new CustomEvent('sw-update-available')) }
+            if (reg.waiting) notify()
+            reg.addEventListener('updatefound', function () {
+              var nw = reg.installing
+              if (!nw) return
+              nw.addEventListener('statechange', function () { if (nw.state === 'installed' && navigator.serviceWorker.controller) notify() })
+            })
+          })`
+    : "";
   return `${START}
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', function () {
           var hadController = !!navigator.serviceWorker.controller
-          navigator.serviceWorker.register(${JSON.stringify(swUrl)}).catch(function () {})
+          var t0 = Date.now()
+          navigator.serviceWorker.register(${JSON.stringify(swUrl)})${expose}.catch(function () {})
           var reloading = false
           navigator.serviceWorker.addEventListener('controllerchange', function () {
-            if (!hadController || reloading) return
+            if (!hadController || reloading || Date.now() - t0 > ${Number(reloadWindowMs)}) return
             reloading = true
             window.location.reload()
           })

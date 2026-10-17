@@ -2,6 +2,23 @@
 
 Aktive Arbeitsliste (max. 5 Punkte).
 
+## 2026-10-16
+
+- [ ] Mini-Apps (`vos-fuel-*`) einmal am Handy prüfen: Google-Login, Splash, Icon, Installation.
+- [ ] VAPID-Key rotieren (`vapid.env`, Private Key steht in der History des öffentlichen Repos
+  `nimmsel23/fuel-dev`), danach Push-Abos der Supplement-Erinnerungen neu registrieren lassen.
+- [ ] CI für die Mini-Apps im Meta-Repo (`vitalos/.github/workflows/deploy-fuel-<x>.yml`, Pfadfilter
+  `fuel-app/**`) — ein Pointer-Bump deployt sonst nur `hosting:client`. Berührt Workspace/Lockfile
+  in `~/vitalos`.
+- [ ] CI-Lauf `Deploy Fuel PWA` (Meta-Repo `vitalos`, Commit `5f93106`) prüfen — erster Lauf mit
+  `--only hosting:client`, `fuel-vos` hängt davon ab; war beim Abschluss noch `queued`, Ergebnis nicht gesehen.
+- [ ] PreCompact-Hook (`.claude/hooks/pre-compact-fill-docs.sh`): Gemini-Review nach dem Argument-Limit-Fix
+  im Log (`pre-compact-fill-docs.log`) gegenprüfen — letzter Eintrag war noch „kein Ergebnis“. `.claude/` ist
+  gitignored, Hook-Änderungen sind nicht versioniert.
+- [ ] Universelles Setup-Dev (Idee des Users, Satz brach ab) — klären, was gemeint ist.
+- [ ] `scripts/mini-app-shell/` driftet, wenn `~/vitalos/packages/mini-app-shell` sich ändert
+  (`node ~/vitalos/packages/mini-app-shell/cli.mjs vendor scripts/mini-app-shell --check`).
+
 ## 2026-09-06
 
 - [x] Redundanz Food-Tab vs. Katalog-Tab geklärt (2026-09-06): beide rendern
@@ -35,3 +52,16 @@ Aktive Arbeitsliste (max. 5 Punkte).
 - `src/client/lib/api.js` (ohne local/cloud-Suffix) scheint ebenfalls unbenutzt (nichts importiert `lib/api` direkt, alles läuft über `@api` → `api.local.js`/`api.cloud.js`) — nicht verifiziert/gelöscht, nur aufgefallen bei der Suche.
 - `client/lib/db/firestore/utils.js::randomId()` ist vermutlich ungenutzter toter Code (kein direkter Importer gefunden, Format unterscheidet sich von `shared/utils/ids.mjs::randomId()`, das der Server aktiv nutzt). Nicht gelöscht — nach dem `db/index.js`-Fehltritt heute bewusst vorsichtig, erst mit Cross-Repo-Grep (`habits-dev`, `journal-dev`, ggf. `vitalos`) sauber verifizieren, bevor angefasst wird.
 - Nach dem `todayISO()`-Fix: Bestehende Log-Einträge, die vor dem Fix zwischen 00:00–02:00 Uhr lokaler Zeit ohne explizites `date`-Param angelegt wurden, könnten auf dem falschen (Vor-)Tag liegen. Kein automatischer Korrekturlauf gemacht — falls Datenqualität in `~/.aos/fuel/nutrition/` auffällt, dort gezielt nach Einträgen mit `created_at`-Zeitstempel kurz nach Mitternacht suchen.
+
+**Gemini-Review (potenzielle blinde Flecken, 2026-10-16):**
+*   **Ungeprüfte Annahme/Teilweise gelöst:** Die anfängliche Behauptung, die Gemini-API funktioniere "einwandfrei", wurde durch `RESOURCE_EXHAUSTED`-Fehler im End-zu-Ende-Lauf widerlegt. Dies deutet darauf hin, dass das Problem des erfolgreichen Gemini-Reviews über die Argumentlänge hinaus (z.B. Modellkapazität, Prompt-Komplexität) weiterhin besteht.
+*   **Übersehener Edge-Case:** Der erste Commit (`9a7d83f`) enthielt laut Transkript "ungewollt" gestagte Änderungen am `6pack-app`-Pointer und an `pnpm-lock.yaml`,
+
+## 2026-10-16
+
+- [ ] Gemini-Review: Ursache für sporadische 'RESOURCE_EXHAUSTED'-Fehler im Log prüfen (traten im End-zu-Ende-Lauf auf, nicht in isolierten Tests).
+
+**Gemini-Review (potenzielle blinde Flecken, 2026-10-16):**
+*   **Fehlinterpretation des End-zu-End-Tests:** Claude behauptet, der erfolgreiche Gemini-Review im Ende-zu-Ende-Lauf sei "NICHT bestätigt", obwohl das eigene Tool-Ergebnis explizit `gemini review: NEXT.md ergänzt` für den letzten Lauf zeigt.
+*   **Ungeprüfte `RESOURCE_EXHAUSTED`-Fehler:** Die im generierten Review erwähnten `RESOURCE_EXHAUSTED`-Fehler wurden von Claude nicht verifiziert oder reproduziert, was eine ungelöste potenzielle Zuverlässigkeitslücke bei großen Prompts darstellt.
+*   **Unversionierter Hook in `fuel-dev`:** Der kritische Fix für den `fuel-dev`-Hook ist aufgrund der `.claude/`-Ignorierung nicht versioniert, was ein Wartungsrisiko bei der Bereitstellung oder Einrichtung neuer Umgebungen darstellt.

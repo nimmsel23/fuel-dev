@@ -32,7 +32,7 @@ export default function QuickLog({ date, catalog, stats }) {
       <div className="mb-4">
         <div className="mb-2 flex items-center gap-2">
           <Flame className="h-5 w-5 text-orange-300" />
-          <h3 className="text-lg font-semibold">Quick log</h3>
+          <h3 className="text-lg font-semibold">Schnell erfassen</h3>
         </div>
         <p className="text-sm text-slate-400">Die meistgenutzten Supplements der letzten 30 Tage, ein Tap mit den Katalog-Defaults.</p>
       </div>
@@ -42,7 +42,6 @@ export default function QuickLog({ date, catalog, stats }) {
             key={item.id}
             type="button"
             onClick={() => logItem(item)}
-            disabled={createIntake.isPending}
             className="flex items-center justify-between gap-3 rounded-2xl border border-orange-400/20 bg-orange-400/5 p-4 text-left transition hover:bg-orange-400/10 disabled:opacity-50"
           >
             <div>
@@ -55,6 +54,8 @@ export default function QuickLog({ date, catalog, stats }) {
           </button>
         ))}
       </div>
+      {createIntake.isError && <p role="alert" className="mt-3 text-sm text-rose-300">{createIntake.error.message}</p>}
+      {createIntake.isSuccess && <p role="status" className="mt-3 text-sm text-emerald-300">Einnahme lokal erfasst.</p>}
     </section>
   );
 }

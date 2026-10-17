@@ -42,7 +42,11 @@ export default function StorageStatus() {
   }, [qc]);
   useEffect(() => {
     if (!cloud || !uid) { setEntries([]); return; }
-    const refresh = () => {
+    const refresh = event => {
+      if (event?.entry?.uid === uid && event.entry.kind === "supplements") {
+        void qc.invalidateQueries({ queryKey: ["supp-log", event.entry.date], exact: true });
+        void qc.invalidateQueries({ queryKey: ["supp-stats"] });
+      }
       try { setEntries(outboxEntries(uid)); } catch (e) { setError(`Warteschlange nicht lesbar: ${e.message}`); }
     };
     let running = false;
@@ -95,7 +99,7 @@ export default function StorageStatus() {
       {(pending || problem || queryErrors.length > 0) && <button type="button" onClick={retry} disabled={!online || retrying} className="mt-1 underline disabled:opacity-50">{retrying ? "Prüft …" : "Erneut synchronisieren / laden"}</button>}
       {writeFailure && <button type="button" className="ml-3 underline" onClick={() => setWriteFailure(null)}>Meldung ausblenden</button>}
       {entries.filter(e => e.blocked).map(entry => <div key={entry.id} className="mt-2 text-rose-300">
-        {entry.date}: {entry.error}
+        {entry.date || entry.kind}: {entry.error}
         <button type="button" className="ml-3 underline" onClick={() => {
           discardCloudOperation(entry.id); qc.invalidateQueries();
         }}>Fehlgeschlagene Änderung verwerfen</button>

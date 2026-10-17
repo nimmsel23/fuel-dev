@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchJson } from "@api";
 import * as firestore from "../lib/db.firestore.js";
 
-const isCloud = () => window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com");
+const isCloud = () => import.meta.env.VITE_APP_MODE === "client" || window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com");
 
 export function useSuppStats(date) {
   return useQuery({
@@ -41,8 +41,8 @@ export function useSuppCatalog() {
   });
 }
 
-export function useSuppLog(date) {
-  return useQuery({
+export function suppLogOptions(date) {
+  return {
     queryKey: ["supp-log", date],
     queryFn: async () => {
       if (isCloud()) {
@@ -57,5 +57,9 @@ export function useSuppLog(date) {
       }
     },
     staleTime: 30_000,
-  });
+  };
+}
+
+export function useSuppLog(date) {
+  return useQuery(suppLogOptions(date));
 }

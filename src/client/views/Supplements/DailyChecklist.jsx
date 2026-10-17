@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Check, Bell } from "lucide-react";
 import { Empty } from "../../components/ui.jsx";
 import { formatMetric, normalizeSupplementUnit } from "../../../shared/utils/utils.js";
-import { isDueToday } from "./utils.js";
+import { isDueToday, TIME_LABELS } from "./utils.js";
 import { useSupplementMutations } from "./useSupplementMutations.js";
 
 export default function DailyChecklist({ date, catalog, intakes }) {
@@ -88,18 +88,17 @@ export default function DailyChecklist({ date, catalog, intakes }) {
     }
   }
 
-  // TODO: Check isCloud and hide Push if so
-  const isCloudMode = window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com");
+  const isCloudMode = import.meta.env.VITE_APP_MODE === "client" || window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com");
 
   return (
     <section className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur">
-      <div className="mb-4 flex items-center justify-between gap-3">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="mb-2 flex items-center gap-2">
             <Check className="h-5 w-5 text-emerald-400" />
-            <h3 className="text-lg font-semibold">Daily Habit Checklist</h3>
+            <h3 className="text-lg font-semibold">Tagesroutine</h3>
           </div>
-          <p className="text-sm text-slate-400">Deine geplante Supplement-Routine für heute.</p>
+          <p className="text-sm text-slate-400">Deine geplante Supplement-Routine für diesen Tag.</p>
         </div>
         <div className="flex items-center gap-2">
           {pushStatus !== "granted" && pushStatus !== "unsupported" && (
@@ -115,12 +114,12 @@ export default function DailyChecklist({ date, catalog, intakes }) {
           if (!items.length) return null;
           return (
             <div key={time}>
-              <h4 className="mb-3 text-xs uppercase tracking-[0.2em] text-slate-500">{time}</h4>
+              <h4 className="mb-3 text-xs uppercase tracking-[0.2em] text-slate-500">{TIME_LABELS[time]}</h4>
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {items.map((item) => {
                   const isChecked = (intakeCountBySupplement[item.id] || 0) > 0;
                   return (
-                    <div key={item.id} className={`group relative rounded-2xl border ${isChecked ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-white/10 bg-slate-950/60'} p-4 transition hover:bg-slate-900 cursor-pointer`} onClick={() => toggleIntake(item, isChecked)}>
+                    <button type="button" aria-pressed={isChecked} key={item.id} className={`group relative text-left disabled:opacity-50 rounded-2xl border ${isChecked ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-white/10 bg-slate-950/60'} p-4 transition hover:bg-slate-900 cursor-pointer`} onClick={() => toggleIntake(item, isChecked)}>
                       <div className="flex items-start justify-between gap-3">
                         <strong className={isChecked ? 'text-emerald-300' : 'text-slate-100'}>{item.name}</strong>
                         <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${isChecked ? 'border-emerald-400 bg-emerald-400 text-slate-950' : 'border-slate-500'}`}>
@@ -128,7 +127,7 @@ export default function DailyChecklist({ date, catalog, intakes }) {
                         </div>
                       </div>
                       <div className="mt-2 text-sm text-slate-400">{formatMetric(item.default_dose ?? 0)} {normalizeSupplementUnit(item.unit)}</div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -137,6 +136,7 @@ export default function DailyChecklist({ date, catalog, intakes }) {
         })}
         {dueTodayItems.length === 0 && <Empty text="Keine Supplements fuer heute geplant." />}
       </div>
+      {deleteIntake.isError && <p role="alert" className="mt-3 text-sm text-rose-300">{deleteIntake.error.message}</p>}
       {createIntake.isError && <p className="mt-3 text-sm text-rose-300">{createIntake.error.message}</p>}
     </section>
   );

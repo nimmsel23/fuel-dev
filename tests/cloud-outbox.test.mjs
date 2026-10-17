@@ -2,7 +2,7 @@ import { test, mock } from 'node:test';
 import assert from 'node:assert/strict';
 let uid = 'alice', executed = [], failure;
 mock.module('../src/client/lib/db/firestore/core.js', { namedExports: { getUid: () => uid } });
-mock.module('../src/client/lib/cloudMutations.js', { namedExports: { mutateCloudLog: async (...args) => {
+mock.module('../src/client/lib/cloudMutations.js', { namedExports: { mutateCloudCatalog: async () => ({}), mutateCloudLog: async (...args) => {
   if (failure) throw failure;
   executed.push([uid, ...args]); return { meals: [] };
 } } });
@@ -59,4 +59,31 @@ test('React Query executes durable writes and cached reads while offline', async
     assert.equal(outboxEntries(uid).length, 1);
     assert.equal(await client.fetchQuery({ queryKey: ['offline-cache'], queryFn: async () => 'cached' }), 'cached');
   } finally { client.clear(); onlineManager.setOnline(true); }
+});
+
+test('background supplement saves acknowledge local durability before cloud completion', async () => {
+  localStorage.clear(); executed = []; failure = null; navigator.onLine = true;
+  let release;
+  const held = new Promise(resolve => { release = resolve; });
+  Object.defineProperty(navigator, 'locks', { configurable: true, value: { request: async (_key, work) => { await held; return work(); } } });
+  const result = await submitCloudLog('supplements', '2026-10-16', { intake: { id: 'fast', supplement_id: 'one' } }, { background: true });
+  assert.equal(result.queued, true);
+  assert.equal(executed.length, 0);
+  assert.equal(outboxEntries(uid).length, 1);
+  assert.equal(projectCloudLog('supplements', '2026-10-16', { intakes: [] }).intakes[0].id, 'fast');
+  release();
+  await flushCloudOutbox();
+  assert.equal(outboxEntries(uid).length, 0);
+  delete navigator.locks;
+});
+
+test('a rejected background write remains visible and is excluded from projected success', async () => {
+  localStorage.clear(); navigator.onLine = true;
+  failure = Object.assign(new Error('Permission denied'), { code: 'permission-denied' });
+  const result = await submitCloudLog('supplements', '2026-10-16', { intake: { id: 'rejected', supplement_id: 'one' } }, { background: true });
+  assert.equal(result.queued, true);
+  await assert.rejects(flushCloudOutbox(), /Permission denied/);
+  assert.equal(outboxEntries(uid)[0].blocked, true);
+  assert.deepEqual(projectCloudLog('supplements', '2026-10-16', { intakes: [] }).intakes, []);
+  failure = null; localStorage.clear();
 });

@@ -4,8 +4,9 @@ import { twMerge } from "tailwind-merge";
 import { FRONTDOORS, ACCENT } from "./frontdoors.js";
 import { useSettings } from "../../store.js";
 
-// Erster Start: der Nutzer legt fest, womit die App aufgeht. Änderbar
-// jederzeit im Setup-Tab (Settings/FrontdoorCard.jsx).
+// Erster Start auf diesem Gerät: der Nutzer legt fest, womit die App aufgeht.
+// Gilt pro Gerät (Cloud: users/{uid}/devices/{deviceId}); jederzeit änderbar
+// im Setup-Tab (Settings/FrontdoorCard.jsx).
 export default function FrontdoorChooser() {
   const setSetting = useSettings((s) => s.setSetting);
   // Vorauswahl bewusst Shutter: für Klienten, die selten loggen, ist "Foto
@@ -19,13 +20,13 @@ export default function FrontdoorChooser() {
     <div className="fixed inset-0 z-[60] overflow-y-auto bg-slate-950">
       <div className="mx-auto grid w-full max-w-3xl gap-6 px-5 py-10">
         <header>
-          <p className="text-xs uppercase tracking-[0.25em] text-orange-300">Einmalige Einrichtung</p>
+          <p className="text-xs uppercase tracking-[0.25em] text-orange-300">Neues Gerät</p>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-50 md:text-4xl">
             Womit soll Fuel aufgehen?
           </h1>
           <p className="mt-3 max-w-xl text-sm text-slate-400">
             Der Schnelleinstieg entscheidet, wie viele Schritte zwischen „App auf" und „geloggt" liegen.
-            Du kannst ihn jederzeit im Setup wechseln.
+            Gilt für dieses Gerät — auf jedem neuen Gerät wirst du neu gefragt. Du kannst ihn jederzeit im Setup wechseln.
           </p>
         </header>
 

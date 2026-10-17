@@ -1,7 +1,7 @@
 // Macht aus einem Vite-Build-Output (outDir) eine fertige, installierbare Mini-App:
 // Icons, Manifest, HTML-Titel/Meta, Splash, Service Worker (+ Register-Snippet).
 // Fasst nur den Build-Output an, nie die Quelle unter public/.
-import { copyFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { injectSplash } from "./splash.mjs";
 import { injectRegister } from "./register.mjs";
@@ -10,8 +10,10 @@ import { buildSw, newVersion } from "./sw.mjs";
 const ICONS = ["icon-180.png", "icon-192.png", "icon-512.png", "icon-maskable-512.png"];
 
 // app: { id, name, short, accent, description?, start?, scope?, themeColor?, bg?, iconDir?,
-//        html?, splash?:false|{...}, sw?: false | { mode:"generate"|"keep", ...swConfig, extraFile? },
-//        register?: boolean, titleSuffix? }
+//        html? (Default index.html), manifest? (Dateiname, Default manifest.json|manifest.webmanifest),
+//        splash?: false | {...}, register?: boolean | { expose: true }, titleSuffix?,
+//        sw?: false | { mode:"generate"|"keep", file? (Default sw.js), extras?: [...], extraFile?,
+//                       precacheAssets?: bool, ...swConfig } }
 export function stampApp({ outDir, app, root = process.cwd(), log = console.log }) {
   const need = ["id", "name", "short", "accent"].filter((k) => !app[k]);
   if (need.length) throw new Error(`mini-app.json: ${need.join(", ")} fehlt`);
@@ -34,15 +36,15 @@ export function stampApp({ outDir, app, root = process.cwd(), log = console.log 
   const genSw = !!sw && sw.mode !== "keep";
 
   // --- Manifest (manifest.json oder .webmanifest)
-  const mfName = ["manifest.json", "manifest.webmanifest"].find((n) => existsSync(resolve(out, n)));
+  const mfName = [app.manifest, "manifest.json", "manifest.webmanifest"].filter(Boolean).find((n) => existsSync(resolve(out, n)));
   if (mfName) {
     const p = resolve(out, mfName);
     const m = JSON.parse(readFileSync(p, "utf8"));
     Object.assign(m, {
       name: app.name,
       short_name: app.short,
-      start_url: app.start || "./",
-      scope: app.scope || "./",
+      ...(app.start && { start_url: app.start }),
+      ...(app.scope && { scope: app.scope }),
       ...(genSw && { version }), // bei "keep" stempelt stamp-sw.mjs die Version selbst
       ...(app.description && { description: app.description }),
       ...(app.themeColor && { theme_color: app.themeColor }),
@@ -76,7 +78,7 @@ export function stampApp({ outDir, app, root = process.cwd(), log = console.log 
       done.push("Splash");
     }
     if (app.register) {
-      html = injectRegister(html, { swUrl: "./sw.js" });
+      html = injectRegister(html, { swUrl: `./${(sw && sw.file) || "sw.js"}`, exposeRegistration: !!(app.register && app.register.expose) });
       done.push("SW-Register");
     }
     writeFileSync(htmlPath, html);
@@ -87,10 +89,55 @@ export function stampApp({ outDir, app, root = process.cwd(), log = console.log 
   // --- Service Worker
   if (genSw) {
     const extra = sw.extraFile ? readFileSync(resolve(root, sw.extraFile), "utf8") : sw.extra || "";
-    writeFileSync(resolve(out, "sw.js"), buildSw({ appId: app.id, sw, version, extra }));
-    done.push(`sw.js (${(sw.prefix || `vos-${app.id}-`)}v${version})`);
+    const file = sw.file || "sw.js";
+    let cfg = sw;
+    if (sw.precacheAssets && existsSync(resolve(out, "assets"))) {
+      // alle gehashten Build-Assets beim Installieren vorladen (voll offline ab dem ersten Start)
+      const assets = readdirSync(resolve(out, "assets")).map((n) => `./assets/${n}`);
+      cfg = { ...sw, shell: [...(sw.shell || ["./", "./index.html"]), ...assets] };
+    }
+    writeFileSync(resolve(out, file), buildSw({ appId: app.id, sw: cfg, version, extra }));
+    done.push(`${file} (${(sw.prefix || `vos-${app.id}-`)}v${version})`);
   }
 
   log(`✨ ${out}: ${app.short} — ${done.join(", ")}`);
   return { version, done };
+}
+
+// Nur den Service Worker (+ Versionsstempel im Manifest) erzeugen — für Apps, deren Manifest/HTML/Icons
+// unangetastet bleiben (z. B. die Fitness-Haupt-App). Ersetzt dort stamp-sw.mjs.
+export function stampSw({ outDir, app, root = process.cwd(), log = console.log }) {
+  if (!app.id) throw new Error("mini-app.json: id fehlt");
+  const out = resolve(outDir);
+  const sw = app.sw || {};
+  const version = newVersion();
+  const extra = sw.extraFile ? readFileSync(resolve(root, sw.extraFile), "utf8") : sw.extra || "";
+  const file = sw.file || "sw.js";
+  let cfg = sw;
+  if (sw.precacheAssets && existsSync(resolve(out, "assets"))) {
+    const assets = readdirSync(resolve(out, "assets")).map((n) => `./assets/${n}`);
+    cfg = { ...sw, shell: [...(sw.shell || ["./", "./index.html"]), ...assets] };
+  }
+  writeFileSync(resolve(out, file), buildSw({ appId: app.id, sw: cfg, version, extra }));
+  for (const mf of ["manifest.json", "manifest.webmanifest"]) {
+    const p = resolve(out, mf);
+    if (!existsSync(p)) continue;
+    const m = JSON.parse(readFileSync(p, "utf8"));
+    m.version = version;
+    writeFileSync(p, JSON.stringify(m, null, 2) + "\n");
+  }
+  log(`🔢 ${out}/${file}: CACHE → ${sw.prefix || `vos-${app.id}-`}v${version}`);
+  return { version };
+}
+
+// Nur den Splash (+ Update-Loader) in die index.html des Build-Outputs setzen — für Haupt-Apps, die Manifest,
+// Titel, Icons und SW-Registrierung selbst verwalten (Fitness, Fuel). Idempotent.
+export function stampSplash({ outDir, app, log = console.log }) {
+  if (!app.short || !app.accent) throw new Error("mini-app.json: short und accent sind für den Splash Pflicht");
+  const htmlPath = resolve(outDir, app.html || "index.html");
+  if (!existsSync(htmlPath)) { log(`⚠️  ${htmlPath} nicht gefunden — kein Splash`); return { done: false }; }
+  const opts = { name: app.short, accent: app.accent, icon: "./icon-192.png", ...(app.bg && { bg: app.bg }), ...(typeof app.splash === "object" && app.splash) };
+  writeFileSync(htmlPath, injectSplash(readFileSync(htmlPath, "utf8"), opts));
+  log(`✨ ${htmlPath}: Splash "${opts.name}" (${opts.icon})`);
+  return { done: true };
 }

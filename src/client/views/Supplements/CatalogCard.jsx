@@ -17,6 +17,9 @@ const SCHEDULE_LABEL = {
 
 export default function CatalogCard({ catalog }) {
   const queryClient = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [scheduledOnly, setScheduledOnly] = useState(false);
+  const filtered = catalog.filter(item => item.name.toLocaleLowerCase().includes(search.toLocaleLowerCase()) && (!scheduledOnly || item.schedule));
   const [geminiOpen, setGeminiOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null); // Objekt = Edit, "new" = Add, null = zu
   const closeEditor = () => setEditingItem(null);
@@ -27,7 +30,7 @@ export default function CatalogCard({ catalog }) {
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Settings2 className="h-5 w-5 text-slate-300" />
-          <h3 className="text-lg font-semibold">Catalog</h3>
+          <h3 className="text-lg font-semibold">Mein Katalog</h3>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <button
@@ -48,8 +51,13 @@ export default function CatalogCard({ catalog }) {
           )}
         </div>
       </div>
-      <div className="grid gap-3">
-        {catalog.length ? catalog.map((item) => (
+      <div className="mb-4 flex flex-wrap gap-3">
+        <input aria-label="Supplement suchen" type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Im Katalog suchen…" className="min-w-0 flex-1 rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm" />
+        <label className="flex items-center gap-2 text-sm text-slate-400"><input type="checkbox" checked={scheduledOnly} onChange={e => setScheduledOnly(e.target.checked)} /> Nur mit Plan</label>
+      </div>
+      <p className="mb-3 text-xs text-slate-500">{filtered.length} von {catalog.length} Supplements · Zum Bearbeiten antippen</p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {filtered.length ? filtered.map((item) => (
           <button
             key={item.id}
             onClick={() => setEditingItem(item)}
@@ -77,7 +85,7 @@ export default function CatalogCard({ catalog }) {
               </span>
             </div>
           </button>
-        )) : <Empty text="Kein Supplement-Katalog geladen." />}
+        )) : <Empty text="Keine passenden Supplements gefunden." />}
       </div>
 
       {editingItem && (

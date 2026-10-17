@@ -12,7 +12,7 @@ mock.module('firebase/firestore', { namedExports: {
 mock.module('../src/client/lib/firebase.js', { namedExports: { db: {} } });
 mock.module('../src/client/lib/db/firestore/core.js', { namedExports: { getUid: () => 'alice' } });
 mock.module('../src/client/lib/db/firestore/supplements.js', { namedExports: { getSupplementsCatalog: async () => [] } });
-mock.module('../src/client/lib/cloudOutbox.js', { namedExports: { projectCloudLog: (_kind,_date,data) => data, outboxEntries: () => [] } });
+mock.module('../src/client/lib/cloudOutbox.js', { namedExports: { projectCloudLog: (_kind,_date,data) => data, projectCloudCatalog: (_kind, items) => items, projectCloudNotes: (_date, content) => content, hasPendingFor: () => false, outboxEntries: () => [] } });
 mock.module('../src/client/lib/cloudMutations.js', { namedExports: { mutateCloudLog: noop } });
 const { getWeeklyMicros } = await import('../src/client/lib/db/firestore/nutrition.js');
 const { getWeekDates } = await import('../src/client/lib/db/firestore/utils.js');

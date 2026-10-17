@@ -43,7 +43,7 @@ done <<< "$pushed_refs"
 # dist-firebase/ ist Build-Output — nie selbst ein Deploy-Grund, sonst
 # triggert der Hook sich bei jedem Push auf sich selbst.
 SKIP='\.(md|bak)$|^dist-firebase/'
-TRIGGER='^(src/|public/|index.html$|vite.config|package.json$|firebase.json$|firestore.rules$)'
+TRIGGER='^(src/|public/|index.html$|vite.config|package.json$|firebase.json$|mini-app.json$|scripts/mini-app-shell/|scripts/fuel-sw-extra.js$|firestore.rules$)'
 
 should_deploy=false
 

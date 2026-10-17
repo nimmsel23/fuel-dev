@@ -1,6 +1,106 @@
+# Fuel-Mini-Apps: optimistisches Speichern (2026-10-16)
+
+- Mahlzeiten, Notizen, Kataloge und Mikros werden in der Cloud-Version nach dem lokalen Sichern quittiert (`background: true`); Log-Tab (`LogView`): Hinzufügen/Ändern/Löschen/Nochmal loggen patchen den Tages-Cache sofort (`optimisticMeal.js`, gleicher `changeLog` wie Outbox/Transaktion), ID und Zeitpunkt werden vorab erzeugt, damit der angezeigte Eintrag dem späteren Cloud-Eintrag entspricht.
+- Tests: 6 neue, Suite 51/51; `build:cloud` und `build:solo:log` ok.
+- Nicht getestet: Gefühl/Timing auf dem Gerät, Fehlerfall nach der Quittung (geblockter Eintrag im StorageStatus).
+- Offen/Beobachtung: Login auf dem iPad (Google-Popup läuft durch, App bleibt abgemeldet) — Verdacht Safari-Speicherpartitionierung wegen `authDomain: fitness-aos.firebaseapp.com` (Drittanbieter zur Mini-App-Domain); siehe Gespräch 2026-10-16, braucht Konsolen-Schritt (OAuth-Redirect-URIs).
+
+# Offline-Schreiben: Katalog, Notizen und Mikros über die Outbox (2026-10-16)
+
+- Befund: Das Kern-Schreiben (Mahlzeiten, Supplement-Einnahmen) war in der Cloud-Version bereits offline-fähig (localStorage-Outbox, Operations-Quittung, StorageStatus). Lücken: Katalog (Transaktion → offline Fehler), Notizen, Mikros.
+- Neu: Outbox-Arten `catalog:nutrition|supplements`, `notes`, `micros` (`cloudOutbox.js`, Logik in `cloudOutboxOps.js`), `api.cloud.js` schreibt darüber; Lese-Sichten rechnen offene Änderungen ein. Ströme getrennt: ein geblockter Log-Eintrag hält Katalog/Notizen/Mikros nicht mehr auf (und umgekehrt).
+- Tests: 13 neue (Ops, Outbox-Arten, Ströme, Reihenfolge, Idempotenz), gesamte Suite 45/45 grün; Builds `build:cloud` und `build:solo:supplements` ok. `weekly-micros.test.mjs`-Mock um die neuen Exports ergänzt.
+- NICHT gebaut: Hintergrund-Sync bei geschlossener App (Outbox in localStorage; bräuchte IndexedDB + SW-`sync`), Warteschlange für den lokalen Fastify-Build, Outbox für Wasser/Gewicht/Einstellungen. NICHT getestet: echter Offline-Durchlauf auf dem Gerät (Flugmodus: Katalog bearbeiten, Notiz schreiben, wieder online).
+
+# Splash-Screen auch in der Fuel-Haupt-App (2026-10-16)
+
+- `cli.mjs splash` im Build der Haupt-App (`build:local`, `build:cloud`); Geprüft am Cloud-Build (Splash "Fuel", Icon `./icons/icon-192.png`). Auth-Domains der vier Mini-Apps (8 Einträge) per Identity-Toolkit-API nochmals live geprüft: vollständig. Preview-Channel-URLs (`…--dev-xxxx.web.app`) sind nicht eingetragen → Google-Login nur dort nicht möglich.
+
+# Fuel-Service-Worker auf das Mini-App-Shell-Template umgestellt (2026-10-16)
+
+- `public/sw.js` (231 Zeilen) → `docs/archive/sw.fuel-main-v1.js`; Fuel-Teil (Push, Supplement-Quick-Actions, eigener notificationclick) nach `scripts/fuel-sw-extra.js`, Rest aus `mini-app.json` (`apps.fuel`). Gilt für `dist` (build:local), `dist-firebase` (build:cloud) und alle Solo-Apps; Build-Skripte/`stamp-solo.mjs` rufen `cli.mjs sw`.
+- Paritätstest (`cli.mjs parity`, neu im Paket): 0 Abweichungen bei 30 Szenarien online/offline; gewollt abweichend nur Seitenaufruf (netz-first statt cache-first) und Nicht-GET (am SW vorbei).
+- Funktionstest in vm-Sandbox: FCM-Push → Notification; Quick-Yes/Snooze rufen lokal `/supplements/log` + `/push/snooze`, in der Cloud die Functions `quickLogSupplement`/`snoozeSupplement`, mit Base-Pfad `/app/…`; genau ein push- und ein notificationclick-Listener.
+- Builds geprüft: build:cloud, build:solo:log (SW syntaktisch ok, Stempel `fuel-v<build>`, Manifest-Version).
+- NICHT getestet: echter Push/Quick-Action auf dem Gerät, SW-Update einer bestehenden Installation.
+- Nicht angefasst: `frontend/public/sw.js` (`fuel-v12`, von Hand versioniert, eigenes workbox-Setup im Fork — Besitzer prüfen, ob noch genutzt) und `~/vitalos/fuel-os/public/sw.js`.
+
 # RESULTS.md
 
 Session-Log mit datierten Ergebnis-Bullets.
+
+## 2026-10-16: Optimistische Einnahmen und Supplement-Wochentracker
+
+- Einnahmen und Entfernen aktualisieren den gemeinsamen Tagescache sofort. Stabile IDs erlauben direktes Rückgängigmachen; Fehler-Rücknahme betrifft nur den eigenen Befehl und lässt andere Eingaben stehen. Kontowechsel wird beim Patchen und Senden berücksichtigt.
+- Cloud-Einnahmen werden zuerst dauerhaft in der bestehenden kontogebundenen Outbox gesichert und sofort lokal bestätigt; Transaktionen/Replay laufen im Hintergrund. Fehlgeschlagene Befehle bleiben mit Fehler sichtbar und werden nicht als erfolgreiche Einnahmen projiziert. Die Statusleiste aktualisiert gezielt den betroffenen Tag bei Outbox-Änderungen.
+- Wochentracker (Mo–So) pro Supplement auf der Tagesseite und als eigener Bereich: Wochenwechsel, Suche, geplante/freie/erfasste Tage, Einnahmetage und Mehrfach-Einnahmen. Vergangenheit und heute sind anklickbar; Zukunft ist eine reine Planansicht. Tagesansicht und Tracker teilen dieselben Query-Keys.
+- Lokales API akzeptiert ebenfalls die clientseitige Einnahme-UUID, damit optimistische Einträge beim Wechsel zwischen Ansichten ihre Identität behalten. Ein schmaler Header-Überlauf wurde behoben.
+- Verifiziert: alle 9 Node-Testdateien erfolgreich (zusätzliche Tests für gezielte Rücknahme, lokale Bestätigung vor Cloud-Abschluss und blockierte Hintergrundfehler), Solo-Produktionsbuild, `git diff --check`.
+- Isolierter Firefox mit Testdaten und künstlich drei Sekunden langsamen Schreibvorgängen: sofortiges Setzen/Rücknehmen und andere Supplement-Eingaben bleiben bedienbar. Inhaltsbreiten 390 und 320 Pixel ohne horizontalen Überlauf geprüft. Keine echten Nutzerdaten verändert.
+- Solo-Hosting-Deploy erfolgreich: https://vos-fuel-supplements.web.app. Authentifizierte echte Cloud-Schreibvorgänge/Push wurden nicht auf einem Nutzerkonto getestet.
+
+
+## 2026-10-16: Eigenständige Supplements-Mini-App
+
+- Eigener Solo-Einstieg (`solo-main.jsx`), Supplements-Datenabruf erst nach Login und ohne Nutrition-/Journal-Abfragen. Kontowechsel leert den Query-Cache; Login-Fehler werden angezeigt.
+- Neues Frontend mit Tagesfortschritt, Bereichen für Routine/Einnahmen/Katalog/Auswertung/Erinnerungen, Wochenvorschau, Datumsauswahl und Katalogsuche samt Planfilter.
+- Reminder-Zeiten und FCM-Registrierung direkt in der Mini-App; Settings-Updates schreiben ausschließlich die zugehörigen Felder per Merge.
+- Tages-Checkliste als Tastatur-bedienbare Buttons, Schutz während Speichern/Refetch und Fehlerfeedback. Katalog-Editor validiert Pläne, erlaubt „Bei Bedarf“ und bewahrt Metadaten bei Cloud-Updates.
+- Zyklische UI-Pläne gelten nicht mehr vor dem Startdatum. Cloud-Statistik liest das tatsächliche Datumfenster und zählt eindeutige Einnahmetage statt Dosen; auch Produkte ohne Einnahmen werden angezeigt.
+- Eigenes Branding „VitalOS Supplements“, relative Build-Pfade, bestehende gemeinsame Firestore-Daten ohne Migration. Anleitung: `SUPPLEMENTS-APP.md`.
+- Verifiziert: alle 9 Node-Testdateien erfolgreich, darunter 4 neue Supplement-Testfälle; Solo-Produktionsbuild; isolierte Render-Prüfung für leer/geplant/erledigt; `git diff --check`.
+- Firebase-Deploy ausschließlich `hosting:supplements` erfolgreich: https://vos-fuel-supplements.web.app. Live-HTML, Manifest und Service Worker liefern HTTP 200 und stimmen bytegenau mit dem finalen Build überein.
+- Offen: angemeldeter Geräte-Test für Cloud-Schreibvorgänge und tatsächliche Push-Zustellung. Bestehende Reminder-Functions wurden nicht verändert/deployed. Vite meldet weiterhin große Vendor-Chunks. pnpm-Engine-Store war im Sandbox-Lauf read-only; Build und Stamp wurden über die installierten Node-Einstiegspunkte ausgeführt.
+
+
+## 2026-10-16: PreCompact-Hook: Gemini-Review-Fix (RESULTS/NEXT-Handoff)
+
+Prüfung, ob die Compact-Hooks für `RESULTS.md`/`NEXT.md` tatsächlich laufen: konfiguriert waren sie,
+Lebenszeichen gab es keins (kein `pre-compact-fill-docs.log`, letzter `docs: auto-update`-Commit alt).
+
+- **`.claude/hooks/pre-compact-fill-docs.sh`:** Ursache gefunden — `gemini_call()` übergab den Prompt als
+  Argument (`jq --arg` / `curl -d "$body"`); große Transcript-Ausschnitte sprengten das Linux-Limit von
+  131072 Bytes pro Argument, der Fehler wurde von `2>/dev/null` verschluckt, alle Modelle galten als
+  „fehlgeschlagen“. Jetzt: Prompt über stdin → Temp-Datei → `curl --data-binary @file`, Fehlerursache je
+  Modell steht im Log. Funktion isoliert mit 220-KB-Prompt getestet. Sicherung: `pre-compact-fill-docs.sh.bak-gemini`.
+- **Hook-Lauf belegt:** der Hook läuft (`claude -p` ändert die Doku, `pre-compact-fill-docs.log` entsteht);
+  ein Lauf schrieb `NEXT.md` fort (`e3a8ff7`, `docs: auto-update NEXT.md`) ohne `RESULTS.md` zu doppeln.
+- **Hinweis:** `.claude/` ist in diesem Repo gitignored — die Hook-Änderung ist lokal, nicht versioniert.
+- Verifiziert: Gemini-Funktion isoliert. **Nicht** bestätigt: erfolgreicher Gemini-Review im
+  Ende-zu-Ende-Lauf nach dem Fix (Log zeigte zuletzt „kein Ergebnis“).
+
+---
+
+## 2026-10-16: Vier Fuel-Views als eigene Mini-Apps veröffentlicht
+
+Muster wie `vos-training`/`vos-atlas` in fitness-dev: ein Repo, ein Modus je App, kein Fork
+(vier schon angelegte Forks `~/fuel-<x>-dev` wurden verworfen und nach
+`~/.archive/fuel-solo-forks-2026-10-16/` verschoben, nie auf GitHub angelegt).
+
+- **Solo-Modus:** `VITE_SOLO=log|supplements|micros|report` — `src/client/routes.js` bündelt nur den
+  gewählten Tab (Literal-Vergleich, damit Rollup die übrigen Imports verwirft),
+  `src/client/SoloShell.jsx` ist die schlanke Shell (Login-Pflicht, Tagesnavigation, Update-Button),
+  `vite.config.cjs` schreibt nach `dist-solo-<tab>/`. Build: `pnpm run build:solo[:<tab>]`.
+- **Splash/SW/Manifest:** `@vos/mini-app-shell` (vendored nach `scripts/mini-app-shell/`, Konfig
+  `mini-app.json`), `scripts/stamp-solo.mjs` stempelt SW-Version + Shell und räumt Haupt-App-Icons
+  und `*.bak` aus dem Output. Der bestehende `public/sw.js` bleibt (`sw.mode: keep`).
+- **Icons:** `solo-icons/<tab>/` aus `scripts/solo-icons.py` (Teller orange, Kapsel lime, Molekül rosa,
+  Protokollblatt himmelblau).
+- **Hosting:** `firebase.json` als Array (Targets `client`=`fuel-vos`, `log`, `supplements`, `mikros`,
+  `protokoll`), Mapping in `.firebaserc`; `deploy:firebase`/`deploy:cloud`/`deploy-preview.mjs` nur noch
+  `--only client`; neu `pnpm run deploy:solo:<log|supplements|mikros|protokoll>`.
+  Im Meta-Repo `vitalos/.github/workflows/deploy-fuel.yml` auf `hosting:client` umgestellt.
+- **Firebase:** Sites `vos-fuel-log|supplements|mikros|protokoll` angelegt; Auth-Domains
+  (`.web.app` + `.firebaseapp.com`, 8 Einträge) in `fitness-aos` additiv ergänzt (Vorher/Nachher-Diff
+  ohne Verlust). App Check ist für Firestore/Auth/ML `UNENFORCED`.
+- **Live:** alle vier Sites deployt (`https://vos-fuel-<x>.web.app`), Links per wacli an den User.
+  `fuel-release --yes` hat dev/vitalos/master gepusht (Pointer-Bump `5f93106`).
+- **Secrets:** `vapid.env` (VAPID-Private-Key) war im öffentlichen Repo getrackt → `*.env`/`.env.*`
+  gitignored, Datei enttrackt (`59b23b5`). Der Key steht weiter in der History.
+- Verifiziert: vier Solo-Builds, Dry-Run der Hosting-Targets, Deploy-Meldungen. **Nicht** verifiziert:
+  Rendering/Login im Browser (kein Headless-Browser verfügbar).
+
+---
 
 ## 2026-10-13: fuel-dev + frontend/ auf pnpm umgestellt
 
