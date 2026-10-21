@@ -15,7 +15,8 @@ function resolvePackageEntry(specifier) {
   return require.resolve(specifier, { paths: [__dirname] });
 }
 
-module.exports = defineConfig(({ mode }) => {
+module.exports = defineConfig(async ({ mode }) => {
+  const { vosChangelog } = await import("./scripts/vos-changelog/vos-changelog-vite.mjs");
   const env = loadEnv(mode, process.cwd(), "");
   const appMode = process.env.VITE_APP_MODE || env.VITE_APP_MODE || "coach";
 
@@ -92,7 +93,7 @@ module.exports = defineConfig(({ mode }) => {
         "firebase/ai",
       ],
     },
-    plugins: [
+    plugins: [vosChangelog({ appId: solo ? `fuel-${solo}` : 'fuel', appName: solo ? ({ log: 'Fuel Log', supplements: 'Supplements', micros: 'Mikros', report: 'Ernährungsprotokoll' })[solo] : 'Fuel', accent: '#fb923c' }),
       ...(solo === "supplements" ? [{
         name: "supplements-entry",
         transformIndexHtml: {

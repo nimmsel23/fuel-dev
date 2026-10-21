@@ -1,3 +1,4 @@
+import { vosChangelog } from './scripts/vos-changelog/vos-changelog-vite.mjs'
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { resolve, dirname } from "path";
@@ -106,7 +107,7 @@ export default defineConfig(async () => {
         "firebase/ai",
       ],
     },
-    plugins: [
+    plugins: [vosChangelog({ appId: 'fuel', appName: 'Fuel', accent: '#fb923c' }),
       react(),
     ],
     build: {

@@ -1,3 +1,7 @@
+## 2026-10-21 — Gemeinsamer Changelog
+
+Universalisierten VitalOS-Release-Dialog über vendorte Vite-Module eingebunden. Standalone mit eigener Bestätigung; eingebettet unterdrückt zugunsten des zentralen Shell-Dialogs.
+
 # Fuel-Mini-Apps: optimistisches Speichern (2026-10-16)
 
 - Mahlzeiten, Notizen, Kataloge und Mikros werden in der Cloud-Version nach dem lokalen Sichern quittiert (`background: true`); Log-Tab (`LogView`): Hinzufügen/Ändern/Löschen/Nochmal loggen patchen den Tages-Cache sofort (`optimisticMeal.js`, gleicher `changeLog` wie Outbox/Transaktion), ID und Zeitpunkt werden vorab erzeugt, damit der angezeigte Eintrag dem späteren Cloud-Eintrag entspricht.
