@@ -9,11 +9,34 @@
     radial-gradient(circle at top left, rgba(249, 115, 22, 0.18), transparent 36%),
     radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 24%),
     linear-gradient(180deg, #070b12 0%, #0b1018 100%);
+  /* iOS-Statusbar (standalone, apple-mobile-web-app-status-bar-style:
+     black-translucent, siehe index.html) legt sich über den Content statt
+     ihn zu verdrängen — ohne dieses Padding überlappt sie den Header
+     (Uhrzeit über "Fuel Control Deck V3"). Analog für die Home-Indicator-
+     Leiste unten. Fallback 0px für Browser ohne env()-Support. */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html {
+  /* Absicherung gegen ungewollten horizontalen Overflow (z.B. durch breite
+     Grids/Tabellen in Kind-Komponenten) — der Grund, warum auf iOS
+     manchmal rausgezoomt werden muss, um den ganzen Screen zu sehen. */
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
+  /* 100dvh statt 100vh: iOS Safari rechnet 100vh inkl. der (temporär
+     eingeblendeten) Browser-Chrome, wodurch der Inhalt höher als der
+     tatsächlich sichtbare Viewport wird. 100vh bleibt als Fallback für
+     ältere WebKit-Versionen ohne dvh-Support. */
   min-height: 100vh;
+  min-height: 100dvh;
   margin: 0;
+  overflow-x: hidden;
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
 }
 
 .scrollbar-none {

@@ -44,6 +44,12 @@ export async function signIn() {
     }
     await signInWithPopup(auth, googleProvider);
   } catch (error) {
+    // Popup vom Browser geblockt → Redirect als Fallback (bei Redirect über fremde authDomain
+    // kann iOS den Login-Status verlieren, deshalb nur als Notlösung).
+    if (error?.code === "auth/popup-blocked") {
+      await signInWithRedirect(auth, googleProvider);
+      return;
+    }
     console.error("Login Fehler:", error);
     throw error;
   }

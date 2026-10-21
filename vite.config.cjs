@@ -50,6 +50,7 @@ module.exports = defineConfig(async ({ mode }) => {
         "@journal-db": resolveSibling(["../journal-app/src/db/index.js", "../journal-dev/src/db/index.js"], "@journal-db"),
         "@relax": resolveSibling(["../relax-app/src", "../relax-dev/src"], "@relax"),
         "@fitness/constants": resolveSibling(["../fitness-app/src/constants", "../fitness-dev/src/constants"], "@fitness/constants"),
+        "@fitness/hooks": resolveSibling(["../fitness-app/src/hooks", "../fitness-dev/src/hooks"], "@fitness/hooks"),
         // Cloud-Build (Client) → fitness' Firestore-db-Variante. Beide Keys zeigen auf
         // dieselbe Datei: bare "@fitness-db" (fuel selbst) und der explizite Subpath
         // "@fitness-db/index.firestore.js" (journal-app importiert ihn direkt).

@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, getFirestore } from "firebase/firestore";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, browserLocalPersistence, setPersistence } from "firebase/auth";
 import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
 import { firebaseConfig } from "./firebase.config.js";
 
@@ -34,6 +34,9 @@ export const db = alreadyInit
     });
 
 export const auth = getAuth(app);
+// Wie plan-app (dort läuft der Popup-Login auf iOS): Persistence früh festlegen. Vermutung: die
+// asynchrone Persistence-Init lässt signInWithPopup sein Fenster erst nach dem Klick-Tick öffnen.
+setPersistence(auth, browserLocalPersistence).catch(() => {});
 export const googleProvider = new GoogleAuthProvider();
 
 // Vertex AI initialization
