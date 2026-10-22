@@ -1,5 +1,5 @@
 import { lazy } from "react";
-import { Flame, UtensilsCrossed, NotebookPen, BookOpen, Pill, Microscope, Settings2, History, TerminalSquare, ChefHat, Library, FileText } from "lucide-react";
+import { Flame, UtensilsCrossed, NotebookPen, BookOpen, Pill, Microscope, Settings2, History, LayoutGrid, GitCommitVertical, TerminalSquare, ChefHat, Library, FileText } from "lucide-react";
 
 const BUILD_IS_LOCAL = import.meta.env.VITE_APP_MODE !== "client" && import.meta.env.MODE !== "firebase";
 const BUILD_IS_SHELL = import.meta.env.MODE === "firebase";
@@ -24,6 +24,20 @@ export const TAB_CONFIG = [
     Icon: NotebookPen,
     View: lazy(() => import("./views/Log/LogView.jsx")),
     getProps: (ctx) => ({ date: ctx.activeDate, nutrition: ctx.nutrition, journal: ctx.journal || "" }),
+  }] : []),
+  ...(!SOLO ? [{
+    // Log-Ansichten als eigene Tab-Pills (gleiche LogView, erzwungener Modus).
+    key: "log-dashboard",
+    label: "Log-Dashboard",
+    Icon: LayoutGrid,
+    View: lazy(() => import("./views/Log/LogView.jsx")),
+    getProps: (ctx) => ({ date: ctx.activeDate, nutrition: ctx.nutrition, journal: ctx.journal || "", mode: "dashboard" }),
+  }, {
+    key: "log-timeline",
+    label: "Timeline",
+    Icon: GitCommitVertical,
+    View: lazy(() => import("./views/Log/LogView.jsx")),
+    getProps: (ctx) => ({ date: ctx.activeDate, nutrition: ctx.nutrition, journal: ctx.journal || "", mode: "timeline" }),
   }] : []),
   ...((!SOLO || SOLO === "food") ? [{
     key: "food",

@@ -128,9 +128,12 @@ function Field({ label, children }) {
   );
 }
 
-export default function LogView({ date, nutrition, notes }) {
+// `mode` (optional): erzwingt eine Ansicht (Tab-Pills "Log-Dashboard"/"Timeline")
+// und blendet den Ansichten-Umschalter aus; ohne Prop gilt die gespeicherte Einstellung.
+export default function LogView({ date, nutrition, notes, mode }) {
   const qc = useQueryClient();
-  const { kcal_goal, protein_goal, carb_ratio, log_view_mode, setSetting } = useSettings();
+  const { kcal_goal, protein_goal, carb_ratio, log_view_mode: stored_view_mode, setSetting } = useSettings();
+  const log_view_mode = mode || stored_view_mode;
   const [text, setText] = useState(notes || "");
   const [loading, setLoading] = useState(false);
   
@@ -346,7 +349,7 @@ export default function LogView({ date, nutrition, notes }) {
 
   // Umschalter steuert nicht nur die Meal-Liste, sondern die gesamte
   // Spaltenstruktur des Tabs (siehe LOG_VIEW_MODES-Verzweigung unten).
-  const viewSwitcher = (
+  const viewSwitcher = mode ? null : (
     <div className="flex gap-1 rounded-full border border-white/10 bg-slate-950/50 p-1">
       {LOG_VIEW_MODES.map(({ value, label, icon: Icon }) => (
         <button key={value}
