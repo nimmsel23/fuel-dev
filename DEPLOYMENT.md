@@ -86,18 +86,26 @@ Aktueller Desktop-Prod-Zustand:
 ### Firebase
 Das Deployment nach Firebase erfolgt getrennt für die Cloud-Seite.
 
-1.  **Manueller Build:** `fuelctl dev build`
-2.  **Manueller Deploy:** `firebase deploy --only hosting`
+1.  **Manueller Build:** `pnpm run build:cloud`
+2.  **Manueller Deploy der Hauptseite:** `firebase deploy --only hosting:client --project fitness-aos`
+
+Die vier Fuel-Mini-Apps sind stabile Fallback-Sites. Sie werden nicht mit dem
+Fuel-Release veröffentlicht. Ein Mini-App-Deploy erfolgt nur manuell und
+einzeln, zum Beispiel `pnpm run deploy:solo:supplements`.
 
 ### Firebase via GitHub Actions
 
 Wichtig zur Zuständigkeit:
-- `fuel-dev` ist die Dev-/localhost-Linie
-- `vitalos/fuel-app` ist die Live-/Release-Linie für Firebase
-- `vitalos/fuel-app` hat lokal weiter den aktiven `pre-push`-Hook, der auf
-  `master` bei relevanten Änderungen automatisch `npm run firebase` ausführt
-  und den Push bei Fehlern abbricht
-- `fuel-release` stößt genau diesen Release-Pfad bequem von oben an
+- `fuel-dev/dev` ist die Entwicklungs- und Preview-Linie; `preview-dev.yml`
+  erstellt einen zeitlich begrenzten Preview-Channel
+- `fuel-dev/master` ist die eigenständige Fuel-Live-Linie
+- `vitalos/fuel-app` auf Branch `vitalos` ist der Quellstand für den Fuel-
+  Firebase-Deploy aus dem VitalOS-Meta-Repo
+- ein `fuel-app`-Pointer-Commit auf `vitalos/master` startet `deploy-fuel.yml`
+  und deployt ausschließlich `hosting:client`
+- `fuel-release` übergibt `dev` an diese Integrationslinie
+- Fuel-Mini-Apps bleiben stabile Fallback-Sites und werden nur einzeln manuell
+  mit `pnpm run deploy:solo:<x>` veröffentlicht
 
 Die GitHub-Actions für Fuel bauen **nicht** in einem nackten Checkout dieses
 Repos, sondern im `vitalos`-Meta-Repo.

@@ -7,9 +7,6 @@ Aktive Arbeitsliste (max. 5 Punkte).
 - [ ] Mini-Apps (`vos-fuel-*`) einmal am Handy prüfen: Google-Login, Splash, Icon, Installation.
 - [ ] VAPID-Key rotieren (`vapid.env`, Private Key steht in der History des öffentlichen Repos
   `nimmsel23/fuel-dev`), danach Push-Abos der Supplement-Erinnerungen neu registrieren lassen.
-- [ ] CI für die Mini-Apps im Meta-Repo (`vitalos/.github/workflows/deploy-fuel-<x>.yml`, Pfadfilter
-  `fuel-app/**`) — ein Pointer-Bump deployt sonst nur `hosting:client`. Berührt Workspace/Lockfile
-  in `~/vitalos`.
 - [ ] CI-Lauf `Deploy Fuel PWA` (Meta-Repo `vitalos`, Commit `5f93106`) prüfen — erster Lauf mit
   `--only hosting:client`, `fuel-vos` hängt davon ab; war beim Abschluss noch `queued`, Ergebnis nicht gesehen.
 - [ ] PreCompact-Hook (`.claude/hooks/pre-compact-fill-docs.sh`): Gemini-Review nach dem Argument-Limit-Fix

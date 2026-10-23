@@ -108,7 +108,7 @@ pnpm run ui:dev       # Vite dev only (kein Backend)
 
 # Deploy
 pnpm run deploy:local   # ./deploy.sh — rsync + build + systemctl restart
-pnpm run deploy:cloud   # build:cloud + firebase deploy --only hosting (LIVE auf fuel-vos.web.app)
+pnpm run deploy:cloud   # build:cloud + firebase deploy --only hosting:client (LIVE auf fuel-vos.web.app)
 pnpm run deploy:preview # build:cloud + 24h-Preview-Channel + Telegram-Link (scripts/deploy-preview.mjs)
 ./deploy.sh            # direkt (= deploy:local)
 
@@ -311,7 +311,7 @@ entfernt (Unit-File gelöscht, disabled, `daemon-reload`).
 ### cloud channel (Firebase PWA)
 ```bash
 pnpm run build:cloud  # VITE_APP_MODE=client → dist-firebase/
-pnpm run deploy:cloud # build:cloud + firebase deploy --only hosting
+pnpm run deploy:cloud # build:cloud + firebase deploy --only hosting:client
 pnpm run cloud:push   # Lokale Cloud-Payloads → Firestore (scripts/firestore-sync.mjs)
 pnpm run cloud:pull   # Firestore → lokale Dateien
 pnpm run catalog:sync -- <uid> # echter Catalog-Sync für nutrition/supplements
@@ -589,7 +589,7 @@ Vier Fuel-Tabs sind als eigene installierbare Apps veröffentlicht — Muster wi
 - **Icons:** `solo-icons/<tab>/`, erzeugt von `pnpm run solo:icons` (`scripts/solo-icons.py`, rsvg-convert, PNGs eingecheckt).
 - **Deploy:** `pnpm run deploy:solo:<log|supplements|mikros|protokoll>`. Die volle App heißt im Hosting jetzt Target `client` (Site `fuel-vos`): `deploy:firebase`/`deploy:cloud`/`deploy-preview.mjs` nutzen `--only hosting:client`; ein nacktes `firebase deploy --only hosting` würde alle fünf Targets deployen. Mapping Target→Site in `.firebaserc`.
 - **Auth:** Firebase-Auth-Domains (`vos-fuel-<x>.web.app` + `.firebaseapp.com`, 8 Einträge) sind im Projekt `fitness-aos` eingetragen (2026-10-16, Identity-Toolkit-Admin-API). Neue Mini-App ⇒ Domain dort ergänzen, sonst scheitert der Google-Login. App Check ist für Firestore/Auth/ML `UNENFORCED`; reCAPTCHA-v3-Key-Domains sind nicht per API prüfbar.
-- **Nicht gebaut / offen:** CI für die Mini-Apps im Meta-Repo (neue Workflows `deploy-fuel-<x>.yml`, Pfadfilter auf `fuel-app/**` — der Pointer-Bump von `fuel-app` würde sonst nur `hosting:client` deployen).
+- **Release-Grenze:** `fuel-release` aktualisiert nur den `fuel-app`-Pointer; `deploy-fuel.yml` baut und deployt nur `hosting:client`. Die Mini-Apps bleiben stabile Fallback-Sites und werden nur einzeln manuell mit `pnpm run deploy:solo:<x>` veröffentlicht.
 
 > **Mini-Apps: kein CI-Deploy (Entscheidung 2026-10-16).** `vos-fuel-log|supplements|mikros|protokoll` sind stable-prod-/Fallback-Apps. Es gibt bewusst keine GitHub-Actions-Deploys dafür (auch nicht per Pointer-Bump in vitalos); deployt wird nur manuell mit `pnpm run deploy:solo:<x>`.
 

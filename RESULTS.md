@@ -33,6 +33,14 @@ Universalisierten VitalOS-Release-Dialog über vendorte Vite-Module eingebunden.
 
 Session-Log mit datierten Ergebnis-Bullets.
 
+## 2026-10-23: Fuel-Release von den Mini-Apps getrennt
+
+- `fuel-release --yes` wählte nur `fuel`. Der VitalOS-Commit `a21a633` verschob trotzdem zusätzlich die vier `vos-fuel-*`-Gitlinks von `05b2051` auf `b5ec24b`, weil `bin/vos-release` sie beim Fuel-Release automatisch mitgepinnt hat.
+- `deploy-fuel.yml` führte seit `cba31a2` zusätzlich `build:solo` aus und deployte `hosting:log`, `hosting:supplements`, `hosting:mikros` und `hosting:protokoll` zusammen mit `hosting:client`. Damit löste ein Fuel-Pointer-Bump auch den Mini-App-Deploy aus.
+- Der Hinweis zu `plan-app` kam vom allgemeinen VitalOS-Pre-Commit-Pointer-Sync. In `a21a633` blieb `plan-app` bei `cd5a27d`; der nicht remote erreichbare Checkout `88766b4` wurde ausdrücklich nicht übernommen. Der Plan-Pointer wurde später separat in `9de2327` aktualisiert.
+- Korrektur: `fuel-release` bumpte keine Mini-App-Pointer mehr; `deploy-fuel.yml` baut und veröffentlicht nur `hosting:client`. Mini-App-Sites bleiben stabile Fallbacks und werden einzeln manuell über `pnpm run deploy:solo:<ziel>` veröffentlicht.
+- Der GitHub-Actions-Lauf zum Release ließ sich wegen nicht erreichbarer GitHub-API nicht nachträglich abrufen; ob der damalige Mini-App-Deploy alle Sites erfolgreich aktualisiert hat, ist daher nicht bestätigt.
+
 ## 2026-10-16: Optimistische Einnahmen und Supplement-Wochentracker
 
 - Einnahmen und Entfernen aktualisieren den gemeinsamen Tagescache sofort. Stabile IDs erlauben direktes Rückgängigmachen; Fehler-Rücknahme betrifft nur den eigenen Befehl und lässt andere Eingaben stehen. Kontowechsel wird beim Patchen und Senden berücksichtigt.

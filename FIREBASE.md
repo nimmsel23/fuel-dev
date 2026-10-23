@@ -9,24 +9,20 @@ Es gibt aktuell zwei relevante Linien mit unterschiedlicher Verantwortung:
 
 ### `fuel-dev`
 
-- Branch `dev`
-- Dev-Checkout
-- Quelle für lokale Desktop-Deploys
-- Ausgangspunkt für Änderungen, die später in den Release-Pfad weitergereicht werden
+- Branch `dev`: Dev-Checkout und Quelle für lokale Desktop-Staging-Deploys
+- Branch `master`: eigenständiger Fuel-Live-Deploy gemäß `.github/workflows/deploy-master.yml`
+- `fuel-release` übergibt Änderungen aus `dev` an die VitalOS-Integrationslinie
 
 ### `vitalos/fuel-app`
 
-- Branch `master`
-- Live-Deploy nach Firebase per lokalem Git-Hook
-- `core.hooksPath=.githooks`
-- `.githooks/pre-push` führt bei relevanten Änderungen auf `master`
-  automatisch `npm run firebase` aus
-- Fehlschlag bricht den Push ab
-- der Top-Level-Wrapper dafür ist `fuel-release`
+- Integrationsbranch `vitalos`, gepinnt durch den `fuel-app`-Gitlink in `~/vitalos`
+- Ein Pointer-Commit auf `vitalos/master` startet den Firebase-Deploy der Fuel-Hauptseite
+- `fuel-release` ist der Top-Level-Wrapper für diesen Release-Pfad
 
 Kurz:
-- `fuel-dev` = Dev + localhost
-- `fuel-app` = Live/Release
+- `fuel-dev/dev` = Entwicklung und lokales Staging
+- `fuel-dev/master` = eigenständiger Fuel-Live-Deploy
+- `vitalos/fuel-app` auf `vitalos` = Quellstand für den Fuel-Deploy aus dem VitalOS-Meta-Repo
 
 ## 2. Zwei verschiedene Deploy-Wege
 
@@ -35,8 +31,8 @@ Kurz:
 Direkt im Fuel-Repo:
 
 ```bash
-npm run build:firebase
-firebase deploy --only hosting --project fitness-aos
+pnpm run build:cloud
+firebase deploy --only hosting:client --project fitness-aos
 ```
 
 Oder äquivalent:
@@ -58,16 +54,25 @@ fuel-release
 
 ### GitHub Actions
 
-Die CI baut Fuel **nicht** in einem nackten Checkout von `fuel-dev`, sondern
-im `vitalos`-Meta-Repo.
+Der Produktionsworkflow `vitalos/.github/workflows/deploy-fuel.yml` läuft bei
+Änderungen am `fuel-app`-Pointer auf `vitalos/master`. Er baut im `vitalos`-
+Meta-Repo und deployt ausschließlich die Hauptseite `hosting:client`.
 
-Der entscheidende Ablauf ist:
+Der Dev-Preview-Workflow `fuel-dev/.github/workflows/preview-dev.yml` baut
+separat einen zeitlich begrenzten Preview-Channel aus dem ausgelösten Commit.
+Dieser Preview ist kein Live-Release.
 
-1. `fuel-dev`-Workflow checkt `nimmsel23/vitalos` aus
+Der Produktionsablauf ist:
+
+1. `deploy-fuel.yml` checkt `nimmsel23/vitalos` aus
 2. Submodule werden initialisiert
-3. das Fuel-Submodule wird im Meta-Repo auf den ausgelösten Commit gesetzt
-4. gebaut wird per Workspace im Meta-Repo
-5. deployt wird aus dem Fuel-Submodule heraus nach Firebase Hosting
+3. Fuel wird als Workspace im Meta-Repo gebaut
+4. nach Firebase Hosting wird nur `hosting:client` deployt
+
+Die vier Fuel-Mini-Apps sind stabile Fallback-Sites. Sie werden weder durch
+`fuel-release` gepinnt noch von `deploy-fuel.yml` gebaut oder veröffentlicht.
+Ein Mini-App-Deploy erfordert die explizite manuelle Auswahl eines Ziels, zum
+Beispiel `pnpm run deploy:solo:supplements`.
 
 ## 3. Die Pfade, auf die es wirklich ankommt
 
