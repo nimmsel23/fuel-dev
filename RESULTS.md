@@ -357,3 +357,8 @@ Gemeinsame mini-app-shell erweitert bzw. aktualisiert: versionsunabhängiger öf
 - 250-mg-Referenz auf EPA+DHA begrenzt (EFSA); Gesamtsumme/Einzelarten ohne pauschalen Prozentwert. Wochenansicht zeigt Datenabdeckung und bekannte Mengen; fehlende Details bleiben unbekannt statt scheinbar Null. Neue SQLite-Spalten sind nullable; Schema-Version erneuert alte Aggregat-Caches beim nächsten Abruf.
 - Schwerpunkt, Datenvertrag, Grenzen und nächste Vertiefung in OMEGA3.md dokumentiert. Historische Profile werden nicht per KI zurückgefüllt.
 - Verifiziert: komplette JS-Suite (13 Testdateien), 6 Python-Tests einschließlich USDA-Fälle, v4-Schema/Wochenabfrage und Scan-Persistenz; Local- und Cloud-Vite-Build erfolgreich; git diff --check sauber. API-/OCR-Antworten synthetisch, keine echten KI-Aufrufe oder Änderungen persönlicher Laufzeitdaten; kein Push/Deploy.
+
+## 2026-10-23 — Release-Metadaten beim Omega-3-Release bereinigt
+
+- Öffentliche Repository-URLs werden aus Protokoll, Host und Pfad aufgebaut; Zugangsdaten, Query und Fragment werden ausgeschlossen. Fix aus der gemeinsamen mini-app-shell-Quelle nach Fuel portiert.
+- Gezielte Tests mit temporären Git-Repositories und künstlichem Token in beiden Generatoren erfolgreich.
