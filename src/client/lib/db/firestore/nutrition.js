@@ -15,6 +15,7 @@ import { getUid } from "./core.js";
 import { MICRO_KEYS, zeroMicros, todayISO, getWeekDates, dateToISOWeek } from "./utils.js";
 import { mutateCloudLog } from "../../cloudMutations.js";
 import { getSupplementsCatalog } from "./supplements.js";
+import { DACH, getStatus } from "../../../../shared/config/dach.mjs";
 
 export async function getNutritionCatalog() {
   const ref = doc(db, "nutrition", getUid(), "meta", "catalog");
@@ -317,9 +318,6 @@ export async function getWeeklyMicros(year, week) {
     await batch.commit().catch(err => console.error("Failed to commit knowledge tasks batch:", err));
   }
 
-  // Comparison logic is handled by the caller or we can import it, but shared/config/dach.mjs is ESM
-  // Since we are in the client, we can just import it.
-  const { DACH, getStatus } = await import("../../../../shared/config/dach.mjs");
   const rda_comparison = {};
   for (const [key, dach] of Object.entries(DACH)) {
     const avg = weekTotals[key] / 7;
@@ -341,7 +339,6 @@ export async function getWeeklyMicros(year, week) {
 
 export async function getFastingWindows(days = 14) {
   const { computeFastingWindows } = await import("../../../../shared/utils/fasting.mjs");
-  const { todayISO } = await import("./utils.js");
 
   // Build array of last `days + 1` dates (oldest first)
   const dates = [];

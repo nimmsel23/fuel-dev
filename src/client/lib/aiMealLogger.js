@@ -1,5 +1,6 @@
 import { postJson } from "@api";
 import { withAiRetry } from "./aiRetry.js";
+import { MICRO_KEYS } from "../../shared/config/dach.mjs";
 
 export const isCloud = () =>
   typeof window !== "undefined" &&
@@ -77,7 +78,6 @@ export function findCatalogMatch(catalog, name) {
 
 // Gemeinsames Response-Schema für Makro/Mikro-Analyse (AI-Logger + Re-Analyse).
 export async function analyzeMealText(promptText) {
-  const { MICRO_KEYS } = await import("./db/firestore/utils.js");
   const { vertexAI } = await import("./firebase.js");
   const { getGenerativeModel, SchemaType } = await import("firebase/vertexai");
   const model = getGenerativeModel(vertexAI, {
@@ -192,7 +192,6 @@ export async function resolveMealText({ date, rawText, catalogItems, suppCatalog
     return { matched: true };
   }
 
-  const { MICRO_KEYS } = await import("./db/firestore/utils.js");
   const parsed = await analyzeMealText(rawText);
   if (!parsed?.macros) throw new Error("Gemini hat keine Makros erkannt.");
 

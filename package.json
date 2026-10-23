@@ -114,8 +114,5 @@
     "tailwindcss": "^3.4.13",
     "vite": "^5.4.8",
     "vite-plugin-pwa": "^0.20.5"
-  },
-  "optionalDependencies": {
-    "@vos/cross-app-aliases": "workspace:*"
   }
 }

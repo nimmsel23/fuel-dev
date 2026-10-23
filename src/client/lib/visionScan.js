@@ -3,6 +3,7 @@ import { postJson } from "@api";
 import { vertexAI } from "./firebase.js";
 import { getGenerativeModel } from "firebase/vertexai";
 import { withAiRetry } from "./aiRetry.js";
+import { MICRO_KEYS } from "../../shared/config/dach.mjs";
 
 // Bild → Makros/Mikros. Herausgelöst aus Log/components/ScannerModal.jsx
 // (2026-09-23), damit der Shutter-Frontdoor dieselbe Pipeline nutzt, ohne den
@@ -56,7 +57,6 @@ export async function analyzeMealImage(file) {
   let macrosResult;
 
   if (cloud) {
-    const { MICRO_KEYS } = await import("./db/firestore/utils.js");
     const { SchemaType } = await import("firebase/vertexai");
     const model = getGenerativeModel(vertexAI, {
       model: "gemini-2.5-flash",
