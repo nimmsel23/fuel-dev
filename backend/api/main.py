@@ -1,8 +1,9 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from backend.api.endpoints import food, supplements, journal, nutrition_query, frames, fasting, v3_proxy
-from backend.db.database import Base, engine, SessionLocal
+from backend.db.database import SessionLocal
 from backend.core.v3_backfill import backfill_from_v3_if_needed
+from backend.migrate import migrate
 import os
 
 app = FastAPI(title="Fuel Tracker API", description="NLP-powered macro and supplement tracker")
@@ -18,7 +19,7 @@ app.include_router(v3_proxy.router, prefix="/v3", tags=["v3 Proxy"])  # v4 -> v3
 
 @app.on_event("startup")
 def startup_init():
-    Base.metadata.create_all(bind=engine)
+    migrate()
     db = SessionLocal()
     try:
         result = backfill_from_v3_if_needed(db)

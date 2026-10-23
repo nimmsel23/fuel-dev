@@ -26,7 +26,7 @@ def upgrade() -> None:
     sa.Column('food_logs', sa.JSON(), nullable=False),
     sa.Column('habits', sa.JSON(), nullable=False),
     sa.Column('notes', sa.JSON(), nullable=False),
-    sa.Column('water_ml', sa.JSON(), nullable=False),
+    sa.Column('water_ml', sa.Integer(), nullable=False, server_default='0'),
     sa.PrimaryKeyConstraint('date')
     )
     op.create_index(op.f('ix_daily_journals_date'), 'daily_journals', ['date'], unique=False)

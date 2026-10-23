@@ -17,14 +17,24 @@ dependencies = [
   "watchdog>=3.0.0",
 ]
 
+[project.optional-dependencies]
+cloud = ["firebase-admin>=6.0.0"]
+tui = ["textual>=0.47.0"]
+
 [project.scripts]
 fuel              = "fuel.dispatch:main"
 fuel-meal         = "fuel.meal:main"
 fuel-supplement   = "fuel.supplement:main"
+fuel-ingredient   = "fuel.ingredient:main"
+fuel-week         = "fuel.report:week_main"
+fuel-micro        = "fuel.report:micro_main"
 fuel-catalog-verify = "fuel.catalog_verify:main"
 
 [tool.setuptools]
 include-package-data = true
+
+[tool.setuptools.package-data]
+"fuel.constants" = ["nutrients.yaml"]
 
 [tool.setuptools.packages.find]
 where = ["."]

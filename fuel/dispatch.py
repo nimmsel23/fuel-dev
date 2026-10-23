@@ -40,6 +40,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 from datetime import date, timedelta
@@ -61,7 +62,39 @@ except ImportError:
         def good(self, t): print(f"[ok] {t}")
     msg = _P()
 
-FUEL_REPO_DIR = Path(__file__).resolve().parent.parent
+from .paths import REPO_DIR as FUEL_REPO_DIR
+
+_CLI_MODULES = {
+    "fuel-meal": ("fuel.meal", "main"),
+    "fuel-supplement": ("fuel.supplement", "main"),
+    "fuel-ingredient": ("fuel.ingredient", "main"),
+    "fuel-week": ("fuel.report", "week_main"),
+    "fuel-micro": ("fuel.report", "micro_main"),
+}
+
+
+def _run_cli(name: str, args: list[str]) -> int:
+    """Run an installed Fuel entry point, with a package-only Python fallback."""
+    entry = _CLI_MODULES.get(name)
+    if entry:
+        module, function = entry
+        code = f"from {module} import {function}; {function}()"
+        return subprocess.run([sys.executable, "-c", code, *args]).returncode
+
+    checkout_script = FUEL_REPO_DIR / "bin" / name
+    if checkout_script.is_file():
+        return subprocess.run([str(checkout_script), *args]).returncode
+    executable = shutil.which(name)
+    if executable:
+        return subprocess.run([executable, *args]).returncode
+    typer.echo(f"CLI-Programm '{name}' ist nicht installiert.", err=True)
+    return 127
+
+
+def _run_cli_or_exit(name: str, args: list[str]) -> None:
+    return_code = _run_cli(name, args)
+    if return_code:
+        raise typer.Exit(return_code)
 
 from .catalog import load_supplement_ids
 from .dates import resolve as _resolve_date  # noqa: F401 — re-exposed for tests
@@ -230,9 +263,9 @@ def show_combined_today(extra_args: list[str] | None = None) -> None:
     else:
         # Datums-Flags an Sub-CLIs weitergeben (z.B. --gestern)
         msg.divider("MEALS")
-        subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-meal"), "today", *extra_args])
+        _run_cli("fuel-meal", ["today", *extra_args])
         msg.divider("SUPPLEMENTS")
-        subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-supplement"), "today", *extra_args])
+        _run_cli("fuel-supplement", ["today", *extra_args])
 
 
 def _meal_log(description: str, extra_args: list[str], meal_type: str | None) -> int:
@@ -245,11 +278,11 @@ def _meal_log(description: str, extra_args: list[str], meal_type: str | None) ->
     --save-catalog default an, damit neu von Gemini geschätzte Items beim
     nächsten Mal ein Catalog-Hit sind (kein Gemini-Call mehr nötig).
     """
-    cmd = [str(FUEL_REPO_DIR / "bin" / "fuel-meal"), "log", description, "--save-catalog"]
+    args = ["log", description, "--save-catalog"]
     if meal_type:
-        cmd += ["--meal-type", meal_type]
-    cmd += extra_args
-    return subprocess.run(cmd).returncode
+        args += ["--meal-type", meal_type]
+    args += extra_args
+    return _run_cli("fuel-meal", args)
 
 
 # ── Typer commands (explicit pass-through) ───────────────────────────────────
@@ -260,19 +293,19 @@ _PASSTHROUGH_CTX = {"allow_extra_args": True, "ignore_unknown_options": True, "h
 @app.command(context_settings=_PASSTHROUGH_CTX)
 def meal(ctx: typer.Context):
     """Route to fuel-meal. '--help' geht an fuel-meal selbst (eigene Subcommands: log/narrative/list/today/unlog/move)."""
-    subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-meal"), *ctx.args])
+    _run_cli_or_exit("fuel-meal", ctx.args)
 
 
 @app.command(context_settings=_PASSTHROUGH_CTX)
 def supplement(ctx: typer.Context):
     """Route to fuel-supplement. '--help' geht an fuel-supplement selbst (eigene Subcommands: log/list/unlog)."""
-    subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-supplement"), *ctx.args])
+    _run_cli_or_exit("fuel-supplement", ctx.args)
 
 
 @app.command(context_settings=_PASSTHROUGH_CTX)
 def ingredient(ctx: typer.Context):
     """Route to fuel-ingredient. '--help' geht an fuel-ingredient selbst (eigene Subcommands: add)."""
-    subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-ingredient"), *ctx.args])
+    _run_cli_or_exit("fuel-ingredient", ctx.args)
 
 
 @app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
@@ -287,7 +320,7 @@ def move(ctx: typer.Context):
 
     Beispiel: fuel move --to gestern
     """
-    subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-meal"), "move", *ctx.args])
+    _run_cli_or_exit("fuel-meal", ["move", *ctx.args])
 
 
 @app.command(context_settings=_PASSTHROUGH_CTX)
@@ -296,13 +329,13 @@ def repeat(ctx: typer.Context):
 
     Default: gestern → heute, fzf-Auswahl. Beispiel: fuel repeat --from -3 --to heute
     """
-    subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-meal"), "repeat", *ctx.args])
+    _run_cli_or_exit("fuel-meal", ["repeat", *ctx.args])
 
 
 @app.command()
 def list():
     """List available supplements."""
-    subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-supplement"), "list"])
+    _run_cli_or_exit("fuel-supplement", ["list"])
 
 
 @app.command(context_settings=_PASSTHROUGH_CTX)
@@ -311,57 +344,36 @@ def unlog(ctx: typer.Context):
     args = list(ctx.args)
     if "--meal" in args:
         args.remove("--meal")
-        subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-meal"), "unlog", *args])
+        _run_cli_or_exit("fuel-meal", ["unlog", *args])
     else:
-        subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-supplement"), "unlog", *args])
+        _run_cli_or_exit("fuel-supplement", ["unlog", *args])
 
 
 @app.command()
 def sync(
-    # TODO(2026-09-11, ungeklärt — mit User besprechen): `sync` ist in
-    # bin/fuel's CONTROL_COMMANDS gelistet, d.h. `fuel sync ...` wird dort
-    # IMMER an fuelctl (Firestore-Catalog-Sync, sync <uid>) delegiert, bevor
-    # main() hier überhaupt läuft. Dieser Command ist über den `fuel`-
-    # Entrypoint aktuell unerreichbar — nur via `python -m fuel.dispatch sync`
-    # oder direktem Import. Vor jeder Umbenennung/Vereinheitlichung erst
-    # klären welche der beiden "sync"-Bedeutungen den kurzen Namen behält.
-    #
-    # ZUSÄTZLICH KAPUTT (verifiziert 2026-09-11): selbst direkt aufgerufen
-    # crasht der Import unten mit ModuleNotFoundError — `from firestore.fuel
-    # import push_fuel, pull_fuel` setzt ein Top-Level-Package `firestore` in
-    # fitness-dev voraus, das es nicht gibt. Die echten Funktionen liegen
-    # unter `fitness-dev/fitness/firestore/fuel.py` (push_fuel/pull_fuel
-    # existieren dort). Fix: entweder den Importpfad auf
-    # `fitness.firestore.fuel` korrigieren (und "fitness-dev" bleibt auf dem
-    # sys.path) oder ganz auf eine der anderen Sync-Engines umstellen — siehe
-    # [[project_fuel_sync_paths_overview]] für die komplette Landkarte aller
-    # Sync-Pfade (3 verschiedene Engines hinter 5+ CLI-Einstiegen).
     direction: str = typer.Argument("push", help="push | pull"),
     uid: str = typer.Option(None, "--uid", help="Firebase UID (default: aktiver User)"),
 ):
-    """Fuel-Daten ↔ Firestore synchronisieren (via fitness-dev/firestore).
-
-    ACHTUNG: über `fuel sync` aktuell nicht erreichbar, siehe TODO oben —
-    bin/fuel routet "sync" immer zu fuelctl (andere Sync-Bedeutung)."""
-    sys.path.insert(0, str(FUEL_REPO_DIR.parent / "fitness-dev"))
+    """Nutrition-, Supplement- und Journaldaten mit Firestore synchronisieren."""
+    if direction not in {"push", "pull"}:
+        typer.echo(f"Unbekannte Richtung: {direction} (push | pull)", err=True)
+        raise typer.Exit(2)
     try:
-        from firestore.fuel import push_fuel, pull_fuel
-        from firestore._db import UID as DEFAULT_UID
+        import firebase_admin  # noqa: F401 — optional package dependency
+        from . import firestore as fuel_firestore
     except ImportError as e:
-        typer.echo(f"❌ firestore Package nicht gefunden: {e}", err=True)
+        typer.echo(f"Firestore-Sync nicht verfügbar: {e}. Installiere fuel[cloud].", err=True)
         raise typer.Exit(1)
-
-    target_uid = uid or DEFAULT_UID
-    if direction == "push":
-        typer.echo(f"⬆  Push → Firestore (uid={target_uid})")
-        result = push_fuel(target_uid)
-        typer.echo(f"✅ {result['dates']} Tage · catalog: {result.get('catalog', '–')}")
-    elif direction == "pull":
-        typer.echo(f"⬇  Pull ← Firestore (uid={target_uid})")
-        result = pull_fuel(target_uid)
-        typer.echo(f"✅ nutrition: {result['nutrition']} · supplements: {result['supplements']}")
-    else:
-        typer.echo(f"❌ Unbekannte Richtung: {direction} (push | pull)", err=True)
+    if not fuel_firestore.SA_PATH.exists():
+        typer.echo(f"Service Account nicht gefunden: {fuel_firestore.SA_PATH}", err=True)
+        raise typer.Exit(1)
+    try:
+        if direction == "push":
+            fuel_firestore.cli_push(uid or fuel_firestore.DEFAULT_UID)
+        else:
+            fuel_firestore.cli_pull(uid or fuel_firestore.DEFAULT_UID)
+    except Exception as e:
+        typer.echo(f"Firestore-Sync fehlgeschlagen: {e}", err=True)
         raise typer.Exit(1)
 
 
@@ -427,13 +439,13 @@ def stats(days: int = typer.Option(7, "-d", "--days", help="Anzahl Tage")):
 @app.command(context_settings=_PASSTHROUGH_CTX)
 def week(ctx: typer.Context):
     """Wochenreport — an `fuel-week` weiterreichen (Logik in fuel/report.py:week_main)."""
-    subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-week"), *ctx.args])
+    _run_cli_or_exit("fuel-week", ctx.args)
 
 
 @app.command(context_settings=_PASSTHROUGH_CTX)
 def micro(ctx: typer.Context):
     """Mikronährstoff-Report — an `fuel-micro` weiterreichen (Logik in fuel/report.py:micro_main)."""
-    subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-micro"), *ctx.args])
+    _run_cli_or_exit("fuel-micro", ctx.args)
 
 
 @app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
@@ -472,14 +484,6 @@ def tui_alias(
 
 @app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True}, name="catalog")
 def catalog_alias(
-    # TODO(2026-09-11, ungeklärt — mit User besprechen): `catalog` ist in
-    # bin/fuel's CONTROL_COMMANDS gelistet, d.h. `fuel catalog ...` wird dort
-    # IMMER an fuelctl (Catalog-SERVICE start/stop/status) delegiert, bevor
-    # main() hier überhaupt läuft. Dieser Command (TUI-Catalog-EDITOR) ist
-    # über den `fuel`-Entrypoint aktuell unerreichbar — nur via
-    # `python -m fuel.dispatch catalog` oder direktem Import. Vor jeder
-    # Umbenennung/Vereinheitlichung erst klären welche der beiden "catalog"-
-    # Bedeutungen den kurzen Namen behält.
     ctx: typer.Context,
     date_arg: str = typer.Option(None, "--date", "-d"),
 ):
@@ -532,16 +536,10 @@ def _known_commands() -> set[str]:
 # hier (die gehören zu bin/fuelctl, einer separaten CLI) und keine Supplement-
 # IDs. Ohne diese Liste würde "fuel status"/"fuel dev" als bare Single-Word-
 # Item durchrutschen und als Freitext-Mahlzeit an Gemini gehen.
-#
-# TODO(2026-09-11, ungeklärt — mit User besprechen): divergiert von bin/fuel's
-# CONTROL_COMMANDS ({"status","dev","prod","cloud","sync","catalog","local",
-# "v2"}) — hier fehlen "prod"/"cloud"/"sync"/"catalog"/"v2", dafür sind
-# "logs"/"start"/"stop"/"restart"/"build"/"health" nur hier gelistet. Nur
-# relevant wenn main() ohne bin/fuel als Entrypoint aufgerufen wird (dann
-# greift ausschließlich diese Liste) — vor Vereinheitlichung erst die
-# sync/catalog-Namenskollision klären (siehe TODOs bei den sync-/catalog-
-# Commands weiter unten).
-STACK_CONTROL_WORDS = {"status", "dev", "local", "logs", "start", "stop", "restart", "build", "deploy", "health"}
+STACK_CONTROL_WORDS = {
+    "status", "dev", "prod", "cloud", "local", "v2", "logs", "start", "stop",
+    "restart", "build", "deploy", "health",
+}
 
 
 def main() -> None:
@@ -594,7 +592,7 @@ def main() -> None:
         # Erstes Item ist Supplement → fuel-supplement log <items> <flags>
         supps = [a for a in rest if a in supp_ids]
         other = [a for a in rest if a not in supp_ids]
-        subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuel-supplement"), "log", *supps, *other, *date_flags])
+        _run_cli_or_exit("fuel-supplement", ["log", *supps, *other, *date_flags])
         return
 
     # Stack-Control-Wörter (status/dev/local/logs/...) sind keine Supplement-IDs
@@ -605,7 +603,7 @@ def main() -> None:
     # (weil aus dem Katalog) — ein bare Single-Word-Treffer hier ist also so
     # gut wie nie eine echte Mahlzeitbeschreibung.
     if target in STACK_CONTROL_WORDS:
-        subprocess.run([str(FUEL_REPO_DIR / "bin" / "fuelctl"), *rest])
+        _run_cli_or_exit("fuelctl", rest)
         return
 
     # NL-Mahlzeitbeschreibung(en) → EIN Meal-Log. Mehrere Quoted-Args werden

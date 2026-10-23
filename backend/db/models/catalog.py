@@ -24,6 +24,8 @@ class MealCatalogItem(Base):
     components = Column(JSON, default=list)
     addons = Column(JSON, default=list)
     default_addon_ids = Column(JSON, default=list)
+    micros = Column(JSON, default=dict, nullable=False)
+    micros_meta = Column(JSON, default=dict, nullable=False)
 
     source = Column(String(30), default="manual")
     # server_default=func.now() funktioniert nicht über alle DBs (SQLite kennt now() nicht)
@@ -42,6 +44,7 @@ class SupplementCatalogItem(Base):
     default_dose = Column(Float, nullable=True)
     default_time_of_day = Column(String(20), default="any")
     micros = Column(JSON, default=dict)
+    notes = Column(Text, nullable=True)
 
     # server_default=func.now() funktioniert nicht über alle DBs (SQLite kennt now() nicht)
     # stattdessen Python-default verwenden

@@ -13,6 +13,7 @@ except ImportError:
     yaml = None
 
 from .menu import select_from_menu
+from .paths import REPO_DIR
 
 try:
     from wasabi import Printer
@@ -40,7 +41,7 @@ def _nutrition_dir() -> Path:
 
 def _catalog_dir() -> Path:
     """Catalog directory relative to fuel-dev repo."""
-    return Path(__file__).resolve().parent.parent / "catalogs" / "nutrition" / "meals"
+    return REPO_DIR / "catalogs" / "nutrition" / "meals"
 
 
 def _lookup_nutrition(name: str) -> dict | None:

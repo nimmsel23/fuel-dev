@@ -1,29 +1,38 @@
-# Fuel Tracker
+# Fuel Python API
 
-Ein simples, NLP-gestütztes Makro- und Ernährungs-Journal.
-Anstatt manuell einzelne Zutaten in einer App zu suchen, schreibst du einfach im Freitext, was du gegessen hast (z.B. "Ich hatte einen großen Teller Spaghetti Bolognese mit extra viel Parmesan"). 
-Die Gemini-API analysiert die Mahlzeit, bricht sie in Zutaten auf, schätzt die Makros (Protein, Kohlenhydrate, Fett, Kalorien) und speichert das Ergebnis in einer SQL-Datenbank ab.
+`backend/` ist der FastAPI-Port des Fuel-Trackers. Der Tagesdatensatz wird in
+`DailyJournal` gespeichert; Food- und Supplement-Einträge sowie deren
+Mikronährstoffprofile bleiben innerhalb des Tagesdatensatzes nachvollziehbar.
 
-## Voraussetzungen
-- Python 3.10+
-- Poetry
-- Gemini API Key (`GEMINI_API_KEY` in der `.env` oder der Umgebung)
+## Start
 
-## Installation
+Benötigt Python 3.11 oder neuer. Aus dem Repository-Root:
 
 ```bash
-cd /home/alpha/fuel
-poetry install
+python3 -m venv backend/.venv
+backend/.venv/bin/pip install -r backend/requirements.txt
+backend/.venv/bin/python -m backend.migrate
+backend/.venv/bin/uvicorn backend.api.main:app --host 127.0.0.1 --port 4000
 ```
 
-## Nutzung (CLI)
+`backend/start-server.sh` und `bin/fuel-devctl` führen die Migration vor dem
+Serverstart aus. Der API-Startup prüft und aktualisiert das Schema ebenfalls.
+Für Schätzungen muss `GEMINI_API_KEY` in der Umgebung oder in
+`~/.env/fuel.env` gesetzt sein. Ohne Gemini liefern Schätzrouten HTTP 503 und
+speichern keine erfundenen Werte.
 
-```bash
-# Beispiel-Nutzung über die CLI
-poetry run python main.py "250g Magerquark mit einer Handvoll Blaubeeren und 30g Mandeln"
-```
+## Datenbank und Migrationen
 
-Dies wird:
-1. Eine SQLite Datenbank (`fuel_tracker.db`) anlegen (sofern nicht anders über `DATABASE_URL` konfiguriert).
-2. Gemini nach den Makros fragen.
-3. Die Mahlzeit als Eintrag in der Datenbank speichern.
+Standardmäßig verwendet Fuel
+`~/.aos/fuel/nutrition/nutrition.db`. `DATABASE_URL` kann auf eine andere
+SQLite- oder PostgreSQL-Datenbank zeigen. Alembic verwaltet Schemaänderungen;
+`create_all()` wird beim Start nicht mehr als Upgrade-Ersatz verwendet.
+
+Ein vollständiges, bisher unversioniertes v4-Schema wird einmalig auf die
+bekannte Basisrevision gestempelt und danach bis zum aktuellen Stand migriert.
+Bei einem unvollständigen Schema bricht der Start mit einer Diagnose ab,
+anstatt Tabellen oder Daten still zu überschreiben. Vor manuellen Migrationen
+sollte eine Sicherung der Datenbank erstellt werden.
+
+Details zu den behobenen Fehlern und zu älteren aggregierten Mikronährstoffen
+stehen in [BUGFIXES.md](BUGFIXES.md).

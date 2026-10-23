@@ -39,8 +39,8 @@ def upgrade() -> None:
     sa.Column('addons', sa.JSON(), nullable=True),
     sa.Column('default_addon_ids', sa.JSON(), nullable=True),
     sa.Column('source', sa.String(length=30), nullable=True),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
-    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('CURRENT_TIMESTAMP'), nullable=True),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('CURRENT_TIMESTAMP'), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_meal_catalog_id'), 'meal_catalog', ['id'], unique=False)
@@ -53,8 +53,8 @@ def upgrade() -> None:
     sa.Column('default_dose', sa.Float(), nullable=True),
     sa.Column('default_time_of_day', sa.String(length=20), nullable=True),
     sa.Column('micros', sa.JSON(), nullable=True),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
-    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('CURRENT_TIMESTAMP'), nullable=True),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('CURRENT_TIMESTAMP'), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_supplement_catalog_id'), 'supplement_catalog', ['id'], unique=False)

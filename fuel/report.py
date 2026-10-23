@@ -30,6 +30,7 @@ from rich.console import Console
 from rich.table import Table
 
 from .dates import resolve_flags as _resolve_date
+from . import paths as _paths  # initializes shared Fuel environment configuration
 
 console = Console()
 
@@ -45,9 +46,14 @@ def _read_day(date_str: str) -> dict | None:
     if not p.exists():
         return None
     try:
-        return json.loads(p.read_text())
-    except (json.JSONDecodeError, OSError):
-        return None
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError, OSError) as exc:
+        raise RuntimeError(f"Tageslog ist beschädigt: {p}") from exc
+    if not isinstance(data, dict) or not isinstance(data.get("meals", []), list):
+        raise RuntimeError(f"Tageslog hat ein ungültiges Format: {p}")
+    if any(not isinstance(meal, dict) for meal in data.get("meals", [])):
+        raise RuntimeError(f"Tageslog enthält ungültige Mahlzeiten: {p}")
+    return data
 
 
 # ── Micro-Referenz ─────────────────────────────────────────────────────────────

@@ -133,6 +133,20 @@ def resolve_catalog_item(item: MealCatalogItem, addon_ids: list[str] | None = No
     addon_label = ", ".join(a.get("label", "") for a in selected_addons if a.get("label"))
     description = f"{item.name} ({addon_label})" if addon_label else item.name
 
+    micros = {
+        key: value for key, value in (item.micros or {}).items()
+        if isinstance(key, str) and isinstance(value, (int, float)) and not isinstance(value, bool)
+    }
+    if selected_set != default_set:
+        for addon in item.addons or []:
+            if addon.get("id") in default_set:
+                for key, value in (addon.get("micros") or {}).items():
+                    micros[key] = micros.get(key, 0) - (value or 0)
+        for addon in selected_addons:
+            for key, value in (addon.get("micros") or {}).items():
+                micros[key] = micros.get(key, 0) + (value or 0)
+        micros = {key: max(0, value) for key, value in micros.items() if value}
+
     return {
         "catalog_id": item.id,
         "type": item.meal_type or "meal",
@@ -142,6 +156,8 @@ def resolve_catalog_item(item: MealCatalogItem, addon_ids: list[str] | None = No
         "protein": round(totals["protein"], 1),
         "carbs": round(totals["carbs"], 1),
         "fat": round(totals["fat"], 1),
+        "micros": micros,
+        "micros_meta": item.micros_meta or {},
     }
 
 

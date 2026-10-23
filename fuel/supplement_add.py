@@ -24,7 +24,12 @@ from . import claude_cli
 from . import gemini
 from . import log as _log
 from .constants.nutrients import MICRO_KEYS as _MICRO_KEYS_LIST
-from .supplement_catalog_tui import CATALOG_PATH, _load, _make_id, _save
+from .supplement_catalog import (
+    CATALOG_PATH,
+    load_catalog_file as _load,
+    make_catalog_id as _make_id,
+    save_catalog_file as _save,
+)
 
 _log.setup()
 console = Console()

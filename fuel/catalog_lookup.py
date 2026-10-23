@@ -17,10 +17,11 @@ from typing import Any
 from loguru import logger
 
 from . import log as _log
+from .paths import REPO_DIR
 
 _log.setup()
 
-REPO_CATALOG_DIR = Path(__file__).resolve().parent.parent / "catalogs" / "nutrition" / "meals"
+REPO_CATALOG_DIR = REPO_DIR / "catalogs" / "nutrition" / "meals"
 FUEL_DATA_DIR = Path(os.getenv("AOS_FUEL_DATA_DIR", str(Path.home() / ".aos" / "fuel"))).expanduser()
 DEFAULT_UID = os.getenv("FUEL_CLOUD_UID", "default")
 
@@ -124,12 +125,13 @@ def load_meals(uid: str | None = None) -> list[dict]:
     path = user_catalog_path(uid)
     if path.exists():
       try:
-          data = json.loads(path.read_text())
-          items = data.get("items") if isinstance(data, dict) else []
-          if isinstance(items, list):
-              return items
-      except Exception as e:
-          logger.warning(f"user catalog read failed for {path}: {e}")
+          data = json.loads(path.read_text(encoding="utf-8"))
+      except (json.JSONDecodeError, UnicodeDecodeError, OSError) as e:
+          raise RuntimeError(f"Meal-Katalog ist beschädigt: {path}; Datei wurde nicht überschrieben") from e
+      items = data.get("items", []) if isinstance(data, dict) else None
+      if not isinstance(items, list) or any(not isinstance(item, dict) for item in items):
+          raise RuntimeError(f"Meal-Katalog hat ein ungültiges Format: {path}; Datei wurde nicht überschrieben")
+      return items
     logger.info(f"catalog compat fallback → repo path for uid={uid or active_uid()}")
     return _load_catalog_from_repo()
 
@@ -291,11 +293,17 @@ def save_meal(name: str, macros: dict[str, float], *, source: str = "gemini", ui
     raw = {"items": [], "deleted_ids": []}
     if catalog_path.exists():
         try:
-            loaded = json.loads(catalog_path.read_text())
-            if isinstance(loaded, dict):
-                raw = loaded
+            loaded = json.loads(catalog_path.read_text(encoding="utf-8"))
         except Exception as e:
-            logger.warning(f"user catalog parse failed for {catalog_path}: {e}")
+            raise RuntimeError(f"Meal-Katalog ist beschädigt: {catalog_path}; Datei wurde nicht überschrieben") from e
+        if not isinstance(loaded, dict) or not isinstance(loaded.get("items", []), list):
+            raise RuntimeError(f"Meal-Katalog hat ein ungültiges Format: {catalog_path}; Datei wurde nicht überschrieben")
+        if any(not isinstance(item, dict) for item in loaded.get("items", [])):
+            raise RuntimeError(f"Meal-Katalog enthält ungültige Einträge: {catalog_path}; Datei wurde nicht überschrieben")
+        deleted_ids = loaded.get("deleted_ids", [])
+        if not isinstance(deleted_ids, list) or any(not isinstance(item_id, str) for item_id in deleted_ids):
+            raise RuntimeError(f"Meal-Katalog deleted_ids ist ungültig: {catalog_path}; Datei wurde nicht überschrieben")
+        raw = loaded
     base_id = f"meal_{_slugify(name)}"
     item_id = base_id
     n = 2

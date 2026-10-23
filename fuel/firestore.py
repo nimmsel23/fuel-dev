@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 from loguru import logger
 import yaml
+from .paths import REPO_DIR
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
@@ -21,7 +22,7 @@ SA_PATH = Path(
 
 DEFAULT_UID = os.getenv("FUEL_CLOUD_UID", "default")
 BATCH_LIMIT = 400  # Firestore: 500 ops/batch hard limit
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = REPO_DIR
 
 # ── Lazy Firestore connection ─────────────────────────────────────────────────
 
@@ -614,6 +615,7 @@ def cli_push(uid: str | None = None, data_dir: Path | None = None) -> None:
             return
         logger.info(f"Auto-Discovery: {len(uids)} UID(s) gefunden → {uids}")
 
+    errors = []
     for u in uids:
         dd = data_dir or data_dir_for(u)
         logger.info(f"🚀 push uid={u} (dir={dd})")
@@ -622,6 +624,9 @@ def cli_push(uid: str | None = None, data_dir: Path | None = None) -> None:
             logger.success(f"  ✓ uid={u}: {stats['written']} writes, {stats['skipped']} skipped")
         except Exception as e:
             logger.error(f"  ✗ uid={u}: {e}")
+            errors.append(f"{u}: {e}")
+    if errors:
+        raise RuntimeError("Firestore push failed: " + "; ".join(errors))
 
 
 def cli_pull(uid: str | None = None, data_dir: Path | None = None) -> None:
@@ -634,6 +639,7 @@ def cli_pull(uid: str | None = None, data_dir: Path | None = None) -> None:
             logger.warning("Keine UIDs lokal gefunden.")
             return
 
+    errors = []
     for u in uids:
         dd = data_dir or data_dir_for(u)
         dates = set(collect_dates(dd))
@@ -641,6 +647,7 @@ def cli_pull(uid: str | None = None, data_dir: Path | None = None) -> None:
             dates.update(collect_remote_dates(u))
         except Exception as e:
             logger.warning(f"Remote-Date-Discovery fehlgeschlagen für uid={u}: {e}")
+            errors.append(f"{u} date discovery: {e}")
         dates = sorted(dates)
         logger.info(f"📥 pull uid={u}: {len(dates)} Tage")
         for d in dates:
@@ -654,6 +661,7 @@ def cli_pull(uid: str | None = None, data_dir: Path | None = None) -> None:
                     r[name] = fn(d, "pull", u, dd)
                 except Exception as e:
                     r[name] = {"error": str(e)}
+                    errors.append(f"{u} {d} {name}: {e}")
             logger.info(f"  → {d}: {r}")
 
         # Catalog pulls
@@ -666,5 +674,8 @@ def cli_pull(uid: str | None = None, data_dir: Path | None = None) -> None:
                 cat[name] = fn("pull", u, dd)
             except Exception as e:
                 cat[name] = {"error": str(e)}
+                errors.append(f"{u} catalog {name}: {e}")
         logger.info(f"  → catalog: {cat}")
         logger.success(f"  ✓ pull uid={u} abgeschlossen")
+    if errors:
+        raise RuntimeError("Firestore pull failed: " + "; ".join(errors))

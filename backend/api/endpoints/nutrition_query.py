@@ -9,9 +9,8 @@ Portiert aus fuel-dev (Node/Fastify):
 
 Datenmodell-Unterschied zum Node-Original: Python nutzt "Journal-First"
 (DailyJournal.food_logs / .micros_sum) statt Datei-pro-Tag-JSON + separatem
-SQLite-Meal-Micros-Cache. Micros werden bereits beim Logging (Gemini) auf
-Dokumentebene in micros_sum aggregiert (siehe food.py::log_food) — weekly/daily
-lesen hier direkt micros_sum statt pro-Meal-Auflösung wie im Node-Original.
+SQLite-Meal-Micros-Cache. Die Tagesaggregate werden aus versionierten
+Pro-Eintrag-Profilen aktualisiert.
 """
 
 from datetime import date as date_cls, datetime, timedelta, timezone
@@ -227,8 +226,8 @@ def search_nutrition(q: str = Query(..., min_length=1), limit: int = Query(20, g
 def get_daily(date_str: str, db: Session = Depends(get_db)):
     """GET /nutrition/daily/{date}
 
-    Tages-Makros + Mikros aggregiert. Mikros kommen aus micros_sum (bereits
-    beim Logging von Gemini geschätzt und aggregiert, siehe food.py::log_food).
+    Tages-Makros + Mikros aggregiert. micros_sum ist das Tages-Indexfeld;
+    nachvollziehbare Profile liegen zusätzlich an den einzelnen Logs.
     """
     try:
         datetime.fromisoformat(date_str)
@@ -275,8 +274,8 @@ def estimate_macros(request: EstimateRequest):
     """POST /nutrition/estimate
 
     Freitext -> Makro-Schätzung via Gemini, reiner Preview-Call ohne Save.
-    Nutzt dieselbe extract_macros_from_text() wie /nutrition/log (inkl.
-    Mock-Fallback wenn Gemini nicht verfügbar ist).
+    Nutzt dieselbe extract_macros_from_text() wie /nutrition/log. Bei
+    fehlendem Gemini ist der Schätzwert nicht verfügbar.
     """
     if not request.text or not request.text.strip():
         raise HTTPException(status_code=400, detail="text fehlt")
@@ -284,7 +283,11 @@ def estimate_macros(request: EstimateRequest):
     try:
         meal_entry = extract_macros_from_text(request.text)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        from backend.core.llm import LLMUnavailableError
+
+        if isinstance(e, LLMUnavailableError):
+            raise HTTPException(status_code=503, detail=str(e))
+        raise HTTPException(status_code=502, detail=f"Gemini-Anfrage fehlgeschlagen: {e}")
 
     return {
         "ok": True,
@@ -325,7 +328,11 @@ def compose_meal(request: ComposeRequest, db: Session = Depends(get_db)):
     try:
         meal_entry = extract_macros_from_text(request.description)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        from backend.core.llm import LLMUnavailableError
+
+        if isinstance(e, LLMUnavailableError):
+            raise HTTPException(status_code=503, detail=str(e))
+        raise HTTPException(status_code=502, detail=f"Gemini-Anfrage fehlgeschlagen: {e}")
 
     composed = {
         "kcal": meal_entry.macros.calories,
@@ -349,6 +356,12 @@ def compose_meal(request: ComposeRequest, db: Session = Depends(get_db)):
             protein=composed["protein"],
             carbs=composed["carbs"],
             fat=composed["fat"],
+            micros={
+                key: value for key, value in (meal_entry.micros.model_dump() if meal_entry.micros else {}).items()
+                if value is not None
+            },
+            micros_meta={},
+            components=composed["components"],
             source="gemini-compose",
         )
         db.add(item)

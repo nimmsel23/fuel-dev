@@ -11,10 +11,10 @@ from pathlib import Path
 from loguru import logger
 
 from . import log as _log  # configures loguru
+from .paths import REPO_DIR
 
 _log.setup()
 
-REPO_DIR = Path(__file__).resolve().parent.parent
 CATALOGS_DIR = REPO_DIR / "catalogs"
 
 

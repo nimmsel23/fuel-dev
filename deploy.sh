@@ -276,17 +276,19 @@ rsync -av --delete \
   --exclude "node_modules" \
   "$SOURCE/frontend/" "$PYTHON_DEST/frontend/"
 
-# Laufzeit-Daten: DATABASE_URL zeigt (siehe backend/core/config.py) per
-# Default auf die laufende Postgres (fuel_tracker_db, :5432) — ein Netzwerk-
-# Service, kein Datei-Symlink nötig, automatisch von jeder Stage aus gleich
-# erreichbar. Fällt Postgres aus, greift der SQLite-Fallback auf
-# ~/.aos/fuel/nutrition.db (home-relativ, ebenfalls stage-unabhängig).
+# Laufzeit-Daten: fuel-python.service verwendet die SQLite-Datei
+# /home/alpha/.aos/fuel/nutrition/nutrition.db. Vor dem Service-Neustart wird
+# genau diese Datenbank mit demselben DATABASE_URL migriert.
 
 if [[ ! -d "$PYTHON_DEST/backend/.venv" ]]; then
   msg "🐍 Creating venv + installing Python dependencies"
   python3 -m venv "$PYTHON_DEST/backend/.venv"
 fi
 "$PYTHON_DEST/backend/.venv/bin/pip" install -q -r "$PYTHON_DEST/backend/requirements.txt"
+
+msg "🗃️ Applying Fuel Python database migrations"
+(cd "$PYTHON_DEST" && DATABASE_URL="sqlite:////home/alpha/.aos/fuel/nutrition/nutrition.db" \
+  "$PYTHON_DEST/backend/.venv/bin/python" -m backend.migrate)
 
 if systemctl list-unit-files "$PY_SERVICE" >/dev/null 2>&1; then
   msg "🔄 Restarting $PY_SERVICE"

@@ -20,10 +20,9 @@ from pathlib import Path
 
 from . import claude_cli
 from . import log as _log  # configures loguru
-from .env import load_fuel_env
+from . import paths as _paths
 
 _log.setup()
-load_fuel_env()
 
 
 def _read_env_file(path: Path) -> dict[str, str]:

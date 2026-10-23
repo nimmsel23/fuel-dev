@@ -12,6 +12,7 @@ from pathlib import Path
 
 import yaml
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from backend.db.database import SessionLocal
 from backend.db.models.catalog import MealCatalogItem, SupplementCatalogItem
@@ -19,6 +20,21 @@ from backend.db.models.catalog import MealCatalogItem, SupplementCatalogItem
 FUEL_DEV_CATALOGS = Path.home() / "fuel-dev" / "catalogs"
 MEALS_DIR = FUEL_DEV_CATALOGS / "nutrition" / "meals"
 SUPPLEMENTS_YAML = FUEL_DEV_CATALOGS / "supplements" / "catalog.yaml"
+
+
+def _insert_do_nothing(db, model, rows) -> int:
+    if not rows:
+        return 0
+    dialect = db.get_bind().dialect.name
+    if dialect == "postgresql":
+        stmt = pg_insert(model).values(rows)
+    elif dialect == "sqlite":
+        stmt = sqlite_insert(model).values(rows)
+    else:
+        raise RuntimeError(f"Unsupported catalog import database dialect: {dialect}")
+    result = db.execute(stmt.on_conflict_do_nothing(index_elements=["id"]))
+    db.commit()
+    return result.rowcount or 0
 
 
 def import_meals(db) -> int:
@@ -54,18 +70,14 @@ def import_meals(db) -> int:
             "components": data.get("components") or [],
             "addons": data.get("addons") or [],
             "default_addon_ids": data.get("default_addon_ids") or [],
+            "micros": data.get("micros") or {},
+            "micros_meta": data.get("micros_meta") or {},
             "source": data.get("source") or "fuel-dev-import",
         })
 
-    if not rows:
-        return 0
-
-    stmt = pg_insert(MealCatalogItem).values(rows)
-    stmt = stmt.on_conflict_do_nothing(index_elements=["id"])
-    result = db.execute(stmt)
-    db.commit()
-    print(f"[meals] {len(rows)} YAML-Dateien gelesen, {result.rowcount} neu importiert")
-    return result.rowcount
+    imported = _insert_do_nothing(db, MealCatalogItem, rows)
+    print(f"[meals] {len(rows)} YAML-Dateien gelesen, {imported} neu importiert")
+    return imported
 
 
 def import_supplements(db) -> int:
@@ -87,17 +99,12 @@ def import_supplements(db) -> int:
             "default_dose": it.get("default_dose"),
             "default_time_of_day": it.get("default_time_of_day") or "any",
             "micros": it.get("micros") or {},
+            "notes": it.get("notes"),
         })
 
-    if not rows:
-        return 0
-
-    stmt = pg_insert(SupplementCatalogItem).values(rows)
-    stmt = stmt.on_conflict_do_nothing(index_elements=["id"])
-    result = db.execute(stmt)
-    db.commit()
-    print(f"[supplements] {len(rows)} Einträge gelesen, {result.rowcount} neu importiert")
-    return result.rowcount
+    imported = _insert_do_nothing(db, SupplementCatalogItem, rows)
+    print(f"[supplements] {len(rows)} Einträge gelesen, {imported} neu importiert")
+    return imported
 
 
 def main():

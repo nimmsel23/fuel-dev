@@ -9,6 +9,7 @@ from backend.core.llm import extract_macros_from_text
 from backend.core.catalog import find_meal, resolve_catalog_item, generate_meal_id
 from backend.schemas.catalog import MealCatalogUpsert, MealCatalogItemOut
 from datetime import date, datetime, timezone
+from uuid import uuid4
 
 router = APIRouter()
 
@@ -18,6 +19,7 @@ class FoodLogRequest(BaseModel):
     catalog_item_id: str | None = None
     catalog_addon_ids: list[str] | None = None
     meal: dict | None = None
+    save_catalog: bool = False
     delete_meal_id: str | None = None
     water_ml: float | None = None
 
@@ -48,54 +50,60 @@ def _normalize_catalog_name(name: str | None) -> str:
     return " ".join(str(name or "").strip().lower().split())
 
 
-def _upsert_logged_meal_catalog(db: Session, meal: dict) -> None:
+def _clean_micros(profile: object) -> dict[str, float]:
+    if not isinstance(profile, dict):
+        return {}
+    return {
+        key: value
+        for key, value in profile.items()
+        if isinstance(key, str) and isinstance(value, (int, float)) and not isinstance(value, bool)
+    }
+
+
+def _save_logged_meal_to_catalog(db: Session, meal: dict) -> None:
+    """Create a catalog item only on explicit request; never rewrite an existing one."""
     meal_name = (meal.get("description") or meal.get("name") or "").strip()
-    if not meal_name:
+    if not meal_name or meal.get("catalog_id") or meal.get("catalog_item_id"):
         return
 
-    item = None
-    catalog_id = meal.get("catalog_id") or meal.get("catalog_item_id")
-    if catalog_id:
-        item = db.query(MealCatalogItem).filter(MealCatalogItem.id == catalog_id).first()
-    if not item:
-        item = next(
-            (
-                row for row in db.query(MealCatalogItem).all()
-                if _normalize_catalog_name(row.name) == _normalize_catalog_name(meal_name)
-            ),
-            None,
-        )
-
+    normalized_name = _normalize_catalog_name(meal_name)
+    if any(_normalize_catalog_name(row.name) == normalized_name for row in db.query(MealCatalogItem).all()):
+        return
     now = datetime.now(timezone.utc)
-    if not item:
-        item = MealCatalogItem(
-            id=catalog_id or generate_meal_id(meal_name, db),
-            kind="meal",
-            category=meal.get("type") or "meal",
-            name=meal_name,
-            description=meal.get("description") or meal_name,
-            kcal=meal.get("kcal", meal.get("calories", 0)) or 0,
-            protein=meal.get("protein", 0) or 0,
-            carbs=meal.get("carbs", 0) or 0,
-            fat=meal.get("fat", 0) or 0,
-            source=meal.get("source") or "logged",
-            created_at=now,
-            updated_at=now,
-        )
-        db.add(item)
-        return
+    db.add(MealCatalogItem(
+        id=generate_meal_id(meal_name, db),
+        kind="meal",
+        category=meal.get("type") or "meal",
+        name=meal_name,
+        description=meal.get("description") or meal_name,
+        notes=meal.get("notes") or "",
+        kcal=meal.get("kcal", meal.get("calories", 0)) or 0,
+        protein=meal.get("protein", 0) or 0,
+        carbs=meal.get("carbs", 0) or 0,
+        fat=meal.get("fat", 0) or 0,
+        micros=_clean_micros(meal.get("micros")),
+        micros_meta=meal.get("micros_meta") or {},
+        components=meal.get("components") or [],
+        source=meal.get("source") or "logged",
+        created_at=now,
+        updated_at=now,
+    ))
 
-    item.category = item.category or meal.get("type") or "meal"
-    item.meal_type = meal.get("type") or item.meal_type
-    item.name = meal_name
-    item.description = meal.get("description") or meal_name
-    item.notes = meal.get("notes", item.notes or "")
-    item.kcal = meal.get("kcal", meal.get("calories", item.kcal or 0)) or 0
-    item.protein = meal.get("protein", item.protein or 0) or 0
-    item.carbs = meal.get("carbs", item.carbs or 0) or 0
-    item.fat = meal.get("fat", item.fat or 0) or 0
-    item.source = item.source or meal.get("source") or "logged"
-    item.updated_at = now
+
+def _retime_meal_for_date(meal: dict, target_date: str) -> dict:
+    timestamp = meal.get("logged_at") or meal.get("time")
+    if not timestamp:
+        return meal
+    try:
+        parsed = datetime.fromisoformat(str(timestamp).replace("Z", "+00:00"))
+        target = date.fromisoformat(target_date)
+        adjusted = datetime.combine(target, parsed.timetz())
+    except (TypeError, ValueError):
+        return meal
+    value = adjusted.isoformat()
+    meal["logged_at"] = value
+    meal["time"] = value
+    return meal
 
 
 def _normalize_meal_for_client(meal: dict) -> dict:
@@ -114,15 +122,12 @@ def log_food(request: FoodLogRequest, db: Session = Depends(get_db)):
     target_date = request.date or date.today().isoformat()
     journal = db.query(DailyJournal).filter(DailyJournal.date == target_date).first()
 
-    if not journal:
-        journal = DailyJournal(date=target_date, food_logs=[], habits=[], notes=[])
-        db.add(journal)
-        db.commit()
-        db.refresh(journal)
-
     micros: dict = {}
 
     if request.delete_meal_id:
+        if not journal:
+            raise HTTPException(status_code=404, detail="Meal not found")
+        journal.food_logs = journal.food_logs or []
         before = len(journal.food_logs)
         remaining = [meal for meal in journal.food_logs if meal.get("id") != request.delete_meal_id]
         if len(remaining) == before:
@@ -136,6 +141,9 @@ def log_food(request: FoodLogRequest, db: Session = Depends(get_db)):
         return {"ok": True, "data": {"meals": journal.food_logs, "water_ml": journal.water_ml or 0}}
 
     if request.water_ml is not None:
+        if not journal:
+            journal = DailyJournal(date=target_date, food_logs=[], habits=[], notes=[], micros_sum={})
+            db.add(journal)
         journal.water_ml = int(request.water_ml)
         db.commit()
         db.refresh(journal)
@@ -147,8 +155,9 @@ def log_food(request: FoodLogRequest, db: Session = Depends(get_db)):
         if not item:
             raise HTTPException(status_code=404, detail="Catalog item not found")
         resolved = resolve_catalog_item(item, request.catalog_addon_ids)
+        micros = _clean_micros(resolved.get("micros"))
         meal_dict = {
-            "id": f"meal_{int(datetime.now(timezone.utc).timestamp() * 1000)}",
+            "id": f"meal_{uuid4().hex}",
             "original_text": resolved["description"],
             "name": resolved["description"],
             "description": resolved["description"],
@@ -161,13 +170,15 @@ def log_food(request: FoodLogRequest, db: Session = Depends(get_db)):
             "fiber": None,
             "sugar": None,
             "catalog_id": resolved["catalog_id"],
+            "micros": micros,
+            "micros_meta": resolved.get("micros_meta") or {},
             "logged_at": datetime.now(timezone.utc).isoformat(),
             "time": datetime.now(timezone.utc).isoformat(),
         }
     elif request.meal:
         meal = request.meal
         meal_dict = {
-            "id": meal.get("id") or f"meal_{int(datetime.now(timezone.utc).timestamp() * 1000)}",
+            "id": meal.get("id") or f"meal_{uuid4().hex}",
             "original_text": meal.get("description") or meal.get("name") or "",
             "name": meal.get("description") or meal.get("name") or "",
             "description": meal.get("description") or meal.get("name") or "",
@@ -188,8 +199,8 @@ def log_food(request: FoodLogRequest, db: Session = Depends(get_db)):
         # Daily totals alone cannot survive portion edits or a move to another day.
         for key in ("grams", "micros", "micros_meta", "components", "source", "source_url", "barcode"):
             if key in meal:
-                meal_dict[key] = meal[key]
-        micros = meal.get("micros") or {}
+                meal_dict[key] = _clean_micros(meal[key]) if key == "micros" else meal[key]
+        micros = meal_dict.get("micros") or {}
     else:
         if not request.text or not request.text.strip():
             raise HTTPException(status_code=400, detail="text or catalog_item_id required")
@@ -198,8 +209,9 @@ def log_food(request: FoodLogRequest, db: Session = Depends(get_db)):
         hit = find_meal(request.text, db)
         if hit:
             resolved = resolve_catalog_item(hit)
+            micros = _clean_micros(resolved.get("micros"))
             meal_dict = {
-                "id": f"meal_{int(datetime.now(timezone.utc).timestamp() * 1000)}",
+                "id": f"meal_{uuid4().hex}",
                 "original_text": request.text,
                 "name": resolved["description"],
                 "description": resolved["description"],
@@ -212,6 +224,8 @@ def log_food(request: FoodLogRequest, db: Session = Depends(get_db)):
                 "fiber": None,
                 "sugar": None,
                 "catalog_id": resolved["catalog_id"],
+                "micros": micros,
+                "micros_meta": resolved.get("micros_meta") or {},
                 "logged_at": datetime.now(timezone.utc).isoformat(),
                 "time": datetime.now(timezone.utc).isoformat(),
             }
@@ -219,10 +233,14 @@ def log_food(request: FoodLogRequest, db: Session = Depends(get_db)):
             try:
                 meal_entry = extract_macros_from_text(request.text)
             except Exception as e:
-                raise HTTPException(status_code=500, detail=str(e))
+                from backend.core.llm import LLMUnavailableError
+
+                if isinstance(e, LLMUnavailableError):
+                    raise HTTPException(status_code=503, detail=str(e))
+                raise HTTPException(status_code=502, detail=f"Gemini-Anfrage fehlgeschlagen: {e}")
 
             meal_dict = {
-                "id": f"meal_{int(datetime.now(timezone.utc).timestamp() * 1000)}",
+                "id": f"meal_{uuid4().hex}",
                 "original_text": request.text,
                 "name": meal_entry.name,
                 "description": meal_entry.description,
@@ -236,18 +254,22 @@ def log_food(request: FoodLogRequest, db: Session = Depends(get_db)):
                 "sugar": meal_entry.macros.sugar,
                 "logged_at": datetime.now(timezone.utc).isoformat(),
                 "time": datetime.now(timezone.utc).isoformat(),
-                # micros werden absichtlich nicht pro Mahlzeit gespeichert (Speicheroptimierung),
-                # da sie in micros_sum auf Dokumentebene aggregiert werden.
             }
             if meal_entry.micros:
-                micros = meal_entry.micros.model_dump()
+                micros = _clean_micros(meal_entry.micros.model_dump())
+                meal_dict["micros"] = micros
 
     # anfügen und flaggen
+    if not journal:
+        journal = DailyJournal(date=target_date, food_logs=[], habits=[], notes=[], micros_sum={})
+        db.add(journal)
+    journal.food_logs = journal.food_logs or []
     journal.food_logs.append(meal_dict)
     flag_modified(journal, "food_logs")
-    _upsert_logged_meal_catalog(db, meal_dict)
+    if request.save_catalog:
+        _save_logged_meal_to_catalog(db, meal_dict)
 
-    # Firestore-Optimierung: Micros sofort auf Dokumentebene summieren
+    # Update the day aggregate as an index; each meal retains its own profile.
     if not journal.micros_sum:
         journal.micros_sum = {}
 
@@ -281,19 +303,43 @@ def list_meal_catalog(db: Session = Depends(get_db)):
 @router.post("/catalog")
 def upsert_meal_catalog(request: NutritionCatalogPost, db: Session = Depends(get_db)):
     data = request.item
-    item_id = generate_meal_id(data.name, db)
-    item = MealCatalogItem(
-        id=item_id,
-        kind="meal",
-        name=data.name,
-        description=data.description or data.name,
-        kcal=data.kcal,
-        protein=data.protein,
-        carbs=data.carbs,
-        fat=data.fat,
-        source="manual",
-    )
-    db.add(item)
+    fields = data.model_dump(exclude_unset=True)
+    item_id = fields.pop("id", None) or None
+    item = db.query(MealCatalogItem).filter(MealCatalogItem.id == item_id).first() if item_id else None
+    if item is None and not item_id:
+        normalized_name = _normalize_catalog_name(data.name)
+        item = next(
+            (row for row in db.query(MealCatalogItem).all()
+             if _normalize_catalog_name(row.name) == normalized_name),
+            None,
+        )
+
+    now = datetime.now(timezone.utc)
+    if item is None:
+        item = MealCatalogItem(
+            id=item_id or generate_meal_id(data.name, db),
+            kind="meal",
+            category=None,
+            name=data.name,
+            description=data.description or data.name,
+            kcal=0,
+            protein=0,
+            carbs=0,
+            fat=0,
+            components=[],
+            addons=[],
+            default_addon_ids=[],
+            micros={},
+            micros_meta={},
+            source="manual",
+            created_at=now,
+            updated_at=now,
+        )
+        db.add(item)
+
+    for field, value in fields.items():
+        setattr(item, field, value)
+    item.updated_at = now
     db.commit()
     db.refresh(item)
     return {"ok": True, "item": MealCatalogItemOut.model_validate(item).model_dump()}
@@ -347,11 +393,10 @@ def patch_meal_log(request: FoodLogPatchRequest, db: Session = Depends(get_db)):
         # Auf das neue Datum-Journal verweisen
         new_journal = db.query(DailyJournal).filter(DailyJournal.date == new_date).first()
         if not new_journal:
-            new_journal = DailyJournal(date=new_date, food_logs=[], habits=[], notes=[])
+            new_journal = DailyJournal(date=new_date, food_logs=[], habits=[], notes=[], micros_sum={})
             db.add(new_journal)
-            db.commit()
-            db.refresh(new_journal)
 
+        updated_meal = _retime_meal_for_date(updated_meal, new_date)
         _adjust_micros_sum(journal, previous_micros, {})
         _adjust_micros_sum(new_journal, {}, updated_meal.get("micros") or {})
         # Von altem Datum entfernen
@@ -359,6 +404,7 @@ def patch_meal_log(request: FoodLogPatchRequest, db: Session = Depends(get_db)):
         flag_modified(journal, "food_logs")
 
         # Zum neuen Datum hinzufügen
+        new_journal.food_logs = new_journal.food_logs or []
         new_journal.food_logs.append(updated_meal)
         flag_modified(new_journal, "food_logs")
     else:
@@ -367,7 +413,6 @@ def patch_meal_log(request: FoodLogPatchRequest, db: Session = Depends(get_db)):
         journal.food_logs[meal_idx] = updated_meal
         flag_modified(journal, "food_logs")
 
-    _upsert_logged_meal_catalog(db, updated_meal)
     db.commit()
     return {"ok": True, "meal": updated_meal}
 

@@ -11,6 +11,10 @@ from backend.core.config import config
 from backend.schemas.food import MealEntry
 from backend.schemas.catalog import SupplementEstimate
 
+
+class LLMUnavailableError(RuntimeError):
+    """Raised when no real nutrition estimate can be produced."""
+
 # It relies on GOOGLE_API_KEY in the environment if api_key is not passed,
 # but we explicitly pass it for clarity if configured.
 client = None
@@ -28,24 +32,11 @@ def extract_macros_from_text(text: str) -> MealEntry:
     """
     Takes a natural language description of a meal and returns structured
     macro and ingredient information using Gemini.
-    Falls back to mock data if Gemini is not available.
+    Raises LLMUnavailableError if Gemini is unavailable; fabricated values are
+    never returned as if they were a real nutrition estimate.
     """
     if not GENAI_AVAILABLE or client is None:
-        # Fallback mock for testing
-        return MealEntry(
-            name="Mocked: " + text[:20],
-            description=text,
-            ingredients=["ingredient 1", "ingredient 2"],
-            macros={
-                "calories": 500,
-                "protein": 20,
-                "carbs": 60,
-                "fat": 15,
-                "fiber": 5,
-                "sugar": 10,
-            },
-            micros={},
-        )
+        raise LLMUnavailableError("Gemini ist nicht verfügbar; Mahlzeit wurde nicht geschätzt.")
 
     prompt = f"""
     You are an expert nutrition AI. The user has provided a description of what they ate.
@@ -73,16 +64,10 @@ def estimate_supplement_from_text(description: str) -> SupplementEstimate:
     """
     Takes a free-text description of a supplement and returns structured
     catalog data (name, unit, default dose, time of day) using Gemini.
-    Falls back to mock data if Gemini is not available.
+    Raises LLMUnavailableError if Gemini is unavailable.
     """
     if not GENAI_AVAILABLE or client is None:
-        # Fallback mock for testing
-        return SupplementEstimate(
-            name=description[:30],
-            unit="mg",
-            default_dose=500,
-            default_time_of_day="morning",
-        )
+        raise LLMUnavailableError("Gemini ist nicht verfügbar; Supplement wurde nicht geschätzt.")
 
     prompt = f"""
     Du bist Ernährungsexperte. Analysiere die folgende Supplement-Beschreibung

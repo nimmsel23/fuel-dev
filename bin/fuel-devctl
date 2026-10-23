@@ -35,6 +35,7 @@ DEPLOY_SCRIPT = DEV_DIR / "deploy.sh"
 BACKEND_PORT = os.getenv("FUEL_BACKEND_PORT", os.getenv("FUEL_V4_PORT", "4000"))
 BACKEND_HEALTH_URL = f"http://127.0.0.1:{BACKEND_PORT}/health"
 BACKEND_DIR = DEV_DIR / "backend"
+BACKEND_PYTHON = BACKEND_DIR / ".venv" / "bin" / "python"
 BACKEND_UVICORN = BACKEND_DIR / ".venv" / "bin" / "uvicorn"
 BACKEND_LOGFILE = Path("/tmp/fuel-backend-dev.log")
 BACKEND_PIDFILE = Path("/tmp/fuel-backend-dev.pid")
@@ -168,6 +169,11 @@ def _start_backend():
         return
     if not BACKEND_UVICORN.exists():
         msg.fail(f"backend venv not found ({BACKEND_UVICORN}) — run: python3 -m venv backend/.venv && backend/.venv/bin/pip install -r backend/requirements.txt")
+        return
+
+    migration = subprocess.run([str(BACKEND_PYTHON), "-m", "backend.migrate"], cwd=DEV_DIR)
+    if migration.returncode != 0:
+        msg.fail("backend migrations failed; backend was not started")
         return
 
     BACKEND_LOGFILE.touch()
@@ -409,6 +415,10 @@ def dev(target: str = typer.Argument("v3", help="v3 | v4 — welcher Prozess lä
         if is_backend_running():
             msg.info("Stopping backgrounded backend (port freed for foreground reload)...")
             _stop_backend()
+        migration = subprocess.run([str(BACKEND_PYTHON), "-m", "backend.migrate"], cwd=DEV_DIR)
+        if migration.returncode != 0:
+            msg.fail("backend migrations failed; foreground server was not started")
+            raise typer.Exit(migration.returncode)
         msg.divider("Foreground Mode (v4)")
         try:
             subprocess.run([str(BACKEND_UVICORN), "backend.api.main:app", "--host", BACKEND_HOST, "--port", BACKEND_PORT, "--reload"], cwd=DEV_DIR)

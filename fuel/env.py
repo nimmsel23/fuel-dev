@@ -15,8 +15,15 @@ def load_env_file(path: Path) -> None:
             if not line or line.startswith("#"):
                 continue
             key, sep, value = line.partition("=")
-            if sep:
-                os.environ.setdefault(key.strip(), value.strip())
+            key = key.strip()
+            if not sep or not key:
+                continue
+            if key.startswith("export "):
+                key = key[7:].strip()
+            value = value.strip()
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+                value = value[1:-1]
+            os.environ.setdefault(key, value)
 
 
 def load_fuel_env() -> None:

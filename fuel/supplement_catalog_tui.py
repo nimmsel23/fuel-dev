@@ -6,38 +6,17 @@ mit welcher Standarddosis/Uhrzeit/Micros.
 """
 from __future__ import annotations
 
-import time
-from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
-import yaml
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import DataTable, Footer, Header, Input, Label, Static
-
-REPO_DIR = Path(__file__).resolve().parent.parent
-CATALOG_PATH = REPO_DIR / "catalogs" / "supplements" / "catalog.yaml"
-
-
-def _load(path: Path) -> dict[str, Any]:
-    if not path.exists():
-        return {"version": 1, "updated_at": "", "items": []}
-    data = yaml.safe_load(path.read_text()) or {}
-    data.setdefault("items", [])
-    return data
-
-
-def _save(path: Path, data: dict[str, Any]) -> None:
-    data["updated_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-    path.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True))
-
-
-def _make_id(name: str) -> str:
-    base = "".join(c.lower() if c.isalnum() else "_" for c in name).strip("_")
-    return base or f"supp_{int(time.time())}"
+from .supplement_catalog import CATALOG_PATH
+from .supplement_catalog import load_catalog_file as _load
+from .supplement_catalog import make_catalog_id as _make_id
+from .supplement_catalog import save_catalog_file as _save
 
 
 class EditModal(ModalScreen[dict | None]):

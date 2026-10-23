@@ -34,11 +34,12 @@ from . import gemini
 from . import log as _log
 from .sources import usda as _usda
 from .constants.nutrients import ALL_KEYS, MACRO_KEYS, MICRO_KEYS
+from .paths import REPO_DIR
 
 _log.setup()
 console = Console()
 
-INGREDIENTS_DIR = Path(__file__).resolve().parent.parent / "catalogs" / "nutrition" / "ingredients"
+INGREDIENTS_DIR = REPO_DIR / "catalogs" / "nutrition" / "ingredients"
 
 DEFAULT_DIFF_THRESHOLD = 0.15  # 15% relative Abweichung → flaggen statt still mitteln
 

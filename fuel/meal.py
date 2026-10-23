@@ -17,6 +17,7 @@ import os
 import re as _re
 import subprocess
 import sys
+from uuid import uuid4
 from datetime import date, datetime, timezone
 from pathlib import Path
 
@@ -25,6 +26,8 @@ from wasabi import Printer
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from rich.console import Console
 from rich.table import Table
+
+from . import paths as _paths
 
 from .dates import resolve_flags as _resolve_date, extract_date_hint as _extract_date_hint, resolve as _resolve_one
 from .narrative import parse as _parse_narrative, spread_times as _spread_times
@@ -115,15 +118,6 @@ def gum_log(level: str, text: str):
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-def _load_env():
-    env_path = Path(__file__).resolve().parent.parent / ".env"
-    if env_path.exists():
-        for line in env_path.read_text().splitlines():
-            if "=" in line and not line.startswith("#"):
-                k, v = line.split("=", 1)
-                os.environ[k.strip()] = v.strip()
-
-_load_env()
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 
@@ -134,18 +128,23 @@ NUTRITION_DIR = DATA_DIR / "nutrition"
 
 def _load_log_local(date_str: str) -> dict:
     p = NUTRITION_DIR / f"{date_str}.json"
-    if p.exists():
-        try:
-            log = json.loads(p.read_text())
-            # Firestore-Pull (firestore-sync.mjs pull()) schreibt Docs 1:1 ohne
-            # "date"-Feld — das Datum steckt dort nur in der Doc-ID/Dateiname.
-            log.setdefault("date", date_str)
-            log.setdefault("meals", [])
-            log.setdefault("water_ml", 0)
-            return log
-        except:
-            pass
-    return {"date": date_str, "meals": [], "water_ml": 0}
+    if not p.exists():
+        return {"date": date_str, "meals": [], "water_ml": 0}
+    try:
+        log = json.loads(p.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise RuntimeError(f"Tageslog ist beschädigt: {p}; Datei wurde nicht überschrieben") from exc
+    if not isinstance(log, dict):
+        raise RuntimeError(f"Tageslog hat ein ungültiges Format: {p}; Datei wurde nicht überschrieben")
+    if "meals" in log and not isinstance(log["meals"], list):
+        raise RuntimeError(f"Tageslog meals ist keine Liste: {p}; Datei wurde nicht überschrieben")
+    if any(not isinstance(meal, dict) for meal in log.get("meals", [])):
+        raise RuntimeError(f"Tageslog meals enthält ungültige Einträge: {p}; Datei wurde nicht überschrieben")
+    # Firestore-Pull kann das Datum auslassen; der Dateiname bleibt maßgeblich.
+    log.setdefault("date", date_str)
+    log.setdefault("meals", [])
+    log.setdefault("water_ml", 0)
+    return log
 
 def _save_log_local(log: dict) -> None:
     NUTRITION_DIR.mkdir(parents=True, exist_ok=True)
@@ -255,10 +254,7 @@ def resync_db_from_json(nutrition_dir: Path) -> int:
     count = 0
     try:
         for f in sorted(nutrition_dir.glob("*.json")):
-            try:
-                log = json.loads(f.read_text())
-            except Exception:
-                continue
+            log = _load_log_local(f.stem)
             if not log.get("meals"):
                 continue
             _sync_log_to_db(log)
@@ -476,7 +472,7 @@ def do_meal_log(description: str, kcal: float, protein: float, carbs: float, fat
     else:
         now_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     meal_entry = {
-        "id": f"meal_{int(datetime.now().timestamp() * 1000)}",
+        "id": f"meal_{uuid4().hex}",
         "catalog_id": catalog_id,
         "type": meal_type,
         "description": f"{qty}x {description}" if qty > 1 else description,
@@ -580,9 +576,10 @@ def do_unlog(day: str | None) -> None:
         delete_id = selected_line.split("|")[0].strip()
 
         log = _load_log_local(target_day)
+        tombstones = _tomb_load(target_day)
         log["meals"] = [m for m in log["meals"] if m["id"] != delete_id]
         _save_log_local(log)
-        _tomb_add(target_day, delete_id)
+        _tomb_save(target_day, tombstones + [delete_id])
         msg.good(f"Mahlzeit {delete_id} gelöscht.")
 
     except FileNotFoundError:
@@ -604,10 +601,13 @@ def _tomb_load(date_str: str) -> list[str]:
     if not p.exists():
         return []
     try:
-        ids = json.loads(p.read_text()).get("deleted_meal_ids")
-        return [x for x in ids if x] if isinstance(ids, list) else []
-    except (json.JSONDecodeError, OSError):
-        return []
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError, OSError) as exc:
+        raise RuntimeError(f"Meal-Tombstones sind beschädigt: {p}; Datei wurde nicht überschrieben") from exc
+    ids = data.get("deleted_meal_ids") if isinstance(data, dict) else None
+    if not isinstance(ids, list) or any(not isinstance(value, str) for value in ids):
+        raise RuntimeError(f"Meal-Tombstones haben ein ungültiges Format: {p}; Datei wurde nicht überschrieben")
+    return [value for value in ids if value]
 
 
 def _tomb_save(date_str: str, ids: list[str]) -> None:
@@ -616,14 +616,6 @@ def _tomb_save(date_str: str, ids: list[str]) -> None:
         "deleted_meal_ids": sorted({x for x in ids if x}),
         "updated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
     }, ensure_ascii=False, indent=2) + "\n")
-
-
-def _tomb_add(date_str: str, meal_id: str) -> None:
-    _tomb_save(date_str, _tomb_load(date_str) + [meal_id])
-
-
-def _tomb_remove(date_str: str, meal_id: str) -> None:
-    _tomb_save(date_str, [x for x in _tomb_load(date_str) if x != meal_id])
 
 
 def do_meal_move(from_day: str, to_day: str, meal_id: str | None = None) -> None:
@@ -663,25 +655,28 @@ def do_meal_move(from_day: str, to_day: str, meal_id: str | None = None) -> None
         msg.fail(f"Meal {meal_id} nicht am {from_day} gefunden.")
         raise SystemExit(1)
 
+    # Read and validate the destination before removing the source entry.
+    dst = _load_log_local(to_day)
+    dst_meals = dst.get("meals", [])
+    from_tombstones = _tomb_load(from_day)
+    to_tombstones = _tomb_load(to_day)
+
     # 1. aus Quelltag entfernen + Tombstone
     src["meals"] = [m for m in src_meals if m.get("id") != meal_id]
     _save_log_local(src)
-    _tomb_add(from_day, meal_id)
+    _tomb_save(from_day, from_tombstones + [meal_id])
 
     # 2. Zeitstempel auf den Zieltag umdatieren (Uhrzeit behalten)
-    t = meal.get("time") or ""
-    meal["time"] = (to_day + t[10:]) if (len(t) >= 10 and t[4] == "-" and t[7] == "-") else f"{to_day}T12:00:00Z"
+    _retime_meal(meal, to_day)
 
     # 3. in Zieltag einfügen (bei ID-Kollision neue ID)
-    dst = _load_log_local(to_day)
-    dst_meals = dst.get("meals", [])
     if any(m.get("id") == meal_id for m in dst_meals):
-        meal["id"] = f"meal_{int(datetime.now().timestamp() * 1000)}"
+        meal["id"] = f"meal_{uuid4().hex}"
     dst_meals.append(meal)
     dst_meals.sort(key=lambda m: m.get("time", ""))
     dst["meals"] = dst_meals
     _save_log_local(dst)
-    _tomb_remove(to_day, meal_id)  # falls dort früher mal getombstoned
+    _tomb_save(to_day, [value for value in to_tombstones if value != meal_id])
 
     msg.good(f"{meal.get('description', '—')} ({meal.get('kcal', 0) or 0:.0f} kcal) "
              f"verschoben: {from_day} → {to_day}")
@@ -734,9 +729,8 @@ def do_meal_repeat(from_day: str, to_day: str, meal_id: str | None = None, qty: 
         if copy.get("micros"):
             copy["micros"] = {k: v * qty for k, v in copy["micros"].items()}
 
-    copy["id"] = f"meal_{int(datetime.now().timestamp() * 1000)}"
-    t = meal.get("time") or ""
-    copy["time"] = (to_day + t[10:]) if (len(t) >= 10 and t[4] == "-" and t[7] == "-") else f"{to_day}T12:00:00Z"
+    copy["id"] = f"meal_{uuid4().hex}"
+    _retime_meal(copy, to_day)
 
     dst = _load_log_local(to_day)
     dst_meals = dst.get("meals", [])
@@ -749,6 +743,19 @@ def do_meal_repeat(from_day: str, to_day: str, meal_id: str | None = None, qty: 
              f"wiederholt: {from_day} → {to_day}")
     d_kcal = sum(m.get("kcal", 0) or 0 for m in dst_meals)
     msg.info(f"  {to_day}: {len(dst_meals)} Mahlzeit(en) · {d_kcal:.0f} kcal")
+
+
+def _retime_meal(meal: dict, target_day: str) -> None:
+    """Update all meal timestamps while preserving clock and UTC offset."""
+    timestamp = meal.get("logged_at") or meal.get("time")
+    try:
+        parsed = datetime.fromisoformat(str(timestamp).replace("Z", "+00:00"))
+        value = datetime.combine(date.fromisoformat(target_day), parsed.timetz()).isoformat()
+    except (TypeError, ValueError):
+        value = f"{target_day}T12:00:00Z"
+    meal["time"] = value
+    if "logged_at" in meal:
+        meal["logged_at"] = value
 
 # ── Typer App ──────────────────────────────────────────────────────────────────
 

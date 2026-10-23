@@ -1,10 +1,13 @@
 import sys
-from backend.db.database import engine, Base, SessionLocal
-from backend.db.models import FoodLog
+import uuid
+from backend.db.database import SessionLocal
+from backend.db.models.journal import DailyJournal
 from backend.core.llm import extract_macros_from_text
+from backend.migrate import migrate
+from datetime import date, datetime, timezone
 
-# Initialize Database
-Base.metadata.create_all(bind=engine)
+def initialize_database():
+    migrate()
 
 def add_meal(user_input: str):
     print(f"Analysiere: '{user_input}' ...")
@@ -25,25 +28,44 @@ def add_meal(user_input: str):
         for ing in meal_entry.ingredients:
             print(f"- {ing}")
             
+    initialize_database()
     db = SessionLocal()
     try:
-        db_log = FoodLog(
-            original_text=user_input,
-            name=meal_entry.name,
-            description=meal_entry.description,
-            ingredients=meal_entry.ingredients,
-            calories=meal_entry.macros.calories,
-            protein=meal_entry.macros.protein,
-            carbs=meal_entry.macros.carbs,
-            fat=meal_entry.macros.fat,
-            fiber=meal_entry.macros.fiber,
-            sugar=meal_entry.macros.sugar,
-            micros=meal_entry.micros.model_dump()
-        )
-        db.add(db_log)
+        target_date = date.today().isoformat()
+        journal = db.query(DailyJournal).filter(DailyJournal.date == target_date).first()
+        if journal is None:
+            journal = DailyJournal(date=target_date, food_logs=[], habits=[], notes=[], micros_sum={})
+            db.add(journal)
+        journal.food_logs = journal.food_logs or []
+        journal.micros_sum = journal.micros_sum or {}
+
+        now = datetime.now(timezone.utc).isoformat()
+        meal = {
+            "id": f"meal_{uuid.uuid4().hex}",
+            "original_text": user_input,
+            "name": meal_entry.name,
+            "description": meal_entry.description,
+            "ingredients": meal_entry.ingredients,
+            "calories": meal_entry.macros.calories,
+            "kcal": meal_entry.macros.calories,
+            "protein": meal_entry.macros.protein,
+            "carbs": meal_entry.macros.carbs,
+            "fat": meal_entry.macros.fat,
+            "fiber": meal_entry.macros.fiber,
+            "sugar": meal_entry.macros.sugar,
+            "micros": {
+                key: value for key, value in meal_entry.micros.model_dump().items()
+                if value is not None
+            },
+            "logged_at": now,
+            "time": now,
+        }
+        journal.food_logs.append(meal)
+        for key, value in meal["micros"].items():
+            if value:
+                journal.micros_sum[key] = journal.micros_sum.get(key, 0) + value
         db.commit()
-        db.refresh(db_log)
-        print(f"\n✅ Erfolgreich in der Datenbank gespeichert (Log ID: {db_log.id})")
+        print(f"\n✅ Erfolgreich in der Datenbank gespeichert (Log ID: {meal['id']})")
     except Exception as e:
         print(f"\n❌ Datenbank-Fehler: {e}")
     finally:

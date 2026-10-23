@@ -17,6 +17,7 @@ import subprocess
 import sys
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from uuid import uuid4
 
 import typer
 from wasabi import Printer
@@ -25,6 +26,7 @@ from rich.console import Console
 from rich.table import Table
 
 from .dates import resolve_flags as _resolve_date
+from .paths import REPO_DIR
 
 console = Console()
 msg = Printer()
@@ -42,16 +44,6 @@ def gum_log(level: str, text: str):
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-def _load_env():
-    env_path = Path(__file__).resolve().parent.parent / ".env"
-    if env_path.exists():
-        for line in env_path.read_text().splitlines():
-            if "=" in line and not line.startswith("#"):
-                k, v = line.split("=", 1)
-                os.environ[k.strip()] = v.strip()
-
-_load_env()
-
 # ── Validation (Pydantic) ──────────────────────────────────────────────────────
 
 class SupplementInput(BaseModel):
@@ -65,8 +57,7 @@ class SupplementInput(BaseModel):
 
 # ── Pfade ──────────────────────────────────────────────────────────────────────
 
-FUEL_DIR      = Path(os.environ.get("AOS_FUEL_DIR", Path.home() / ".aos" / "fuel"))
-REPO_DIR      = Path(__file__).resolve().parent.parent
+FUEL_DIR      = Path(os.environ.get("AOS_FUEL_DATA_DIR", Path.home() / ".aos" / "fuel")).expanduser()
 CATALOG_PATH  = REPO_DIR / "catalogs" / "supplements" / "catalog.yaml"
 LOGS_DIR      = FUEL_DIR / "supplements" / "logs"
 
@@ -77,12 +68,19 @@ def log_path(day: str) -> Path:
 
 def read_log(day: str) -> dict:
     p = log_path(day)
-    if p.exists():
-        try:
-            return json.loads(p.read_text())
-        except:
-            pass
-    return {"date": day, "intakes": []}
+    if not p.exists():
+        return {"date": day, "intakes": []}
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise RuntimeError(f"Supplement-Tageslog ist beschädigt: {p}; Datei wurde nicht überschrieben") from exc
+    if not isinstance(data, dict) or ("intakes" in data and not isinstance(data["intakes"], list)):
+        raise RuntimeError(f"Supplement-Tageslog hat ein ungültiges Format: {p}; Datei wurde nicht überschrieben")
+    if any(not isinstance(intake, dict) for intake in data.get("intakes", [])):
+        raise RuntimeError(f"Supplement-Tageslog enthält ungültige Einträge: {p}; Datei wurde nicht überschrieben")
+    data.setdefault("date", day)
+    data.setdefault("intakes", [])
+    return data
 
 def write_log(day: str, data: dict) -> None:
     LOGS_DIR.mkdir(parents=True, exist_ok=True)
@@ -101,21 +99,21 @@ def load_catalog() -> dict[str, dict]:
     if CATALOG_PATH.exists():
         try:
             import yaml
-            data = yaml.safe_load(CATALOG_PATH.read_text())
-            items = data.get("items", [])
+            data = yaml.safe_load(CATALOG_PATH.read_text(encoding="utf-8"))
         except Exception:
             try:
-                data = json.loads(CATALOG_PATH.read_text())
-                items = data.get("items", [])
-            except Exception:
-                pass
+                data = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
+            except Exception as json_error:
+                raise RuntimeError(f"Supplement-Katalog ist beschädigt: {CATALOG_PATH}") from json_error
+        if not isinstance(data, dict) or not isinstance(data.get("items", []), list):
+            raise RuntimeError(f"Supplement-Katalog hat ein ungültiges Format: {CATALOG_PATH}")
+        items = data.get("items", [])
     return {item["id"]: item for item in items}
 
 # ── Kern-Logik ─────────────────────────────────────────────────────────────────
 
 def _make_id() -> str:
-    import hashlib, time
-    return "supp_" + hashlib.sha1(str(time.time()).encode()).hexdigest()[:12]
+    return f"supp_{uuid4().hex}"
 
 def do_interactive(target_day: str | None = None) -> None:
     """Interactive supplement selection via fzf."""
@@ -391,7 +389,11 @@ def edit_command(
 @app.command(name="catalog")
 def catalog_tui() -> None:
     """Öffnet die Supplement-Katalog-TUI (voll CRUD: Add/Edit/Delete auf catalog.yaml)."""
-    from .supplement_catalog_tui import SupplementCatalogTUI
+    try:
+        from .supplement_catalog_tui import SupplementCatalogTUI
+    except ImportError as exc:
+        msg.fail(f"Katalog-TUI nicht verfügbar: {exc}. Installiere fuel[tui].")
+        raise typer.Exit(1)
     SupplementCatalogTUI().run()
 
 @app.command(name="add")
