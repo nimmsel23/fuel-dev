@@ -1,3 +1,4 @@
+import { OMEGA3_RULES, normalizeOmega3, OMEGA3_KEYS } from "../../shared/config/omega3.mjs";
 import { scanToMeal } from "./mealDetails.js";
 import { postJson } from "@api";
 import { vertexAI } from "./firebase.js";
@@ -86,7 +87,7 @@ export async function analyzeMealImage(file) {
     });
 
     const result = await withAiRetry(() => model.generateContent([
-      PROMPT,
+      PROMPT + "\n" + OMEGA3_RULES,
       { inlineData: { data: b64Raw, mimeType: "image/jpeg" } },
     ]));
     macrosResult = JSON.parse(result.response.text());

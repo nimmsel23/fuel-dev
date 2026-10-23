@@ -1,3 +1,4 @@
+import { OMEGA3_RULES, normalizeOmega3, OMEGA3_KEYS } from "../../shared/config/omega3.mjs";
 import { postJson } from "@api";
 import { withAiRetry } from "./aiRetry.js";
 import { MICRO_KEYS } from "../../shared/config/dach.mjs";
@@ -145,7 +146,7 @@ real bekannten Werten für dieses konkrete Produkt statt an einer Gattungs-Faust
 
 Eingabe: "${promptText}"`;
 
-  const result = await withAiRetry(() => model.generateContent(prompt));
+  const result = await withAiRetry(() => model.generateContent(prompt + "\n" + OMEGA3_RULES));
   return JSON.parse(result.response.text());
 }
 
@@ -198,7 +199,7 @@ export async function resolveMealText({ date, rawText, catalogItems, suppCatalog
   const mealName = parsed.name || rawText;
   const components = normalizeComponents(parsed.components);
   const micros = parsed.micros
-    ? Object.fromEntries(MICRO_KEYS.map((k) => [k, parsed.micros[k] || 0]))
+    ? normalizeOmega3(Object.fromEntries(MICRO_KEYS.filter(k => !OMEGA3_KEYS.includes(k) || parsed.micros[k] != null).map((k) => [k, parsed.micros[k] ?? 0])))
     : null;
   const hasMicros = micros && Object.values(micros).some((v) => v > 0);
 

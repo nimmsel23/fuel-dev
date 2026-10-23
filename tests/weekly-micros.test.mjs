@@ -31,3 +31,19 @@ test('weekly reads keep meal provenance, ignore stale caches and never rewrite l
   assert.equal(writes, 0);
   assert.equal(records.get(`nutrition/alice/logs/${date}`).meals[0].micros, undefined);
 });
+
+test('weekly omega profiles distinguish an unknown split from known EPA+DHA', async () => {
+  records.clear();
+  const date = getWeekDates(2026, 42)[0];
+  records.set('nutrition/alice/meta/catalog', { items: [] });
+  records.set(`nutrition/alice/logs/${date}`, { date, meals: [
+    { id: 'fish', description: 'Fish', micros: { omega3_epa_mg: 180, omega3_dha_mg: 120 } },
+    { id: 'old', description: 'Old total', micros: { omega3_mg: 1200 } },
+  ] });
+  const result = await getWeeklyMicros(2026, 42);
+  assert.equal(result.week_totals.omega3_epa_dha_mg, 300);
+  assert.equal(result.rda_comparison.omega3_epa_dha_mg.coverage, 'partial');
+  assert.equal(result.rda_comparison.omega3_epa_dha_mg.percent_of_dach, null);
+  assert.equal(result.rda_comparison.omega3_ala_mg.avg_daily, null);
+  assert.equal(result.meal_breakdown[date][1].micros.omega3_epa_mg, undefined);
+});

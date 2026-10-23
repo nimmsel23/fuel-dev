@@ -111,3 +111,6 @@ werden aber im Cloud-Frontend nie geladen.
 - [x] Langsame Schreibvorgänge, Rücknahme, Fehlerfälle und schmale Ansichten prüfen; Solo-Update veröffentlichen.
 
 - [x] Offline-Cache über App-Updates erhalten: gemeinsame SW-Strategie, API-Migration, vollständiges Asset-Precache und sichere Installation.
+
+- [x] Omega-3-Erkennung vertiefen: ALA/EPA/DHA/DPA, EPA+DHA separat, Einheiten, Etikettbezug und unbekannte Werte korrekt behandeln; USDA-EPA korrigieren.
+- [ ] Omega-3 weiter vertiefen: Fettsäurebelege pro Quelle/Etikett, Plausibilitätsprüfung gegen Gesamtfett und gezielte Korrektur belegter Fehlprofile (siehe OMEGA3.md).

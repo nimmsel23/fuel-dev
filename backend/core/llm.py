@@ -7,6 +7,7 @@ except ImportError:
     genai = None
     types = None
 
+from fuel.omega3 import OMEGA3_RULES
 from backend.core.config import config
 from backend.schemas.food import MealEntry
 from backend.schemas.catalog import SupplementEstimate
@@ -50,7 +51,7 @@ def extract_macros_from_text(text: str) -> MealEntry:
 
     response = client.models.generate_content(
         model='gemini-2.5-flash',
-        contents=prompt,
+        contents=prompt + "\n" + OMEGA3_RULES,
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
             response_schema=MealEntry,
@@ -79,7 +80,7 @@ def estimate_supplement_from_text(description: str) -> SupplementEstimate:
 
     response = client.models.generate_content(
         model='gemini-2.5-flash',
-        contents=prompt,
+        contents=prompt + "\n" + OMEGA3_RULES,
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
             response_schema=SupplementEstimate,

@@ -349,3 +349,11 @@ Muster wie `vos-training`/`vos-atlas` in fitness-dev: ein Repo, ein Modus je App
 
 ## 2026-10-17 — Offline-Cache bei Updates
 Gemeinsame mini-app-shell erweitert bzw. aktualisiert: versionsunabhängiger öffentlicher API-Cache mit Migration, Asset-Precache standardmäßig aktiv, fehlgeschlagene Installation ersetzt bestehenden Worker nicht. IndexedDB/localStorage bleiben unverändert. Geprüft: 13 Shell-/Update-Tests, Private-Request-Test, Vendor-Parität. Kein Push/Release; kein physischer Geräte-Test.
+
+## 2026-10-23 — Omega-3 als Schwerpunkt der Mikro-Erkennung
+
+- ALA, EPA, DHA, DPA und EPA+DHA separat im gemeinsamen Nährstoffvertrag, Python-Schemas, CLI und Web-Erkennung ergänzt. Text-/Foto-/Mikroanalyse sowie Zutaten-/Supplement-Recherche erhalten Regeln für Einheiten, Portionen, Ölmengen und unbekannte Werte.
+- USDA-EPA-Lücke geschlossen; g/mg explizit behandeln, unspezifisches 18:3 nicht als ALA ausgeben. Ableitungen addieren keine Gesamtsummen doppelt und erfinden keine Fettsäure-Aufteilung.
+- 250-mg-Referenz auf EPA+DHA begrenzt (EFSA); Gesamtsumme/Einzelarten ohne pauschalen Prozentwert. Wochenansicht zeigt Datenabdeckung und bekannte Mengen; fehlende Details bleiben unbekannt statt scheinbar Null. Neue SQLite-Spalten sind nullable; Schema-Version erneuert alte Aggregat-Caches beim nächsten Abruf.
+- Schwerpunkt, Datenvertrag, Grenzen und nächste Vertiefung in OMEGA3.md dokumentiert. Historische Profile werden nicht per KI zurückgefüllt.
+- Verifiziert: komplette JS-Suite (13 Testdateien), 6 Python-Tests einschließlich USDA-Fälle, v4-Schema/Wochenabfrage und Scan-Persistenz; Local- und Cloud-Vite-Build erfolgreich; git diff --check sauber. API-/OCR-Antworten synthetisch, keine echten KI-Aufrufe oder Änderungen persönlicher Laufzeitdaten; kein Push/Deploy.

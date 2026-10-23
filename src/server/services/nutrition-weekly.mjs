@@ -1,3 +1,4 @@
+import { OMEGA3_KEYS, normalizeOmega3, omega3Coverage } from "../../shared/config/omega3.mjs";
 import path from "path";
 import fs from "fs";
 import { zeroMicros, MICRO_KEYS, computeMealMicroTotals } from "./nutrition-micros.mjs";
@@ -118,8 +119,9 @@ function addSupplementMicros(dayTotals, date, supplementCatalogMap, supplementsL
   const suppLog = loadSupplementLog(date, supplementsLogDir);
   const contributions = [];
   for (const intake of suppLog.intakes || []) {
-    const entry = supplementCatalogMap[intake.supplement_id];
-    if (!entry?.micros) continue;
+    const entry = supplementCatalogMap[intake.supplement_id] || { name: intake.supplement_id };
+    if (!entry) continue;
+    const profile = normalizeOmega3(entry.micros || {});
 
     let factor = 1;
     if (intake.dose != null && entry.default_dose != null && entry.default_dose > 0) {
@@ -128,8 +130,8 @@ function addSupplementMicros(dayTotals, date, supplementCatalogMap, supplementsL
 
     const scaledMicros = {};
     for (const k of MICRO_KEYS) {
-      if (entry.micros[k]) {
-        const v = Math.round(entry.micros[k] * factor * 10) / 10;
+      if (profile[k] != null) {
+        const v = Math.round(profile[k] * factor * 10) / 10;
         scaledMicros[k] = v;
         dayTotals[k] = Math.round((dayTotals[k] + v) * 10) / 10;
       }
@@ -162,7 +164,7 @@ export async function assembleWeek(year, week, ctx) {
   const cacheStore = loadWeekCacheStore(reqPaths.nutrition);
   const cacheKey = weekCacheKey(year, week);
   const cached = cacheStore[cacheKey];
-  if (cached && cached.complete) {
+  if (cached && cached.complete && cached.data?.omega3_version === 1) {
     return cached.data;
   }
 
@@ -181,7 +183,7 @@ export async function assembleWeek(year, week, ctx) {
     const log = loadNutritionLog(date, reqPaths.nutrition);
     let mealTotals;
 
-    if (log.micro_totals && log.micro_totals_complete) {
+    if (log.micro_totals && log.micro_totals_complete && log.omega3_version === 1) {
       // Gecacht (aus einem vorherigen Request oder beim Loggen aufgelöst) — kein Rechnen nötig.
       mealTotals = log.micro_totals;
     } else {
@@ -198,6 +200,7 @@ export async function assembleWeek(year, week, ctx) {
       // erstarren.
       const hasResolvedMicros = (log.meals || []).some((m) => m.micros);
       if (hasResolvedMicros) {
+        log.omega3_version = 1;
         log.micro_totals = totals;
         log.micro_totals_complete = complete;
         saveNutritionLog(log, reqPaths.nutrition);
@@ -223,6 +226,7 @@ export async function assembleWeek(year, week, ctx) {
                   if (target) {
                     target.micros = {};
                     for (const k of MICRO_KEYS) {
+                      if (OMEGA3_KEYS.includes(k) && est[k] == null) continue;
                       target.micros[k] = Math.round((est[k] || 0) * 10) / 10;
                     }
                     target.micros_meta = {
@@ -257,7 +261,7 @@ export async function assembleWeek(year, week, ctx) {
 
     dayBreakdown[date] = dayTotals;
     for (const k of MICRO_KEYS) {
-      weekTotals[k] = Math.round((weekTotals[k] + dayTotals[k]) * 10) / 10;
+      weekTotals[k] = Math.round((weekTotals[k] + (dayTotals[k] ?? 0)) * 10) / 10;
     }
 
     // Pro-Eintrag-Aufschlüsselung fürs Detail-Modal ("welcher Eintrag hat
@@ -265,7 +269,6 @@ export async function assembleWeek(year, week, ctx) {
     // bereits aufgelöst (computeMealMicroTotals mutiert in-place) oder
     // stammt aus dem Cache (beim ersten Auflösen persistiert).
     const mealContributions = (log.meals || [])
-      .filter((m) => m.micros)
       .map((m) => ({ kind: "meal", name: m.description, kcal: m.kcal || 0, micros: m.micros, micros_meta: m.micros_meta || null }));
     mealBreakdown[date] = [...mealContributions, ...suppContributions];
   }
@@ -278,12 +281,14 @@ export async function assembleWeek(year, week, ctx) {
       unit: dach.unit,
       total_week: Math.round(weekTotals[key] * 10) / 10,
       avg_daily: Math.round(avg * 10) / 10,
-      percent_of_dach: Math.round((avg / dach.value) * 100),
+      percent_of_dach: dach.value > 0 ? Math.round((avg / dach.value) * 100) : null,
       status: getStatus(avg, dach.value),
     };
   }
 
+  Object.assign(status, omega3Coverage(mealBreakdown, status));
   const result = {
+    omega3_version: 1,
     dates,
     week_totals: weekTotals,
     rda_comparison: status,

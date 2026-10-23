@@ -38,12 +38,19 @@ export const DACH = {
   // (untere Orientierung, ~1mg/Tag) — bewusst konservativ, nicht DACH-Quelle.
   boron_mg:       { value: 1,    unit: "mg", label: "Bor" },
   // Fettsäuren
-  omega3_mg:      { value: 250,  unit: "mg", label: "Omega-3" },
+  // 250 mg applies to EPA+DHA (EFSA), never to total Omega-3/ALA.
+  omega3_mg:      { value: null, unit: "mg", label: "Omega-3 gesamt" },
+  omega3_ala_mg:  { value: null, unit: "mg", label: "Omega-3 ALA" },
+  omega3_epa_mg:  { value: null, unit: "mg", label: "Omega-3 EPA" },
+  omega3_dha_mg:  { value: null, unit: "mg", label: "Omega-3 DHA" },
+  omega3_dpa_mg:  { value: null, unit: "mg", label: "Omega-3 DPA" },
+  omega3_epa_dha_mg: { value: 250, unit: "mg", label: "EPA + DHA", source: "EFSA" },
 };
 
 export const MICRO_KEYS = Object.keys(DACH);
 
 export function getStatus(value, reference) {
+  if (!(reference > 0)) return "unknown";
   if (value >= reference * 0.9) return "ok"; // 90%+
   if (value >= reference * 0.5) return "warning"; // 50-90%
   return "critical"; // <50%

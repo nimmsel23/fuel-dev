@@ -11,6 +11,8 @@ Zusätzlich: `fuel supplement cloud <uid>` zeigt/zieht den in der Firebase-App
 
 from __future__ import annotations
 
+from .omega3 import OMEGA3_RULES, normalize_omega3
+
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -80,7 +82,7 @@ def _build_prompt(query: str, brand: str | None) -> str:
     brand_line = f'Marke: "{brand}"\n' if brand else ""
     return RESEARCH_PROMPT.format(
         query=query, brand_line=brand_line, micro_keys=", ".join(sorted(MICRO_KEYS))
-    )
+    ) + "\n" + OMEGA3_RULES
 
 
 def _research(query: str, brand: str | None, engine: str) -> tuple[dict | None, str]:
@@ -137,9 +139,9 @@ def _clean_micros(raw: object) -> dict:
                 fv = float(v)
             except (TypeError, ValueError):
                 continue
-            if fv > 0:
+            if fv >= 0:
                 out[k] = round(fv, 3)
-    return out
+    return normalize_omega3(out)
 
 
 def _to_catalog_item(parsed: dict, supp_id: str | None, dose_override: float | None) -> dict:

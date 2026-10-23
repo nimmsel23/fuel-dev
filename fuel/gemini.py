@@ -18,6 +18,8 @@ from loguru import logger
 
 from pathlib import Path
 
+from .omega3 import OMEGA3_RULES, OMEGA3_KEYS, normalize_omega3
+from .constants.nutrients import MICRO_KEYS as NUTRIENT_KEYS
 from . import claude_cli
 from . import log as _log  # configures loguru
 from . import paths as _paths
@@ -76,14 +78,7 @@ GEMINI_MODEL = GEMINI_CREDENTIALS[0]["model"] if GEMINI_CREDENTIALS else "gemini
 GEMINI_API_URL = f"{GEMINI_API_BASE}/{GEMINI_MODEL}:generateContent"
 
 MACRO_KEYS = ("kcal", "protein", "carbs", "fat")
-MICRO_KEYS = (
-    "vitamin_a_ug", "vitamin_d_ug", "vitamin_e_mg", "vitamin_k_ug",
-    "vitamin_c_mg", "vitamin_b1_mg", "vitamin_b2_mg", "vitamin_b3_mg",
-    "vitamin_b5_mg", "vitamin_b6_mg", "vitamin_b7_ug", "folate_ug",
-    "vitamin_b12_ug", "calcium_mg", "phosphorus_mg", "magnesium_mg",
-    "iron_mg", "zinc_mg", "selenium_ug", "iodine_ug", "potassium_mg",
-    "sodium_mg", "boron_mg", "omega3_mg",
-)
+MICRO_KEYS = tuple(NUTRIENT_KEYS)
 
 PROMPT_TEMPLATE = """Schätze die Nährwerte (Makro- + Mikronährstoffe) für folgende Beschreibung:
 "{description}"
@@ -152,7 +147,9 @@ def _normalize_macros(raw: dict) -> dict:
 
 
 def _normalize_micros(raw: dict) -> dict:
-    return {k: float(raw.get(k, 0) or 0) for k in MICRO_KEYS}
+    out = {k: float(raw.get(k, 0) or 0) for k in MICRO_KEYS if k not in OMEGA3_KEYS}
+    out.update({k: v for k, v in normalize_omega3(raw).items() if k in OMEGA3_KEYS})
+    return out
 
 
 def _call_one_credential(cred: dict, prompt: str, *, image_b64: str | None = None, mime_type: str = "image/jpeg", retries: int, timeout: int, log_label: str) -> dict:
@@ -248,7 +245,7 @@ def estimate_nutrition(description: str, *, retries: int = 2, timeout: int = 30)
     Primär: Claude-CLI (Haiku, mit WebSearch-Grounding für Markenprodukte).
     Fallback: Gemini, falls Claude-CLI fehlt/fehlschlägt.
     """
-    prompt = PROMPT_TEMPLATE.format(description=description)
+    prompt = PROMPT_TEMPLATE.format(description=description) + "\n" + OMEGA3_RULES
 
     parsed = None
     if claude_cli.available():
@@ -294,7 +291,7 @@ def estimate_vision(image_b64: str, mime_type: str = "image/jpeg", *, retries: i
         "sich diese Makros beziehen — von einer erkannten Verpackungsangabe oder sonst deiner "
         "besten Schätzung der abgebildeten Portionsgröße. Nutze das übliche JSON Format."
     )
-    res = call_gemini(prompt, image_b64=image_b64, mime_type=mime_type, retries=retries, timeout=timeout, log_label="estimate_vision")
+    res = call_gemini(prompt + "\n" + OMEGA3_RULES, image_b64=image_b64, mime_type=mime_type, retries=retries, timeout=timeout, log_label="estimate_vision")
     if not res["ok"]:
         return _empty_response(res["error"])
 

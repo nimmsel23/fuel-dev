@@ -1,3 +1,4 @@
+import { OMEGA3_KEYS, normalizeOmega3 } from "../../shared/config/omega3.mjs";
 import { getMealMicros, upsertMealMicros, getAllMealMicros } from "./nutrition-db.mjs";
 import { MICRO_KEYS } from "../../shared/config/dach.mjs";
 
@@ -72,7 +73,7 @@ export function listAllMealMicros(options = {}) {
 // bei jedem Read erneut nachzuschlagen (vorher: O(Tage×Mahlzeiten) bei
 // jedem Wochen-Request, jetzt einmalig pro Mahlzeit).
 export function resolveMealMicros(meal, catalog, options = {}) {
-  if (meal.micros) return meal.micros;
+  if (meal.micros) return (meal.micros = normalizeOmega3(meal.micros));
 
   const catalogEntry = catalog.items.find(
     (i) => (meal.catalog_id && i.id === meal.catalog_id) || i.name === meal.description
@@ -85,11 +86,12 @@ export function resolveMealMicros(meal, catalog, options = {}) {
   //    werden auf die tatsächlich geloggte kcal skaliert — gleiche Logik wie
   //    der Fallback unten.
   if (catalogEntry?.micros && Object.keys(catalogEntry.micros).length > 0) {
-    const src = catalogEntry.micros;
+    const src = normalizeOmega3(catalogEntry.micros);
     let factor = 1;
     if (meal.kcal && catalogEntry.kcal) factor = meal.kcal / catalogEntry.kcal;
     const resolved = {};
     for (const k of MICRO_KEYS) {
+      if (OMEGA3_KEYS.includes(k) && src[k] == null) continue;
       resolved[k] = Math.round((src[k] || 0) * factor * 10) / 10;
     }
     meal.micros = resolved;
@@ -103,14 +105,16 @@ export function resolveMealMicros(meal, catalog, options = {}) {
   }
 
   // 2) Fallback: separat gepflegtes meal_micros (Gemini-Schätzung, SQLite).
-  const micros = getMicrosForMeal(lookupName, options);
-  if (!micros) return null;
+  const cachedMicros = getMicrosForMeal(lookupName, options);
+  if (!cachedMicros) return null;
+  const micros = normalizeOmega3(cachedMicros);
 
   let factor = 1;
   if (meal.kcal && micros.kcal) factor = meal.kcal / micros.kcal;
 
   const resolved = {};
   for (const k of MICRO_KEYS) {
+    if (OMEGA3_KEYS.includes(k) && micros[k] == null) continue;
     resolved[k] = Math.round((micros[k] || 0) * factor * 10) / 10;
   }
   meal.micros = resolved;
@@ -130,7 +134,7 @@ export function computeMealMicroTotals(meals, catalog, options = {}) {
     const micros = resolveMealMicros(meal, catalog, options);
     if (!micros) { complete = false; continue; }
     for (const k of MICRO_KEYS) {
-      totals[k] = Math.round((totals[k] + micros[k]) * 10) / 10;
+      totals[k] = Math.round((totals[k] + (micros[k] ?? 0)) * 10) / 10;
     }
   }
   return { totals, complete };

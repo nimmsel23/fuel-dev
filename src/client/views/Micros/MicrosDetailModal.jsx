@@ -74,18 +74,18 @@ export default function MicrosDetailModal({ nutrient, week, weekData, onClose })
           {status ? (
             <div className="mb-4 grid grid-cols-3 gap-3 text-center">
               <div className="rounded-xl bg-white/5 p-3">
-                <div className="text-lg font-semibold text-slate-100">{status.avg_daily}</div>
+                <div className="text-lg font-semibold text-slate-100">{status.avg_daily ?? "—"}</div>
                 <div className="text-[10px] uppercase text-slate-500">Ø/Tag</div>
               </div>
               <div className="rounded-xl bg-white/5 p-3">
-                <div className="text-lg font-semibold text-slate-100">{status.dach}</div>
-                <div className="text-[10px] uppercase text-slate-500">DACH-Ref.</div>
+                <div className="text-lg font-semibold text-slate-100">{status.dach ?? "—"}</div>
+                <div className="text-[10px] uppercase text-slate-500">Referenz</div>
               </div>
               <div
                 className="rounded-xl p-3"
                 style={{ background: pctColor(status.percent_of_dach).bg }}
               >
-                <div className="text-lg font-semibold text-white">{status.percent_of_dach}%</div>
+                <div className="text-lg font-semibold text-white">{status.percent_of_dach != null ? `${status.percent_of_dach}%` : "—"}</div>
                 <div className="text-[10px] uppercase text-white/80">Erreicht</div>
               </div>
             </div>
@@ -93,6 +93,11 @@ export default function MicrosDetailModal({ nutrient, week, weekData, onClose })
             <p className="mb-4 text-sm text-slate-500">Keine Daten für diese Woche.</p>
           )}
 
+          {key.startsWith("omega3") && <p className="mb-4 text-xs text-slate-400">
+            ALA, EPA, DHA und DPA werden getrennt erfasst. 250 mg ist die EFSA-Referenz für EPA + DHA.
+            Bekannte Mengen sind bei fehlenden Detailwerten eine Teilsumme, kein vollständiges Profil.
+            {status?.coverage && ` Datenlage: ${status.coverage === "complete" ? "vollständig für erfasste Einträge" : status.coverage === "partial" ? "teilweise" : "unbekannt"} (${status.known_entries}/${status.total_entries} Einträge).`}
+          </p>}
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData}>
@@ -103,7 +108,7 @@ export default function MicrosDetailModal({ nutrient, week, weekData, onClose })
                   contentStyle={{ background: "#0f172a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12 }}
                   formatter={(v) => [`${v} ${unit}`, label]}
                 />
-                {status && (
+                {status?.dach > 0 && (
                   <ReferenceLine y={status.dach} stroke="rgba(255,255,255,0.35)" strokeDasharray="4 4" />
                 )}
                 <Bar
@@ -113,7 +118,7 @@ export default function MicrosDetailModal({ nutrient, week, weekData, onClose })
                   onClick={(d) => d?.fullDate && setSelectedDate(d.fullDate)}
                 >
                   {chartData.map((d, i) => {
-                    const color = pctColor(status ? Math.round((d.value / status.dach) * 100) : null).bg;
+                    const color = pctColor(status?.dach > 0 ? Math.round((d.value / status.dach) * 100) : null).bg;
                     const isActive = d.fullDate === activeDate;
                     return (
                       <RCell
@@ -129,7 +134,7 @@ export default function MicrosDetailModal({ nutrient, week, weekData, onClose })
             </ResponsiveContainer>
           </div>
           <p className="mt-3 text-[11px] text-slate-600">
-            Gestrichelte Linie = DACH-Tagesreferenz ({status?.dach ?? "—"} {unit}). Balken anklicken für Beiträge dieses Tages.
+            Gestrichelte Linie = Tagesreferenz ({status?.dach ?? "—"} {unit}). Balken anklicken für Beiträge dieses Tages.
           </p>
 
           {weekTopContributions.length > 0 && (

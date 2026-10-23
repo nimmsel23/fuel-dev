@@ -1,3 +1,4 @@
+from fuel.omega3 import OMEGA3_KEYS, normalize_omega3
 """Phase 3: Nutrition-Abfrage-Fläche.
 
 Portiert aus fuel-dev (Node/Fastify):
@@ -68,10 +69,13 @@ def get_weekly_micros(year: int, week: int, db: Session = Depends(get_db)):
 
     week_totals = {k: 0.0 for k in MICRO_KEYS}
     day_breakdown = {}
+    omega_entries = []
 
     for d in dates:
         journal = db.query(DailyJournal).filter(DailyJournal.date == d).first()
         day_totals = {k: 0.0 for k in MICRO_KEYS}
+        if journal:
+            omega_entries.extend(normalize_omega3(entry.get("micros") or {}) for entry in (journal.food_logs or []) + [h for h in (journal.habits or []) if h.get("type") == "supplement"])
         if journal and journal.micros_sum:
             for k in MICRO_KEYS:
                 if k in journal.micros_sum:
@@ -89,9 +93,19 @@ def get_weekly_micros(year: int, week: int, db: Session = Depends(get_db)):
             "unit": dach["unit"],
             "total_week": round(week_totals[key], 1),
             "avg_daily": round(avg, 1),
-            "percent_of_dach": round((avg / dach["value"]) * 100) if dach["value"] else 0,
+            "percent_of_dach": round((avg / dach["value"]) * 100) if dach["value"] else None,
             "status": get_status(avg, dach["value"]),
         }
+
+    for key in OMEGA3_KEYS:
+        known = sum(key in entry for entry in omega_entries)
+        complete = known > 0 and known == len(omega_entries)
+        status[key].update(known_entries=known, total_entries=len(omega_entries),
+                           coverage="complete" if complete else "partial" if known else "unknown")
+        if not known:
+            status[key].update(avg_daily=None, total_week=None)
+        if not complete:
+            status[key].update(percent_of_dach=None, status="unknown")
 
     return {
         "ok": True,

@@ -4,8 +4,8 @@ import { NUTRIENTS, pctColor } from "./utils.js";
 function Cell({ pct, dach, unit, avg, onClick }) {
   const { bg, text } = pctColor(pct);
   const title = pct != null
-    ? `${avg} ${unit} / ${dach} ${unit} DACH (${pct}%) — Klicken für Details`
-    : "Keine Daten";
+    ? `${avg} ${unit} / ${dach} ${unit} Referenz (${pct}%) — Klicken für Details`
+    : avg != null ? `${avg} ${unit}/Tag (bekannte Mengen; ohne vollständige Bewertung)` : "Keine Daten";
 
   return (
     <button
@@ -15,7 +15,7 @@ function Cell({ pct, dach, unit, avg, onClick }) {
       className="flex h-9 w-full items-center justify-center rounded text-[10px] font-semibold transition-transform hover:scale-105 hover:ring-2 hover:ring-white/30 active:scale-95"
       style={{ background: bg, color: text }}
     >
-      {pct != null ? `${pct}%` : "—"}
+      {pct != null ? `${pct}%` : avg != null ? `${avg}` : "—"}
     </button>
   );
 }

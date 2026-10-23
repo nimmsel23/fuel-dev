@@ -1,3 +1,4 @@
+import { normalizeOmega3 } from "../../shared/config/omega3.mjs";
 import { MICRO_KEYS } from "../../shared/config/dach.mjs";
 
 const DETAIL_KEYS = ["grams", "micros", "micros_meta", "components", "source", "source_url", "barcode"];
@@ -11,7 +12,7 @@ export function scaleMeal(meal, factor) {
   return {
     ...meal,
     ...Object.fromEntries(["kcal", "protein", "carbs", "fat", "grams"].filter(k => meal[k] != null).map(k => [k, scale(meal[k])])),
-    ...(meal.micros ? { micros: Object.fromEntries(Object.entries(meal.micros).map(([k, v]) => [k, scale(v)])) } : {}),
+    ...(meal.micros ? { micros: Object.fromEntries(Object.entries(meal.micros).map(([k, v]) => [k, v == null ? null : scale(v)])) } : {}),
     ...(meal.micros_meta ? { micros_meta: { ...meal.micros_meta, scaling_factor: (meal.micros_meta.scaling_factor || 1) * factor } } : {}),
     ...(meal.components ? { components: meal.components.map(c => ({ ...c, ...(c.amount_g != null ? { amount_g: scale(c.amount_g) } : {}) })) } : {}),
   };
@@ -19,8 +20,8 @@ export function scaleMeal(meal, factor) {
 
 export function scanToMeal(result) {
   if (!result?.macros) throw new Error("Konnte keine Makros erkennen.");
-  const micros = Object.fromEntries(MICRO_KEYS.filter(k => result.micros?.[k] != null && Number.isFinite(Number(result.micros[k])) && Number(result.micros[k]) >= 0)
-    .map(k => [k, Number(result.micros[k])]));
+  const micros = normalizeOmega3(Object.fromEntries(MICRO_KEYS.filter(k => result.micros?.[k] != null && Number.isFinite(Number(result.micros[k])) && Number(result.micros[k]) >= 0)
+    .map(k => [k, Number(result.micros[k])])));
   const grams = Number(result.grams) > 0 ? Number(result.grams) : null;
   const macros = Object.fromEntries(["kcal", "protein", "carbs", "fat"].map(k => {
     const value = Number(result.macros[k] ?? 0);

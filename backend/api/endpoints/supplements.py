@@ -1,3 +1,4 @@
+from fuel.omega3 import normalize_omega3
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
@@ -50,14 +51,14 @@ def _micros_for_intake(intake: dict, item: SupplementCatalogItem | None) -> dict
         return {}
     scale = dose_value / default_value
     scaled = {}
-    for key, value in item.micros.items():
+    for key, value in normalize_omega3(item.micros).items():
         if key not in MICRO_KEYS or value is None:
             continue
         try:
             amount = float(value) * scale
         except (TypeError, ValueError):
             continue
-        if amount:
+        if amount >= 0:
             scaled[key] = round(amount, 3)
     return scaled
 

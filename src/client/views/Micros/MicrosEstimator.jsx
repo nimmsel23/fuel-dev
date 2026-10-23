@@ -1,3 +1,4 @@
+import { OMEGA3_RULES, normalizeOmega3, OMEGA3_KEYS } from "../../../shared/config/omega3.mjs";
 import React, { useState } from "react";
 import { X, Wand2, Loader2, CheckCircle2, RotateCcw } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -62,7 +63,7 @@ ${NUTRIENTS.map(n => `- ${n.key}: in ${n.unit}`).join("\\n")}
 
 Beispiel: {"kcal": 450, "vitamin_c_mg": 12.5, "iron_mg": 2.1, ...}`;
 
-          const result = await withAiRetry(() => model.generateContent(prompt));
+          const result = await withAiRetry(() => model.generateContent(prompt + "\n" + OMEGA3_RULES));
           estimatedMicros = JSON.parse(result.response.text());
         } else {
           // Local Stub / Throw Error
@@ -72,7 +73,7 @@ Beispiel: {"kcal": 450, "vitamin_c_mg": 12.5, "iron_mg": 2.1, ...}`;
         estimatedItems.push({
           meal_name: mealName,
           kcal: estimatedMicros.kcal || 0,
-          ...Object.fromEntries(MICRO_KEYS.map(k => [k, estimatedMicros[k] || 0]))
+          ...normalizeOmega3(Object.fromEntries(MICRO_KEYS.filter(k => !OMEGA3_KEYS.includes(k) || estimatedMicros[k] != null).map(k => [k, estimatedMicros[k] ?? 0])))
         });
 
         setProgress(Math.round(((i + 1) / mealsToProcess.length) * 100));

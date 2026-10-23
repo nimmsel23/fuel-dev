@@ -1,3 +1,4 @@
+import { OMEGA3_KEYS, normalizeOmega3, omega3Coverage } from "../../../../shared/config/omega3.mjs";
 import { projectCloudLog, outboxEntries, projectCloudCatalog, hasPendingFor } from "../../cloudOutbox.js";
 /**
  * Firestore Nutrition — Katalog, Tages-Logs, History, Wochen-Mikros
@@ -125,7 +126,7 @@ export async function searchNutritionCatalog(q, limit = 20) {
 // cached sie in-place auf `meal.micros` — Pendant zu
 // server/services/nutrition-micros.mjs#resolveMealMicros für den Cloud-Channel.
 function resolveMealMicros(meal, catalog, microsMap) {
-  if (meal.micros) return meal.micros;
+  if (meal.micros) return (meal.micros = normalizeOmega3(meal.micros));
 
   const catalogEntry = catalog.find((i) => (meal.catalog_id && i.id === meal.catalog_id) || i.name === meal.description);
   const lookupName = catalogEntry?.name || meal.description;
@@ -135,11 +136,12 @@ function resolveMealMicros(meal, catalog, microsMap) {
   //    Werte sind absolut für catalogEntry.kcal und werden auf die geloggte
   //    kcal skaliert. Parität zu server/services/nutrition-micros.mjs.
   if (catalogEntry?.micros && Object.keys(catalogEntry.micros).length > 0) {
-    const src = catalogEntry.micros;
+    const src = normalizeOmega3(catalogEntry.micros);
     let factor = 1;
     if (meal.kcal && catalogEntry.kcal) factor = meal.kcal / catalogEntry.kcal;
     const resolved = {};
     for (const k of MICRO_KEYS) {
+      if (OMEGA3_KEYS.includes(k) && src[k] == null) continue;
       resolved[k] = Math.round((src[k] || 0) * factor * 10) / 10;
     }
     meal.micros = resolved;
@@ -156,14 +158,16 @@ function resolveMealMicros(meal, catalog, microsMap) {
   }
 
   // 2) Fallback: separat gepflegtes Micros-Katalog-Item (Gemini-Schätzung).
-  const micros = microsMap[lookupName];
-  if (!micros) return null;
+  const cachedMicros = microsMap[lookupName];
+  if (!cachedMicros) return null;
+  const micros = normalizeOmega3(cachedMicros);
 
   let factor = 1;
   if (meal.kcal && micros.kcal) factor = meal.kcal / micros.kcal;
 
   const resolved = {};
   for (const k of MICRO_KEYS) {
+    if (OMEGA3_KEYS.includes(k) && micros[k] == null) continue;
     resolved[k] = Math.round((micros[k] || 0) * factor * 10) / 10;
   }
   meal.micros = resolved;
@@ -192,7 +196,7 @@ function computeMealMicroTotals(meals, catalog, microsMap) {
       continue;
     }
     for (const k of MICRO_KEYS) {
-      totals[k] = Math.round((totals[k] + micros[k]) * 10) / 10;
+      totals[k] = Math.round((totals[k] + (micros[k] ?? 0)) * 10) / 10;
     }
   }
   return { totals, complete, missing };
@@ -254,7 +258,6 @@ export async function getWeeklyMicros(year, week) {
     const dayTotals = { ...mealTotals };
     const suppLog = suppLogsMap[date] || { intakes: [] };
     const contributions = (log.meals || [])
-      .filter((m) => m.micros)
       .map((m) => ({
         kind: "meal",
         name: m.description,
@@ -263,16 +266,17 @@ export async function getWeeklyMicros(year, week) {
         micros_meta: m.micros_meta || null,
       }));
     for (const intake of suppLog.intakes || []) {
-      const entry = suppCatalogMap[intake.supplement_id];
-      if (entry?.micros) {
+      const entry = suppCatalogMap[intake.supplement_id] || { name: intake.supplement_id };
+      if (entry) {
+        const profile = normalizeOmega3(entry.micros || {});
         let factor = 1;
         if (intake.dose != null && entry.default_dose != null && entry.default_dose > 0) {
           factor = intake.dose / entry.default_dose;
         }
 
         for (const k of MICRO_KEYS) {
-          if (entry.micros[k]) {
-            dayTotals[k] = Math.round((dayTotals[k] + (entry.micros[k] * factor)) * 10) / 10;
+          if (profile[k]) {
+            dayTotals[k] = Math.round((dayTotals[k] + (profile[k] * factor)) * 10) / 10;
           }
         }
         contributions.push({
@@ -280,7 +284,7 @@ export async function getWeeklyMicros(year, week) {
           name: entry.name || intake.supplement_id,
           dose: intake.dose,
           unit: entry.unit || "",
-          micros: Object.fromEntries(MICRO_KEYS.map((k) => [k, entry.micros[k] ? Math.round((entry.micros[k] * factor) * 10) / 10 : 0])),
+          micros: Object.fromEntries(MICRO_KEYS.filter(k => !OMEGA3_KEYS.includes(k) || profile[k] != null).map((k) => [k, profile[k] ? Math.round((profile[k] * factor) * 10) / 10 : 0])),
           micros_meta: {
             source: "supplement_catalog",
             lookup_name: entry.name || intake.supplement_id,
@@ -326,11 +330,12 @@ export async function getWeeklyMicros(year, week) {
       unit: dach.unit,
       total_week: Math.round(weekTotals[key] * 10) / 10,
       avg_daily: Math.round(avg * 10) / 10,
-      percent_of_dach: Math.round((avg / dach.value) * 100),
+      percent_of_dach: dach.value > 0 ? Math.round((avg / dach.value) * 100) : null,
       status: getStatus(avg, dach.value),
     };
   }
 
+  Object.assign(rda_comparison, omega3Coverage(mealBreakdown, rda_comparison));
   const result = { ok: true, year, week, dates, week_totals: weekTotals, rda_comparison, day_breakdown: dayBreakdown, meal_breakdown: mealBreakdown, missing_meals: Array.from(missingMeals) };
 
 

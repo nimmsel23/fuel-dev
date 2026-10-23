@@ -19,6 +19,8 @@ Ausgabe: catalogs/nutrition/ingredients/{id}.json (git-tracked).
 
 from __future__ import annotations
 
+from .omega3 import OMEGA3_RULES, normalize_omega3
+
 import json
 import time
 from datetime import datetime, timezone
@@ -98,7 +100,7 @@ pro 100g, keine anderen Portionsgrößen.
 
 def _from_web(query: str, engine: str) -> tuple[dict | None, str | None]:
     micro_keys_json = ", ".join(f'"{k}": <Zahl oder null>' for k in MICRO_KEYS)
-    prompt = RESEARCH_PROMPT.format(query=query, micro_keys_json=micro_keys_json)
+    prompt = RESEARCH_PROMPT.format(query=query, micro_keys_json=micro_keys_json) + "\n" + OMEGA3_RULES
 
     parsed = None
     used = engine
@@ -134,7 +136,7 @@ def _from_web(query: str, engine: str) -> tuple[dict | None, str | None]:
     ref_bits = [parsed.get("source_name") or used]
     if parsed.get("source_url"):
         ref_bits.append(parsed["source_url"])
-    return values, " — ".join(ref_bits)
+    return normalize_omega3(values), " — ".join(ref_bits)
 
 
 # ── Vergleich + Mittelung ─────────────────────────────────────────────────────

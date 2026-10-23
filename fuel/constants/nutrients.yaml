@@ -35,3 +35,8 @@ micro_keys:
   - sodium_mg
   - boron_mg
   - omega3_mg
+  - omega3_ala_mg
+  - omega3_epa_mg
+  - omega3_dha_mg
+  - omega3_dpa_mg
+  - omega3_epa_dha_mg

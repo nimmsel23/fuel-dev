@@ -1,3 +1,4 @@
+from fuel.omega3 import normalize_omega3
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
@@ -53,11 +54,11 @@ def _normalize_catalog_name(name: str | None) -> str:
 def _clean_micros(profile: object) -> dict[str, float]:
     if not isinstance(profile, dict):
         return {}
-    return {
+    return normalize_omega3({
         key: value
         for key, value in profile.items()
         if isinstance(key, str) and isinstance(value, (int, float)) and not isinstance(value, bool)
-    }
+    })
 
 
 def _save_logged_meal_to_catalog(db: Session, meal: dict) -> None:

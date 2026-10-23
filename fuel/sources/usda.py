@@ -19,6 +19,7 @@ import urllib.request
 from difflib import SequenceMatcher
 
 from loguru import logger
+from ..omega3 import normalize_omega3
 
 from .. import log as _log
 
@@ -57,11 +58,12 @@ _NUTRIENT_MAP = {
     "Potassium, K": "potassium_mg",
     "Sodium, Na": "sodium_mg",
 }
-# Omega-3 = Summe dieser drei PUFA-Felder (ALA + DPA + DHA), in g → mg.
+# Explicit n-3 species only. FDC amounts may use g or mg.
 _OMEGA3_FIELDS = {
-    "PUFA 18:3 n-3 c,c,c (ALA)",
-    "PUFA 22:5 n-3 (DPA)",
-    "PUFA 22:6 n-3 (DHA)",
+    "PUFA 18:3 n-3 c,c,c (ALA)": "omega3_ala_mg",
+    "PUFA 20:5 n-3 (EPA)": "omega3_epa_mg",
+    "PUFA 22:5 n-3 (DPA)": "omega3_dpa_mg",
+    "PUFA 22:6 n-3 (DHA)": "omega3_dha_mg",
 }
 _MACRO_MAP = {
     "Energy": "kcal",  # kcal-Eintrag, nicht kJ — beim Parsen per unitName gefiltert
@@ -123,8 +125,6 @@ def get_nutrients(fdc_id: int, timeout: int = 6) -> dict | None:
 
     macros = {"kcal": 0.0, "protein": 0.0, "carbs": 0.0, "fat": 0.0, "fiber": 0.0}
     micros: dict[str, float] = {}  # nur tatsächlich von FDC gemeldete Nährstoffe
-    omega3_g = 0.0
-    omega3_seen = False
 
     for n in data.get("foodNutrients", []):
         name = n.get("nutrient", {}).get("name")
@@ -139,11 +139,15 @@ def get_nutrients(fdc_id: int, timeout: int = 6) -> dict | None:
         elif name in _NUTRIENT_MAP:
             micros[_NUTRIENT_MAP[name]] = amount
         elif name in _OMEGA3_FIELDS:
-            omega3_g += amount
-            omega3_seen = True
+            factor = {"g": 1000, "mg": 1}.get(str(unit).lower())
+            if factor is not None and isinstance(amount, (int, float)) and amount >= 0:
+                micros[_OMEGA3_FIELDS[name]] = round(amount * factor, 3)
 
-    if omega3_seen:
-        micros["omega3_mg"] = round(omega3_g * 1000, 1)
+    # Known sum is a lower bound when species are missing, not a full profile.
+    known = [micros[k] for k in _OMEGA3_FIELDS.values() if k in micros]
+    if known:
+        micros["omega3_mg"] = round(sum(known), 3)
+    micros = normalize_omega3(micros)
     # micros, die FDC für dieses Lebensmittel nicht führt (z.B. Biotin, Jod
     # bei vielen Foundation-Foods), bleiben bewusst ausgelassen statt mit
     # 0.0 vorzutäuschen, es sei gemessen worden — Consumer (ingredient_add.py

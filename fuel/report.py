@@ -83,7 +83,12 @@ MICRO_META: dict[str, tuple[str, str, float | None]] = {
     "potassium_mg":   ("Kalium", "mg", 4000),
     "sodium_mg":      ("Natrium", "mg", 1500),
     "boron_mg":       ("Bor", "mg", None),
-    "omega3_mg":      ("Omega-3", "mg", 250),
+    "omega3_mg":      ("Omega-3 gesamt", "mg", None),
+    "omega3_ala_mg":  ("Omega-3 ALA", "mg", None),
+    "omega3_epa_mg":  ("Omega-3 EPA", "mg", None),
+    "omega3_dha_mg":  ("Omega-3 DHA", "mg", None),
+    "omega3_dpa_mg":  ("Omega-3 DPA", "mg", None),
+    "omega3_epa_dha_mg": ("EPA + DHA (EFSA)", "mg", 250),
 }
 
 

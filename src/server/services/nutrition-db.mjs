@@ -1,3 +1,4 @@
+import { OMEGA3_KEYS } from "../../shared/config/omega3.mjs";
 import { mealDetails } from "../../client/lib/mealDetails.js";
 import Database from "better-sqlite3";
 import path from "path";
@@ -92,7 +93,7 @@ function initDb(db) {
   // + kcal idempotent nachziehen — neue Nährstoffe landen automatisch hier,
   // ohne diese Liste manuell zu pflegen. ALTER TABLE wirft bei bereits
   // vorhandener Spalte, das ist der erwartete No-Op-Pfad.
-  const newCols = ["kcal REAL", ...MICRO_KEYS.map((k) => `${k} REAL DEFAULT 0`)];
+  const newCols = ["kcal REAL", ...MICRO_KEYS.map((k) => `${k} REAL${OMEGA3_KEYS.includes(k) ? "" : " DEFAULT 0"}`)];
   for (const col of newCols) {
     try { db.exec(`ALTER TABLE meal_micros ADD COLUMN ${col}`); } catch { /* column exists */ }
   }
@@ -340,7 +341,7 @@ export function normalizeMicroKey(name) {
 
 export function upsertMealMicros(mealName, kcal, micros, source = "gemini", options = {}) {
   const db = getDb(options);
-  const vals = MICRO_COLS.map((c) => micros[c] ?? 0);
+  const vals = MICRO_COLS.map((c) => micros[c] ?? (OMEGA3_KEYS.includes(c) ? null : 0));
   const sets = MICRO_COLS.map((c) => `${c} = excluded.${c}`).join(", ");
   const nameKey = normalizeMicroKey(mealName);
 
