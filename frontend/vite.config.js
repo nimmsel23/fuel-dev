@@ -1,8 +1,12 @@
-const { defineConfig, loadEnv } = require("vite");
-const react = require("@vitejs/plugin-react");
-const { VitePWA } = require("vite-plugin-pwa");
+import { defineConfig, loadEnv } from "vite";
+import react from "@vitejs/plugin-react";
+import { VitePWA } from "vite-plugin-pwa";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-module.exports = defineConfig(({ mode }) => {
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const appMode = process.env.VITE_APP_MODE || env.VITE_APP_MODE || "coach";
   const base = process.env.FUEL_HUB_BUILD === "1" ? "/fuel/" : "/";
@@ -21,7 +25,7 @@ module.exports = defineConfig(({ mode }) => {
     resolve: {
       preserveSymlinks: true,
       alias: {
-        "@api": require("path").resolve(__dirname, "src/client/lib/api.js"),
+        "@api": resolve(__dirname, "src/client/lib/api.js"),
       },
     },
     plugins: [
