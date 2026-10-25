@@ -220,7 +220,9 @@ def find_meal(query: str, *, min_score: float = 40.0, uid: str | None = None) ->
     items = load_meals(uid)
     if not items:
         return None
-    q_norm = _normalize_singular(query)
+    # Nur normalisieren: _score_match singularisiert selbst. Doppeltes Singularisieren
+    # machte aus "debreziner" → "debrezi" und der Alias traf nie.
+    q_norm = _normalize(query)
     scored: list[tuple[float, dict]] = []
     for it in items:
         s = _score_match(q_norm, it)

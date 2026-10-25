@@ -28,6 +28,7 @@ from rich.console import Console
 from rich.table import Table
 
 from . import paths as _paths
+from . import parse as _parse
 
 from .dates import resolve_flags as _resolve_date, extract_date_hint as _extract_date_hint, resolve as _resolve_one
 from .narrative import parse as _parse_narrative, spread_times as _spread_times
@@ -866,7 +867,53 @@ def log_command(
             description = cleaned
             msg.info(f"Datumswort erkannt: Log-Datum → {target}")
 
+    no_macros = kcal == 0 and protein == 0 and carbs == 0 and fat == 0
+    if no_macros and qty == 1 and _parse.looks_complex(description) and not _catalog_find(description):
+        if _log_parsed(description, notes, target, bool(tag or gestern or vorgestern or day),
+                       save_catalog, meal_type, zeit):
+            return
+
     do_meal_log(description, kcal, protein, carbs, fat, notes, target, save_catalog, qty, meal_type=meal_type, zeit=zeit)
+
+
+def _log_parsed(description: str, notes: str, target: str, day_explicit: bool,
+                save_catalog: bool, meal_type: str, zeit: str | None) -> bool:
+    """Freitext zerlegen (fuel.parse) → pro Mahlzeit Zutaten auflösen → loggen.
+
+    False = Parsen/Auflösen unmöglich, bevor irgendetwas geloggt wurde → Aufrufer
+    nimmt den bisherigen Ein-Call-Pfad. Explizite CLI-Flags (Tag, Zeit,
+    Mahlzeit-Typ) schlagen immer das, was aus dem Text gelesen wurde.
+    """
+    with Console().status("[cyan]Zerlege Beschreibung...[/cyan]", spinner="dots"):
+        parsed = _parse.parse_input(description)
+    if not parsed:
+        return False
+
+    resolved_all = []
+    for pm in parsed.meals:
+        with Console().status(f"[cyan]Löse Zutaten auf: {pm.text[:50]}...[/cyan]", spinner="dots"):
+            res = _parse.resolve_meal(pm)
+        if res is None:
+            msg.warn(f"Zutaten nicht auflösbar ({pm.text[:50]!r}) — alter Pfad")
+            return False
+        resolved_all.append((pm, res))
+
+    if len(resolved_all) > 1:
+        msg.info(f"{len(resolved_all)} Mahlzeiten erkannt")
+    for pm, res in resolved_all:
+        m = res.macros
+        msg.info(f"Zerlegt · {m['kcal']:.0f} kcal · {m['protein']:.1f} EW / {m['carbs']:.1f} KH / {m['fat']:.1f} Fett")
+        for line in res.notes:
+            (msg.warn if "GESCHÄTZT" in line else msg.info)(f"  {line}")
+        do_meal_log(
+            pm.text, m["kcal"], m["protein"], m["carbs"], m["fat"], notes,
+            target if day_explicit else (pm.resolved_day() or target),
+            save_catalog, 1,
+            meal_type=meal_type if meal_type != "lunch" else (pm.meal_type or meal_type),
+            micros=res.micros, components=res.components,
+            zeit=zeit or pm.time,
+        )
+    return True
 
 @app.command(name="narrative")
 def narrative_command(
@@ -957,9 +1004,14 @@ def narrative_command(
         )
 
 
-@app.command()
-def list() -> None:
-    """Alle gespeicherten Mahlzeiten im Catalog anzeigen."""
+@app.command(name="list")
+def list_command() -> None:
+    """Alle gespeicherten Mahlzeiten im Catalog anzeigen.
+
+    Funktionsname != "list": ein Modul-Level `def list` überschreibt das Builtin
+    und ließ isinstance(..., list) in _load_log_local abstürzen, sobald ein
+    Tageslog existierte.
+    """
     items = _catalog_load_meals()
     table = Table(title="Meal Catalog", show_header=True, header_style="bold magenta")
     table.add_column("NAME")
