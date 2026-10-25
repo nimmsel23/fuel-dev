@@ -85,6 +85,9 @@ class ParsedModelTest(unittest.TestCase):
         self.assertTrue(parse.looks_complex(SATZ))
         self.assertTrue(parse.looks_complex("2 Eier, 1 Semmel"))
         self.assertFalse(parse.looks_complex("Käsekrainer 330g"))
+        # Kurze Sätze mit Menge/Marke müssen ebenfalls in den Parser.
+        self.assertTrue(parse.looks_complex("4 Bio-Debreziner von Ja Natürlich"))
+        self.assertTrue(parse.looks_complex("60dag Dachsteinbrot"))
 
 
 class ParseInputTest(unittest.TestCase):

@@ -31,7 +31,7 @@ MealType = Literal["breakfast", "lunch", "dinner", "snack"]
 # Wörter, die auf mehrere Zutaten/Mahlzeiten/Zeitangaben hindeuten. Ohne einen
 # davon ist ein Satz ein einzelnes Item und der Extra-Parse-Call lohnt nicht.
 _COMPLEX_HINT = re.compile(
-    r"[,;+&]|\b(?:und|mit|dazu|danach|nachher|plus|sowie|bissl|bisserl|bisschen|"
+    r"[,;+&]|^\s*\d+(?:[.,]\d+)?\s*[^\W\d]|\b(?:und|mit|von|dazu|danach|nachher|plus|sowie|bissl|bisserl|bisschen|"
     r"etwas|wenig|viel|fr[uü]hst[uü]ck|mittag|abend|jause|heute|gestern|"
     r"vorgestern|um\s+\d|uhr|vor\s+\d|morgens|abends|mittags)\b",
     re.IGNORECASE,

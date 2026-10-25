@@ -940,7 +940,9 @@ def log_command(
             msg.info(f"Datumswort erkannt: Log-Datum → {target}")
 
     no_macros = kcal == 0 and protein == 0 and carbs == 0 and fat == 0
-    if no_macros and qty == 1 and _parse.looks_complex(description) and not _catalog_find(description):
+    # Ein Baustein (kind=ingredient) ist keine Portion: "60dag Dachsteinbrot" muss in den Parser.
+    _hit = _catalog_find(description) if no_macros and qty == 1 else None
+    if no_macros and qty == 1 and _parse.looks_complex(description) and (_hit is None or _hit.get("kind") == "ingredient"):
         if _log_parsed(description, notes, target, bool(tag or gestern or vorgestern or day),
                        save_catalog, meal_type, zeit):
             return
