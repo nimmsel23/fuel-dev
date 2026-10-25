@@ -9,6 +9,8 @@ from __future__ import annotations
 import json
 import os
 import re
+import subprocess
+import sys
 import time
 import urllib.error
 import urllib.request
@@ -249,30 +251,60 @@ Sonst antworte nur mit {{"ok": false, "macros": {{"kcal": 0, "protein": 0, "carb
 und korrigierten Werten für die gesamte Portion. Kein Fließtext, nur JSON."""
 
 
-def _verify_with_haiku(description: str, macros: dict) -> dict | None:
-    """Haiku prüft die Gemini-Makros. Gibt korrigierte Makros zurück oder None (ok / CLI nicht nutzbar)."""
+def _haiku_verdict(description: str, macros: dict) -> dict | None:
+    """Haiku prüft die Gemini-Makros. {ok, macros?, reason?} oder None (CLI nicht nutzbar / kein JSON)."""
     if not claude_cli.available():
         return None
     prompt = VERIFY_PROMPT.format(description=description, **macros)
-    res = claude_cli.call_claude(prompt, timeout=25, log_label="verify_nutrition")
+    res = claude_cli.call_claude(prompt, timeout=45, log_label="verify_nutrition")
     if not res["ok"]:
-        logger.warning(f"Haiku-Check übersprungen ({res['error']}), Gemini-Werte bleiben")
+        logger.warning(f"Haiku-Check übersprungen ({res['error']})")
         return None
-    verdict = claude_cli._extract_json(res["text"])
-    if not verdict or verdict.get("ok") is not False:
-        return None
-    fixed = _normalize_macros(verdict.get("macros") or {})
-    if not fixed["kcal"]:
-        return None
-    logger.warning(f"Haiku korrigiert Gemini {macros} -> {fixed}: {verdict.get('reason', '')}")
-    return fixed
+    return claude_cli._extract_json(res["text"])
 
 
-def estimate_nutrition(description: str, *, retries: int = 2, timeout: int = 30) -> dict:
+def verify_cli() -> None:
+    """Hintergrund-Prozess: Haiku prüft die Schätzung und meldet das Ergebnis per Desktop-Benachrichtigung.
+
+    Aufruf: python -c "from fuel.gemini import verify_cli; verify_cli()" <beschreibung> <macros-json>
+    Schreibt nichts um — die Entscheidung bleibt beim Nutzer.
+    """
+    description, macros = sys.argv[1], json.loads(sys.argv[2])
+    verdict = _haiku_verdict(description, macros)
+    if not verdict:
+        return
+    if verdict.get("ok") is not False:
+        title, body, urgency = "Fuel: Check ok", f"{description}: {macros['kcal']} kcal plausibel", "low"
+    else:
+        fixed = _normalize_macros(verdict.get("macros") or {})
+        title, urgency = "Fuel: Haiku zweifelt", "normal"
+        body = (
+            f"{description}\n"
+            f"Gemini: {macros['kcal']} kcal · {macros['protein']} EW · {macros['carbs']} KH · {macros['fat']} F\n"
+            f"Haiku:  {fixed['kcal']} kcal · {fixed['protein']} EW · {fixed['carbs']} KH · {fixed['fat']} F\n"
+            f"{verdict.get('reason', '')}"
+        )
+    subprocess.run(["notify-send", "-a", "fuel", "-u", urgency, title, body], check=False)
+
+
+def _spawn_verify(description: str, macros: dict) -> None:
+    """Haiku-Check entkoppelt im Hintergrund starten; der Aufrufer wartet nicht darauf."""
+    env = {**os.environ, "PYTHONPATH": os.pathsep.join(filter(None, [str(_paths.REPO_DIR), os.environ.get("PYTHONPATH", "")]))}
+    try:
+        subprocess.Popen(
+            [sys.executable, "-c", "from fuel.gemini import verify_cli; verify_cli()", description, json.dumps(macros)],
+            env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+    except OSError as e:
+        logger.warning(f"Haiku-Check nicht gestartet: {e}")
+
+
+def estimate_nutrition(description: str, *, retries: int = 2, timeout: int = 30, verify: bool = False) -> dict:
     """One-shot estimation: macros + micros + components.
 
-    Primär: Gemini (2–5 s). Danach prüft Haiku (Claude-CLI) die Makros auf Plausibilität
-    und korrigiert sie bei Abweichung; ist die CLI nicht nutzbar, bleiben die Gemini-Werte.
+    Gemini (2–5 s). Mit ``verify=True`` startet danach ein Hintergrund-Prozess, in dem Haiku die
+    Makros prüft und das Ergebnis per notify-send meldet (kein Warten, keine automatische Korrektur).
     """
     prompt = PROMPT_TEMPLATE.format(description=description) + "\n" + OMEGA3_RULES
 
@@ -285,9 +317,8 @@ def estimate_nutrition(description: str, *, retries: int = 2, timeout: int = 30)
         return _empty_response("json parse failed")
 
     macros = _normalize_macros(parsed.get("macros") or {})
-    fixed = _verify_with_haiku(description, macros)
-    if fixed:
-        macros = fixed
+    if verify:
+        _spawn_verify(description, macros)
 
     logger.debug(f"estimate_nutrition success: {macros}")
     return {

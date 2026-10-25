@@ -311,7 +311,7 @@ def _parse_macros_with_gemini(description: str) -> dict:
 
     Returns: {"macros": {...}, "micros": {...}, "components": [...], "_error"?: str}
     """
-    result = _gemini_estimate(description)
+    result = _gemini_estimate(description, verify=True)
     macros = result.get("macros") or {}
     micros = result.get("micros") or {}
     components = result.get("components") or []
