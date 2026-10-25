@@ -18,7 +18,7 @@ OFF_API_URL = "https://world.openfoodfacts.org/cgi/search.pl"
 def search_ingredient(name: str, limit: int = 1, timeout: int = 5) -> dict | None:
     """Sucht Zutat in Open Food Facts. Liefert Top-Match mit Makros pro 100g."""
     try:
-        url = f"{OFF_API_URL}?search_terms={urllib.parse.quote(name)}&search_simple=1&action=process&json=1&page_size={limit}"
+        url = f"{OFF_API_URL}?search_terms={urllib.parse.quote(name)}&search_simple=1&action=process&json=1&page_size={limit}&fields=product_name,brands,nutriments"  # fields: ohne den Parameter antwortet OFF oft 503
         req = urllib.request.Request(
             url,
             headers={"User-Agent": "fuel-cli/1.0 (nutrition logging)"},

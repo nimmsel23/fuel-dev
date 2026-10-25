@@ -244,18 +244,59 @@ Marke erkennbar ist oder nichts gefunden wird, schätze wie gewohnt.
 VERIFY_PROMPT = """Prüfe eine Nährwert-Schätzung auf Plausibilität.
 Mahlzeit: {description}
 Schätzung (gesamte Portion): kcal={kcal}, Protein={protein} g, Kohlenhydrate={carbs} g, Fett={fat} g
-
-Rechne die Mahlzeit grob selbst nach (Mengen, übliche Nährwerte pro 100 g). Ist die Schätzung
+{reference}
+Rechne die Mahlzeit nach (Mengen, Nährwerte pro 100 g). Open-Food-Facts-Werte oben sind Messdaten
+von Produktetiketten und gehen deiner Erinnerung vor. Ist die Schätzung
 plausibel (kcal innerhalb ca. 15 %, Makros passend), antworte nur mit {{"ok": true}}.
 Sonst antworte nur mit {{"ok": false, "macros": {{"kcal": 0, "protein": 0, "carbs": 0, "fat": 0}}, "reason": "kurz"}}
 und korrigierten Werten für die gesamte Portion. Kein Fließtext, nur JSON."""
 
 
-def _haiku_verdict(description: str, macros: dict) -> dict | None:
+_GRAMS = re.compile(r"(\d+(?:[.,]\d+)?)\s*g\b")
+
+
+def _off_reference(components: list[dict]) -> list[dict]:
+    """Open Food Facts je Komponente mit Grammangabe: Top-Treffer pro 100 g, auf die Menge hochgerechnet."""
+    from .sources import off
+
+    out: list[dict] = []
+    for comp in components or []:
+        name = str(comp.get("name") or "").strip()
+        grams = _GRAMS.findall(str(comp.get("qty") or ""))
+        if not name or not grams:
+            continue
+        g = float(grams[-1].replace(",", "."))  # "4 Stück (gesamt 220g)" -> 220
+        # Hintergrund-Prozess: großzügiges Timeout + ein Retry, OFF-Suche ist oft träge (503/Timeout)
+        hit = off.search_ingredient(name, limit=5, timeout=20)
+        if not hit:
+            time.sleep(3)
+            hit = off.search_ingredient(name, limit=5, timeout=20)
+        if not hit:
+            continue
+        f = g / 100
+        out.append({
+            "name": name, "grams": g, "off_name": hit["name"], "brand": hit["brand"],
+            "kcal": round(hit["energy_kcal"] * f), "protein": round(hit["protein"] * f, 1),
+            "carbs": round(hit["carbs"] * f, 1), "fat": round(hit["fat"] * f, 1),
+        })
+    return out
+
+
+def _reference_text(ref: list[dict]) -> str:
+    if not ref:
+        return ""
+    lines = [
+        f"- {r['name']} {r['grams']:g} g (OFF: {r['off_name']}): {r['kcal']} kcal, "
+        f"{r['protein']} EW, {r['carbs']} KH, {r['fat']} F" for r in ref
+    ]
+    return "\nOpen Food Facts (auf die Menge gerechnet):\n" + "\n".join(lines) + "\n"
+
+
+def _haiku_verdict(description: str, macros: dict, reference: str = "") -> dict | None:
     """Haiku prüft die Gemini-Makros. {ok, macros?, reason?} oder None (CLI nicht nutzbar / kein JSON)."""
     if not claude_cli.available():
         return None
-    prompt = VERIFY_PROMPT.format(description=description, **macros)
+    prompt = VERIFY_PROMPT.format(description=description, reference=reference, **macros)
     res = claude_cli.call_claude(prompt, timeout=45, log_label="verify_nutrition")
     if not res["ok"]:
         logger.warning(f"Haiku-Check übersprungen ({res['error']})")
@@ -264,35 +305,47 @@ def _haiku_verdict(description: str, macros: dict) -> dict | None:
 
 
 def verify_cli() -> None:
-    """Hintergrund-Prozess: Haiku prüft die Schätzung und meldet das Ergebnis per Desktop-Benachrichtigung.
+    """Hintergrund-Prozess: OFF-Referenz holen, Haiku prüft die Schätzung, Ergebnis per Desktop-Benachrichtigung.
 
-    Aufruf: python -c "from fuel.gemini import verify_cli; verify_cli()" <beschreibung> <macros-json>
+    Aufruf: python -c "from fuel.gemini import verify_cli; verify_cli()" <beschreibung> <macros-json> [<components-json>]
     Schreibt nichts um — die Entscheidung bleibt beim Nutzer.
     """
     description, macros = sys.argv[1], json.loads(sys.argv[2])
-    verdict = _haiku_verdict(description, macros)
-    if not verdict:
+    components = json.loads(sys.argv[3]) if len(sys.argv) > 3 else []
+    ref = _off_reference(components)
+    verdict = _haiku_verdict(description, macros, _reference_text(ref))
+    if not verdict and not ref:
         return
-    if verdict.get("ok") is not False:
-        title, body, urgency = "Fuel: Check ok", f"{description}: {macros['kcal']} kcal plausibel", "low"
-    else:
+
+    off_line = ""
+    if ref:
+        tot = {k: sum(r[k] for r in ref) for k in ("kcal", "protein", "carbs", "fat")}
+        off_line = f"\nOFF:    {tot['kcal']} kcal · {tot['protein']:.1f} EW · {tot['carbs']:.1f} KH · {tot['fat']:.1f} F ({len(ref)}/{len(components)} Zutaten)"
+    gemini_line = f"Gemini: {macros['kcal']} kcal · {macros['protein']} EW · {macros['carbs']} KH · {macros['fat']} F"
+
+    if verdict and verdict.get("ok") is False:
         fixed = _normalize_macros(verdict.get("macros") or {})
         title, urgency = "Fuel: Haiku zweifelt", "normal"
         body = (
-            f"{description}\n"
-            f"Gemini: {macros['kcal']} kcal · {macros['protein']} EW · {macros['carbs']} KH · {macros['fat']} F\n"
-            f"Haiku:  {fixed['kcal']} kcal · {fixed['protein']} EW · {fixed['carbs']} KH · {fixed['fat']} F\n"
-            f"{verdict.get('reason', '')}"
+            f"{description}\n{gemini_line}\n"
+            f"Haiku:  {fixed['kcal']} kcal · {fixed['protein']} EW · {fixed['carbs']} KH · {fixed['fat']} F"
+            f"{off_line}\n{verdict.get('reason', '')}"
         )
+    elif verdict:
+        title, urgency = "Fuel: Check ok", "low"
+        body = f"{description}\n{gemini_line}{off_line}"
+    else:  # Haiku nicht erreichbar, OFF-Referenz gibt es trotzdem
+        title, urgency = "Fuel: OFF-Vergleich", "low"
+        body = f"{description}\n{gemini_line}{off_line}"
     subprocess.run(["notify-send", "-a", "fuel", "-u", urgency, title, body], check=False)
 
 
-def _spawn_verify(description: str, macros: dict) -> None:
+def _spawn_verify(description: str, macros: dict, components: list[dict]) -> None:
     """Haiku-Check entkoppelt im Hintergrund starten; der Aufrufer wartet nicht darauf."""
     env = {**os.environ, "PYTHONPATH": os.pathsep.join(filter(None, [str(_paths.REPO_DIR), os.environ.get("PYTHONPATH", "")]))}
     try:
         subprocess.Popen(
-            [sys.executable, "-c", "from fuel.gemini import verify_cli; verify_cli()", description, json.dumps(macros)],
+            [sys.executable, "-c", "from fuel.gemini import verify_cli; verify_cli()", description, json.dumps(macros), json.dumps(components)],
             env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             start_new_session=True,
         )
@@ -318,7 +371,7 @@ def estimate_nutrition(description: str, *, retries: int = 2, timeout: int = 30,
 
     macros = _normalize_macros(parsed.get("macros") or {})
     if verify:
-        _spawn_verify(description, macros)
+        _spawn_verify(description, macros, parsed.get("components") or [])
 
     logger.debug(f"estimate_nutrition success: {macros}")
     return {
