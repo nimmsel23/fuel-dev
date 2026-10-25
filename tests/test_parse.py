@@ -10,10 +10,12 @@ DEBREZINER = {
     "id": "ingredient_ja_natuerlich_bio_debreziner", "kind": "ingredient",
     "name": "Ja! Natürlich Bio-Debreziner", "alias": "bio debreziner",
     "kcal": 357, "protein": 16, "carbs": 0.7, "fat": 32, "yield_g": 100, "piece_g": 60,
+    "micros": {"iron_mg": 1.0, "zinc_mg": 2.0},
 }
 DACHSTEIN = {
     "id": "ingredient_dachsteinbrot", "kind": "ingredient", "name": "Dachsteinbrot",
     "alias": "dachsteinbrot", "kcal": 230, "protein": 8.1, "carbs": 36.1, "fat": 6.7, "yield_g": 100,
+    "micros": {"iron_mg": 2.0, "magnesium_mg": 50.0},
 }
 # Ein fertiges Gericht darf nie als Einzelzutat durchgehen.
 GERICHT = {

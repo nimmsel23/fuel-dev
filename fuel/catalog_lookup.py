@@ -281,6 +281,69 @@ def _normalize_components(components: list | None) -> list[dict]:
     return out
 
 
+def _read_catalog_raw(catalog_path: Path) -> dict:
+    """Liest catalog.json inkl. Format-Validierung; fehlende Datei → leerer Catalog.
+
+    Wirft RuntimeError bei beschädigter/ungültiger Datei, damit nichts überschrieben wird.
+    """
+    raw = {"items": [], "deleted_ids": []}
+    if not catalog_path.exists():
+        return raw
+    try:
+        loaded = json.loads(catalog_path.read_text(encoding="utf-8"))
+    except Exception as e:
+        raise RuntimeError(f"Meal-Katalog ist beschädigt: {catalog_path}; Datei wurde nicht überschrieben") from e
+    if not isinstance(loaded, dict) or not isinstance(loaded.get("items", []), list):
+        raise RuntimeError(f"Meal-Katalog hat ein ungültiges Format: {catalog_path}; Datei wurde nicht überschrieben")
+    if any(not isinstance(item, dict) for item in loaded.get("items", [])):
+        raise RuntimeError(f"Meal-Katalog enthält ungültige Einträge: {catalog_path}; Datei wurde nicht überschrieben")
+    deleted_ids = loaded.get("deleted_ids", [])
+    if not isinstance(deleted_ids, list) or any(not isinstance(item_id, str) for item_id in deleted_ids):
+        raise RuntimeError(f"Meal-Katalog deleted_ids ist ungültig: {catalog_path}; Datei wurde nicht überschrieben")
+    return loaded
+
+
+def update_catalog_item(item_id: str, fields: dict, *, uid: str | None = None) -> bool:
+    """Setzt `fields` auf dem Catalog-Eintrag `item_id` (updated_at wird gestempelt).
+
+    False, wenn es die ID nicht gibt. Alle anderen Einträge bleiben unverändert.
+    """
+    catalog_path = user_catalog_path(uid)
+    raw = _read_catalog_raw(catalog_path)
+    for item in raw["items"]:
+        if item.get("id") == item_id:
+            item.update(fields)
+            item["updated_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+            catalog_path.write_text(json.dumps(raw, ensure_ascii=False, indent=2) + "\n")
+            logger.info(f"catalog aktualisiert uid={uid or active_uid()}: {item_id} ({', '.join(fields)})")
+            return True
+    return False
+
+
+def find_ingredient(name: str, brand: str | None = None, *, uid: str | None = None) -> dict | None:
+    """Zutaten-Baustein (kind=ingredient mit yield_g) zu einem Namen, sonst None.
+
+    Nur Bausteine: ein Treffer auf ein fertiges Gericht würde dessen Gesamtwerte
+    als Einzelzutat übernehmen (siehe _score_match). Erst find_meal (Name, dann
+    Marke+Name); dann Fallback, weil das LLM Namen gern kürzt ("Debreziner" statt
+    "Bio-Debreziner"): alle Query-Tokens müssen im Namen/Alias EINES Bausteins
+    stecken, bei mehreren Kandidaten lieber kein Treffer als der falsche.
+    """
+    for q in [name] + ([f"{brand} {name}"] if brand else []):
+        hit = find_meal(q, uid=uid)
+        if hit and hit.get("kind") == "ingredient" and hit.get("yield_g"):
+            return hit
+    q_tokens = set(_normalize_singular(name).split())
+    if not q_tokens:
+        return None
+    cands = [
+        e for e in load_meals(uid)
+        if e.get("kind") == "ingredient" and e.get("yield_g")
+        and q_tokens <= set(_normalize_singular(f"{e.get('name', '')} {e.get('alias') or ''}").split())
+    ]
+    return cands[0] if len(cands) == 1 else None
+
+
 def save_meal(name: str, macros: dict[str, float], *, source: str = "gemini", uid: str | None = None,
               micros: dict[str, float] | None = None, components: list | None = None) -> str:
     """Schreibt einen neuen Meal-Catalog-Eintrag in den user-spezifischen Catalog.
@@ -292,20 +355,7 @@ def save_meal(name: str, macros: dict[str, float], *, source: str = "gemini", ui
 
     catalog_path = user_catalog_path(uid)
     catalog_path.parent.mkdir(parents=True, exist_ok=True)
-    raw = {"items": [], "deleted_ids": []}
-    if catalog_path.exists():
-        try:
-            loaded = json.loads(catalog_path.read_text(encoding="utf-8"))
-        except Exception as e:
-            raise RuntimeError(f"Meal-Katalog ist beschädigt: {catalog_path}; Datei wurde nicht überschrieben") from e
-        if not isinstance(loaded, dict) or not isinstance(loaded.get("items", []), list):
-            raise RuntimeError(f"Meal-Katalog hat ein ungültiges Format: {catalog_path}; Datei wurde nicht überschrieben")
-        if any(not isinstance(item, dict) for item in loaded.get("items", [])):
-            raise RuntimeError(f"Meal-Katalog enthält ungültige Einträge: {catalog_path}; Datei wurde nicht überschrieben")
-        deleted_ids = loaded.get("deleted_ids", [])
-        if not isinstance(deleted_ids, list) or any(not isinstance(item_id, str) for item_id in deleted_ids):
-            raise RuntimeError(f"Meal-Katalog deleted_ids ist ungültig: {catalog_path}; Datei wurde nicht überschrieben")
-        raw = loaded
+    raw = _read_catalog_raw(catalog_path)
     base_id = f"meal_{_slugify(name)}"
     item_id = base_id
     n = 2

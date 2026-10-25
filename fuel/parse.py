@@ -189,33 +189,10 @@ class ResolvedMeal(BaseModel):
 
 
 def _catalog_ingredient(item: ParsedItem) -> dict | None:
-    """Catalog-Baustein (kind=ingredient mit yield_g) zum Item, sonst None.
+    """Catalog-Baustein (kind=ingredient mit yield_g) zum Item, sonst None."""
+    from .catalog_lookup import find_ingredient
 
-    Nur Zutaten-Bausteine: ein Treffer auf ein fertiges Gericht würde dessen
-    Gesamtwerte als Einzelzutat übernehmen (siehe catalog_lookup._score_match).
-    """
-    from .catalog_lookup import find_meal
-
-    from .catalog_lookup import _normalize_singular, load_meals
-
-    queries = [item.name] + ([f"{item.brand} {item.name}"] if item.brand else [])
-    for q in queries:
-        hit = find_meal(q)
-        if hit and hit.get("kind") == "ingredient" and hit.get("yield_g"):
-            return hit
-
-    # Fallback: das LLM kürzt Namen gern ("Debreziner" statt "Bio-Debreziner").
-    # Alle Query-Tokens müssen im Namen/Alias EINES Bausteins stecken; bei
-    # mehreren Kandidaten lieber kein Treffer als der falsche.
-    q_tokens = set(_normalize_singular(item.name).split())
-    if not q_tokens:
-        return None
-    cands = [
-        e for e in load_meals()
-        if e.get("kind") == "ingredient" and e.get("yield_g")
-        and q_tokens <= set(_normalize_singular(f"{e.get('name', '')} {e.get('alias') or ''}").split())
-    ]
-    return cands[0] if len(cands) == 1 else None
+    return find_ingredient(item.name, item.brand)
 
 
 def resolve_meal(meal: ParsedMeal) -> ResolvedMeal | None:
@@ -224,6 +201,7 @@ def resolve_meal(meal: ParsedMeal) -> ResolvedMeal | None:
     None, wenn weder Catalog noch Schätzung etwas liefern (Aufrufer bricht ab).
     """
     from .catalog_lookup import extract_macros
+    from .micros import ingredient_micros
 
     total = dict.fromkeys(_SUM_KEYS, 0.0)
     micros: dict[str, float] = {}
@@ -253,7 +231,13 @@ def resolve_meal(meal: ParsedMeal) -> ResolvedMeal | None:
         m = extract_macros(hit)
         for k in _SUM_KEYS:
             total[k] += m[k] * scale
-        add_micros(hit.get("micros") or {}, scale)
+        hit_micros, fresh = ingredient_micros(hit)
+        if hit_micros:
+            add_micros(hit_micros, scale)
+            if fresh:
+                notes.append(f"{hit.get('name')}: Mikros einmalig geschätzt, im Catalog gespeichert")
+        else:
+            notes.append(f"{hit.get('name')}: Mikros fehlen (Summe unvollständig)")
         components.append({
             "name": hit.get("name") or item.name, "qty": f"{grams:g} g",
             **{k: round(m[k] * scale, 1) for k in _SUM_KEYS},

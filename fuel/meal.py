@@ -822,6 +822,78 @@ def repeat_command(
         msg.fail(str(e)); raise typer.Exit(1)
     do_meal_repeat(from_day, to_day, meal_id, qty)
 
+@app.command(name="remicros")
+def remicros_command(
+    meal_id:    str | None = typer.Option(None, "--id", help="Meal-ID im Tageslog (entfällt, wenn der Tag nur eine Mahlzeit hat)"),
+    catalog:    str | None = typer.Option(None, "--catalog", help="Catalog-Meal-ID statt Log-Eintrag"),
+    tag:        str | None = typer.Option(None, "--tag", help="Datum: heute|gestern|vorgestern|-N|Mo|YYYY-MM-DD"),
+    gestern:    bool       = typer.Option(False, "--gestern", "-g"),
+    vorgestern: bool       = typer.Option(False, "--vorgestern"),
+    dry_run:    bool       = typer.Option(False, "--dry-run", "-n", help="Nur anzeigen, nichts schreiben"),
+) -> None:
+    """Mikros einer Mahlzeit aus ihren `components` neu berechnen.
+
+    Für den Fall, dass Mengen/Komponenten nachträglich korrigiert wurden und die
+    Mikros noch zur alten Schätzung gehören. Komponenten mit Catalog-Baustein
+    werden skaliert (fehlen dessen Mikros, werden sie einmalig ermittelt und im
+    Catalog gespeichert), nur der Rest wird geschätzt.
+
+    Beispiele:
+      fuel-meal remicros --tag heute
+      fuel-meal remicros --gestern --id meal_ab12…
+      fuel-meal remicros --catalog meal_4_bio_debreziner_von_ja_naturlich_mit_bissl_dachsteinbrot_un
+    """
+    from .catalog_lookup import update_catalog_item
+    from .micros import recompute_entry
+
+    if catalog:
+        entry = next((m for m in _catalog_load_meals() if m.get("id") == catalog), None)
+        if entry is None:
+            msg.fail(f"Catalog-Eintrag {catalog} nicht gefunden"); raise typer.Exit(1)
+        label = entry.get("name", catalog)
+        day_log = None
+    else:
+        try:
+            target = _resolve_date(tag=tag, gestern=gestern, vorgestern=vorgestern, day_legacy=None)
+        except ValueError as e:
+            msg.fail(str(e)); raise typer.Exit(1)
+        day_log = _load_log_local(target)
+        meals = day_log.get("meals", [])
+        if meal_id is None and len(meals) == 1:
+            entry = meals[0]
+        else:
+            entry = next((m for m in meals if m.get("id") == meal_id), None)
+        if entry is None:
+            ids = ", ".join(m.get("id", "?") for m in meals) or "keine Mahlzeiten"
+            msg.fail(f"Mahlzeit nicht eindeutig/gefunden am {target} — --id angeben ({ids})"); raise typer.Exit(1)
+        label = entry.get("description", entry.get("id", "?"))
+
+    with Console().status("[cyan]Berechne Mikros neu...[/cyan]", spinner="dots"):
+        result = recompute_entry(entry)
+    if result is None:
+        msg.warn(f"{label}: keine components oder keine Mikros ermittelbar — nichts geändert"); raise typer.Exit(1)
+    fields, info = result
+
+    old_n = _fmt_micro_count(entry.get("micros") or {})
+    msg.info(f"{label}: Mikros {old_n} → {_fmt_micro_count(fields['micros'])} Werte")
+    if info["from_catalog"]:
+        msg.info(f"  aus Catalog: {', '.join(info['from_catalog'])}")
+    if info["created"]:
+        msg.info(f"  Baustein-Mikros neu ermittelt + gespeichert: {', '.join(info['created'])}")
+    if info["estimated"]:
+        msg.warn(f"  geschätzt (kein Baustein): {', '.join(info['estimated'])}")
+    if info["missing"]:
+        msg.warn(f"  FEHLEN (Summe unvollständig): {', '.join(info['missing'])}")
+    if dry_run:
+        msg.info("Dry-Run — nichts geschrieben"); return
+
+    if catalog:
+        update_catalog_item(catalog, fields)
+    else:
+        entry.update(fields)
+        _save_log_local(day_log)
+    msg.good("Mikros aktualisiert")
+
 @app.callback(invoke_without_command=True)
 def _app_callback(ctx: typer.Context) -> None:
     if ctx.invoked_subcommand is None:
@@ -904,7 +976,7 @@ def _log_parsed(description: str, notes: str, target: str, day_explicit: bool,
         m = res.macros
         msg.info(f"Zerlegt · {m['kcal']:.0f} kcal · {m['protein']:.1f} EW / {m['carbs']:.1f} KH / {m['fat']:.1f} Fett")
         for line in res.notes:
-            (msg.warn if "GESCHÄTZT" in line else msg.info)(f"  {line}")
+            (msg.warn if ("GESCHÄTZT" in line or "fehlen" in line) else msg.info)(f"  {line}")
         do_meal_log(
             pm.text, m["kcal"], m["protein"], m["carbs"], m["fat"], notes,
             target if day_explicit else (pm.resolved_day() or target),
