@@ -79,7 +79,9 @@ def _run_cli(name: str, args: list[str]) -> int:
     if entry:
         module, function = entry
         code = f"from {module} import {function}; {function}()"
-        return subprocess.run([sys.executable, "-c", code, *args]).returncode
+        # Kind-Prozess erbt sys.path nicht: Repo-Root explizit setzen, sonst nur aus ~/fuel-dev aufrufbar.
+        env = {**os.environ, "PYTHONPATH": os.pathsep.join(filter(None, [str(FUEL_REPO_DIR), os.environ.get("PYTHONPATH", "")]))}
+        return subprocess.run([sys.executable, "-c", code, *args], env=env).returncode
 
     checkout_script = FUEL_REPO_DIR / "bin" / name
     if checkout_script.is_file():
