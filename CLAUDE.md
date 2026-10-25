@@ -619,3 +619,11 @@ Vier Fuel-Tabs sind als eigene installierbare Apps veröffentlicht — Muster wi
 - **Bewusst ohne optimistische Anzeige:** Verschieben einer Mahlzeit auf einen anderen Tag (zwei Tage betroffen), Wasser (patcht nach Antwort mit Fallback), AI-Logger, Frontdoor, FoodCatalog, HistoryView-Löschen — laufen über denselben Hintergrund-Pfad, zeigen aber erst nach dem Refetch.
 - Tests: `tests/optimistic-meal.test.mjs` (6).
 
+
+### Update 2026-10-25: Gemini zuerst, Haiku prüft
+
+Reihenfolge in `fuel/gemini.py:estimate_nutrition()` umgedreht: Gemini schätzt zuerst (2–5 s),
+danach prüft Haiku (`_verify_with_haiku`, Claude-CLI, Timeout 25 s) die Makros auf Plausibilität und
+korrigiert sie bei Abweichung (Log-Warnung mit Begründung). Ist die CLI nicht nutzbar oder läuft in
+den Timeout, bleiben die Gemini-Werte. Das WebSearch-Grounding für Markenprodukte entfällt im
+Schätzpfad (Katalog-Verifikation bleibt bei `fuel-catalog-verify`).

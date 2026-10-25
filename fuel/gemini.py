@@ -239,40 +239,59 @@ Marke erkennbar ist oder nichts gefunden wird, schätze wie gewohnt.
 """
 
 
+VERIFY_PROMPT = """Prüfe eine Nährwert-Schätzung auf Plausibilität.
+Mahlzeit: {description}
+Schätzung (gesamte Portion): kcal={kcal}, Protein={protein} g, Kohlenhydrate={carbs} g, Fett={fat} g
+
+Rechne die Mahlzeit grob selbst nach (Mengen, übliche Nährwerte pro 100 g). Ist die Schätzung
+plausibel (kcal innerhalb ca. 15 %, Makros passend), antworte nur mit {{"ok": true}}.
+Sonst antworte nur mit {{"ok": false, "macros": {{"kcal": 0, "protein": 0, "carbs": 0, "fat": 0}}, "reason": "kurz"}}
+und korrigierten Werten für die gesamte Portion. Kein Fließtext, nur JSON."""
+
+
+def _verify_with_haiku(description: str, macros: dict) -> dict | None:
+    """Haiku prüft die Gemini-Makros. Gibt korrigierte Makros zurück oder None (ok / CLI nicht nutzbar)."""
+    if not claude_cli.available():
+        return None
+    prompt = VERIFY_PROMPT.format(description=description, **macros)
+    res = claude_cli.call_claude(prompt, timeout=25, log_label="verify_nutrition")
+    if not res["ok"]:
+        logger.warning(f"Haiku-Check übersprungen ({res['error']}), Gemini-Werte bleiben")
+        return None
+    verdict = claude_cli._extract_json(res["text"])
+    if not verdict or verdict.get("ok") is not False:
+        return None
+    fixed = _normalize_macros(verdict.get("macros") or {})
+    if not fixed["kcal"]:
+        return None
+    logger.warning(f"Haiku korrigiert Gemini {macros} -> {fixed}: {verdict.get('reason', '')}")
+    return fixed
+
+
 def estimate_nutrition(description: str, *, retries: int = 2, timeout: int = 30) -> dict:
     """One-shot estimation: macros + micros + components.
 
-    Primär: Claude-CLI (Haiku, mit WebSearch-Grounding für Markenprodukte).
-    Fallback: Gemini, falls Claude-CLI fehlt/fehlschlägt.
+    Primär: Gemini (2–5 s). Danach prüft Haiku (Claude-CLI) die Makros auf Plausibilität
+    und korrigiert sie bei Abweichung; ist die CLI nicht nutzbar, bleiben die Gemini-Werte.
     """
     prompt = PROMPT_TEMPLATE.format(description=description) + "\n" + OMEGA3_RULES
 
-    parsed = None
-    if claude_cli.available():
-        # 40s statt 60s: bei einer NL-Mahlzeitbeschreibung ohne Marke braucht
-        # Haiku i.d.R. 15–25s. Zieht sich ein Call länger, steckt er meist in
-        # WebSearch fest — dann lieber schnell auf Gemini (2–5s) fallen, statt
-        # das CLI-Logging eine ganze Minute blockieren zu lassen.
-        res = claude_cli.call_claude(prompt + CLAUDE_PROMPT_SUFFIX, timeout=40, log_label="estimate_nutrition")
-        if res["ok"]:
-            parsed = claude_cli._extract_json(res["text"])
-            if not parsed:
-                logger.warning(f"Haiku JSON parse failed, falling back to Gemini: {res['text'][:200]!r}")
-        else:
-            logger.warning(f"Haiku CLI failed ({res['error']}), falling back to Gemini")
-
+    res = call_gemini(prompt, retries=retries, timeout=timeout, log_label="estimate_nutrition")
+    if not res["ok"]:
+        return _empty_response(res["error"])
+    parsed = _extract_json(res["text"])
     if not parsed:
-        res = call_gemini(prompt, retries=retries, timeout=timeout, log_label="estimate_nutrition")
-        if not res["ok"]:
-            return _empty_response(res["error"])
-        parsed = _extract_json(res["text"])
-        if not parsed:
-            logger.error(f"JSON parse failed: {res['text'][:200]!r}")
-            return _empty_response("json parse failed")
+        logger.error(f"JSON parse failed: {res['text'][:200]!r}")
+        return _empty_response("json parse failed")
 
-    logger.debug(f"estimate_nutrition success: {parsed.get('macros')}")
+    macros = _normalize_macros(parsed.get("macros") or {})
+    fixed = _verify_with_haiku(description, macros)
+    if fixed:
+        macros = fixed
+
+    logger.debug(f"estimate_nutrition success: {macros}")
     return {
-        "macros": _normalize_macros(parsed.get("macros") or {}),
+        "macros": macros,
         "micros": _normalize_micros(parsed.get("micros") or {}),
         "components": parsed.get("components") or [],
     }
