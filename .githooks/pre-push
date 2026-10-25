@@ -35,13 +35,30 @@ while read -r local_ref local_sha remote_ref remote_sha; do
     changed=$(git diff --name-only "$remote_sha" "$local_sha")
   fi
   relevant=$(echo "$changed" | grep -Ev '(^|/)(AGENTS\.md|README([^/]*)?\.md)$|(^|/)docs/|\.(md|mdx|markdown|txt|bak)$|^dist-firebase/' || true)
-  if echo "$relevant" | grep -Eq '^(src/|public/|index.html$|vite\.config|package\.json$|firebase\.json$|mini-app\.json$|scripts/mini-app-shell/|scripts/fuel-sw-extra\.js$|firestore\.rules$)'; then
+  frontend_hit=false
+  backend_hit=false
+  echo "$relevant" | grep -Eq '^(src/|public/|index.html$|vite\.config|package\.json$|firebase\.json$|mini-app\.json$|scripts/mini-app-shell/|scripts/fuel-sw-extra\.js$|firestore\.rules$)' && frontend_hit=true
+  # Backend = Node/Python-Server, CLI-Paket (fuel/) und das Deploy-Skript selbst.
+  echo "$relevant" | grep -Eq '^(fuel/|backend/|server/|deploy\.sh$)' && backend_hit=true
+
+  if [ "$frontend_hit" = true ] || [ "$backend_hit" = true ]; then
     echo "💡 Tipp: für den kompletten dev->master->vitalos-Flow gibt es ~/vitalos/bin/fuel-release (vos-release fuel --help)." >&2
-    echo "📦 fuel-dev: relevante App-Änderungen — Staging-Deploy nach ~/.local/fuel…" >&2
+    echo "📦 fuel-dev: relevante Änderungen — Staging-Deploy nach ~/.local/fuel…" >&2
     if ./deploy.sh; then
       echo "✅ Staging aktualisiert (~/.local/fuel)." >&2
     else
       echo "⚠️  Staging-Deploy fehlgeschlagen — Push läuft weiter. Nachziehen: pnpm run deploy:local" >&2
+    fi
+  fi
+
+  # Frontend-Änderung auf dev: 24h-Preview-Channel + Telegram-Link (NICHT live —
+  # Live-Firebase läuft nur beim Push auf master, s.u.). Fehlschlag blockiert den Push nicht.
+  if [ "$frontend_hit" = true ]; then
+    echo "🔭 fuel-dev: Frontend-Änderung — baue + deploye 24h-Preview-Channel…" >&2
+    if pnpm run deploy:preview; then
+      echo "✅ Preview-Channel aktualisiert." >&2
+    else
+      echo "⚠️  Preview-Deploy fehlgeschlagen — Push läuft weiter. Nachziehen: pnpm run deploy:preview" >&2
     fi
   fi
   break
