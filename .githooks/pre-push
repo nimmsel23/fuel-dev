@@ -56,16 +56,8 @@ while read -r local_ref local_sha remote_ref remote_sha; do
     fi
   fi
 
-  # Frontend-Änderung auf dev: 24h-Preview-Channel + Telegram-Link (NICHT live —
-  # Live-Firebase läuft nur beim Push auf master, s.u.). Fehlschlag blockiert den Push nicht.
-  if [ "$frontend_hit" = true ]; then
-    echo "🔭 fuel-dev: Frontend-Änderung — baue + deploye 24h-Preview-Channel…" >&2
-    if pnpm run deploy:preview; then
-      echo "✅ Preview-Channel aktualisiert." >&2
-    else
-      echo "⚠️  Preview-Deploy fehlgeschlagen — Push läuft weiter. Nachziehen: pnpm run deploy:preview" >&2
-    fi
-  fi
+  # 24h-Preview-Channel läuft nicht mehr hier, sondern in CI (.github/workflows/preview-dev.yml,
+  # dev-Push mit Änderungen unter src/**; User-Vorgabe 2026-10-26).
   break
 done <<< "$pushed_refs"
 
