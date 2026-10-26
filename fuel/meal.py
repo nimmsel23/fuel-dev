@@ -982,7 +982,9 @@ def _log_parsed(description: str, notes: str, target: str, day_explicit: bool,
         do_meal_log(
             pm.text, m["kcal"], m["protein"], m["carbs"], m["fat"], notes,
             target if day_explicit else (pm.resolved_day() or target),
-            save_catalog, 1,
+            # Einzelzutat ("850ml Hohes C") ist schon als Baustein im Catalog — ein
+            # zweiter Eintrag mit der Menge im Namen wäre nur ein Near-Duplikat.
+            save_catalog and len(pm.items) > 1, 1,
             meal_type=meal_type if meal_type != "lunch" else (pm.meal_type or meal_type),
             micros=res.micros, components=res.components,
             zeit=zeit or pm.time,

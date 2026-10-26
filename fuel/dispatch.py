@@ -639,7 +639,11 @@ def main() -> None:
     m = re.match(r"^(\d+)\s+(.+)$", description)
     if m:
         from fuel.catalog_lookup import find_meal
-        if find_meal(m.group(2)):
+        from fuel.units import UNIT_GRAMS, fold
+        # "850 ml Hohes C" ist eine Mengenangabe, keine Stückzahl: Einheit direkt
+        # nach der Zahl → nicht als --qty abspalten (sonst 850× den Baustein).
+        _first = fold(m.group(2).split()[0])
+        if _first not in UNIT_GRAMS and find_meal(m.group(2)):
             qty_args = ["--qty", m.group(1)]
             description = m.group(2)
 
