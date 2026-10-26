@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Deployt einen 24h-Firebase-Preview-Channel und schickt den Link per Telegram.
-// Läuft bewusst LOKAL (nicht in CI): die Crossover-Aliase in der vite-Config
-// (@fuel/@habits/@journal/@fitness/@db) zeigen absolut auf die Nachbar-Repos
-// unter /home/alpha — nur hier existiert der echte Build-Kontext.
+// Manueller/lokaler Weg. Seit 2026-10-26 gibt es denselben Preview auch in CI
+// (.github/workflows/preview-dev.yml, nackter Checkout): Fuel importiert nichts
+// mehr aus Nachbar-Repos, deshalb braucht der Build keinen lokalen Kontext mehr.
 // Firebase-Projekt kommt aus .firebaserc, der App-Name aus package.json,
 // Telegram-Creds aus ~/.env/fitness.env (TELEGRAM_TOKEN, TELEGRAM_CHAT_ID).
 

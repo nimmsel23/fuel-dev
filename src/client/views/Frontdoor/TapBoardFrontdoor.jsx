@@ -2,7 +2,7 @@ import React from "react";
 import { Camera, Mic, Search, Check, Undo2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { twMerge } from "tailwind-merge";
-import { useSwipeToDismiss } from "@fitness/hooks/useSwipeToDismiss.js";
+import { useSwipeToDismiss } from "../../hooks/useSwipeToDismiss.js";
 import { SLOT_LABEL, slotOf } from "./useFrontdoorLog.js";
 
 const PORTIONS = [

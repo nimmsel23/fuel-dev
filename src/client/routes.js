@@ -1,5 +1,5 @@
 import { lazy } from "react";
-import { Flame, UtensilsCrossed, NotebookPen, BookOpen, Pill, Microscope, Settings2, History, LayoutGrid, GitCommitVertical, TerminalSquare, ChefHat, Library, FileText, CookingPot, Refrigerator } from "lucide-react";
+import { Flame, UtensilsCrossed, NotebookPen, Pill, Microscope, Settings2, History, LayoutGrid, GitCommitVertical, TerminalSquare, ChefHat, Library, FileText, CookingPot, Refrigerator } from "lucide-react";
 
 const BUILD_IS_LOCAL = import.meta.env.VITE_APP_MODE !== "client" && import.meta.env.MODE !== "firebase";
 const BUILD_IS_SHELL = import.meta.env.MODE === "firebase";
@@ -9,7 +9,7 @@ const BUILD_IS_SHELL = import.meta.env.MODE === "firebase";
 const SOLO = import.meta.env.VITE_SOLO || "";
 
 // Tab-Reihenfolge (2026-09-06, User-Vorgabe): Dashboard · Log · Food · Rezepte ·
-// Katalog · Historie · Journal · Supplements · Mikros · Setup · Dev.
+// Katalog · Historie · Supplements · Mikros · Setup · Dev.
 export const TAB_CONFIG = [
   ...((!BUILD_IS_SHELL && !SOLO) ? [{
     key: "dashboard",
@@ -95,19 +95,6 @@ export const TAB_CONFIG = [
     Icon: FileText,
     View: lazy(() => import("./views/Report/NutritionReportView.jsx")),
     getProps: () => ({}),
-  }] : []),
-  ...((!BUILD_IS_SHELL && !SOLO) ? [{
-    // Seit 2026-08-07 (TODO.md): im Firebase-Frontend (cloud) ausgeblendet —
-    // Journal-VOS-Tab ist Cross-Repo-Import aus journal-dev, nicht Teil des
-    // Ernährungs-Tagebuchs. Das bleibt via JournalWidget im Dashboard
-    // weiterhin ladbar (siehe DashboardView.jsx). Habits-Tab wurde entfernt
-    // (2026-08-23) — fuel-dev braucht habits-dev nicht als Dependency.
-    key: "journal",
-    label: "Journal",
-    Icon: BookOpen,
-    View: lazy(() => import("./views/JournalVosView.jsx")),
-    getProps: (ctx) => ({ date: ctx.activeDate }),
-    cloudHidden: true,
   }] : []),
   ...((!SOLO || SOLO === "supplements") ? [{
     key: "supplements",
