@@ -9,6 +9,15 @@ import { todayISO } from "../lib/db/firestore/utils.js";
 
 export const POTS_KEY = ["pots"];
 
+// Technische Fehlertexte (Auth/Firestore) in verständliches Deutsch übersetzen.
+export function potErrorMessage(e) {
+  const msg = e?.message || String(e || "");
+  if (/not authenticated/i.test(msg)) return "Bitte zuerst anmelden (Cloud Login oben rechts).";
+  if (/permission|insufficient/i.test(msg)) return "Keine Berechtigung für die Töpfe — bitte neu anmelden.";
+  if (/offline|unavailable|network/i.test(msg)) return "Keine Verbindung zur Cloud — Änderungen werden nachgeholt, sobald du wieder online bist.";
+  return msg;
+}
+
 export function usePots() {
   return useQuery({ queryKey: POTS_KEY, queryFn: listPots, staleTime: 30_000 });
 }
@@ -81,7 +90,7 @@ export function usePotActions() {
   const [error, setError] = useState(null);
 
   const fail = (date) => (e) => {
-    setError(e?.message || String(e));
+    setError(potErrorMessage(e));
     qc.invalidateQueries({ queryKey: POTS_KEY });
     if (date) reloadNutritionDay(qc, date);
   };

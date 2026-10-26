@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { CookingPot, Plus } from "lucide-react";
-import { usePots, usePotActions } from "../../hooks/usePots.js";
+import { usePots, usePotActions, potErrorMessage } from "../../hooks/usePots.js";
 import { isFinished } from "../../lib/potsLogic.js";
 import PotCard from "./PotCard.jsx";
 import PotForm from "./PotForm.jsx";
@@ -38,7 +38,7 @@ export default function PotsView() {
           onSubmit={async (input, first) => { await createPot(input, first); setShowForm(false); }} />
       )}
 
-      {(error || loadError) && <p role="alert" className="rounded-xl border border-rose-400/30 bg-rose-400/10 px-3 py-2 text-sm text-rose-200">{error || loadError.message}</p>}
+      {(error || loadError) && <p role="alert" className="rounded-xl border border-rose-400/30 bg-rose-400/10 px-3 py-2 text-sm text-rose-200">{error || potErrorMessage(loadError)}</p>}
       {isLoading && <div className="py-10 text-center text-sm text-slate-500 animate-pulse">Laden…</div>}
 
       {!isLoading && pots.length === 0 && !showForm && (
