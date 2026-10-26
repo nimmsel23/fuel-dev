@@ -24,7 +24,9 @@ module.exports = defineConfig(async ({ mode }) => {
   const solo = process.env.VITE_SOLO || env.VITE_SOLO || "";
 
   // coach builds to dist/ (local server), client builds to dist-firebase/ (for firebase deploy)
-  const outDir = solo ? `./dist-solo-${solo}` : appMode === "client" ? "./dist-firebase" : "./dist";
+  // Optional: VITE_SOLO_FRONTDOOR=shutter|tapboard|tagesfaden — die Mini-App startet im Schnelleinstieg (eingebettet in 6Pack)
+  const soloFrontdoor = solo ? (process.env.VITE_SOLO_FRONTDOOR || env.VITE_SOLO_FRONTDOOR || "") : "";
+  const outDir = soloFrontdoor ? `./dist-solo-${solo}-${soloFrontdoor}` : solo ? `./dist-solo-${solo}` : appMode === "client" ? "./dist-firebase" : "./dist";
 
   console.log(`🚀 Building for mode: ${mode}, APP_MODE: ${appMode} -> outDir: ${outDir}`);
 
@@ -33,6 +35,7 @@ module.exports = defineConfig(async ({ mode }) => {
     define: {
       "import.meta.env.VITE_APP_MODE": JSON.stringify(appMode),
       "import.meta.env.VITE_SOLO": JSON.stringify(solo),
+      "import.meta.env.VITE_SOLO_FRONTDOOR": JSON.stringify(soloFrontdoor),
     },
     resolve: {
       preserveSymlinks: true,

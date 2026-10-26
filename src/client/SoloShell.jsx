@@ -20,6 +20,10 @@ import { watchAuth, signIn, signOut } from "./lib/db.firestore.js";
 // kein Frontdoor, keine Tab-Leiste, keine Heatmap. Läuft immer als Cloud-Build (Firestore),
 // darum Login-Pflicht. Der Rest (Splash, Icons, Manifest) kommt aus @vos/mini-app-shell (stamp-solo.mjs).
 const SOLO = import.meta.env.VITE_SOLO || "";
+// Schnelleinstieg (z. B. "shutter"): die Mini-App öffnet direkt in der Frontdoor, ohne eigenen Header
+// (der Rahmen, etwa 6Pack, liefert Zurück-Navigation). "Alles anzeigen" bzw. Tippen wechselt in den Tab.
+const SOLO_FRONTDOOR = import.meta.env.VITE_SOLO_FRONTDOOR || "";
+const FrontdoorHost = React.lazy(() => import("./views/Frontdoor/FrontdoorHost.jsx"));
 
 // date: Tagesnavigation im Header; totals: kcal/Makros des Tages im Header
 const META = {
@@ -63,6 +67,7 @@ export default function SoloShell() {
   const [user, setUser] = React.useState(null);
   const [authReady, setAuthReady] = React.useState(false);
   const [needRefresh, setNeedRefresh] = React.useState(false);
+  const [frontdoorOpen, setFrontdoorOpen] = React.useState(!!SOLO_FRONTDOOR);
 
   React.useEffect(() => {
     if (SOLO !== "supplements") return;
@@ -84,6 +89,21 @@ export default function SoloShell() {
     if (w) w.postMessage({ type: "SKIP_WAITING" });
     else window.location.reload();
   };
+
+  if (frontdoorOpen && user) {
+    return (
+      <div style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}>
+        <React.Suspense fallback={<p role="status" className="py-20 text-center text-sm text-slate-500">Laden…</p>}>
+          <FrontdoorHost
+            frontdoorKey={SOLO_FRONTDOOR}
+            userName={user.displayName?.split(" ")[0]}
+            onEnterApp={() => setFrontdoorOpen(false)}
+            onOpenApp={() => setFrontdoorOpen(false)}
+          />
+        </React.Suspense>
+      </div>
+    );
+  }
 
   return (
     <>
