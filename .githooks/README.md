@@ -26,8 +26,8 @@ ist das Primärziel, Staging nur der Spiegel) — manuell nachziehen mit
 für den vollen dev→master→vitalos-Flow.
 
 **Seit 2026-10-25 – Push auf `dev` im Detail:** Der Staging-Spiegel (`./deploy.sh`,
-kein Prod/sudo) läuft jetzt bei Frontend- UND Backend-Änderungen (`fuel/`, `backend/`,
-`server/`, `deploy.sh`). Bei Frontend-Änderungen (`src/`, `public/`, `index.html`,
+kein Prod/sudo) läuft nur noch bei Backend-Änderungen (`fuel/`, `backend/`,
+`server/`, `deploy.sh`; User-Vorgabe 2026-10-26). Bei Frontend-Änderungen (`src/`, `public/`, `index.html`,
 `vite.config*`, …) zusätzlich `pnpm run deploy:preview` (24h-Preview-Channel +
 Telegram-Link, **nicht live**). Beides blockiert den Push bei Fehlschlag nicht.
 Live-Firebase und `deploy.sh prod` laufen weiterhin nur manuell bzw. (Firebase) beim

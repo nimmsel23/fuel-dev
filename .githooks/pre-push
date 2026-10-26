@@ -23,7 +23,7 @@ while read -r local_ref local_sha remote_ref remote_sha; do
   [ -z "$local_ref" ] && continue
   [ "${local_ref#refs/heads/}" = "dev" ] || continue
 
-  # dev-Push spiegelt den Staging-Stand nur bei App-Änderungen nach ~/.local/fuel.
+  # dev-Push spiegelt den Staging-Stand nur bei Backend-Änderungen nach ~/.local/fuel.
   # deploy.sh ohne Argument = TARGET=staging: rsync + build:local +
   # frontend/-Build, endet mit `exit 0` VOR dem Prod-Block — kein /opt,
   # kein systemctl, kein sudo. Schlägt es fehl, läuft der Push trotzdem
@@ -43,7 +43,12 @@ while read -r local_ref local_sha remote_ref remote_sha; do
 
   if [ "$frontend_hit" = true ] || [ "$backend_hit" = true ]; then
     echo "💡 Tipp: für den kompletten dev->master->vitalos-Flow gibt es ~/vitalos/bin/fuel-release (vos-release fuel --help)." >&2
-    echo "📦 fuel-dev: relevante Änderungen — Staging-Deploy nach ~/.local/fuel…" >&2
+  fi
+
+  # Staging-Spiegel nur bei Backend-Änderungen (User-Vorgabe 2026-10-26); Frontend-Änderungen
+  # gehen nur in den Preview-Channel (s.u.).
+  if [ "$backend_hit" = true ]; then
+    echo "📦 fuel-dev: Backend-Änderung — Staging-Deploy nach ~/.local/fuel…" >&2
     if ./deploy.sh; then
       echo "✅ Staging aktualisiert (~/.local/fuel)." >&2
     else
