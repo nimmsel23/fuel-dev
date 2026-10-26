@@ -19,6 +19,9 @@
         ],
         "protokoll": [
           "vos-fuel-protokoll"
+        ],
+        "fuelos": [
+          "fuel-os"
         ]
       }
     }

@@ -1,6 +1,6 @@
 # Live-Deploy für Fuel: Push auf master
 #
-# Baut die App und lädt sie direkt live auf Firebase hoch (Hosting-Target "client" = fuel-vos.web.app).
+# Baut die App und lädt sie direkt live auf Firebase hoch (Hosting-Target "fuelos" = Site fuel-os, https://fuel-os.web.app).
 # Fuel ist eigenständig (keine Imports aus Nachbar-Repos): nackter Checkout dieses Repos,
 # kein vitalos-Meta-Repo, keine Submodule.
 
@@ -45,9 +45,10 @@ jobs:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_FITNESS_AOS || secrets.FIREBASE_SERVICE_ACCOUNT }}
           projectId: fitness-aos
-          # firebase.json kennt fünf Hosting-Targets (Haupt-App + vier Mini-Apps) — live nur die Haupt-App.
-          # Die Mini-Apps werden bewusst nur manuell deployt (pnpm run deploy:solo:<x>).
-          target: client
+          # firebase.json kennt mehrere Hosting-Targets — master geht auf die Site fuel-os (Target "fuelos").
+          # fuel-vos (Target "client") bedient die vitalos-Pipeline ("Deploy Fuel PWA"), die Mini-Apps werden
+          # bewusst nur manuell deployt (pnpm run deploy:solo:<x>).
+          target: fuelos
           channelId: live
 
       - name: Telegram-Benachrichtigung senden
@@ -59,6 +60,6 @@ jobs:
           message: |
             🚀 Fuel ist LIVE deployed (master)!
 
-            🔗 Live-URL: https://fuel-vos.web.app
+            🔗 Live-URL: https://fuel-os.web.app
 
             Commit: ${{ github.event.head_commit.message }}
