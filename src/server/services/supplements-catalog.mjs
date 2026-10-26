@@ -84,6 +84,11 @@ export function addOrUpdateSupplement(catalog, input) {
     // gesetzt, damit ein YAML-/CLI-angelegtes reminder-Feld beim Merge unten
     // erhalten bleibt.
     ...(input.reminder !== undefined ? { reminder: input.reminder } : {}),
+    // kind/substance/micros nur setzen, wenn mitgeschickt — sonst bleiben
+    // YAML-/CLI-Werte beim Merge unten erhalten.
+    ...(input.kind ? { kind: input.kind } : {}),
+    ...(input.substance ? { substance: input.substance } : {}),
+    ...(input.micros ? { micros: input.micros } : {}),
   };
 
   const idx = catalog.items.findIndex((i) => i.id === id);

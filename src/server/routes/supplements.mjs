@@ -29,6 +29,11 @@ const catalogPostSchema = z.object({
   default_dose: z.coerce.number().optional(),
   default_time_of_day: z.string().optional(),
   reminder: reminderSchema,
+  // micronutrient = zählt über `micros` in der Mikro-Auswertung; botanical =
+  // Pflanze/Adaptogen, nur Dosis-Log + `substance`-Verweis auf relax-dev.
+  kind: z.enum(["micronutrient", "botanical"]).optional(),
+  substance: z.string().optional(),
+  micros: z.record(z.string(), z.coerce.number().min(0)).optional(),
   // War bisher nie im Schema — GeminiCatalogModal.jsx schätzte längst ein
   // schedule-Objekt, das aber beim Speichern verworfen wurde. utils.js'
   // isDueToday() (genutzt von DailyChecklist.jsx) hing dadurch komplett in

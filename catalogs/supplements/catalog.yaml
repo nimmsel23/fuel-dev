@@ -48,13 +48,24 @@ items:
     magnesium_mg: 200
 - id: dha
   name: DHA
-  product: Sunday Natural DHA Kapseln
+  product: Sunday Natural Omega 3 Vegan
   unit: mg
-  default_dose: 500
+  default_dose: 350
   default_time_of_day: morning
-  notes: geplant — nächste Sunday Natural Bestellung
+  per_unit:
+    omega3_dha_mg: 175.0
+    omega3_epa_mg: 90.0
+  actives:
+    omega3_dha_mg: 350.0
+    omega3_epa_mg: 180.0
+    omega3_epa_dha_mg: 530.0
   micros:
-    omega3_mg: 500
+    omega3_dha_mg: 350.0
+    omega3_epa_mg: 180.0
+    omega3_epa_dha_mg: 530.0
+    omega3_mg: 530.0
+  notes: Schizochytrium-Algenöl, vegan — Werte 350 mg DHA / 180 mg EPA pro Tagesdosis
+    vom User bestätigt (2026-10-26); Recherche-Quelle amazon.de B0FMS1Q53F
 - id: zink
   name: Zink
   product: Sunday Natural Zink Komplex (mehrere Zink-Verbindungen) + Vitamin C
@@ -71,6 +82,8 @@ items:
   default_dose: 5
   default_time_of_day: any
 - id: brahmi
+  kind: botanical
+  substance: brahmi
   name: Brahmi
   unit: mg
   default_dose: 100
@@ -86,6 +99,8 @@ items:
   source: manual
   verified_at: '2026-10-11T10:21:53.837057Z'
 - id: ashwagandha
+  kind: botanical
+  substance: ashwagandha
   name: Ashwagandha
   unit: mg
   default_dose: 500
@@ -102,11 +117,15 @@ items:
   source: manual
   verified_at: '2026-10-11T10:22:31.564832Z'
 - id: tongkat_ali
+  kind: botanical
+  substance: tongkat_ali
   name: Tongkat Ali Elixier
   unit: ml
   default_dose: 250
   default_time_of_day: morning
 - id: mulungu
+  kind: botanical
+  substance: mulungu
   name: Mulungu Tee
   unit: ml
   default_dose: 250

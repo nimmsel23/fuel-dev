@@ -2,6 +2,8 @@ import { useState } from "react";
 import { X, Save, Trash2 } from "lucide-react";
 import { postJson, deleteJson } from "@api";
 import { Modal } from "../../components/ui.jsx";
+import { DACH } from "../../../shared/config/dach.mjs";
+import { BOTANICALS } from "../../../shared/config/botanicals.mjs";
 
 const WEEKDAYS = [
   ["mon", "Mo"], ["tue", "Di"], ["wed", "Mi"], ["thu", "Do"],
@@ -18,6 +20,10 @@ const labelCls = "text-xs uppercase tracking-[0.18em] text-slate-500 mb-1 block"
 // aber item.schedule war nie gesetzt/editierbar — 2026-07-30 entdeckt).
 export default function SupplementEditor({ item, onClose, onSaved }) {
   const isEdit = Boolean(item);
+  const existingMicroKeys = Object.keys(item?.micros || {});
+  const [kind, setKind] = useState(item?.kind || (item?.substance ? "botanical" : "micronutrient"));
+  const [microKey, setMicroKey] = useState(existingMicroKeys[0] || "");
+  const [substance, setSubstance] = useState(item?.substance || "");
   const [name, setName] = useState(item?.name || "");
   const [unit, setUnit] = useState(item?.unit || "mg");
   const [defaultDose, setDefaultDose] = useState(item?.default_dose ?? "");
@@ -30,6 +36,18 @@ export default function SupplementEditor({ item, onClose, onSaved }) {
   const [reminderTime, setReminderTime] = useState(item?.reminder?.time || "08:00");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  // Dropdown-Wahl füllt Einheit (und Namen, solange leer) automatisch vor.
+  function pickMicro(key) {
+    setMicroKey(key);
+    if (!key) return;
+    setUnit(DACH[key].unit);
+    if (!name.trim()) setName(DACH[key].label);
+  }
+  function pickSubstance(key) {
+    setSubstance(key);
+    if (key && !name.trim()) setName(BOTANICALS[key].label);
+  }
 
   function toggleDay(d) {
     setDays((cur) => (cur.includes(d) ? cur.filter((x) => x !== d) : [...cur, d]));
@@ -56,9 +74,19 @@ export default function SupplementEditor({ item, onClose, onSaved }) {
         ? { enabled: true, time: reminderTime }
         : hadReminder ? { enabled: false } : undefined;
 
+      // Einzel-Nährstoff: micros = {Schlüssel: Dosis}. Hat ein bestehender
+      // Eintrag mehrere Mikros (Kombipräparat), bleiben sie unangetastet.
+      const dose = defaultDose === "" ? null : Number(defaultDose);
+      const micros =
+        kind === "micronutrient" && microKey && existingMicroKeys.length <= 1 && dose
+          ? { [microKey]: dose }
+          : item?.micros;
+
       await postJson("/supplements/catalog", {
         ...(item || {}),
         id: item?.id,
+        kind,
+        ...(kind === "botanical" ? { substance: substance || undefined } : { micros }),
         name: name.trim(),
         unit,
         default_dose: defaultDose === "" ? null : Number(defaultDose),
@@ -94,6 +122,37 @@ export default function SupplementEditor({ item, onClose, onSaved }) {
       description="Name, Dosis und wann es fällig ist."
     >
       <div className="space-y-4">
+        <div>
+          <label className={labelCls}>Art</label>
+          <select className={inputCls} value={kind} onChange={(e) => setKind(e.target.value)}>
+            <option value="micronutrient">Mikronährstoff (zählt in der Mikro-Auswertung)</option>
+            <option value="botanical">Pflanzlich / Adaptogen (nur Dosis-Log)</option>
+          </select>
+        </div>
+        {kind === "micronutrient" ? (
+          <div>
+            <label className={labelCls}>Welcher Mikronährstoff?</label>
+            <select className={inputCls} value={microKey} onChange={(e) => pickMicro(e.target.value)} disabled={existingMicroKeys.length > 1}>
+              <option value="">— wählen —</option>
+              {Object.entries(DACH).map(([key, v]) => (
+                <option key={key} value={key}>{v.label} ({v.unit})</option>
+              ))}
+            </select>
+            {existingMicroKeys.length > 1 && (
+              <p className="mt-1 text-xs text-slate-500">Kombipräparat mit {existingMicroKeys.length} Mikros — Werte bleiben unverändert.</p>
+            )}
+          </div>
+        ) : (
+          <div>
+            <label className={labelCls}>Substanz (Relax-Katalog)</label>
+            <select className={inputCls} value={substance} onChange={(e) => pickSubstance(e.target.value)}>
+              <option value="">— wählen —</option>
+              {Object.entries(BOTANICALS).map(([key, v]) => (
+                <option key={key} value={key}>{v.label}</option>
+              ))}
+            </select>
+          </div>
+        )}
         <div>
           <label className={labelCls}>Name</label>
           <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="z.B. Magnesium" />
