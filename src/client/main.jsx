@@ -135,7 +135,7 @@ function App() {
       const { tab: hashTab, date } = parseHashState();
       const isCloudNow = window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com") || import.meta.env.VITE_APP_MODE === "client";
       const tab = TAB_CONFIG.find((t) => t.key === hashTab);
-      if (tab && !(tab.cloudHidden && isCloudNow)) {
+      if (tab && !(tab.cloudHidden && isCloudNow) && !(tab.cloudOnly && !isCloudNow)) {
         setActiveTab(hashTab);
       }
       if (date) {
@@ -167,7 +167,7 @@ function App() {
   const totalCarbs = sumMetric(meals, "carbs");
   const totalFat = sumMetric(meals, "fat");
 
-  const visibleTabs = TAB_CONFIG.filter((t) => !t.localOnly || localMode !== null).filter((t) => !(t.cloudHidden && isCloudFrontend));
+  const visibleTabs = TAB_CONFIG.filter((t) => !t.localOnly || localMode !== null).filter((t) => !(t.cloudHidden && isCloudFrontend)).filter((t) => !(t.cloudOnly && !isCloudFrontend));
   // Setup-Tab (2026-09-06, User-Vorgabe): nicht als gleichwertige Pill in der
   // Haupt-Nav, sondern dezentes Zahnrad oben im Header. Aus der Pill-Leiste
   // herausgefiltert, separat als Icon-Button gerendert.

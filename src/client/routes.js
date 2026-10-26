@@ -1,5 +1,5 @@
 import { lazy } from "react";
-import { Flame, UtensilsCrossed, NotebookPen, BookOpen, Pill, Microscope, Settings2, History, LayoutGrid, GitCommitVertical, TerminalSquare, ChefHat, Library, FileText } from "lucide-react";
+import { Flame, UtensilsCrossed, NotebookPen, BookOpen, Pill, Microscope, Settings2, History, LayoutGrid, GitCommitVertical, TerminalSquare, ChefHat, Library, FileText, CookingPot, Refrigerator } from "lucide-react";
 
 const BUILD_IS_LOCAL = import.meta.env.VITE_APP_MODE !== "client" && import.meta.env.MODE !== "firebase";
 const BUILD_IS_SHELL = import.meta.env.MODE === "firebase";
@@ -45,6 +45,25 @@ export const TAB_CONFIG = [
     Icon: UtensilsCrossed,
     View: lazy(() => import("./views/FoodView.jsx")),
     getProps: (ctx) => ({ activeDate: ctx.activeDate, setActiveDate: ctx.setActiveDate, nutrition: ctx.nutrition }),
+  }] : []),
+  ...(!SOLO ? [{
+    // Töpfe (2026-10-26): was man gekocht hat als Gericht anlegen und tagweise
+    // festhalten, wie viel vom Topf schon gegessen ist (Timeline). Cloud-Kanal.
+    key: "pots",
+    label: "Töpfe",
+    Icon: CookingPot,
+    View: lazy(() => import("./views/Pots/PotsView.jsx")),
+    getProps: () => ({}),
+    cloudOnly: true,
+  }, {
+    // Küche (2026-10-26): Subtabs Einkauf (Kassenbon-Scan, Einkäufe) und Vorrat
+    // (Bestand, KI-Rezeptvorschläge). Cloud-Kanal.
+    key: "kitchen",
+    label: "Küche",
+    Icon: Refrigerator,
+    View: lazy(() => import("./views/Kitchen/KitchenView.jsx")),
+    getProps: (ctx) => ({ activeDate: ctx.activeDate }),
+    cloudOnly: true,
   }] : []),
   ...((!SOLO || SOLO === "recipes") ? [{
     key: "recipes",

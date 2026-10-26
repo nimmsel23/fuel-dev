@@ -627,3 +627,21 @@ danach prüft Haiku (`_verify_with_haiku`, Claude-CLI, Timeout 25 s) die Makros 
 korrigiert sie bei Abweichung (Log-Warnung mit Begründung). Ist die CLI nicht nutzbar oder läuft in
 den Timeout, bleiben die Gemini-Werte. Das WebSearch-Grounding für Markenprodukte entfällt im
 Schätzpfad (Katalog-Verifikation bleibt bei `fuel-catalog-verify`).
+
+## Töpfe-Tab (seit 2026-10-26, Cloud-Kanal)
+
+Tab `pots` ("Töpfe", `cloudOnly` in `routes.js`): ein gekochtes Gericht wird als **Topf** angelegt (Name, Zutaten-Freitext, Gesamtmakros — optional per Vertex geschätzt, Prompt zwingt "Gesamtmenge, keine Einzelportion") und tagweise auf einer Timeline mit dem gegessenen Anteil versehen (¼ ⅓ ½ ⅔ ¾, "Rest", freie %-Eingabe; Summe über alle Tage ≤ 100 %).
+
+- **Daten:** `users/{uid}/fuel_pots/{id}` (deployte Rules `users/{uid}/{document=**}` reichen, kein Rules-Deploy). Dokument: `{name, ingredients, cooked_on, macros, micros?, micros_meta?, components?, days: {"YYYY-MM-DD": {fraction, meal_id}}, owner_uid}`. Layer: `lib/db/firestore/pots.js`, reine Logik `lib/potsLogic.js` (Tests `tests/pots-logic.test.mjs`), Hook `hooks/usePots.js`, UI `views/Pots/`.
+- **Verknüpfung zum Log:** Jeder Tagesanteil ist zugleich eine Mahlzeit im Tages-Log (`pot_id`, `pot_fraction`, skalierte Makros/Mikros, Beschreibung "<Name> (75 % vom Topf)") — so stimmen Dashboard/Mikros. Ablauf je Änderung: Topf speichern → Mahlzeit per `postJson`/`patchJson("/nutrition/log")` (läuft über die Outbox, optimistisch via `patchNutritionDay`). Wurde die Mahlzeit im Log-Tab gelöscht, wird sie mit frischer ID neu angelegt (Tombstone-sicher).
+- **Grenzen:** Topf-Dokumente laufen nicht über die Offline-Outbox (Firestore-Persistent-Cache puffert), kein lokaler Fastify-Kanal (Tab nur im Cloud-Build), Makros eines bestehenden Topfs sind nicht nachträglich editierbar (dann Topf neu anlegen).
+
+## Küche-Tab (seit 2026-10-26, Cloud-Kanal)
+
+Tab `kitchen` ("Küche", `cloudOnly`) mit Subtabs **Einkauf** und **Vorrat** (`views/Kitchen/`, Hook `hooks/useKitchen.js`, reine Logik `lib/kitchenLogic.js` + Tests `tests/kitchen-logic.test.mjs`, Vertex-Aufrufe `lib/kitchenAi.js` nur bei Bedarf geladen, Daten-Layer `lib/db/firestore/pantry.js`).
+
+- **Einkauf:** Bon-Foto oder Freitext → Vertex extrahiert Händler/Datum/Summe/Positionen → editierbare Review-Liste (Nicht-Lebensmittel abgewählt) → Vorrat + Verlauf, passende Einkaufszettel-Posten werden abgehakt. Das Foto wird nie gespeichert. Dazu Einkaufszettel, KI-Einkaufsempfehlungen, Aktionen-Panel, Verlauf.
+- **Vorrat:** Schnell-Hinzufügen per Freitext, Liste nach Kategorie (±, "verbraucht", Ablauf-Hinweis), KI-Rezeptideen (3–5, Makros/Portion; berücksichtigt Ablaufdatum, `diet_type`/`intolerances`/`nutrition_goal`, Freitext-Wünsche; "im Vorrat" wird gegen den echten Vorrat geprüft).
+- **Aktionen:** Es gibt **keine** echte Datenquelle für Händler-Angebote — keine erfundenen Angebote. Aktionen entstehen nur aus selbst eingelesenen Prospekt-Fotos/Texten (ohne Gültigkeitsdatum 7 Tage), abgelaufene werden ausgeblendet. Rezepte/Empfehlungen können sich darauf beziehen.
+- **Daten:** `users/{uid}/fuel_pantry`, `fuel_receipts`, `fuel_shopping`, `fuel_deals`, `meta/kitchen` (deployte Rules reichen); `owner_uid` gestempelt, fremde Docs beim Lesen verworfen.
+- **Offen:** abgehakte Zettel-Posten landen nicht automatisch im Vorrat; echte Vertex-Qualität (Bon-Erkennung) und UI sind noch nicht im Browser geprüft.
