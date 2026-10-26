@@ -35,9 +35,10 @@ jobs:
           git config --global url."https://x-access-token:${{ github.token }}@github.com/".insteadOf "git@github.com:"
           git submodule sync
           # Nur die pnpm-Workspace-Mitglieder (siehe pnpm-workspace.yaml im Meta-Repo). Ein nacktes
-          # "--init --recursive" klont auch skills-app (privat, github.token darf es nicht → Lauf bricht ab)
-          # und die vos-fuel-*-Mini-App-Submodule, die der Preview nicht braucht.
-          git submodule update --init --recursive \
+          # "--init --recursive" klont auch skills-app und das verschachtelte fitness-app/Skills
+          # (beide zeigen auf das private skills-dev; github.token darf es nicht → Lauf bricht ab).
+          # Der Preview braucht skills-dev nicht: update=none überspringt es auch in der Rekursion.
+          git -c submodule.Skills.update=none submodule update --init --recursive \
             fitness-app 6pack-app plan-app fuel-app journal-app habit-app learn-app relax-app
 
       - name: fuel-dev auf den ausgelösten Commit setzen
