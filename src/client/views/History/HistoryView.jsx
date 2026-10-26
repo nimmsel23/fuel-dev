@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { History, Calendar, ChevronRight, ChevronDown, ChevronUp, Pencil, Trash2 } from "lucide-react";
 import { fetchJson, postJson } from "@api";
+import { syncPotAfterMealChange } from "../../hooks/usePots.js";
 import { sumMetric, formatMetric } from "../../../shared/utils/utils.js";
 
 const DAY_SHORT = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
@@ -63,7 +64,9 @@ export default function HistoryView({ setActiveDate, setActiveTab }) {
 
   const deleteMeal = useMutation({
     mutationFn: ({ date, mealId }) => postJson("/nutrition/log", { date, delete_meal_id: mealId }),
-    onSuccess: () => {
+    onSuccess: (_, { date, mealId, potId }) => {
+      // Topf-Mahlzeit gelöscht → Tageseintrag im Topf freigeben.
+      if (potId) syncPotAfterMealChange(qc, { potId, date, mealId });
       qc.invalidateQueries({ queryKey: ["nutrition-history"] });
       qc.invalidateQueries({ queryKey: ["week-logs"] });
     },
@@ -249,7 +252,7 @@ export default function HistoryView({ setActiveDate, setActiveTab }) {
                                           <button
                                             onClick={() => {
                                               if (confirm(`Möchtest du "${meal.description}" wirklich löschen?`)) {
-                                                deleteMeal.mutate({ date: day.date, mealId: meal.id });
+                                                deleteMeal.mutate({ date: day.date, mealId: meal.id, potId: meal.pot_id });
                                               }
                                             }}
                                             disabled={deleteMeal.isPending}

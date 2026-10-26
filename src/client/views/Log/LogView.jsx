@@ -5,6 +5,7 @@ import { NotebookPen, UtensilsCrossed, Pencil, Sparkles, AlertTriangle, RefreshC
 import { twMerge } from "tailwind-merge";
 import { postJson, patchJson } from "@api";
 import { patchNutritionDay, reloadNutritionDay } from "../../lib/optimisticMeal.js";
+import { syncPotAfterMealChange } from "../../hooks/usePots.js";
 import { vertexAI } from "../../lib/firebase.js";
 import { getGenerativeModel } from "firebase/vertexai";
 import { withAiRetry } from "../../lib/aiRetry.js";
@@ -273,7 +274,10 @@ export default function LogView({ date, nutrition, notes, mode }) {
     mutationFn: (plan) => (plan.edit ? patchJson("/nutrition/log", plan.body) : postJson("/nutrition/log", plan.body)),
     onMutate: async (plan) => { if (plan.optimistic) await patchNutritionDay(qc, date, plan.optimistic); },
     onError: () => reloadNutritionDay(qc, date),
-    onSuccess: () => {
+    onSuccess: (_, plan) => {
+      // Topf-Mahlzeit auf einen anderen Tag verschoben → Tageseintrag im Topf mitverlegen.
+      const orig = plan.edit && plan.body.new_date ? meals.find((m) => m.id === plan.body.meal_id) : null;
+      if (orig?.pot_id) syncPotAfterMealChange(qc, { potId: orig.pot_id, date, mealId: orig.id, moveTo: plan.body.new_date });
       qc.invalidateQueries({ queryKey: ["nutrition", date] });
       if (moveDate) qc.invalidateQueries({ queryKey: ["nutrition", moveDate] });
       qc.invalidateQueries({ queryKey: ["week-logs"] });
@@ -307,9 +311,15 @@ export default function LogView({ date, nutrition, notes, mode }) {
 
   const deleteMeal = useMutation({
     mutationFn: (id) => postJson("/nutrition/log", { date, delete_meal_id: id }),
-    onMutate: (id) => patchNutritionDay(qc, date, { delete_meal_id: id }),
+    onMutate: async (id) => {
+      const potId = meals.find((m) => m.id === id)?.pot_id || null;
+      await patchNutritionDay(qc, date, { delete_meal_id: id });
+      return { potId };
+    },
     onError: () => reloadNutritionDay(qc, date),
-    onSuccess: () => {
+    onSuccess: (_, id, ctx) => {
+      // Topf-Mahlzeit gelöscht → Tageseintrag im Topf freigeben, sonst zeigt der Topf weiter "gegessen".
+      if (ctx?.potId) syncPotAfterMealChange(qc, { potId: ctx.potId, date, mealId: id });
       qc.invalidateQueries({ queryKey: ["nutrition", date] });
       qc.invalidateQueries({ queryKey: ["week-logs"] });
       if (isEditing) setForm(emptyForm());

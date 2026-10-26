@@ -3,13 +3,13 @@ import { CookingPot, Plus } from "lucide-react";
 import { usePots, usePotActions } from "../../hooks/usePots.js";
 import { isFinished } from "../../lib/potsLogic.js";
 import PotCard from "./PotCard.jsx";
-import NewPotForm from "./NewPotForm.jsx";
+import PotForm from "./PotForm.jsx";
 
 // Töpfe — was man gekocht hat, als Gericht angelegt; je Tag wird festgehalten, wie viel vom Topf gegessen ist.
 // Jeder Tagesanteil landet als Mahlzeit (skalierte Makros/Mikros) im Tages-Log.
 export default function PotsView() {
   const { data: pots = [], isLoading, error: loadError } = usePots();
-  const { setDay, createPot, removePot, error } = usePotActions();
+  const { setDay, createPot, updatePot, removePot, error } = usePotActions();
   const [showForm, setShowForm] = useState(false);
 
   const active = pots.filter((p) => !isFinished(p));
@@ -34,8 +34,8 @@ export default function PotsView() {
       </div>
 
       {showForm && (
-        <NewPotForm onCancel={() => setShowForm(false)}
-          onCreate={async (input, first) => { await createPot(input, first); setShowForm(false); }} />
+        <PotForm onCancel={() => setShowForm(false)}
+          onSubmit={async (input, first) => { await createPot(input, first); setShowForm(false); }} />
       )}
 
       {(error || loadError) && <p role="alert" className="rounded-xl border border-rose-400/30 bg-rose-400/10 px-3 py-2 text-sm text-rose-200">{error || loadError.message}</p>}
@@ -47,13 +47,13 @@ export default function PotsView() {
         </div>
       )}
 
-      {active.map((pot) => <PotCard key={pot.id} pot={pot} onSetDay={setDay} onDelete={removePot} />)}
+      {active.map((pot) => <PotCard key={pot.id} pot={pot} onSetDay={setDay} onUpdate={updatePot} onDelete={removePot} />)}
 
       {done.length > 0 && (
         <details className="group">
           <summary className="cursor-pointer select-none text-sm text-slate-500 hover:text-slate-300">Aufgegessen ({done.length})</summary>
           <div className="mt-3 space-y-4">
-            {done.map((pot) => <PotCard key={pot.id} pot={pot} onSetDay={setDay} onDelete={removePot} />)}
+            {done.map((pot) => <PotCard key={pot.id} pot={pot} onSetDay={setDay} onUpdate={updatePot} onDelete={removePot} />)}
           </div>
         </details>
       )}

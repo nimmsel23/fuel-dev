@@ -3,7 +3,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchJson, postJson, patchJson } from "@api";
 import { listPots, savePot, deletePot } from "../lib/db/firestore/pots.js";
 import { patchNutritionDay, reloadNutritionDay } from "../lib/optimisticMeal.js";
-import { planDay, potMealFields, loggedAtFor } from "../lib/potsLogic.js";
+import { planDay, applyPotEdit } from "../lib/potsLogic.js";
+import { persistPlan, planRescale, releaseDay } from "../lib/potsPersist.js";
 import { todayISO } from "../lib/db/firestore/utils.js";
 
 export const POTS_KEY = ["pots"];
@@ -28,45 +29,51 @@ const refreshDay = (qc, date) => {
   qc.invalidateQueries({ queryKey: ["week-logs"] });
 };
 
-// Topf zuerst speichern, dann das Tages-Log: so verweist ein Topf nie auf eine Mahlzeit, die es nicht gibt;
-// scheitert das Log, legt der nächste Versuch die Mahlzeit neu an (fehlende Mahlzeit wird unten erkannt).
-async function persistPlan(qc, plan) {
-  const { date } = plan;
-  let pot = plan.nextPot;
-  await savePot(pot);
-  const { op } = plan;
-  if (op.kind === "none") return;
-
-  if (op.kind === "delete") {
-    await patchNutritionDay(qc, date, { delete_meal_id: op.mealId });
-    await postJson("/nutrition/log", { date, delete_meal_id: op.mealId });
-    return refreshDay(qc, date);
-  }
-
-  const fields = potMealFields(pot, plan.fraction);
-  let mealId = op.mealId;
-  let kind = op.kind;
-  if (kind === "patch") {
-    // Wurde die Mahlzeit im Log-Tab gelöscht, würde das Patchen scheitern — dann neu anlegen (frische ID, Tombstone-sicher).
-    const log = await fetchJson(`/nutrition/log?date=${date}`);
-    if (!(log?.data?.meals || []).some((m) => m.id === mealId)) {
-      mealId = crypto.randomUUID();
-      kind = "add";
-      pot = { ...pot, days: { ...pot.days, [date]: { fraction: plan.fraction, meal_id: mealId } } };
-      replacePot(qc, pot);
-      await savePot(pot);
-    }
-  }
-
-  if (kind === "patch") {
-    await patchNutritionDay(qc, date, { meal_id: mealId, meal: fields });
-    await patchJson("/nutrition/log", { date, meal_id: mealId, meal: fields });
-  } else {
-    const meal = { ...fields, id: mealId, logged_at: loggedAtFor(date, todayISO()) };
+// Verdrahtung von lib/potsPersist.js mit Firestore, Outbox-API und optimistischem Tages-Cache.
+const depsFor = (qc) => ({
+  savePot,
+  onPot: (pot) => replacePot(qc, pot),
+  dayMeals: async (date) => (await fetchJson(`/nutrition/log?date=${date}`))?.data?.meals || [],
+  addMeal: async (date, meal) => {
     await patchNutritionDay(qc, date, { meal });
     await postJson("/nutrition/log", { date, meal });
+    refreshDay(qc, date);
+  },
+  patchMeal: async (date, mealId, fields) => {
+    await patchNutritionDay(qc, date, { meal_id: mealId, meal: fields });
+    await patchJson("/nutrition/log", { date, meal_id: mealId, meal: fields });
+    refreshDay(qc, date);
+  },
+  deleteMeal: async (date, mealId) => {
+    await patchNutritionDay(qc, date, { delete_meal_id: mealId });
+    await postJson("/nutrition/log", { date, delete_meal_id: mealId });
+    refreshDay(qc, date);
+  },
+  newId: () => crypto.randomUUID(),
+  today: todayISO(),
+});
+
+// Eine Topf-Mahlzeit wurde im Log-Tab gelöscht/verschoben → Topf-Tag freigeben bzw. verlegen (siehe releaseDay).
+// Lädt die Töpfe bei Bedarf selbst (der Töpfe-Tab muss dafür nicht offen gewesen sein). Fehler hier dürfen das Log nicht stören.
+export async function syncPotAfterMealChange(qc, { potId, date, mealId, moveTo = null }) {
+  if (!potId) return;
+  try {
+    const pots = await qc.fetchQuery({ queryKey: POTS_KEY, queryFn: listPots, staleTime: 30_000 });
+    const pot = pots.find((p) => p.id === potId);
+    // Verschoben: die Mahlzeit hat am Zieltag eine neue ID — über pot_id/Anteil wiederfinden.
+    let movedMealId = null;
+    if (moveTo && pot?.days?.[date]) {
+      const target = (await fetchJson(`/nutrition/log?date=${moveTo}`))?.data?.meals || [];
+      movedMealId = target.find((m) => m.pot_id === potId && Math.abs((m.pot_fraction || 0) - pot.days[date].fraction) < 1e-6)?.id || null;
+    }
+    const next = pot && releaseDay(pot, date, mealId, moveTo, movedMealId);
+    if (!next) return;
+    replacePot(qc, next);
+    await enqueue(potId, () => savePot(next));
+  } catch (e) {
+    console.warn("[pots] Topf nach Log-Änderung nicht aktualisiert:", e);
+    qc.invalidateQueries({ queryKey: POTS_KEY });
   }
-  refreshDay(qc, date);
 }
 
 export function usePotActions() {
@@ -87,7 +94,7 @@ export function usePotActions() {
     setError(null);
     const plan = planDay(pot, date, fraction, crypto.randomUUID());
     replacePot(qc, plan.nextPot);
-    return enqueue(potId, () => persistPlan(qc, plan)).catch(fail(date));
+    return enqueue(potId, () => persistPlan(depsFor(qc), plan)).catch(fail(date));
   }
 
   async function createPot(input, firstFraction = 0) {
@@ -98,9 +105,9 @@ export function usePotActions() {
       ingredients: input.ingredients?.trim() || "",
       cooked_on: input.cooked_on,
       macros: input.macros,
-      ...(input.micros ? { micros: input.micros } : {}),
-      ...(input.micros_meta ? { micros_meta: input.micros_meta } : {}),
-      ...(input.components ? { components: input.components } : {}),
+      ...(input.extras?.micros ? { micros: input.extras.micros } : {}),
+      ...(input.extras?.micros_meta ? { micros_meta: input.extras.micros_meta } : {}),
+      ...(input.extras?.components ? { components: input.extras.components } : {}),
       days: {},
       created_at: new Date().toISOString(),
     };
@@ -115,11 +122,30 @@ export function usePotActions() {
     return pot;
   }
 
+  // Name/Zutaten/Gesamtwerte ändern; alle schon geloggten Tagesanteile werden mit den neuen Werten nachgezogen.
+  async function updatePot(potId, input) {
+    const pot = (qc.getQueryData(POTS_KEY) || []).find((p) => p.id === potId);
+    if (!pot) return;
+    setError(null);
+    const next = applyPotEdit(pot, input);
+    replacePot(qc, next);
+    try {
+      await enqueue(potId, async () => {
+        await savePot(next);
+        const deps = depsFor(qc);
+        for (const plan of planRescale(next)) await persistPlan(deps, plan, { saveFirst: false });
+      });
+    } catch (e) {
+      fail()(e);
+      throw e;
+    }
+  }
+
   async function removePot(potId) {
     setError(null);
     qc.setQueryData(POTS_KEY, (list) => (list || []).filter((p) => p.id !== potId));
     try { await enqueue(potId, () => deletePot(potId)); } catch (e) { fail()(e); }
   }
 
-  return { setDay, createPot, removePot, error, clearError: () => setError(null) };
+  return { setDay, createPot, updatePot, removePot, error, clearError: () => setError(null) };
 }

@@ -84,3 +84,26 @@ test('partial failure reports progress and repeated restore completes without du
   assert.equal(documents.size, 2); assert.equal(documents.get('nutrition/alice/logs/2026-10-16').meals.length, 1);
   uid = 'bob'; await assert.rejects(restoreCloudBackup(input), /anderen Konto/); uid = 'alice';
 });
+
+test('Töpfe und Küche: Export/Restore-Roundtrip, Topf-Anteile werden validiert', async () => {
+  documents.clear();
+  const pot = { id: 'p1', name: 'Reiseier', cooked_on: '2026-10-26', macros: { kcal: 2400, protein: 120, carbs: 260, fat: 90 }, days: { '2026-10-26': { fraction: 0.75, meal_id: 'm1' } }, owner_uid: 'alice', updated_at: 'x' };
+  documents.set('users/alice/fuel_pots/p1', pot);
+  documents.set('users/alice/fuel_pantry/n1', { id: 'n1', name: 'Nudeln', qty: 2, unit: 'Pkg' });
+  documents.set('users/alice/meta/kitchen', { stores: 'Billa' });
+  const exported = JSON.parse(JSON.stringify(await exportCloudBackup()));
+  assert.deepEqual(exported.documents.map(d => d.kind).sort(), ['fuel-pantry', 'fuel-pot', 'kitchen-settings']);
+  assert.equal(exported.documents.find(d => d.kind === 'fuel-pot').data.updated_at, undefined);
+  documents.clear();
+  await restoreCloudBackup(exported);
+  assert.equal(documents.get('users/alice/fuel_pots/p1').days['2026-10-26'].fraction, 0.75);
+  assert.equal(documents.get('users/alice/fuel_pantry/n1').name, 'Nudeln');
+  assert.equal(documents.get('users/alice/meta/kitchen').stores, 'Billa');
+  assert.equal((await restoreCloudBackup(exported)).changed, 0);
+
+  const bad = days => backup([{ kind: 'fuel-pot', id: 'p1', data: { ...pot, days } }]);
+  assert.throws(() => validateBackup(bad({ '2026-10-26': { fraction: 0.8 }, '2026-10-27': { fraction: 0.5 } }), 'alice'), /über 100/);
+  assert.throws(() => validateBackup(bad({ morgen: { fraction: 0.1 } }), 'alice'), /Topf-Anteile/);
+  assert.throws(() => validateBackup(backup([{ kind: 'fuel-pot', id: '../x', data: pot }]), 'alice'), /Dokument-ID/);
+  assert.throws(() => validateBackup(backup([{ kind: 'kitchen-settings', id: 'andere', data: {} }]), 'alice'), /Dokument-ID/);
+});

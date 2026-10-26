@@ -73,7 +73,7 @@ export default function HistoryDayCard({ day, isExpanded, onToggle, setActiveDat
                   <button
                     onClick={() => {
                       if (confirm(`Möchtest du "${meal.description}" wirklich löschen?`)) {
-                        deleteMeal.mutate({ date: day.date, mealId: meal.id });
+                        deleteMeal.mutate({ date: day.date, mealId: meal.id, potId: meal.pot_id });
                       }
                     }}
                     disabled={deleteMeal.isPending}

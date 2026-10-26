@@ -1,6 +1,9 @@
 import { z } from "zod";
 
-export const BACKUP_KINDS = ["nutrition-log", "nutrition-note", "nutrition-catalog", "supplement-log", "supplement-catalog", "settings", "fuel-frame"];
+// Töpfe und Küche: je ein Dokument pro Datensatz unter users/{uid}/<Collection> (siehe cloudBackup.js scopes).
+export const RECORD_COLLECTIONS = { "fuel-pot": "fuel_pots", "fuel-pantry": "fuel_pantry", "fuel-receipt": "fuel_receipts", "fuel-shopping": "fuel_shopping", "fuel-deal": "fuel_deals" };
+const isRecord = kind => kind in RECORD_COLLECTIONS;
+export const BACKUP_KINDS = ["nutrition-log", "nutrition-note", "nutrition-catalog", "supplement-log", "supplement-catalog", "settings", "fuel-frame", ...Object.keys(RECORD_COLLECTIONS), "kitchen-settings"];
 const dataSchema = z.record(z.unknown());
 const schema = z.object({
   format: z.literal("fuel-backup"), version: z.literal(1),
@@ -21,6 +24,22 @@ function checkJson(value, depth = 0) {
   }
 }
 
+// Topf: Name, Gesamtmakros und je Tag ein Anteil 0–1, Summe höchstens 100 %.
+function validatePot(data) {
+  if (typeof data.name !== "string" || !data.name) throw new Error("Topfname fehlt im Backup.");
+  for (const metric of ["kcal", "protein", "carbs", "fat"]) {
+    const value = data.macros?.[metric];
+    if (value != null && (!Number.isFinite(Number(value)) || Number(value) < 0)) throw new Error("Backup enthält ungültige Nährwerte / Mengen.");
+  }
+  let sum = 0;
+  for (const [date, entry] of Object.entries(data.days || {})) {
+    const fraction = Number(entry?.fraction);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(fraction) || fraction < 0 || fraction > 1) throw new Error("Backup enthält ungültige Topf-Anteile.");
+    sum += fraction;
+  }
+  if (sum > 1.01) throw new Error("Backup enthält Topf-Anteile über 100 %.");
+}
+
 export function validateBackup(input, uid) {
   const result = schema.safeParse(input);
   if (!result.success) throw new Error("Keine gültige Fuel-Backup-Datei (Version 1).");
@@ -36,7 +55,10 @@ export function validateBackup(input, uid) {
     if (["nutrition-log", "supplement-log", "nutrition-note"].includes(item.kind)) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(item.id) || !Number.isFinite(Date.parse(item.id)) || new Date(item.id).toISOString().slice(0, 10) !== item.id) throw new Error("Backup enthält ein ungültiges Tagesdatum.");
       if (item.data.date !== undefined && item.data.date !== item.id) throw new Error("Datum im Backup widerspricht der Dokument-ID.");
-    } else if (item.id !== (item.kind.endsWith("catalog") ? "catalog" : item.kind === "settings" ? "settings" : "fuelFrame")) throw new Error("Ungültige Dokument-ID im Backup.");
+    } else if (isRecord(item.kind)) {
+      if (!/^[A-Za-z0-9_-]{1,128}$/.test(item.id)) throw new Error("Ungültige Dokument-ID im Backup.");
+      if (item.kind === "fuel-pot") validatePot(item.data);
+    } else if (item.id !== (item.kind.endsWith("catalog") ? "catalog" : item.kind === "settings" ? "settings" : item.kind === "kitchen-settings" ? "kitchen" : "fuelFrame")) throw new Error("Ungültige Dokument-ID im Backup.");
     const field = arrayField(item.kind);
     if (field && item.data[field] !== undefined) {
       if (!Array.isArray(item.data[field])) throw new Error(`Backup-Feld ${field} ist keine Liste.`);

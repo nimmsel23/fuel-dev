@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Trash2, Plus, Check } from "lucide-react";
+import { Trash2, Plus, Check, Pencil } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 import {
   PRESETS, eatenFraction, remainingFraction, isFinished, maxFractionFor, daySlots,
   scaledMacros, formatPct,
 } from "../../lib/potsLogic.js";
 import { todayISO } from "../../lib/db/firestore/utils.js";
+import PotForm from "./PotForm.jsx";
 
 function dayLabel(date, today) {
   const diff = Math.round((new Date(`${today}T12:00:00`) - new Date(`${date}T12:00:00`)) / 86400000);
@@ -22,7 +23,7 @@ function DayNode({ pot, date, today, onSet, isCooked }) {
   const entry = pot.days?.[date];
   const fraction = entry?.fraction || 0;
   const max = maxFractionFor(pot, date);
-  const restLabel = formatPct(max);
+  const rest = remainingFraction(pot);
 
   const commit = (value) => {
     const pct = Number(String(value).replace(",", "."));
@@ -59,7 +60,7 @@ function DayNode({ pot, date, today, onSet, isCooked }) {
             return (
               <button key={p.label} type="button" disabled={disabled} onClick={() => onSet(date, active ? 0 : p.value)}
                 className={twMerge(
-                  "min-w-[2.25rem] rounded-lg border px-2 py-1 text-sm font-semibold tabular-nums transition",
+                  "min-h-9 min-w-[2.5rem] rounded-lg border px-2.5 py-1.5 text-sm font-semibold tabular-nums transition",
                   active ? "border-orange-400/60 bg-orange-400/20 text-orange-200" : "border-white/10 text-slate-300 hover:bg-white/10",
                   disabled && "cursor-not-allowed opacity-30 hover:bg-transparent",
                 )}>
@@ -67,14 +68,13 @@ function DayNode({ pot, date, today, onSet, isCooked }) {
               </button>
             );
           })}
-          <button type="button" disabled={max <= 0 || Math.abs(fraction - max) < 0.005} onClick={() => onSet(date, max)}
-            title="Den ganzen Rest essen"
+          <button type="button" disabled={rest <= 0} onClick={() => onSet(date, max)}
+            title="Den ganzen Rest des Topfs essen"
             className={twMerge(
-              "rounded-lg border px-2 py-1 text-sm font-semibold transition",
-              Math.abs(fraction - max) < 0.005 && fraction > 0 ? "border-emerald-400/50 bg-emerald-400/15 text-emerald-200" : "border-white/10 text-slate-300 hover:bg-white/10",
-              (max <= 0) && "cursor-not-allowed opacity-30",
+              "min-h-9 rounded-lg border border-white/10 px-2.5 py-1.5 text-sm font-semibold text-slate-300 transition hover:bg-white/10",
+              rest <= 0 && "cursor-not-allowed opacity-30 hover:bg-transparent",
             )}>
-            Rest · {restLabel}
+            Rest essen · {formatPct(rest)}
           </button>
           <label className="ml-auto flex items-center gap-1 text-xs text-slate-500">
             <input type="number" inputMode="numeric" min={0} max={100} step={5} key={`${date}-${fraction}`}
@@ -85,8 +85,8 @@ function DayNode({ pot, date, today, onSet, isCooked }) {
             %
           </label>
           {fraction > 0 && (
-            <button type="button" onClick={() => onSet(date, 0)} title="Eintrag dieses Tages entfernen"
-              className="rounded-lg p-1.5 text-slate-500 transition hover:bg-red-400/10 hover:text-red-400">
+            <button type="button" onClick={() => onSet(date, 0)} title="Eintrag dieses Tages entfernen" aria-label="Eintrag dieses Tages entfernen"
+              className="rounded-lg p-2 text-slate-500 transition hover:bg-red-400/10 hover:text-red-400">
               <Trash2 className="h-3.5 w-3.5" />
             </button>
           )}
@@ -96,8 +96,9 @@ function DayNode({ pot, date, today, onSet, isCooked }) {
   );
 }
 
-export default function PotCard({ pot, onSetDay, onDelete }) {
+export default function PotCard({ pot, onSetDay, onUpdate, onDelete }) {
   const today = todayISO();
+  const [editing, setEditing] = useState(false);
   const [extraDays, setExtraDays] = useState([]);
   const [addDate, setAddDate] = useState("");
   const eaten = eatenFraction(pot);
@@ -113,12 +114,25 @@ export default function PotCard({ pot, onSetDay, onDelete }) {
           <p className="mt-0.5 text-xs text-slate-500">Ganzer Topf: {macroLine({ kcal: Math.round(pot.macros.kcal), protein: pot.macros.protein, carbs: pot.macros.carbs, fat: pot.macros.fat })}</p>
           {pot.ingredients && <p className="mt-1 line-clamp-2 text-xs text-slate-500">{pot.ingredients}</p>}
         </div>
-        <button type="button" title="Topf löschen"
+        <div className="flex shrink-0">
+        <button type="button" title="Topf bearbeiten" aria-label="Topf bearbeiten" onClick={() => setEditing((v) => !v)}
+          className="rounded-lg p-2 text-slate-500 transition hover:bg-orange-400/10 hover:text-orange-300">
+          <Pencil className="h-4 w-4" />
+        </button>
+        <button type="button" title="Topf löschen" aria-label="Topf löschen"
           onClick={() => window.confirm(`„${pot.name}" löschen? Bereits geloggte Mahlzeiten bleiben im Log erhalten.`) && onDelete(pot.id)}
-          className="shrink-0 rounded-lg p-1.5 text-slate-500 transition hover:bg-red-400/10 hover:text-red-400">
+          className="rounded-lg p-2 text-slate-500 transition hover:bg-red-400/10 hover:text-red-400">
           <Trash2 className="h-4 w-4" />
         </button>
+        </div>
       </div>
+
+      {editing && (
+        <div className="mt-4">
+          <PotForm initial={pot} onCancel={() => setEditing(false)}
+            onSubmit={async (input) => { await onUpdate(pot.id, input); setEditing(false); }} />
+        </div>
+      )}
 
       <div className="mt-4">
         <div className="mb-1.5 flex items-baseline justify-between text-xs">

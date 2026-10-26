@@ -98,3 +98,18 @@ export function planDay(pot, date, rawFraction, newMealId) {
 export function loggedAtFor(date, today, now = new Date()) {
   return date === today ? now.toISOString() : new Date(`${date}T18:00:00`).toISOString();
 }
+
+// Topf bearbeiten: Name/Zutaten/Gesamtwerte übernehmen. Kommt eine neue KI-Schätzung (`extras`), ersetzt sie Mikros/Zutaten;
+// ohne sie werden vorhandene Mikros mit dem kcal-Verhältnis mitskaliert (wie der Katalog es bei geänderten Portionen tut).
+export function applyPotEdit(pot, { name, ingredients, macros, extras }) {
+  const next = { ...pot, name: String(name).trim(), ingredients: String(ingredients || "").trim(), macros };
+  if (extras) {
+    next.micros = extras.micros;
+    next.micros_meta = extras.micros_meta;
+    next.components = extras.components;
+  } else if (pot.micros && pot.macros?.kcal > 0 && macros.kcal > 0 && macros.kcal !== pot.macros.kcal) {
+    const factor = macros.kcal / pot.macros.kcal;
+    next.micros = Object.fromEntries(Object.entries(pot.micros).map(([k, v]) => [k, v == null ? null : Math.round(v * factor * 1e4) / 1e4]));
+  }
+  return next;
+}

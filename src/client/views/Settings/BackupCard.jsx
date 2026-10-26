@@ -5,7 +5,7 @@ import { exportCloudBackup, previewCloudRestore, restoreCloudBackup } from "../.
 import { summarizeBackup } from "../../lib/backupFormat.js";
 import { useSettings } from "../../store.js";
 
-const labels = { 'nutrition-log': 'Ernährungstage', 'nutrition-note': 'Tagesnotizen', 'nutrition-catalog': 'Essenskatalog', 'supplement-log': 'Supplement-Tage', 'supplement-catalog': 'Supplement-Katalog', settings: 'Einstellungen / Profil', 'fuel-frame': 'Fuel Frame' };
+const labels = { 'nutrition-log': 'Ernährungstage', 'nutrition-note': 'Tagesnotizen', 'nutrition-catalog': 'Essenskatalog', 'supplement-log': 'Supplement-Tage', 'supplement-catalog': 'Supplement-Katalog', settings: 'Einstellungen / Profil', 'fuel-frame': 'Fuel Frame', 'fuel-pot': 'Töpfe', 'fuel-pantry': 'Vorrat', 'fuel-receipt': 'Einkäufe / Bons', 'fuel-shopping': 'Einkaufszettel', 'fuel-deal': 'Aktionen', 'kitchen-settings': 'Küche-Einstellungen' };
 export default function BackupCard({ sectionCls }) {
   const qc = useQueryClient();
   const mutations = useIsMutating();

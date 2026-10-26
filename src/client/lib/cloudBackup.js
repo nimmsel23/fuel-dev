@@ -2,13 +2,15 @@ import { collection, doc, getDocsFromServer, getDocFromServer, runTransaction, s
 import { db } from "./firebase.js";
 import { getUid } from "./db/firestore/core.js";
 import { outboxEntries } from "./cloudOutbox.js";
-import { BACKUP_KINDS, mergeBackupDocument, portableData, validateBackup } from "./backupFormat.js";
+import { BACKUP_KINDS, RECORD_COLLECTIONS, mergeBackupDocument, portableData, validateBackup } from "./backupFormat.js";
 
 const scopes = {
   "nutrition-log": ["nutrition", "logs"], "nutrition-note": ["nutrition", "journal"],
   "nutrition-catalog": ["nutrition", "meta", "catalog"],
   "supplement-log": ["supplements", "logs"], "supplement-catalog": ["supplements", "meta", "catalog"],
   settings: ["users", "meta", "settings"], "fuel-frame": ["users", "meta", "fuelFrame"],
+  "kitchen-settings": ["users", "meta", "kitchen"],
+  ...Object.fromEntries(Object.entries(RECORD_COLLECTIONS).map(([kind, name]) => [kind, ["users", name]])),
 };
 const parts = (uid, kind) => { const [root, ...rest] = scopes[kind]; return [root, uid, ...rest]; };
 const reference = (uid, item) => {

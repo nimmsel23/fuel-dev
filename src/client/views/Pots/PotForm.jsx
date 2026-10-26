@@ -9,11 +9,15 @@ import { todayISO } from "../../lib/db/firestore/utils.js";
 const FIELD = "w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-orange-400/50";
 const FIRST_CHOICES = [{ value: 0, label: "noch nichts" }, ...PRESETS.filter((p) => [0.25, 0.5, 0.75].includes(p.value)), { value: 1, label: "alles" }];
 
-export default function NewPotForm({ onCreate, onCancel }) {
-  const [name, setName] = useState("");
-  const [ingredients, setIngredients] = useState("");
-  const [cookedOn, setCookedOn] = useState(todayISO());
-  const [macros, setMacros] = useState({ kcal: "", protein: "", carbs: "", fat: "" });
+// Anlegen (ohne `initial`) und Bearbeiten (`initial` = bestehender Topf: kein Kochtag, kein Erst-Anteil).
+const str = (v) => (v == null ? "" : String(Math.round(v * 10) / 10));
+
+export default function PotForm({ initial = null, onSubmit, onCancel }) {
+  const editing = !!initial;
+  const [name, setName] = useState(initial?.name || "");
+  const [ingredients, setIngredients] = useState(initial?.ingredients || "");
+  const [cookedOn, setCookedOn] = useState(initial?.cooked_on || todayISO());
+  const [macros, setMacros] = useState({ kcal: str(initial?.macros?.kcal), protein: str(initial?.macros?.protein), carbs: str(initial?.macros?.carbs), fat: str(initial?.macros?.fat) });
   const [extras, setExtras] = useState(null); // micros / micros_meta / components aus der KI-Schätzung
   const [first, setFirst] = useState(0);
   const [estimating, setEstimating] = useState(false);
@@ -46,12 +50,10 @@ export default function NewPotForm({ onCreate, onCancel }) {
     setSaving(true);
     setError("");
     try {
-      await onCreate({
+      await onSubmit({
         name, ingredients, cooked_on: cookedOn,
         macros: { kcal: num(macros.kcal), protein: num(macros.protein), carbs: num(macros.carbs), fat: num(macros.fat) },
-        ...(extras?.micros ? { micros: extras.micros } : {}),
-        ...(extras?.micros_meta ? { micros_meta: extras.micros_meta } : {}),
-        ...(extras?.components ? { components: extras.components } : {}),
+        extras, // null, solange nicht neu geschätzt wurde
       }, first);
     } catch (err) {
       setError(err?.message || "Speichern fehlgeschlagen.");
@@ -66,10 +68,12 @@ export default function NewPotForm({ onCreate, onCancel }) {
           <span className="mb-1 block text-xs text-slate-400">Name des Gerichts</span>
           <input className={FIELD} value={name} onChange={(e) => setName(e.target.value)} placeholder="z. B. Jasmins speckige Reiseier" />
         </label>
-        <label className="block">
-          <span className="mb-1 block text-xs text-slate-400">Gekocht am</span>
-          <input type="date" className={FIELD} value={cookedOn} max={todayISO()} onChange={(e) => setCookedOn(e.target.value)} />
-        </label>
+        {!editing && (
+          <label className="block">
+            <span className="mb-1 block text-xs text-slate-400">Gekocht am</span>
+            <input type="date" className={FIELD} value={cookedOn} max={todayISO()} onChange={(e) => setCookedOn(e.target.value)} />
+          </label>
+        )}
       </div>
 
       <label className="block">
@@ -97,7 +101,7 @@ export default function NewPotForm({ onCreate, onCancel }) {
         </div>
       </div>
 
-      <div>
+      {!editing && <div>
         <span className="mb-1.5 block text-xs text-slate-400">Davon schon gegessen (am Kochtag)</span>
         <div className="flex flex-wrap gap-1.5">
           {FIRST_CHOICES.map((c) => (
@@ -108,14 +112,15 @@ export default function NewPotForm({ onCreate, onCancel }) {
             </button>
           ))}
         </div>
-      </div>
+      </div>}
+      {editing && <p className="text-xs text-slate-500">Geänderte Werte werden auf alle schon geloggten Tagesanteile übertragen.</p>}
 
       {error && <p role="alert" className="text-sm text-rose-300">{error}</p>}
       <div className="flex justify-end gap-2">
         <button type="button" onClick={onCancel} className="rounded-xl px-3 py-2 text-sm text-slate-400 transition hover:text-slate-200">Abbrechen</button>
         <button type="submit" disabled={!valid || saving}
           className="rounded-xl bg-orange-400 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-orange-300 disabled:opacity-40">
-          {saving ? "Speichere…" : "Topf anlegen"}
+          {saving ? "Speichere…" : editing ? "Speichern" : "Topf anlegen"}
         </button>
       </div>
     </form>
