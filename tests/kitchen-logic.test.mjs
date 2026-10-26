@@ -4,6 +4,7 @@ import {
   toBaseUnit, formatQty, normDate, expiryStatus, mergeIntoPantry, pantryHas, addShoppingItems, markShoppingBought,
   normalizeReceiptResult, reviewToIncoming, activeDeals, normalizeDeals, normalizeRecipes, missingIngredients,
   groupByCategory, upsertById, normalizeName, buildRecipePrompt, normalizeCategory,
+  staleDeals, matchKey, parseQtyText, shoppingToReview, markStocked, findDuplicateReceipt, filterSuggestions, friendlyError, buildShoppingPrompt, RECEIPT_PROMPT,
 } from '../src/client/lib/kitchenLogic.js';
 
 const ids = () => { let n = 0; return () => `id${++n}`; };
@@ -164,4 +165,144 @@ test('Listenhelfer: Gruppierung nach Kategorie, upsertById, Normalisierung', () 
   assert.deepEqual(upsertById([{ id: '1', qty: 1, name: 'a' }], [{ id: '1', qty: 2 }, { id: '2', name: 'b' }]), [{ id: '1', qty: 2, name: 'a' }, { id: '2', name: 'b' }]);
   assert.equal(normalizeName('  Bio-Milch (3,5%) '), 'bio milch 3 5');
   assert.equal(normalizeCategory('Tiefkühl'), 'tiefkuehl');
+});
+
+// ── Review-Runde 2026-10-26 ───────────────────────────────────────────────────
+
+test('Zahlen: deutsches Komma in Mengen, Datum mit unmöglichem Tag wird verworfen', () => {
+  assert.deepEqual(toBaseUnit('1,5', 'kg'), { qty: 1500, unit: 'g' });
+  assert.deepEqual(toBaseUnit('0,25', 'l'), { qty: 250, unit: 'ml' });
+  assert.equal(normDate('2026-02-31'), '');
+  assert.equal(normDate('31.04.2026'), '');
+  assert.equal(normDate('29.02.2028'), '2028-02-29');
+});
+
+test('matchKey: Fettstufe/Größe/Plural/Synonyme fallen weg, verschiedene Produkte bleiben getrennt', () => {
+  assert.equal(matchKey('Vollmilch 3,5%'), matchKey('Milch'));
+  assert.equal(matchKey('Bio Milch 1 l'), matchKey('milch'));
+  assert.equal(matchKey('Tomaten'), matchKey('Tomate'));
+  assert.equal(matchKey('Zwiebeln'), matchKey('Zwiebel'));
+  assert.equal(matchKey('Äpfel'), matchKey('Apfel'));
+  assert.equal(matchKey('Freilandeier 10er'), matchKey('Eier'));
+  assert.notEqual(matchKey('Buttermilch'), matchKey('Milch'));
+  assert.notEqual(matchKey('Kokosmilch'), matchKey('Milch'));
+  assert.notEqual(matchKey('Reis'), matchKey('Jasminreis'));
+  assert.equal(matchKey('Bio'), 'bio'); // nie leer
+});
+
+test('mergeIntoPantry: "Vollmilch 3,5%" und "Milch" werden zusammengeführt', () => {
+  const a = mergeIntoPantry([], [{ name: 'Vollmilch 3,5%', qty: 1, unit: 'l' }], opts());
+  const b = mergeIntoPantry(a.items, [{ name: 'Milch', qty: 500, unit: 'ml' }], opts());
+  assert.equal(b.items.length, 1);
+  assert.equal(b.items[0].qty, 1500);
+});
+
+test('pantryHas: Plural/Singular zählt als Treffer', () => {
+  assert.equal(pantryHas([{ name: 'Zwiebeln', qty: 3, unit: 'Stk' }], 'Zwiebel'), true);
+  assert.equal(pantryHas([{ name: 'Tomate', qty: 3, unit: 'Stk' }], 'Tomaten'), true);
+});
+
+test('Bon hakt Buttermilch/Kokosmilch NICHT als "Milch" ab, Vollmilch schon', () => {
+  const list = addShoppingItems([], [{ name: 'Milch' }], opts());
+  assert.equal(markShoppingBought(list, ['Buttermilch', 'Kokosmilch'], { now: NOW }).length, 0);
+  const ticked = markShoppingBought(list, ['Vollmilch 3,5%'], { now: NOW });
+  assert.equal(ticked.length, 1);
+  assert.equal(ticked[0].stocked, true); // kam per Bon in den Vorrat → nicht erneut übernehmen
+});
+
+test('Bon: Rabatt/Pfand/Negativpreise sind nie Lebensmittel, auch wenn das Modell sie so markiert', () => {
+  const r = normalizeReceiptResult({ items: [
+    { name: 'Rabatt Aktion', price: -0.5, is_food: true },
+    { name: 'Pfand Leergut', price: 0.25, is_food: true },
+    { name: 'Joghurt', price: 0.89, is_food: true },
+    { name: 'Brot', price: -1, is_food: true },
+  ] });
+  assert.deepEqual(r.items.map((i) => [i.name, i.sel]), [['Rabatt Aktion', false], ['Pfand Leergut', false], ['Joghurt', true], ['Brot', false]]);
+  assert.equal(r.items[0].price, null);
+  assert.equal(r.total, 1.14);
+});
+
+test('Prompts: Mengen-Zeilen, Gewichtsware, abgelaufene Posten nicht verwenden', () => {
+  assert.match(RECEIPT_PROMPT, /3 x 0,89/);
+  assert.match(RECEIPT_PROMPT, /Gesamtpreis der Zeile/);
+  const p = buildRecipePrompt({ pantry: [{ name: 'Milch', qty: 1000, unit: 'ml', expires_on: '2026-10-20' }], today: '2026-10-26' });
+  assert.match(p, /\[abgelaufen\]/);
+  assert.match(p, /nicht verwenden/);
+});
+
+test('parseQtyText: "500 g", "2 Pkg", "3x", "1,5 l", Text ohne Zahl', () => {
+  assert.deepEqual(parseQtyText('500 g'), { qty: 500, unit: 'g' });
+  assert.deepEqual(parseQtyText('2 Pkg'), { qty: 2, unit: 'Pkg' });
+  assert.deepEqual(parseQtyText('3x'), { qty: 3, unit: 'Stk' });
+  assert.deepEqual(parseQtyText('1,5 l'), { qty: 1500, unit: 'ml' });
+  assert.deepEqual(parseQtyText('ein paar'), { qty: 1, unit: 'Stk' });
+  assert.deepEqual(parseQtyText(undefined), { qty: 1, unit: 'Stk' });
+});
+
+test('Zettel → Vorrat: nur erledigte, noch nicht übernommene Posten; danach als übernommen markiert', () => {
+  const shopping = [
+    { id: 'a', name: 'Nudeln', qty_text: '500 g', category: 'getreide', done: true },
+    { id: 'b', name: 'Milch', done: true, stocked: true },
+    { id: 'c', name: 'Eier', done: false },
+    { id: 'd', name: 'Skyr', qty_text: '2 Pkg', done: true },
+  ];
+  const review = shoppingToReview(shopping);
+  assert.deepEqual(review.map((i) => [i.shopping_id, i.name, i.qty, i.unit, i.category]), [['a', 'Nudeln', 500, 'g', 'getreide'], ['d', 'Skyr', 2, 'Pkg', 'sonstiges']]);
+  const { changed } = mergeIntoPantry([], reviewToIncoming(review, { source: 'shopping' }), opts());
+  assert.equal(changed.length, 2);
+  assert.equal(changed[0].source, 'shopping');
+  const stocked = markStocked(shopping, review.map((i) => i.shopping_id), { now: NOW });
+  assert.deepEqual(stocked.map((i) => i.id), ['a', 'd']);
+  assert.equal(stocked.every((i) => i.stocked === true), true);
+  assert.equal(shoppingToReview(upsertById(shopping, stocked)).length, 0);
+});
+
+test('addShoppingItems: Kategorie bleibt erhalten, Duplikate über Plural/Synonym erkannt', () => {
+  const a = addShoppingItems([], [{ name: 'Tomaten', category: 'obst_gemuese' }], opts());
+  assert.equal(a[0].category, 'obst_gemuese');
+  assert.deepEqual(addShoppingItems(a, [{ name: 'Tomate' }], opts()), []);
+});
+
+test('Doppelter Bon: gleiche Summe+Datum (Händler egal) oder gleiche Positionen werden erkannt', () => {
+  const saved = [{ id: 'r1', store: 'Billa', date: '2026-10-26', total: 12.5, items: [{ name: 'Milch' }, { name: 'Brot' }] }];
+  assert.equal(findDuplicateReceipt(saved, { store: 'billa', date: '2026-10-26', total: 12.5, items: [] })?.id, 'r1');
+  assert.equal(findDuplicateReceipt(saved, { store: '', date: '2026-10-26', total: 0, items: [{ name: 'Brot', sel: true }, { name: 'Vollmilch', sel: true }] })?.id, 'r1');
+  assert.equal(findDuplicateReceipt(saved, { store: 'Billa', date: '2026-10-27', total: 12.5, items: [] }), null);
+  assert.equal(findDuplicateReceipt(saved, { store: 'Billa', date: '2026-10-26', total: 9.9, items: [{ name: 'Käse', sel: true }] }), null);
+});
+
+test('Einkaufsempfehlungen: was schon im Vorrat oder auf dem Zettel steht, wird verworfen', () => {
+  const out = filterSuggestions(
+    [{ name: 'Zwiebel' }, { name: 'Skyr' }, { name: 'Haferflocken' }, { name: 'Mandeln' }],
+    [{ name: 'Zwiebeln', qty: 2, unit: 'Stk' }],
+    [{ name: 'skyr', done: false }, { name: 'Mandeln', done: true }],
+  );
+  assert.deepEqual(out.map((s) => s.name), ['Haferflocken', 'Mandeln']);
+});
+
+test('friendlyError: deutsche, verständliche Meldungen für Login, Offline, App Check, Quota, JSON, Bild', () => {
+  assert.match(friendlyError(new Error('User not authenticated')), /anmelden/);
+  assert.match(friendlyError(new Error('Offline: Die KI braucht eine Verbindung.')), /^Offline/);
+  assert.match(friendlyError(new Error('[VertexAI]: Error fetching ... [403 ] App Check token is invalid')), /nicht freigegeben/);
+  assert.match(friendlyError(new Error('429 Too Many Requests: quota exceeded')), /Kontingent/);
+  assert.match(friendlyError(new SyntaxError('Unexpected token < in JSON at position 0')), /nicht lesbar/);
+  assert.match(friendlyError(new Event('error')), /Foto/);
+  assert.match(friendlyError(undefined), /Unbekannter Fehler/);
+  assert.equal(friendlyError(new Error('Eigene deutsche Meldung.')), 'Eigene deutsche Meldung.');
+});
+
+test('Einkaufs-Prompt enthält keine Doppelungen zum Zettel-Hinweis und listet offene Posten', () => {
+  const p = buildShoppingPrompt({ pantry: [], shopping: [{ name: 'Skyr', done: false }, { name: 'Brot', done: true }], today: '2026-10-26' });
+  assert.match(p, /Auf dem Einkaufszettel: Skyr/);
+});
+
+test('staleDeals: seit über 30 Tagen abgelaufene Aktionen werden zum Aufräumen geliefert, frische bleiben', () => {
+  const deals = [
+    { id: 'old', product: 'A', valid_until: '2026-09-01' },
+    { id: 'recent', product: 'B', valid_until: '2026-10-10' },
+    { id: 'nodate-old', product: 'C', created_at: '2026-08-01T08:00:00Z' },
+    { id: 'nodate-new', product: 'D', created_at: '2026-10-20T08:00:00Z' },
+    { id: 'future', product: 'E', valid_until: '2026-11-30' },
+  ];
+  assert.deepEqual(staleDeals(deals, '2026-10-26').map((d) => d.id), ['old', 'nodate-old']);
 });

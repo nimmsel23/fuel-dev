@@ -33,6 +33,24 @@ export function displayName(value) {
   return t ? t[0].toUpperCase() + t.slice(1) : "";
 }
 
+// Abgleichschlüssel für "gleiches Lebensmittel": ohne Zahlen/Größen/Fettstufe ("Vollmilch 3,5 %" → "milch"),
+// Umlaute und Plural gefaltet ("Tomaten" = "Tomate"), gängige Synonyme vereint. Zusammengesetzte Wörter bleiben
+// bewusst getrennt (Buttermilch ≠ Milch, Kokosmilch ≠ Milch).
+const KEY_NOISE = new Set(["bio", "frisch", "frische", "frischer", "frisches", "ca", "je", "pro", "stk", "pkg", "st", "g", "kg", "ml", "l", "dag", "er", "x", "prozent", "fett", "h"]);
+const KEY_SYNONYMS = { vollmilch: "milch", frischmilch: "milch", trinkmilch: "milch", haltbarmilch: "milch", hmilch: "milch", ei: "eier", freilandeier: "eier", bioeier: "eier", landeier: "eier" };
+const foldToken = (t) => {
+  const w = t.replace(/ä/g, "a").replace(/ö/g, "o").replace(/ü/g, "u").replace(/ß/g, "ss");
+  if (KEY_SYNONYMS[w]) return KEY_SYNONYMS[w];
+  if (w.length >= 6 && w.endsWith("en")) return w.slice(0, -2);
+  if (w.length >= 5 && /[nes]$/.test(w)) return w.slice(0, -1);
+  return w;
+};
+export function matchKey(value) {
+  const base = normalizeName(value);
+  const tokens = base.split(" ").filter((t) => t && !/^\d/.test(t) && !KEY_NOISE.has(t)).map(foldToken);
+  return tokens.length ? tokens.join(" ") : base;
+}
+
 // ── Mengen ────────────────────────────────────────────────────────────────────
 
 // Basiseinheiten: g, ml, Stk, Pkg. kg/l/dl/cl werden umgerechnet, Zählbares (Dose, Flasche …) ist "Stk".
@@ -45,9 +63,12 @@ const UNIT_MAP = {
   pkg: ["Pkg", 1], pk: ["Pkg", 1], pckg: ["Pkg", 1], packung: ["Pkg", 1], packungen: ["Pkg", 1], schachtel: ["Pkg", 1], beutel: ["Pkg", 1],
 };
 
+// "1,5" / "2.49" / 3 → Zahl; sonst NaN (deutsches Dezimalkomma wird verstanden).
+export const parseNum = (v) => (typeof v === "number" ? v : Number(String(v ?? "").trim().replace(",", ".")));
+
 // → { qty, unit } in Basiseinheit; unbekannte oder fehlende Einheit zählt als Stück.
 export function toBaseUnit(qty, unit) {
-  const n = Number(qty);
+  const n = parseNum(qty);
   const amount = Number.isFinite(n) && n > 0 ? n : 1;
   const [base, factor] = UNIT_MAP[String(unit || "").trim().toLowerCase().replace(/\.$/, "")] || ["Stk", 1];
   return { qty: Math.round(amount * factor * 100) / 100, unit: base };
@@ -68,15 +89,21 @@ export function qtyStep(unit) {
 
 // ── Datum ─────────────────────────────────────────────────────────────────────
 
+// Nur echte Kalendertage ("2026-02-31" rollt in Date.parse sonst still auf März).
+const realDay = (iso) => {
+  const t = Date.parse(`${iso}T00:00:00Z`);
+  return !Number.isNaN(t) && new Date(t).toISOString().slice(0, 10) === iso;
+};
+
 export function normDate(value) {
   const s = String(value || "").trim();
-  if (isISODate(s) && !Number.isNaN(Date.parse(`${s}T00:00:00Z`))) return s;
+  if (isISODate(s) && realDay(s)) return s;
   // 24.10.2026 / 24.10.26
   const m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2}|\d{4})$/);
   if (m) {
     const y = m[3].length === 2 ? `20${m[3]}` : m[3];
     const iso = `${y}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
-    if (!Number.isNaN(Date.parse(`${iso}T00:00:00Z`))) return iso;
+    if (realDay(iso)) return iso;
   }
   return "";
 }
@@ -138,8 +165,8 @@ export function mergeIntoPantry(existing, incoming, { today = todayISO(), now = 
     const name = displayName(raw.name);
     if (!name) continue;
     const { qty, unit } = toBaseUnit(raw.qty, raw.unit);
-    const key = normalizeName(name);
-    const target = working.find((i) => isInStock(i) && normalizeName(i.name) === key && i.unit === unit);
+    const key = matchKey(name);
+    const target = working.find((i) => isInStock(i) && matchKey(i.name) === key && i.unit === unit);
     const expires = normDate(raw.expires_on);
     if (target) {
       target.qty = Math.round((target.qty + qty) * 100) / 100;
@@ -154,7 +181,7 @@ export function mergeIntoPantry(existing, incoming, { today = todayISO(), now = 
       bought_on: normDate(raw.bought_on) || today, source: raw.source || "manual",
       created_at: now, updated_at: now,
       ...(expires ? { expires_on: expires } : {}),
-      ...(Number.isFinite(Number(raw.price)) && raw.price !== "" && raw.price != null ? { price: Number(raw.price) } : {}),
+      ...(Number.isFinite(parseNum(raw.price)) && raw.price !== "" && raw.price != null ? { price: parseNum(raw.price) } : {}),
       ...(raw.store ? { store: String(raw.store) } : {}),
     };
     working.push(item);
@@ -164,14 +191,14 @@ export function mergeIntoPantry(existing, incoming, { today = todayISO(), now = 
 }
 
 // Steht der Name (oder ein ganzes Wort davon) im Vorrat?
+const hasWord = (hay, needle) => ` ${hay} `.includes(` ${needle} `);
 export function pantryHas(pantry, name) {
-  const target = normalizeName(name);
-  if (target.length < 3) return false;
-  const word = (hay, needle) => new RegExp(`(^|\\s)${needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\s|$)`).test(hay);
+  if (normalizeName(name).length < 3) return false;
+  const target = matchKey(name);
   return (pantry || []).some((i) => {
     if (!isInStock(i)) return false;
-    const n = normalizeName(i.name);
-    return n === target || (n.length >= 3 && (word(target, n) || word(n, target)));
+    const n = matchKey(i.name);
+    return n === target || (n.length >= 3 && (hasWord(target, n) || hasWord(n, target)));
   });
 }
 
@@ -182,42 +209,70 @@ export const isStaple = (name) => STAPLES.has(normalizeName(name));
 
 // entries: [{ name, qty_text?, reason?, source? }] — doppelte offene Posten werden übersprungen.
 export function addShoppingItems(existing, entries, { now = new Date().toISOString(), makeId = newId } = {}) {
-  const open = new Set((existing || []).filter((i) => !i.done).map((i) => normalizeName(i.name)));
+  const open = new Set((existing || []).filter((i) => !i.done).map((i) => matchKey(i.name)));
   const created = [];
   for (const e of entries) {
     const name = displayName(e.name);
-    const key = normalizeName(name);
+    const key = normalizeName(name) ? matchKey(name) : "";
     if (!key || open.has(key)) continue;
     open.add(key);
     created.push({
       id: makeId(), name, done: false, source: e.source || "manual", created_at: now, updated_at: now,
       ...(e.qty_text ? { qty_text: String(e.qty_text) } : {}),
       ...(e.reason ? { reason: String(e.reason) } : {}),
+      ...(e.category ? { category: normalizeCategory(e.category) } : {}),
     });
   }
   return created;
 }
 
-// Wurde etwas gekauft (Bon/Einkauf), werden passende offene Zettel-Posten abgehakt.
+// Wurde etwas gekauft (Bon/Einkauf), werden passende offene Zettel-Posten abgehakt. Sie gelten dann auch als
+// "stocked": der Einkauf ging schon in den Vorrat, der Zettel-Posten soll nicht noch einmal übernommen werden.
 export function markShoppingBought(shopping, boughtNames, { now = new Date().toISOString() } = {}) {
-  const bought = (boughtNames || []).map(normalizeName).filter((n) => n.length >= 3);
-  const word = (hay, needle) => (` ${hay} `).includes(` ${needle} `);
-  // Deutsche Komposita tragen das Grundwort hinten: gekaufte "Vollmilch" erledigt "Milch" auf dem Zettel.
-  const compound = (hay, needle) => needle.length >= 4 && hay.endsWith(needle);
+  const bought = (boughtNames || []).map(matchKey).filter((n) => n.length >= 3);
   return (shopping || []).filter((i) => !i.done).filter((i) => {
-    const n = normalizeName(i.name);
-    return bought.some((b) => b === n || word(b, n) || word(n, b) || compound(b, n));
-  }).map((i) => ({ ...i, done: true, done_at: now, updated_at: now }));
+    const n = matchKey(i.name);
+    return n.length >= 3 && bought.some((b) => b === n || hasWord(b, n) || hasWord(n, b));
+  }).map((i) => ({ ...i, done: true, done_at: now, stocked: true, updated_at: now }));
+}
+
+// "500 g", "2 Pkg", "3x", "1,5 l" (qty_text eines Zettel-Postens) → Menge in Basiseinheit; ohne Zahl 1 Stk.
+export function parseQtyText(text) {
+  const m = String(text || "").trim().match(/^(\d+(?:[.,]\d+)?)\s*(?:x\b)?\s*([a-zäöüß.]*)/i);
+  if (!m) return { qty: 1, unit: "Stk" };
+  return toBaseUnit(parseNum(m[1]), m[2]);
+}
+
+// Erledigte, noch nicht in den Vorrat übernommene Zettel-Posten → Review-Liste (wie beim Bon, alles editierbar).
+export function shoppingToReview(shopping) {
+  return (shopping || []).filter((i) => i.done && !i.stocked).map((i) => ({
+    sel: true, shopping_id: i.id, name: i.name, ...parseQtyText(i.qty_text),
+    price: null, category: normalizeCategory(i.category), is_food: true, expires_on: "",
+  }));
+}
+
+export function markStocked(shopping, ids, { now = new Date().toISOString() } = {}) {
+  const set = new Set(ids);
+  return (shopping || []).filter((i) => set.has(i.id)).map((i) => ({ ...i, stocked: true, updated_at: now }));
+}
+
+// Neu auf den Zettel/Vorrat vorgeschlagene Dinge, die schon da sind, fliegen raus.
+export function filterSuggestions(list, pantry, shopping) {
+  const open = new Set((shopping || []).filter((i) => !i.done).map((i) => matchKey(i.name)));
+  return (list || []).filter((s) => !pantryHas(pantry, s.name) && !open.has(matchKey(s.name)));
 }
 
 // ── Bon / Review ──────────────────────────────────────────────────────────────
 
 // Rohantwort des Modells → Review-Liste (alles editierbar, Nicht-Lebensmittel standardmäßig abgewählt).
+const NON_FOOD_NAME = /^(rabatt|pfand|leergut|bonus|coupon|gutschein|summe|zwischensumme|gesamt|tragetasche|tasche|sackerl|plastiksackerl|papiertasche)\b/i;
+
 export function normalizeReceiptResult(raw, { today = todayISO() } = {}) {
   const items = (Array.isArray(raw?.items) ? raw.items : []).map((r) => {
     const { qty, unit } = toBaseUnit(r?.qty, r?.unit);
-    const isFood = r?.is_food !== false;
-    const price = Number(r?.price);
+    const price = parseNum(r?.price);
+    // Rabatt-/Pfandzeilen sind nie Vorrat — auch wenn das Modell sie als Lebensmittel markiert.
+    const isFood = r?.is_food !== false && !(Number.isFinite(price) && price < 0) && !NON_FOOD_NAME.test(String(r?.name || r?.raw_name || "").trim());
     return {
       sel: isFood,
       raw_name: String(r?.raw_name || r?.name || ""),
@@ -229,7 +284,7 @@ export function normalizeReceiptResult(raw, { today = todayISO() } = {}) {
       expires_on: "",
     };
   }).filter((i) => i.name);
-  const total = Number(raw?.total);
+  const total = parseNum(raw?.total);
   const sum = items.reduce((s, i) => s + (i.price || 0), 0);
   return {
     store: String(raw?.store || "").trim(),
@@ -244,6 +299,19 @@ export function reviewToIncoming(items, { store = "", date = todayISO(), source 
     name: i.name, qty: i.qty, unit: i.unit, category: i.category, price: i.price ?? undefined,
     expires_on: i.expires_on || undefined, bought_on: date, store: store || undefined, source,
   }));
+}
+
+// Derselbe Bon ein zweites Mal? Gleiches Datum und entweder gleiche Endsumme oder dieselben Positionen.
+// → der bereits gespeicherte Bon oder null. Verhindert, dass ein doppelt gescannter Bon den Vorrat verdoppelt.
+export function findDuplicateReceipt(receipts, draft) {
+  const names = (items) => [...new Set((items || []).filter((i) => i.sel !== false).map((i) => matchKey(i.name)).filter(Boolean))].sort().join("|");
+  const draftNames = names(draft?.items);
+  const total = Number(draft?.total) || 0;
+  return (receipts || []).find((r) => {
+    if (r.date !== draft?.date) return false;
+    if (total > 0 && Math.abs((Number(r.total) || 0) - total) < 0.01) return true;
+    return draftNames !== "" && names(r.items) === draftNames;
+  }) || null;
 }
 
 // Freitext-Parse ("2 Packungen Nudeln, 1 l Milch") → gleiche Review-Struktur wie beim Bon.
@@ -274,6 +342,16 @@ export function activeDeals(deals, today = todayISO()) {
   return (deals || []).filter((d) => {
     const until = normDate(d.valid_until) || (d.created_at ? addDays(String(d.created_at).slice(0, 10), DEFAULT_DEAL_DAYS) : "");
     return !until || until >= today;
+  });
+}
+
+// Seit über 30 Tagen abgelaufene Aktionen: werden beim Laden still gelöscht (Firestore wächst sonst unbegrenzt).
+export const STALE_DEAL_DAYS = 30;
+export function staleDeals(deals, today = todayISO()) {
+  const cutoff = addDays(today, -STALE_DEAL_DAYS);
+  return (deals || []).filter((d) => {
+    const until = normDate(d.valid_until) || (d.created_at ? addDays(String(d.created_at).slice(0, 10), DEFAULT_DEAL_DAYS) : "");
+    return !!until && until < cutoff;
   });
 }
 
@@ -308,6 +386,25 @@ export function normalizeRecipes(raw, pantry) {
 }
 export const missingIngredients = (recipe) => recipe.ingredients.filter((i) => !i.in_pantry);
 
+// ── Fehlermeldungen ───────────────────────────────────────────────────────────
+
+// Technische Fehler (Firebase, Vertex, Browser) → verständliches Deutsch. Eigene deutsche Meldungen bleiben unverändert.
+export function friendlyError(error) {
+  if (error == null || error === "") return "Unbekannter Fehler. Bitte erneut versuchen.";
+  // Bild konnte nicht dekodiert werden: <img>.onerror liefert ein Event ohne message (z. B. HEIC am Desktop).
+  if (typeof error === "object" && !error.message && error.type === "error") {
+    return "Das Foto konnte nicht gelesen werden. Bitte als JPEG/PNG aufnehmen oder ein anderes Foto wählen.";
+  }
+  const msg = String(error.message || error);
+  if (/not authenticated/i.test(msg)) return "Bitte zuerst anmelden.";
+  if (/^offline/i.test(msg)) return msg;
+  if (/app.?check|\b403\b|permission[_ -]?denied|forbidden|api.?key/i.test(msg)) return "Die KI ist gerade nicht freigegeben (Berechtigung/App Check). Bitte die App neu laden und erneut versuchen.";
+  if (/\b429\b|quota|resource[_ -]?exhausted|rate.?limit|too many/i.test(msg)) return "Das KI-Kontingent ist gerade erschöpft. Bitte in ein paar Minuten erneut versuchen.";
+  if (/failed to fetch|network|unavailable|timeout|timed out|deadline/i.test(msg)) return "Keine stabile Verbindung. Bitte erneut versuchen.";
+  if (/json|unexpected token|syntaxerror|safety|blocked|text not available|candidate/i.test(msg)) return "Die KI-Antwort war nicht lesbar oder wurde blockiert. Bitte erneut versuchen (bei Fotos: schärfer und besser ausgeleuchtet).";
+  return msg || "Unbekannter Fehler. Bitte erneut versuchen.";
+}
+
 // ── Prompts ───────────────────────────────────────────────────────────────────
 
 export function profileLine(settings = {}) {
@@ -338,7 +435,8 @@ export function dealLines(deals) {
 export const RECEIPT_PROMPT = `Dies ist das Foto eines Kassenbons/einer Quittung (Lebensmittel, DACH-Raum).
 Lies Händler, Datum (YYYY-MM-DD) und Endsumme und alle Positionen aus.
 Für jede Position: "raw_name" = Text wie auf dem Bon, "name" = normalisierter, gut lesbarer Lebensmittelname ohne Marken-Kürzel und ohne Gewichtsangabe (z.B. "Vollmilch", "Spaghetti"), "qty" + "unit" (g, kg, ml, l, Stk, Pkg; Menge aus Bon/Gewicht, sonst 1 Stk), "price" = Positionspreis in Euro, "category" (obst_gemuese, milch_eier, fleisch_fisch, getreide, konserven, tiefkuehl, gewuerze, snacks, getraenke, sonstiges), "is_food" = true nur für Essen/Trinken.
-Pfand, Tüten, Rabatte/Bonuszeilen, Drogerie- und Haushaltsartikel: is_food=false (Rabattzeilen und Summenzeilen gar nicht als Position aufnehmen).
+"price" ist immer der Gesamtpreis der Zeile, nicht der Einzelpreis: Zeilen wie "3 x 0,89" → qty 3, unit Stk, price 2,67. Gewichtsware ("0,532 kg x 1,99") → qty 0,532, unit kg, price = Zeilensumme. Zahlen mit Dezimalkomma als Zahl ausgeben (2,49 → 2.49).
+Pfand, Tüten, Rabatte/Bonuszeilen, Drogerie- und Haushaltsartikel: is_food=false (Rabattzeilen und Summenzeilen gar nicht als Position aufnehmen, Preise nie negativ).
 Rate nichts, was nicht auf dem Bon steht; unleserliche Positionen weglassen.`;
 
 export const FLYER_PROMPT = `Dies ist ein Prospekt-/Aktionsfoto eines Händlers (DACH-Raum). Extrahiere nur Lebensmittel-Aktionen, die wirklich lesbar sind.
@@ -346,7 +444,7 @@ Pro Aktion: "store" (Händler, falls erkennbar), "product" (Produktname), "price
 Erfinde keine Angebote und keine Preise.`;
 
 export const buildPantryParsePrompt = (text) => `Zerlege diese Einkaufs-/Vorratsangabe in einzelne Lebensmittelposten (DACH-Raum, Deutsch): "${text}"
-Pro Posten "name" (normalisiert, ohne Mengenangabe), "qty" (Zahl) und "unit" (g, kg, ml, l, Stk, Pkg; ohne Angabe 1 Stk) sowie "category" (obst_gemuese, milch_eier, fleisch_fisch, getreide, konserven, tiefkuehl, gewuerze, snacks, getraenke, sonstiges). "price" nur, wenn genannt.`;
+Pro Posten "name" (normalisiert, ohne Mengenangabe), "qty" (Zahl, Dezimalkomma als Punkt; "20 dag" = 200 g, "1 Pkg" = 1 Pkg) und "unit" (g, kg, ml, l, Stk, Pkg; ohne Angabe 1 Stk) sowie "category" (obst_gemuese, milch_eier, fleisch_fisch, getreide, konserven, tiefkuehl, gewuerze, snacks, getraenke, sonstiges). "price" nur, wenn genannt.`;
 
 export const buildDealsTextPrompt = (text) => `Extrahiere die Lebensmittel-Aktionen aus diesem Text (Prospekt/Aktionsliste). Erfinde nichts, lass fehlende Felder leer.
 Pro Aktion: store, product, price (Euro, Zahl), price_text, valid_until (YYYY-MM-DD), note.
@@ -368,7 +466,7 @@ Vorrat:
 ${pantryLines(pantry, today)}
 ${dealPart}
 Pro Rezept: "title", "summary" (1 Satz), "servings", "minutes", "ingredients" (jeweils "name", "qty_text", "in_pantry" = steht im Vorrat), "macros" pro Portion (kcal, protein, carbs, fat — grobe Schätzung), "steps" (3-6 kurze Schritte), "uses_deals".
-Weniger fehlende Zutaten sind besser; erfinde keine Zutaten im Vorrat.`;
+Als [abgelaufen] markierte Posten nicht verwenden. Weniger fehlende Zutaten sind besser; erfinde keine Zutaten im Vorrat.`;
 }
 
 export function buildShoppingPrompt({ pantry, receipts = [], deals = [], shopping = [], settings = {}, today = todayISO() }) {

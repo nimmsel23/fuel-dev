@@ -7,7 +7,7 @@ import { withAiRetry } from "./aiRetry.js";
 import { compressToBase64 } from "./visionScan.js";
 import {
   CATEGORIES, RECEIPT_PROMPT, FLYER_PROMPT, buildPantryParsePrompt, buildDealsTextPrompt, buildRecipePrompt, buildShoppingPrompt,
-  normalizeReceiptResult, normalizeParsedItems, normalizeDeals, normalizeRecipes, normalizeCategory,
+  normalizeReceiptResult, normalizeParsedItems, normalizeDeals, normalizeRecipes, normalizeCategory, filterSuggestions,
 } from "./kitchenLogic.js";
 
 const S = SchemaType;
@@ -88,7 +88,9 @@ export async function suggestRecipes(args) {
 
 export async function suggestShopping(args) {
   const raw = await generateJson("shopping", [buildShoppingPrompt(args)]);
-  return (Array.isArray(raw?.suggestions) ? raw.suggestions : [])
+  const list = (Array.isArray(raw?.suggestions) ? raw.suggestions : [])
     .map((s) => ({ name: String(s?.name || "").trim(), reason: String(s?.reason || "").trim(), category: normalizeCategory(s?.category), deal: String(s?.deal || "").trim() }))
     .filter((s) => s.name);
+  // Das Modell ignoriert "nicht vorschlagen, was schon da ist" gelegentlich — hier hart nachfiltern.
+  return filterSuggestions(list, args.pantry, args.shopping);
 }

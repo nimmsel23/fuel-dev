@@ -10,7 +10,7 @@
  * Alles unter users/{uid}/…, damit die deployten Rules (users/{uid}/{document=**}) greifen.
  */
 
-import { collection, doc, getDoc, getDocs, setDoc as firestoreSetDoc, deleteDoc as firestoreDeleteDoc, writeBatch } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, query, orderBy, limit, setDoc as firestoreSetDoc, deleteDoc as firestoreDeleteDoc, writeBatch } from "firebase/firestore";
 import { db } from "../../firebase.js";
 import { getUid } from "./core.js";
 import { withStorageFeedback } from "../../storageFeedback.js";
@@ -34,26 +34,51 @@ async function list(kind) {
 
 const payload = (item) => stripUndefined({ ...item, owner_uid: getUid(), updated_at: new Date().toISOString() });
 
-// Mehrere Docs atomar schreiben (Firestore-Batch: max. 500 — Einkäufe/Prospekte bleiben weit darunter).
-async function saveMany(kind, items) {
-  if (!items.length) return;
-  await withStorageFeedback(LABELS[kind], async () => {
-    for (let i = 0; i < items.length; i += 400) {
+// Offline wartet Firestore mit der Bestätigung, bis wieder Netz da ist — das Schreiben ist lokal aber sofort gesichert
+// (persistenter Cache) und wird später nachgeschickt. Dann nicht blockieren, sonst hängt die UI ewig im "Speichere …".
+const feedback = (kind, run) => withStorageFeedback(LABELS[kind] || kind, () => {
+  const write = run();
+  if (typeof navigator !== "undefined" && navigator.onLine === false) { write.catch(() => {}); return Promise.resolve(); }
+  return write;
+});
+
+// Mehrere Docs schreiben (Firestore-Batch: max. 500 Operationen — hier in 400er-Schritten).
+// ops: [{ kind: "pantry"|"receipts"|"shopping"|"deals", item }] — ein Aufruf ist je 400 Operationen atomar.
+async function commitOps(label, ops) {
+  if (!ops.length) return;
+  await feedback(label, async () => {
+    for (let i = 0; i < ops.length; i += 400) {
       const batch = writeBatch(db);
-      for (const item of items.slice(i, i + 400)) batch.set(doc(col(kind), item.id), payload(item));
+      for (const { kind, item } of ops.slice(i, i + 400)) batch.set(doc(col(kind), item.id), payload(item));
       await batch.commit();
     }
   });
 }
 
-const remove = (kind, id) => withStorageFeedback(LABELS[kind], () => firestoreDeleteDoc(doc(col(kind), id)));
+const saveMany = (kind, items) => commitOps(kind, items.map((item) => ({ kind, item })));
+
+// Einkauf übernehmen (Bon/Zettel): Vorrat, Bon und Zettel-Posten in EINEM Batch — entweder alles oder nichts, damit
+// ein erneuter Versuch nach einem Fehler die Mengen nicht doppelt addiert.
+export const commitKitchenBatch = ({ pantry = [], receipts = [], shopping = [] }) => commitOps("pantry", [
+  ...pantry.map((item) => ({ kind: "pantry", item })),
+  ...receipts.map((item) => ({ kind: "receipts", item })),
+  ...shopping.map((item) => ({ kind: "shopping", item })),
+]);
+
+const remove = (kind, id) => feedback(kind, () => firestoreDeleteDoc(doc(col(kind), id)));
 
 export const listPantry = () => list("pantry");
 export const savePantryItems = (items) => saveMany("pantry", items);
 export const deletePantryItem = (id) => remove("pantry", id);
 
+// Nur die jüngsten Bons laden (Verlauf wächst sonst unbegrenzt mit).
 export async function listReceipts(max = 30) {
-  return (await list("receipts")).sort((a, b) => (b.date || "").localeCompare(a.date || "") || byRecent(a, b)).slice(0, max);
+  const uid = getUid();
+  const snap = await getDocs(query(col("receipts"), orderBy("date", "desc"), limit(max)));
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .filter((item) => !item.owner_uid || item.owner_uid === uid)
+    .sort((a, b) => (b.date || "").localeCompare(a.date || "") || byRecent(a, b));
 }
 export const saveReceipt = (receipt) => saveMany("receipts", [receipt]);
 export const deleteReceipt = (id) => remove("receipts", id);
@@ -72,5 +97,5 @@ export async function getKitchenSettings() {
 }
 
 export async function saveKitchenSettings(settings) {
-  await withStorageFeedback("Küche", () => firestoreSetDoc(doc(db, "users", getUid(), "meta", "kitchen"), payload(settings), { merge: true }));
+  await feedback("Küche", () => firestoreSetDoc(doc(db, "users", getUid(), "meta", "kitchen"), payload(settings), { merge: true }));
 }

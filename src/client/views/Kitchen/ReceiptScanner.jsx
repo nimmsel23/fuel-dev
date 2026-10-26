@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Receipt, Sparkles, Loader2, X } from "lucide-react";
+import { Receipt, Sparkles, Loader2, X, AlertTriangle } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 import { todayISO } from "../../../shared/utils/validation.mjs";
-import { mergeIntoPantry, markShoppingBought, reviewToIncoming, normalizeName } from "../../lib/kitchenLogic.js";
-import { useCommitPurchase } from "../../hooks/useKitchen.js";
-import { cardClass, fieldClass, primaryBtn, ghostBtn, SectionTitle, ImageCapture, ItemReview, ErrorNote } from "./shared.jsx";
+import { mergeIntoPantry, markShoppingBought, reviewToIncoming, normalizeName, findDuplicateReceipt, normDate } from "../../lib/kitchenLogic.js";
+import { useCommitPurchase, useReceipts } from "../../hooks/useKitchen.js";
+import { cardClass, fieldClass, primaryBtn, ghostBtn, iconBtn, SectionTitle, ImageCapture, ItemReview, ErrorNote } from "./shared.jsx";
 
 // Kassenbon fotografieren oder Einkauf eintippen → KI liest die Positionen → Review → Vorrat + Bon-Verlauf.
 // Das Foto wird nach dem Auslesen verworfen, gespeichert werden nur die bestätigten Positionen.
@@ -12,6 +12,7 @@ const analyzePhoto = async (file) => (await import("../../lib/kitchenAi.js")).sc
 
 export default function ReceiptScanner({ pantry, pantryReady, shopping, onClose }) {
   const commit = useCommitPurchase();
+  const { data: receipts = [] } = useReceipts();
   const [mode, setMode] = useState("photo");
   const [text, setText] = useState("");
   const [parsing, setParsing] = useState(false);
@@ -32,21 +33,24 @@ export default function ReceiptScanner({ pantry, pantryReady, shopping, onClose 
   };
 
   const selected = draft ? draft.items.filter((i) => i.sel && normalizeName(i.name)) : [];
+  const duplicate = draft ? findDuplicateReceipt(receipts, { ...draft, date: normDate(draft.date) || todayISO() }) : null;
 
   const save = async () => {
+    if (saving) return;
     setSaving(true);
     setError(null);
     try {
       const store = draft.store.trim();
-      const incoming = reviewToIncoming(draft.items, { store, date: draft.date, source: draft.source });
+      const date = normDate(draft.date) || todayISO(); // leeres/kaputtes Datumsfeld → heute
+      const incoming = reviewToIncoming(draft.items, { store, date, source: draft.source });
       const { changed } = mergeIntoPantry(pantry, incoming);
       const ticked = markShoppingBought(shopping, incoming.map((i) => i.name));
       const receipt = {
-        id: crypto.randomUUID(), store, date: draft.date, source: draft.source, created_at: new Date().toISOString(),
+        id: crypto.randomUUID(), store, date, source: draft.source, created_at: new Date().toISOString(),
         ...(draft.total > 0 ? { total: draft.total } : {}),
         items: selected.map(({ name, qty, unit, price, category }) => ({ name, qty, unit, category, ...(price != null ? { price } : {}) })),
       };
-      await commit({ pantryChanged: changed, receipt, tickedShopping: ticked });
+      await commit({ pantryChanged: changed, receipt, shoppingChanged: ticked });
       onClose();
     } catch (e) { setError(e); setSaving(false); }
   };
@@ -54,7 +58,7 @@ export default function ReceiptScanner({ pantry, pantryReady, shopping, onClose 
   return (
     <section className={cardClass}>
       <SectionTitle icon={Receipt} title="Einkauf erfassen" hint="Kassenbon fotografieren oder eintippen — die KI liest die Positionen, du prüfst sie, dann landen sie im Vorrat.">
-        <button type="button" onClick={onClose} aria-label="Schließen" className="rounded-full p-1 text-slate-400 hover:bg-white/5 hover:text-slate-100"><X className="h-5 w-5" /></button>
+        <button type="button" onClick={onClose} aria-label="Schließen" className={twMerge(iconBtn, "rounded-full")}><X className="h-5 w-5" /></button>
       </SectionTitle>
 
       {!draft && (
@@ -100,10 +104,16 @@ export default function ReceiptScanner({ pantry, pantryReady, shopping, onClose 
             {draft.total > 0 && ` · Bon-Summe ${String(draft.total.toFixed(2)).replace(".", ",")} €`}
             . Passende offene Posten auf dem Einkaufszettel werden abgehakt.
           </p>
+          {duplicate && (
+            <p role="alert" className="flex items-start gap-2 rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-sm text-amber-200">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>Dieser Einkauf scheint schon erfasst zu sein ({duplicate.store || "Einkauf"} vom {duplicate.date.slice(8, 10)}.{duplicate.date.slice(5, 7)}., gleiche Summe/Positionen). Nochmal übernehmen würde den Vorrat doppelt zählen.</span>
+            </p>
+          )}
           <ErrorNote error={error} />
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={save} disabled={!selected.length || saving || !pantryReady} className={primaryBtn}>
-              {saving && <Loader2 className="h-4 w-4 animate-spin" />}In den Vorrat übernehmen
+              {saving && <Loader2 className="h-4 w-4 animate-spin" />}{duplicate ? "Trotzdem übernehmen" : "In den Vorrat übernehmen"}
             </button>
             <button type="button" onClick={() => { setDraft(null); setError(null); }} disabled={saving} className={ghostBtn}>Zurück</button>
           </div>

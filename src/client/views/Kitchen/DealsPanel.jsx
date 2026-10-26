@@ -3,7 +3,7 @@ import { Tag, Loader2, Sparkles, Trash2, X } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 import { reviewToDeals } from "../../lib/kitchenLogic.js";
 import { useActiveDeals, useDealMutations, useKitchenSettings, useKitchenSettingsMutation } from "../../hooks/useKitchen.js";
-import { cardClass, fieldClass, primaryBtn, ghostBtn, SectionTitle, ErrorNote, ImageCapture } from "./shared.jsx";
+import { cardClass, fieldClass, primaryBtn, ghostBtn, iconBtn, SectionTitle, ErrorNote, ImageCapture } from "./shared.jsx";
 
 // Aktionen von Händlern: es gibt KEINE automatische Datenquelle. Aktionen stammen ausschließlich aus Prospekten/Texten,
 // die der Nutzer selbst einliest — nichts davon ist erfunden oder vorbelegt.
@@ -48,7 +48,7 @@ export default function DealsPanel() {
       <SectionTitle icon={Tag} title="Aktionen" hint="Es gibt keine automatische Angebotsquelle. Hier erscheinen nur Aktionen, die du selbst aus einem Prospekt (Foto) oder Text einliest — die KI bezieht ihre Rezept- und Einkaufsideen dann auf genau diese." />
 
       <label className="block text-xs text-slate-400">Meine Händler / Ort
-        <input value={store} onChange={(e) => setStore(e.target.value)} onBlur={() => store !== (settings.stores || "") && saveSettings.mutate({ stores: store.trim() })}
+        <input value={store} onChange={(e) => setStore(e.target.value)} onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()} onBlur={() => store !== (settings.stores || "") && saveSettings.mutate({ stores: store.trim() })}
           placeholder="z. B. Billa, Spar, Hofer — Wien 10" className={twMerge(fieldClass, "mt-1 w-full")} />
       </label>
 
@@ -62,7 +62,7 @@ export default function DealsPanel() {
                   {[d.store, d.price_text || (d.price != null ? `${String(d.price.toFixed(2)).replace(".", ",")} €` : ""), d.valid_until && `bis ${d.valid_until.slice(8, 10)}.${d.valid_until.slice(5, 7)}.`].filter(Boolean).join(" · ")}
                 </div>
               </div>
-              <button type="button" onClick={() => remove.mutate(d.id)} aria-label={`${d.product} entfernen`} className="rounded-lg p-1.5 text-slate-500 hover:bg-red-400/10 hover:text-red-400"><Trash2 className="h-4 w-4" /></button>
+              <button type="button" onClick={() => remove.mutate(d.id)} aria-label={`${d.product} entfernen`} className={twMerge(iconBtn, "hover:bg-red-400/10 hover:text-red-400")}><Trash2 className="h-4 w-4" /></button>
             </li>
           ))}
         </ul>
@@ -80,7 +80,7 @@ export default function DealsPanel() {
                   className={twMerge("rounded-full border px-3 py-1 text-sm", mode === key ? "border-orange-400/60 bg-orange-400/10 text-orange-200" : "border-white/10 text-slate-400")}>{label}</button>
               ))}
             </div>
-            <button type="button" onClick={() => { setOpen(false); setDraft(null); setError(null); }} aria-label="Schließen" className="rounded-full p-1 text-slate-400 hover:text-slate-100"><X className="h-5 w-5" /></button>
+            <button type="button" onClick={() => { setOpen(false); setDraft(null); setError(null); }} aria-label="Schließen" className={twMerge(iconBtn, "rounded-full")}><X className="h-5 w-5" /></button>
           </div>
 
           {!draft && (mode === "photo"
@@ -98,10 +98,12 @@ export default function DealsPanel() {
                 {draft.map((d, idx) => (
                   <li key={idx} className={twMerge("rounded-2xl border border-white/10 bg-slate-950/50 p-3", !d.sel && "opacity-50")}>
                     <div className="flex items-center gap-2">
-                      <input type="checkbox" checked={d.sel} onChange={(e) => update(idx, { sel: e.target.checked })} aria-label={`${d.product} übernehmen`} className="h-4 w-4 accent-orange-400" />
+                      <label className="flex h-10 w-8 shrink-0 cursor-pointer items-center justify-center">
+                        <input type="checkbox" checked={d.sel} onChange={(e) => update(idx, { sel: e.target.checked })} aria-label={`${d.product} übernehmen`} className="h-5 w-5 accent-orange-400" />
+                      </label>
                       <input value={d.product} onChange={(e) => update(idx, { product: e.target.value })} aria-label="Produkt" className={twMerge(fieldClass, "min-w-0 flex-1")} />
                     </div>
-                    <div className="mt-2 flex flex-wrap gap-2 pl-6">
+                    <div className="mt-2 flex flex-wrap gap-2 pl-8">
                       <input value={d.store} onChange={(e) => update(idx, { store: e.target.value })} placeholder="Händler" aria-label="Händler" className={twMerge(fieldClass, "w-28")} />
                       <input value={d.price_text} onChange={(e) => update(idx, { price_text: e.target.value })} placeholder="Preis" aria-label="Preis" className={twMerge(fieldClass, "w-28")} />
                       <input type="date" value={d.valid_until} onChange={(e) => update(idx, { valid_until: e.target.value })} aria-label="Gültig bis" title="Gültig bis" className={fieldClass} />

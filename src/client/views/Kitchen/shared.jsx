@@ -1,11 +1,13 @@
 import { useRef, useState } from "react";
 import { Camera, Upload, Loader2, RotateCcw } from "lucide-react";
 import { twMerge } from "tailwind-merge";
-import { CATEGORIES, expiryStatus } from "../../lib/kitchenLogic.js";
+import { CATEGORIES, expiryStatus, friendlyError } from "../../lib/kitchenLogic.js";
 
 export const cardClass = "rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur";
 export const fieldClass = "rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-orange-400/50 focus:outline-none";
 export const primaryBtn = "inline-flex items-center justify-center gap-2 rounded-xl bg-orange-400 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-orange-300 disabled:opacity-40";
+// Icon-Buttons/Checkboxen: mind. 40 × 40 px Trefferfläche (Touch), Icon bleibt klein.
+export const iconBtn = "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-white/5";
 export const ghostBtn = "inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-300 transition hover:bg-white/10 disabled:opacity-40";
 
 export function SectionTitle({ icon: Icon, title, hint, children }) {
@@ -25,7 +27,7 @@ export function SectionTitle({ icon: Icon, title, hint, children }) {
 
 export function ErrorNote({ error }) {
   if (!error) return null;
-  return <p role="alert" className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error.message || String(error)}</p>;
+  return <p role="alert" className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-300">{friendlyError(error)}</p>;
 }
 
 export function ExpiryBadge({ expiresOn }) {
@@ -66,16 +68,16 @@ export function ImageCapture({ analyze, onResult, busyText = "Gemini liest das F
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3">
-        <button type="button" onClick={() => camera.current?.click()} className="flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-slate-900 p-5 transition hover:bg-slate-800">
+        <button type="button" onClick={() => camera.current?.click()} className="flex min-h-[5rem] flex-col items-center justify-center gap-2 rounded-2xl border border-white/10 bg-slate-900 p-5 transition hover:bg-slate-800">
           <Camera className="h-6 w-6 text-orange-300" /><span className="text-sm font-medium text-slate-200">Kamera</span>
         </button>
-        <button type="button" onClick={() => picker.current?.click()} className="flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-slate-900 p-5 transition hover:bg-slate-800">
+        <button type="button" onClick={() => picker.current?.click()} className="flex min-h-[5rem] flex-col items-center justify-center gap-2 rounded-2xl border border-white/10 bg-slate-900 p-5 transition hover:bg-slate-800">
           <Upload className="h-6 w-6 text-violet-300" /><span className="text-sm font-medium text-slate-200">Foto wählen</span>
         </button>
       </div>
       {error && (
         <div className="flex items-center justify-between gap-3 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-          <span>{error.message || "Fehler beim Lesen des Fotos."}</span>
+          <span>{friendlyError(error)}</span>
           {last.current && <button type="button" onClick={() => run(last.current)} className="flex shrink-0 items-center gap-1.5 rounded-full bg-red-500/20 px-3 py-1 text-xs font-semibold hover:bg-red-500/30"><RotateCcw className="h-3.5 w-3.5" />Erneut</button>}
         </div>
       )}
@@ -95,11 +97,13 @@ export function ItemReview({ items, onChange }) {
       {items.map((it, idx) => (
         <li key={idx} className={twMerge("rounded-2xl border border-white/10 bg-slate-950/50 p-3", !it.sel && "opacity-50")}>
           <div className="flex items-center gap-2">
-            <input type="checkbox" checked={it.sel} onChange={(e) => update(idx, { sel: e.target.checked })} aria-label={`${it.name} übernehmen`} className="h-4 w-4 accent-orange-400" />
+            <label className="flex h-10 w-8 shrink-0 cursor-pointer items-center justify-center">
+              <input type="checkbox" checked={it.sel} onChange={(e) => update(idx, { sel: e.target.checked })} aria-label={`${it.name} übernehmen`} className="h-5 w-5 accent-orange-400" />
+            </label>
             <input value={it.name} onChange={(e) => update(idx, { name: e.target.value })} aria-label="Name" className={twMerge(fieldClass, "min-w-0 flex-1")} />
             {it.price != null && <span className="shrink-0 text-xs tabular-nums text-slate-500">{String(it.price.toFixed(2)).replace(".", ",")} €</span>}
           </div>
-          <div className="mt-2 flex flex-wrap items-center gap-2 pl-6">
+          <div className="mt-2 flex flex-wrap items-center gap-2 pl-8">
             <input type="number" min="0" step="any" value={it.qty} onChange={(e) => update(idx, { qty: e.target.value === "" ? "" : Number(e.target.value) })} aria-label="Menge" className={twMerge(fieldClass, "w-20")} />
             <select value={it.unit} onChange={(e) => update(idx, { unit: e.target.value })} aria-label="Einheit" className={fieldClass}>{UNITS.map((u) => <option key={u}>{u}</option>)}</select>
             <select value={it.category} onChange={(e) => update(idx, { category: e.target.value })} aria-label="Kategorie" className={twMerge(fieldClass, "max-w-[11rem]")}>{CATEGORIES.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}</select>

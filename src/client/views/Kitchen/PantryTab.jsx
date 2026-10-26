@@ -3,7 +3,7 @@ import { Refrigerator, Sparkles, Loader2, Plus, Minus, Check, CalendarClock } fr
 import { twMerge } from "tailwind-merge";
 import { mergeIntoPantry, reviewToIncoming, groupByCategory, isInStock, formatQty, qtyStep, expiryStatus, normalizeName } from "../../lib/kitchenLogic.js";
 import { usePantry, usePantryMutations } from "../../hooks/useKitchen.js";
-import { cardClass, fieldClass, primaryBtn, ghostBtn, SectionTitle, ErrorNote, ExpiryBadge, ItemReview } from "./shared.jsx";
+import { cardClass, fieldClass, primaryBtn, ghostBtn, iconBtn, SectionTitle, ErrorNote, ExpiryBadge, ItemReview } from "./shared.jsx";
 
 const RecipeSuggestions = lazy(() => import("./RecipeSuggestions.jsx"));
 
@@ -76,13 +76,13 @@ function PantryRow({ item, onChange, onRemove }) {
           )}
         </div>
       </div>
-      <button type="button" onClick={() => setEditDate((v) => !v)} title="Ablaufdatum setzen" aria-label="Ablaufdatum setzen" className="rounded-lg p-1.5 text-slate-500 hover:bg-white/5 hover:text-amber-300"><CalendarClock className="h-4 w-4" /></button>
+      <button type="button" onClick={() => setEditDate((v) => !v)} title="Ablaufdatum setzen" aria-label="Ablaufdatum setzen" className={twMerge(iconBtn, "hover:text-amber-300")}><CalendarClock className="h-4 w-4" /></button>
       <div className="flex items-center gap-1">
-        <button type="button" onClick={() => bump(-step)} aria-label="Weniger" className="rounded-lg p-1.5 text-slate-400 hover:bg-white/5 hover:text-slate-100"><Minus className="h-4 w-4" /></button>
+        <button type="button" onClick={() => bump(-step)} aria-label="Weniger" className={twMerge(iconBtn, "text-slate-400 hover:text-slate-100")}><Minus className="h-4 w-4" /></button>
         <span className="min-w-[4.5rem] text-center text-sm tabular-nums text-slate-200">{formatQty(item.qty, item.unit)}</span>
-        <button type="button" onClick={() => bump(step)} aria-label="Mehr" className="rounded-lg p-1.5 text-slate-400 hover:bg-white/5 hover:text-slate-100"><Plus className="h-4 w-4" /></button>
+        <button type="button" onClick={() => bump(step)} aria-label="Mehr" className={twMerge(iconBtn, "text-slate-400 hover:text-slate-100")}><Plus className="h-4 w-4" /></button>
       </div>
-      <button type="button" onClick={() => onRemove(item.id)} title="Verbraucht" aria-label={`${item.name} verbraucht`} className="rounded-lg p-1.5 text-slate-500 hover:bg-emerald-400/10 hover:text-emerald-300"><Check className="h-4 w-4" /></button>
+      <button type="button" onClick={() => onRemove(item.id)} title="Verbraucht" aria-label={`${item.name} verbraucht`} className={twMerge(iconBtn, "hover:bg-emerald-400/10 hover:text-emerald-300")}><Check className="h-4 w-4" /></button>
     </li>
   );
 }
