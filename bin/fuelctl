@@ -56,6 +56,17 @@ PROD_COACH_HEALTH_URL = f"http://127.0.0.1:{PROD_PORT}/coach/health"
 WORKDIR = Path(__file__).resolve().parent.parent
 BIN_DEVCTL = WORKDIR / "bin" / "fuel-devctl"
 BIN_PRODCTL = WORKDIR / "bin" / "fuel-prodctl"
+
+
+def delegate(cmd: list) -> None:
+    """Führt einen Unterbefehl aus und gibt dessen Exit-Code weiter.
+
+    Ohne das endet `fuelctl prod deploy` mit Exit 0, auch wenn deploy.sh
+    abbricht -- ein fehlgeschlagener Deploy sieht dann wie ein Erfolg aus.
+    """
+    rc = subprocess.run(cmd).returncode
+    if rc != 0:
+        raise typer.Exit(rc)
 SYNC_SCRIPT = WORKDIR / "scripts" / "firestore-sync.mjs"
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -165,9 +176,10 @@ def dev(
     }
     target = cmd_map.get(action)
     if target:
-        subprocess.run([str(BIN_DEVCTL), target, *ctx.args])
+        delegate([str(BIN_DEVCTL), target, *ctx.args])
     else:
         msg.fail(f"Unknown dev action: {action}")
+        raise typer.Exit(1)
 
 @app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
 def prod(
@@ -178,7 +190,7 @@ def prod(
     if not BIN_PRODCTL.exists():
         msg.fail(f"fuel-prodctl not found at {BIN_PRODCTL}")
         raise typer.Exit(1)
-    subprocess.run([str(BIN_PRODCTL), action, *ctx.args])
+    delegate([str(BIN_PRODCTL), action, *ctx.args])
 
 
 # Backwards-compat aliases: `fuelctl local …` / `fuelctl v2 …` → `fuelctl prod …`
@@ -215,13 +227,14 @@ def cloud(action: Optional[str] = typer.Argument(None, help="push, pull, watch")
             return
 
     if action == "push":
-        subprocess.run(["node", str(SYNC_SCRIPT), "push"])
+        delegate(["node", str(SYNC_SCRIPT), "push"])
     elif action == "pull":
-        subprocess.run(["node", str(SYNC_SCRIPT), "pull"])
+        delegate(["node", str(SYNC_SCRIPT), "pull"])
     elif action == "watch":
-        subprocess.run(["node", str(SYNC_SCRIPT), "watch"])
+        delegate(["node", str(SYNC_SCRIPT), "watch"])
     else:
         msg.fail(f"Unknown cloud action: {action}")
+        raise typer.Exit(1)
 
 
 @app.command()
@@ -230,7 +243,7 @@ def sync(uid: Optional[str] = typer.Argument(None, help="Firebase UID for bidire
     cmd = ["node", str(SYNC_SCRIPT), "sync"]
     if uid:
         cmd.append(uid)
-    subprocess.run(cmd)
+    delegate(cmd)
 
 @app.command()
 def catalog(action: str = typer.Argument("status", help="start, stop, status")):
