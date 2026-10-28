@@ -233,6 +233,7 @@ sudo rsync -av --delete \
   --exclude "catalogs" \
   --exclude "backend" \
   --exclude "frontend" \
+  --exclude "node_modules" \
   "$SOURCE/" "$NODE_DEST/"
 
 # Laufzeit-Daten NICHT kopieren, sondern symlinken (Katalog-JSONs sind
@@ -271,6 +272,12 @@ rsync -av --delete \
   --exclude ".venv" --exclude "__pycache__" --exclude "*.pyc" \
   --exclude ".env" --exclude "logs" \
   "$SOURCE/backend/" "$PYTHON_DEST/backend/"
+# Das Backend importiert fuel.omega3 (Shared-Paket aus dem Repo-Root); uvicorn
+# läuft mit WorkingDirectory=$PYTHON_DEST, also muss fuel/ dort liegen.
+msg "📦 Syncing fuel/ (Python-Shared-Paket) $SOURCE/fuel → $PYTHON_DEST/fuel"
+rsync -av --delete \
+  --exclude "__pycache__" --exclude "*.pyc" \
+  "$SOURCE/fuel/" "$PYTHON_DEST/fuel/"
 msg "📦 Syncing frontend/ (React) $SOURCE/frontend → $PYTHON_DEST/frontend"
 rsync -av --delete \
   --exclude "node_modules" \

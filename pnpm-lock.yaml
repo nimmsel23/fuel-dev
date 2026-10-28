@@ -134,6 +134,9 @@ importers:
       motion-utils:
         specifier: ^12.39.0
         version: 12.39.0
+      pino:
+        specifier: 9.14.0
+        version: 9.14.0
       react:
         specifier: ^18.3.1
         version: 18.3.1
