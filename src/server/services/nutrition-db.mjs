@@ -170,6 +170,8 @@ export function upsertMeal(meal, options = {}) {
     logged_at: meal.logged_at ?? meal.time ?? null,
   });
   removeDeletedMealId(meal.date, meal.id, nutritionDir || undefined);
+  // skipPush: der Pull aus Firestore schreibt lokal, ohne die Daten zurückzuschicken
+  if (options.skipPush) return;
   // Fire-and-forget push
   const date = meal.date;
   pushNutritionLog(
@@ -247,6 +249,7 @@ export function upsertWater(date, waterMl, options = {}) {
     INSERT INTO daily_water (date, water_ml) VALUES (?, ?)
     ON CONFLICT(date) DO UPDATE SET water_ml = excluded.water_ml, updated_at = CURRENT_TIMESTAMP
   `).run(date, waterMl);
+  if (options.skipPush) return;
   // Fire-and-forget push
   pushNutritionLog(date, getMealsForDate(date, options), waterMl, { uid, nutritionDir }).catch(() => {});
 }

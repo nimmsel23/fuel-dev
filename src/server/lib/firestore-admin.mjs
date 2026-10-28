@@ -587,6 +587,7 @@ async function doPullRecentLogs(db, uid = UID) {
             nutritionDir: userNutritionDir(uid),
             nutritionDbPath: path.join(userNutritionDir(uid), "nutrition.db"),
             uid,
+            skipPush: true,
           });
           void mealRemoteAt; // timestamp noted, upsert always wins for now (remote is authoritative)
         }
@@ -596,6 +597,7 @@ async function doPullRecentLogs(db, uid = UID) {
             nutritionDir: userNutritionDir(uid),
             nutritionDbPath: path.join(userNutritionDir(uid), "nutrition.db"),
             uid,
+            skipPush: true,
           });
         }
 
