@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import {
+  doc,
+  serverTimestamp,
+} from "firebase/firestore";
+import { setDoc } from "../../lib/db/firestore/offline.js";
 import { db } from "../../lib/firebase.js";
 import { getUserSettings, getUid } from "../../lib/db.firestore.js";
 import { withStorageFeedback } from "../../lib/storageFeedback.js";

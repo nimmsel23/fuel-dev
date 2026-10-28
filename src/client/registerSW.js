@@ -34,10 +34,6 @@ if (import.meta.env.DEV) {
     });
   }).catch(() => {});
 
-  let reloading = false;
-  navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (reloading) return;
-    reloading = true;
-    window.location.reload();
-  });
+  // Offline-first: kein automatisches Neuladen (auch nicht mitten im Loggen). Neue Versionen melden
+  // 'sw-update-available' → der Update-Button im Header lädt erst auf Tipp neu.
 }

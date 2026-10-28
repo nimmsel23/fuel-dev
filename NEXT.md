@@ -2,6 +2,14 @@
 
 Aktive Arbeitsliste (max. 5 Punkte).
 
+## 2026-10-26
+
+- [ ] `fuel-os`-Site vs. `master`-Deploy klären: `deploy-master.yml` zielt auf Site `fuel-os` (Target `fuelos`), dort liegt aber die separate Wochen-Planer-App aus `~/vitalos/fuel-os/`. Entscheidung offen — (1) `fuel-os` eigenständig lassen und `master` zurück auf `fuel-vos`/dritte Site, (2) Wochen-Planer als Tab nach `fuel-dev` holen, (3) beide parallel. Bis dahin **nicht** auf `master` pushen. Der User nannte es nur „eine Idee".
+- [ ] Töpfe + Küche am echten Login prüfen (Preview oder fuel-vos): erster Topf (z. B. „Jasmins speckige Reiseier", ¾), erster Bon-Scan, Rezeptideen — Vertex-Qualität und Firestore-Writes sind ungetestet.
+- [ ] Küche/Töpfe-Lücken: kein Undo bei „verbraucht", keine Einheiten-Umrechnung im Vorrat („1 Pkg Nudeln" ≠ „500 g Nudeln"), kcal-Änderung einer Topf-Mahlzeit im Log-Tab zieht den Topf nicht nach, Topf-Dokumente laufen nicht über die Offline-Outbox.
+- [ ] Zwei Live-Deploy-Wege auf Fuel (vitalos „Deploy Fuel PWA" → `fuel-vos`, `deploy-master.yml` → `fuel-os`) — Entscheidung, ob beide bleiben, steht aus; `deploy-master.yml` ist nie live gelaufen.
+- [ ] `mini-app-shell` `register.reloadWindowMs` ist durchgereicht, aber in keiner App gesetzt — zugehöriges Vorhaben (Update-Verhalten beim Neustart) ist unbekannt/offen.
+
 ## 2026-10-16
 
 - [ ] Mini-Apps (`vos-fuel-*`) einmal am Handy prüfen: Google-Login, Splash, Icon, Installation.
@@ -62,3 +70,7 @@ Aktive Arbeitsliste (max. 5 Punkte).
 *   **Fehlinterpretation des End-zu-End-Tests:** Claude behauptet, der erfolgreiche Gemini-Review im Ende-zu-Ende-Lauf sei "NICHT bestätigt", obwohl das eigene Tool-Ergebnis explizit `gemini review: NEXT.md ergänzt` für den letzten Lauf zeigt.
 *   **Ungeprüfte `RESOURCE_EXHAUSTED`-Fehler:** Die im generierten Review erwähnten `RESOURCE_EXHAUSTED`-Fehler wurden von Claude nicht verifiziert oder reproduziert, was eine ungelöste potenzielle Zuverlässigkeitslücke bei großen Prompts darstellt.
 *   **Unversionierter Hook in `fuel-dev`:** Der kritische Fix für den `fuel-dev`-Hook ist aufgrund der `.claude/`-Ignorierung nicht versioniert, was ein Wartungsrisiko bei der Bereitstellung oder Einrichtung neuer Umgebungen darstellt.
+
+**Gemini-Review (potenzielle blinde Flecken, 2026-10-26):**
+*   **Ungeprüfte Annahme zum Google-Login:** Claude behauptet, dass der Google-Login auf `fuel-os.web.app` funktionieren würde, da die Domain nicht in der Liste der *fehlenden* Auth-Domains auftauchte. Dies ist eine Schlussfolgerung aus der Abwesenheit eines Eintrags, nicht aus einer expliziten Bestätigung, dass die Domain korrekt für den Google-Login konfiguriert und getestet wurde.
+*   **Teilweise Problembehandlung/Reihenfolge der Analyse:** Claude hat die Deployment-Konfiguration für `fuel-dev` auf `fuel-os.web.app` umgestellt, *bevor* es vollständig die Natur der dort bereits gehosteten

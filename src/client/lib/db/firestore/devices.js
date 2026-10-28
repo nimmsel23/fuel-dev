@@ -13,7 +13,11 @@ import { withStorageFeedback } from "../../storageFeedback.js";
  * die Collection bereits ab.
  */
 
-import { doc, getDoc, setDoc as firestoreSetDoc, serverTimestamp } from "firebase/firestore";
+import {
+  doc,
+  serverTimestamp,
+} from "firebase/firestore";
+import { getDoc, setDoc as firestoreSetDoc } from "./offline.js";
 import { db } from "../../firebase.js";
 import { getUid } from "./core.js";
 const setDoc = (...args) => withStorageFeedback("Gerät", () => firestoreSetDoc(...args));

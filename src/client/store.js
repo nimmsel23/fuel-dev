@@ -135,6 +135,11 @@ export const useSettings = create(
         });
       },
       hydrateFromCloud: async () => {
+        // Offline-first: Das Gerät kennt seinen Schnelleinstieg lokal (persistiert) → App sofort freigeben, der
+        // Cloud-Abgleich läuft im Hintergrund. Nur ein neues Gerät muss auf den Geräte-Eintrag warten — und auch
+        // das höchstens 4 s, danach erscheint die Auswahl (Lie-Fi: WLAN ohne Internet).
+        if (get().frontdoor) useApp.getState().setFrontdoorResolved(true);
+        else setTimeout(() => useApp.getState().setFrontdoorResolved(true), 4000);
         try {
           const db = await import("./lib/db.firestore.js");
           if (db.getUidOrNull?.()) {

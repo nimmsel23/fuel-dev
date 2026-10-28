@@ -5,7 +5,11 @@
  * Liegt unter users/{uid}/…, damit die deployten Rules (users/{uid}/{document=**}) greifen.
  */
 
-import { collection, doc, getDocs, setDoc as firestoreSetDoc, deleteDoc as firestoreDeleteDoc } from "firebase/firestore";
+import {
+  collection,
+  doc,
+} from "firebase/firestore";
+import { getDocs, setDoc as firestoreSetDoc, deleteDoc as firestoreDeleteDoc } from "./offline.js";
 import { db } from "../../firebase.js";
 import { getUid } from "./core.js";
 import { withStorageFeedback } from "../../storageFeedback.js";

@@ -3,7 +3,11 @@ import { withStorageFeedback } from "../../storageFeedback.js";
  * Firestore Settings — users/{uid}/meta/settings
  */
 
-import { doc, getDoc, setDoc as firestoreSetDoc, serverTimestamp } from "firebase/firestore";
+import {
+  doc,
+  serverTimestamp,
+} from "firebase/firestore";
+import { getDoc, setDoc as firestoreSetDoc } from "./offline.js";
 import { db } from "../../firebase.js";
 import { getUid } from "./core.js";
 const setDoc = (...args) => withStorageFeedback("Profil / Einstellungen", () => firestoreSetDoc(...args));

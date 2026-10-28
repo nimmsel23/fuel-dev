@@ -104,6 +104,9 @@ function App() {
     if (window.__swRegistration?.waiting) {
       window.__swRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
     }
+    // Der neue Worker ist bereits aktiv (skipWaiting beim Install); die neue Shell erscheint erst nach dem Neuladen —
+    // das passiert nur auf Tipp, nie von selbst.
+    window.location.reload();
   };
 
   const previousUid = React.useRef(null);

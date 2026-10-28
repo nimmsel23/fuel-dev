@@ -1,5 +1,8 @@
 import * as firestore from "./db.firestore.js";
-import { doc, setDoc } from "firebase/firestore";
+import {
+  doc,
+} from "firebase/firestore";
+import { setDoc } from "./db/firestore/offline.js";
 
 const isCloud = () => {
   if (typeof window === "undefined") return false;

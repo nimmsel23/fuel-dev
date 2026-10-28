@@ -5,8 +5,16 @@ import { projectCloudLog, outboxEntries, projectCloudCatalog, hasPendingFor } fr
  */
 
 import {
-  doc, getDoc, setDoc, collection, query, getDocs, orderBy, limit, documentId, startAt, endAt,
+  doc,
+  collection,
+  query,
+  orderBy,
+  limit,
+  documentId,
+  startAt,
+  endAt,
 } from "firebase/firestore";
+import { getDoc, setDoc, getDocs } from "./offline.js";
 import { mutateCloudLog, mutateCloudCatalog } from "../../cloudMutations.js";
 import { db } from "../../firebase.js";
 import { getUid, serverTimestamp } from "./core.js";

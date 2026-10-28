@@ -28,6 +28,21 @@
   let dbPromise = null
   let online = navigator.onLine ?? true
 
+  // ── fetch mit Timeout ─────────────────────────────────────────────────────
+  // Lie-Fi (WLAN verbunden, kein Internet): Requests hängen statt zu scheitern. Ohne Timeout greift weder der
+  // IDB-Cache (GET) noch die Queue (POST). Nach Ablauf zählt der Request als "offline".
+  const GET_TIMEOUT_MS = 5000
+  const WRITE_TIMEOUT_MS = 8000
+
+  function fetchT(input, init, ms) {
+    if (init && init.signal) return fetch(input, init) // Aufrufer steuert selbst ab
+    const ac = typeof AbortController === 'function' ? new AbortController() : null
+    const timer = setTimeout(() => ac && ac.abort(), ms)
+    return fetch(input, ac ? { ...(init || {}), signal: ac.signal } : init).finally(() => clearTimeout(timer))
+  }
+
+  const newKey = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2))
+
   // ── IDB ──────────────────────────────────────────────────────────────────
 
   function openDB() {
@@ -61,7 +76,7 @@
   // ── Queue ─────────────────────────────────────────────────────────────────
 
   async function enqueue(entry) {
-    return req((await store('queue', 'readwrite')).add({ ...entry, ts: Date.now() }))
+    return req((await store('queue', 'readwrite')).add({ ...entry, ts: Date.now(), key: entry.key || newKey() }))
   }
 
   async function queueAll() {
@@ -89,17 +104,24 @@
 
   // ── Flush ─────────────────────────────────────────────────────────────────
 
-  async function flush() {
+  let flushing = null
+  function flush() {
+    // Nie zwei Flushes gleichzeitig (online-Event + Timer + Visibility würden sonst doppelt senden)
+    if (!flushing) flushing = flushOnce().finally(() => { flushing = null })
+    return flushing
+  }
+
+  async function flushOnce() {
     const items = await queueAll().catch(() => [])
     if (!items.length) return { ok: true, flushed: 0, failed: 0 }
     let flushed = 0, failed = 0
     for (const item of items) {
       try {
-        const res = await fetch(item.url, {
+        const res = await fetchT(item.url, {
           method: item.method,
-          headers: item.headers || { 'Content-Type': 'application/json' },
+          headers: { ...(item.headers || { 'Content-Type': 'application/json' }), ...(item.key ? { 'X-Idempotency-Key': item.key } : {}) },
           body: item.body,
-        })
+        }, WRITE_TIMEOUT_MS)
         if (!res.ok && res.status >= 500) throw new Error(`http_${res.status}`)
         await queueDelete(item.id)
         flushed++
@@ -145,7 +167,7 @@
     ).toUpperCase()
 
     try {
-      const res = await fetch(input, init)
+      const res = await fetchT(input, init, method === 'GET' ? GET_TIMEOUT_MS : WRITE_TIMEOUT_MS)
       online = true
 
       // GET: JSON in IDB cachen
@@ -202,6 +224,11 @@
     flush().catch(() => {})
   })
   window.addEventListener('offline', () => { online = false })
+  // navigator.onLine lügt im Lie-Fi → zusätzlich beim Sichtbarwerden und periodisch nachsenden (nur wenn etwas ansteht)
+  const flushIfPending = () => size().then(n => { if (n > 0) flush().catch(() => {}) }).catch(() => {})
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') flushIfPending() })
+  setInterval(flushIfPending, 60000)
+  setTimeout(flushIfPending, 3000) // einmal kurz nach dem Start, nicht davor
 
   // DB vorab öffnen
   openDB().catch(() => {})

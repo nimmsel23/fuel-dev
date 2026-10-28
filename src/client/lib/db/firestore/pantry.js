@@ -10,7 +10,14 @@
  * Alles unter users/{uid}/…, damit die deployten Rules (users/{uid}/{document=**}) greifen.
  */
 
-import { collection, doc, getDoc, getDocs, query, orderBy, limit, setDoc as firestoreSetDoc, deleteDoc as firestoreDeleteDoc, writeBatch } from "firebase/firestore";
+import {
+  collection,
+  doc,
+  query,
+  orderBy,
+  limit,
+} from "firebase/firestore";
+import { getDoc, getDocs, setDoc as firestoreSetDoc, deleteDoc as firestoreDeleteDoc, writeBatch } from "./offline.js";
 import { db } from "../../firebase.js";
 import { getUid } from "./core.js";
 import { withStorageFeedback } from "../../storageFeedback.js";

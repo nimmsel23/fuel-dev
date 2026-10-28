@@ -8,9 +8,17 @@ import { projectCloudLog, outboxEntries, projectCloudCatalog, hasPendingFor } fr
  */
 
 import {
-  doc, getDoc, setDoc, collection, query, where, getDocs,
-  orderBy, limit, documentId, serverTimestamp, writeBatch, deleteField,
+  doc,
+  collection,
+  query,
+  where,
+  orderBy,
+  limit,
+  documentId,
+  serverTimestamp,
+  deleteField,
 } from "firebase/firestore";
+import { getDoc, setDoc, getDocs, writeBatch } from "./offline.js";
 import { db } from "../../firebase.js";
 import { getUid } from "./core.js";
 import { MICRO_KEYS, zeroMicros, todayISO, getWeekDates, dateToISOWeek } from "./utils.js";
