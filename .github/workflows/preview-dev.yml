@@ -18,7 +18,7 @@ on:
       - 'pnpm-lock.yaml'
       - '.github/workflows/preview-dev.yml'
   pull_request:
-    branches: [master, dev]
+    branches: [vitalos, master, dev]
     paths:
       - 'src/**'
       - 'vite.config.*'
@@ -28,6 +28,11 @@ on:
 jobs:
   preview:
     runs-on: ubuntu-latest
+    # PR-Kommentar mit Preview-URL (Firebase-Action) braucht pull-requests: write
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
 
