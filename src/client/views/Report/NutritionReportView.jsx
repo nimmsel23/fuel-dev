@@ -15,6 +15,7 @@ import { fetchJson } from "@api";
 
 const DAY_NAMES = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
 const NAME_STORAGE_KEY = "fuel-report-name";
+const HIDE_EMPTY_STORAGE_KEY = "fuel-report-hide-empty";
 
 const SLOTS = [
   { key: "vormittag", label: "Vormittag", hint: "bis 12:00 Uhr" },
@@ -194,6 +195,10 @@ export default function NutritionReportView() {
     try { return localStorage.getItem(NAME_STORAGE_KEY) || ""; } catch { return ""; }
   });
 
+  const [hideEmpty, setHideEmpty] = useState(() => {
+    try { return localStorage.getItem(HIDE_EMPTY_STORAGE_KEY) === "1"; } catch { return false; }
+  });
+
   const { data, isLoading } = useQuery({
     queryKey: ["nutrition-history", "report"],
     queryFn: () => fetchJson("/nutrition/history?limit=180"),
@@ -219,8 +224,19 @@ export default function NutritionReportView() {
     try { localStorage.setItem(NAME_STORAGE_KEY, v); } catch { /* ignore */ }
   };
 
+  const setHideEmpty_ = (v) => {
+    setHideEmpty(v);
+    try { localStorage.setItem(HIDE_EMPTY_STORAGE_KEY, v ? "1" : "0"); } catch { /* ignore */ }
+  };
+
   const dates = useMemo(() => isoRange(fromIso, toIso), [fromIso, toIso]);
   const dayCount = dates.length;
+  // Tage ohne Einträge optional ausblenden; Kennzahlen (Ø, „x von y Tagen") rechnen weiter über den ganzen Zeitraum.
+  const visibleDates = useMemo(
+    () => (hideEmpty ? dates.filter((d) => (logsByDate[d]?.meals || []).length > 0) : dates),
+    [dates, hideEmpty, logsByDate],
+  );
+  const hiddenCount = dayCount - visibleDates.length;
 
   const summary = useMemo(() => {
     const loggedDates = dates.filter((d) => (logsByDate[d]?.meals || []).length > 0);
@@ -308,6 +324,16 @@ export default function NutritionReportView() {
             />
           </label>
 
+          <label className="flex items-center gap-2 self-center text-sm text-slate-200 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={hideEmpty}
+              onChange={(e) => setHideEmpty_(e.target.checked)}
+              className="h-4 w-4 rounded border-white/20 accent-orange-400"
+            />
+            Leere Tage ausblenden
+          </label>
+
           <button
             onClick={() => window.print()}
             className="inline-flex items-center gap-2 rounded-full border border-orange-400/40 bg-orange-400 px-5 py-2.5 text-sm font-semibold text-slate-950 hover:bg-orange-300 transition"
@@ -319,7 +345,9 @@ export default function NutritionReportView() {
 
         <p className="text-xs text-slate-500">
           {dayCount} Kalendertage im Zeitraum · {summary.loggedCount} Tage mit Einträgen.
-          Tage ohne Protokoll werden im Dokument als „Keine Einträge" ausgewiesen.
+          {hideEmpty
+            ? `${hiddenCount} Tage ohne Protokoll sind im Dokument ausgeblendet.`
+            : "Tage ohne Protokoll werden im Dokument als „Keine Einträge\" ausgewiesen."}
         </p>
       </div>
 
@@ -340,7 +368,8 @@ export default function NutritionReportView() {
                   <tr>
                     <td style={{ border: "none", padding: "2px 8px 2px 0", fontWeight: 600 }}>Zeitraum</td>
                     <td style={{ border: "none", padding: "2px 0" }}>
-                      {fmtDE(fromIso)} – {fmtDE(toIso)} ({dayCount} Tage)
+                      {fmtDE(fromIso)} – {fmtDE(toIso)} ({dayCount} Tage
+                      {hiddenCount > 0 ? `, davon ${hiddenCount} ohne Einträge nicht aufgeführt` : ""})
                     </td>
                   </tr>
                   <tr>
@@ -376,7 +405,7 @@ export default function NutritionReportView() {
               </p>
             </section>
 
-            {dates.map((iso, i) => (
+            {visibleDates.map((iso, i) => (
               <div key={iso} className={i > 0 && i % 3 === 0 ? "report-page-break" : undefined}>
                 <DayBlock iso={iso} log={logsByDate[iso]} />
               </div>
