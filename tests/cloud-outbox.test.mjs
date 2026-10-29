@@ -2,6 +2,8 @@ import { test, mock } from 'node:test';
 import assert from 'node:assert/strict';
 let uid = 'alice', executed = [], failure;
 mock.module('../src/client/lib/db/firestore/core.js', { namedExports: { getUid: () => uid } });
+mock.module('../src/client/lib/db/firestore/notes.js', { namedExports: { saveNotes: async () => {} } });
+mock.module('../src/client/lib/db/firestore/nutrition.js', { namedExports: { getMicrosCatalog: async () => [], saveMicrosCatalog: async () => {} } });
 mock.module('../src/client/lib/cloudMutations.js', { namedExports: { mutateCloudCatalog: async () => ({}), mutateCloudLog: async (...args) => {
   if (failure) throw failure;
   executed.push([uid, ...args]); return { meals: [] };

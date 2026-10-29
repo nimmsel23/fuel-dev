@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Tag, Loader2, Sparkles, Trash2, X } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 import { reviewToDeals } from "../../lib/kitchenLogic.js";
+import { scanFlyerImage, parseDealsText } from "../../lib/kitchenAi.js";
 import { useActiveDeals, useDealMutations, useKitchenSettings, useKitchenSettingsMutation } from "../../hooks/useKitchen.js";
 import { cardClass, fieldClass, primaryBtn, ghostBtn, iconBtn, SectionTitle, ErrorNote, ImageCapture } from "./shared.jsx";
 
@@ -23,7 +24,7 @@ export default function DealsPanel() {
   useEffect(() => { setStore(settings.stores || ""); }, [settings.stores]);
 
   const fallbackStore = store.split(",")[0].trim();
-  const analyze = async (file) => (await import("../../lib/kitchenAi.js")).scanFlyerImage(file, { fallbackStore });
+  const analyze = async (file) => scanFlyerImage(file, { fallbackStore });
   const accept = (list) => {
     if (!list.length) { setError(new Error("Keine Aktionen erkannt. Foto näher/schärfer aufnehmen oder Text einfügen.")); return; }
     setError(null);
@@ -32,7 +33,7 @@ export default function DealsPanel() {
   const parseText = async () => {
     setParsing(true);
     setError(null);
-    try { accept(await (await import("../../lib/kitchenAi.js")).parseDealsText(text.trim(), { fallbackStore })); }
+    try { accept(await parseDealsText(text.trim(), { fallbackStore })); }
     catch (e) { setError(e); }
     finally { setParsing(false); }
   };

@@ -4,6 +4,8 @@ import { postJson } from "@api";
 import { formatMetric } from "../../shared/utils/utils.js";
 import { Modal } from "./ui.jsx";
 import { withAiRetry } from "../lib/aiRetry.js";
+import { vertexAI } from "../lib/firebase.js";
+import { getGenerativeModel, SchemaType } from "firebase/vertexai";
 
 export default function GeminiCatalogModal({ onClose, onSaved }) {
   const [description, setDescription] = useState("");
@@ -22,8 +24,6 @@ export default function GeminiCatalogModal({ onClose, onSaved }) {
 
       if (cloud) {
         // Vertex AI Cloud Mode
-        const { vertexAI } = await import("../lib/firebase.js");
-        const { getGenerativeModel, SchemaType } = await import("firebase/vertexai");
         const model = getGenerativeModel(vertexAI, { 
           model: "gemini-2.5-flash",
           generationConfig: {

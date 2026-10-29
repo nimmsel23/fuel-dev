@@ -8,6 +8,7 @@ function resolvePackageEntry(specifier) {
 
 module.exports = defineConfig(async ({ mode }) => {
   const { vosChangelog } = await import("./scripts/vos-changelog/vos-changelog-vite.mjs");
+  const { noDynamicChunks } = await import("./scripts/vite-no-dynamic-chunks.mjs");
   const env = loadEnv(mode, process.cwd(), "");
   const appMode = process.env.VITE_APP_MODE || env.VITE_APP_MODE || "coach";
 
@@ -75,6 +76,7 @@ module.exports = defineConfig(async ({ mode }) => {
         },
       }] : []),
       react(),
+      noDynamicChunks(),
     ],
     build: {
       outDir,

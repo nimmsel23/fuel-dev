@@ -1,4 +1,5 @@
 import { vosChangelog } from './scripts/vos-changelog/vos-changelog-vite.mjs'
+import { noDynamicChunks } from './scripts/vite-no-dynamic-chunks.mjs'
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { resolve, dirname } from "path";
@@ -59,6 +60,7 @@ export default defineConfig(async () => {
     },
     plugins: [vosChangelog({ appId: 'fuel', appName: 'Fuel', accent: '#fb923c' }),
       react(),
+      noDynamicChunks(),
     ],
     build: {
       outDir,

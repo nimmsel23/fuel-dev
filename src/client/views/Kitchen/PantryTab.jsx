@@ -1,11 +1,12 @@
-import { lazy, Suspense, useState } from "react";
+import { useState } from "react";
 import { Refrigerator, Sparkles, Loader2, Plus, Minus, Check, CalendarClock } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 import { mergeIntoPantry, reviewToIncoming, groupByCategory, isInStock, formatQty, qtyStep, expiryStatus, normalizeName } from "../../lib/kitchenLogic.js";
 import { usePantry, usePantryMutations } from "../../hooks/useKitchen.js";
 import { cardClass, fieldClass, primaryBtn, ghostBtn, iconBtn, SectionTitle, ErrorNote, ExpiryBadge, ItemReview } from "./shared.jsx";
 
-const RecipeSuggestions = lazy(() => import("./RecipeSuggestions.jsx"));
+import RecipeSuggestions from "./RecipeSuggestions.jsx";
+import { parsePantryText } from "../../lib/kitchenAi.js";
 
 // Freitext ("2 Packungen Nudeln, 1 l Milch") → KI zerlegt → Review → Vorrat.
 function QuickAdd({ pantry, ready }) {
@@ -19,7 +20,6 @@ function QuickAdd({ pantry, ready }) {
     setParsing(true);
     setError(null);
     try {
-      const { parsePantryText } = await import("../../lib/kitchenAi.js");
       const parsed = await parsePantryText(text.trim());
       if (!parsed.length) throw new Error("Keine Lebensmittel erkannt. Bitte anders formulieren.");
       setItems(parsed);
@@ -113,9 +113,7 @@ export default function PantryTab() {
           ))}
         </div>
       </section>
-      <Suspense fallback={<div className="py-6 text-center text-sm text-slate-500 animate-pulse">Laden …</div>}>
-        <RecipeSuggestions pantry={pantry} />
-      </Suspense>
+      <RecipeSuggestions pantry={pantry} />
     </div>
   );
 }
