@@ -6,16 +6,18 @@ Mikronährstoffprofile bleiben innerhalb des Tagesdatensatzes nachvollziehbar.
 
 ## Start
 
-Benötigt Python 3.11 oder neuer. Aus dem Repository-Root:
+Benötigt Python 3.14 oder neuer. `pyproject.toml` und `poetry.lock` sind die
+einzigen Quellen für Python-Metadaten und Abhängigkeiten. Aus dem
+Repository-Root:
 
 ```bash
-python3 -m venv backend/.venv
-backend/.venv/bin/pip install -r backend/requirements.txt
-backend/.venv/bin/python -m backend.migrate
-backend/.venv/bin/uvicorn backend.api.main:app --host 127.0.0.1 --port 4000
+POETRY_VIRTUALENVS_IN_PROJECT=true poetry -P backend install --only main --no-root
+poetry -P backend run python -m backend.migrate
+poetry -P backend run uvicorn backend.api.main:app --host 127.0.0.1 --port 4000
 ```
 
-`backend/start-server.sh` und `bin/fuel-devctl` führen die Migration vor dem
+`backend/start-server.sh`, `bin/fuel-devctl` und `deploy.sh` verwenden die
+Poetry-Umgebung unter `backend/.venv` und führen die Migration vor dem
 Serverstart aus. Der API-Startup prüft und aktualisiert das Schema ebenfalls.
 Für Schätzungen muss `GEMINI_API_KEY` in der Umgebung oder in
 `~/.env/fuel.env` gesetzt sein. Ohne Gemini liefern Schätzrouten HTTP 503 und

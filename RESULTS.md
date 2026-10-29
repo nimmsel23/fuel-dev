@@ -399,3 +399,11 @@ Gemeinsame mini-app-shell erweitert bzw. aktualisiert: versionsunabhängiger öf
 
 - Öffentliche Repository-URLs werden aus Protokoll, Host und Pfad aufgebaut; Zugangsdaten, Query und Fragment werden ausgeschlossen. Fix aus der gemeinsamen mini-app-shell-Quelle nach Fuel portiert.
 - Gezielte Tests mit temporären Git-Repositories und künstlichem Token in beiden Generatoren erfolgreich.
+
+# Python Backend Poetry Standard (2026-10-29)
+
+- Python-Abhängigkeiten laufen jetzt einheitlich über `backend/pyproject.toml` + `backend/poetry.lock`; die parallele `requirements.txt`-Liste entfernt. README und Abhängigkeitsübersicht an Python 3.14+, Poetry 2+, SQLite als tatsächlichen Desktop-Produktionsspeicher und den optionalen PostgreSQL-Pfad angepasst.
+- `backend/start-server.sh`, `fuel-devctl` und der `/opt/fuel-python`-Deploy installieren/verwenden dieselbe Poetry-Projektumgebung in `backend/.venv`; Migration und Uvicorn laufen mit dem gelockten Environment. Fuel API bleibt auf :4000; kein VitalOS-Portwechsel.
+- FastAPI-Startup auf `lifespan` umgestellt; Backfill-Ausgabe nutzt den Uvicorn-Logger.
+- `httpx` ist als direkte API-Abhängigkeit eingetragen; die bereits gelockte Version bleibt bestehen. PyPI war nicht erreichbar, daher den Hash mit Poetrys Locker aktualisiert statt die Paketauflösung zu ändern.
+- Geprüft: `poetry -P backend check --lock` meldet `All set!`; kein Testlauf, Deploy oder Dienst-Restart ausgeführt.

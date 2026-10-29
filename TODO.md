@@ -1,5 +1,9 @@
 Agents dürfen sich nicht auf den lokalen dev server versteifen; prod = firebase!
 
+## Immediate — Python Backend Standard (2026-10-29)
+
+- [x] Fuel Python/FastAPI-Backend auf den projektspezifischen Poetry-Standard umgestellt: Dev-Start, Anleitung und Prod-Deploy nutzen `pyproject.toml` + `poetry.lock`; Fuel bleibt auf :4000. Siehe `RESULTS.md` (Python Backend Poetry Standard, 2026-10-29).
+
 ## v3 → v4 Migration (2026-08-07, laufend)
 
 **Naming:** `src/` (Node/Fastify + altes React-Frontend) = **v3**, aktuell live

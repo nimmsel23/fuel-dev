@@ -1,12 +1,38 @@
+import logging
+import os
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from backend.api.endpoints import food, supplements, journal, nutrition_query, frames, fasting, v3_proxy
 from backend.db.database import SessionLocal
 from backend.core.v3_backfill import backfill_from_v3_if_needed
 from backend.migrate import migrate
-import os
 
-app = FastAPI(title="Fuel Tracker API", description="NLP-powered macro and supplement tracker")
+logger = logging.getLogger("uvicorn.error")
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    migrate()
+    db = SessionLocal()
+    try:
+        result = backfill_from_v3_if_needed(db)
+        if any(result.values()):
+            logger.info(
+                "v4 backfill dates=%s created=%s updated=%s",
+                result["dates_seen"], result["rows_created"], result["rows_updated"],
+            )
+    finally:
+        db.close()
+    yield
+
+
+app = FastAPI(
+    title="Fuel Tracker API",
+    description="NLP-powered macro and supplement tracker",
+    lifespan=lifespan,
+)
 
 app.include_router(food.router, prefix="/nutrition", tags=["Food"])
 app.include_router(supplements.router, prefix="/supplements", tags=["Supplements"])
@@ -15,18 +41,6 @@ app.include_router(nutrition_query.router, prefix="/nutrition", tags=["Nutrition
 app.include_router(frames.router, prefix="/nutrition", tags=["Frames"])
 app.include_router(fasting.router, prefix="/nutrition", tags=["Fasting"])
 app.include_router(v3_proxy.router, prefix="/v3", tags=["v3 Proxy"])  # v4 -> v3 Rückweg für Legacy-/Übergangsrouten
-
-
-@app.on_event("startup")
-def startup_init():
-    migrate()
-    db = SessionLocal()
-    try:
-        result = backfill_from_v3_if_needed(db)
-        if any(result.values()):
-            print(f"[v4-backfill] dates={result['dates_seen']} created={result['rows_created']} updated={result['rows_updated']}")
-    finally:
-        db.close()
 
 @app.get("/health")
 def health_check():

@@ -300,7 +300,6 @@ if [[ "$TARGET" == "staging" ]]; then
   require_file "$STAGE/package.json" "Fuel checkout manifest"
   require_file "$STAGE/dist/index.html" "Node staging dist"
   require_file "$STAGE/frontend/dist/index.html" "Python frontend dist"
-  require_file "$STAGE/backend/requirements.txt" "Python backend requirements"
 
   # node_modules sind vom rsync ausgenommen -> im Stage-Ordner selbst installieren
   msg "📦 Installing Node dependencies in $STAGE"
@@ -393,6 +392,8 @@ rsync -av --delete \
   --exclude ".venv" --exclude "__pycache__" --exclude "*.pyc" \
   --exclude ".env" --exclude "logs" \
   "$SOURCE/backend/" "$PYTHON_DEST/backend/"
+require_file "$PYTHON_DEST/backend/pyproject.toml" "Python backend Poetry manifest"
+require_file "$PYTHON_DEST/backend/poetry.lock" "Python backend Poetry lockfile"
 # Das Backend importiert fuel.omega3 (Shared-Paket aus dem Repo-Root); uvicorn
 # läuft mit WorkingDirectory=$PYTHON_DEST, also muss fuel/ dort liegen.
 msg "📦 Syncing fuel/ (Python-Shared-Paket) $SOURCE/fuel → $PYTHON_DEST/fuel"
@@ -408,11 +409,11 @@ rsync -av --delete \
 # /home/alpha/.aos/fuel/nutrition/nutrition.db. Vor dem Service-Neustart wird
 # genau diese Datenbank mit demselben DATABASE_URL migriert.
 
-if [[ ! -d "$PYTHON_DEST/backend/.venv" ]]; then
-  msg "🐍 Creating venv + installing Python dependencies"
-  python3 -m venv "$PYTHON_DEST/backend/.venv"
+if ! command -v poetry >/dev/null 2>&1; then
+  die "❌ Poetry is required to install Fuel Python dependencies"
 fi
-"$PYTHON_DEST/backend/.venv/bin/pip" install -q -r "$PYTHON_DEST/backend/requirements.txt"
+msg "🐍 Installing locked Fuel Python dependencies with Poetry"
+(cd "$PYTHON_DEST" && POETRY_VIRTUALENVS_IN_PROJECT=true poetry -P backend install --only main --no-root --sync)
 
 msg "🗃️ Applying Fuel Python database migrations"
 (cd "$PYTHON_DEST" && DATABASE_URL="sqlite:////home/alpha/.aos/fuel/nutrition/nutrition.db" \

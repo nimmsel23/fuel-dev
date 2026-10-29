@@ -6,6 +6,7 @@ The backend has no systemd unit yet and is managed via Popen+PIDFILE.
 """
 
 import os
+import shutil
 import signal
 import subprocess
 import sys
@@ -35,11 +36,23 @@ DEPLOY_SCRIPT = DEV_DIR / "deploy.sh"
 BACKEND_PORT = os.getenv("FUEL_BACKEND_PORT", os.getenv("FUEL_V4_PORT", "4000"))
 BACKEND_HEALTH_URL = f"http://127.0.0.1:{BACKEND_PORT}/health"
 BACKEND_DIR = DEV_DIR / "backend"
-BACKEND_PYTHON = BACKEND_DIR / ".venv" / "bin" / "python"
 BACKEND_UVICORN = BACKEND_DIR / ".venv" / "bin" / "uvicorn"
 BACKEND_LOGFILE = Path("/tmp/fuel-backend-dev.log")
 BACKEND_PIDFILE = Path("/tmp/fuel-backend-dev.pid")
 BACKEND_HOST = os.getenv("FUEL_BACKEND_HOST", "127.0.0.1")
+POETRY = shutil.which("poetry")
+os.environ.setdefault("POETRY_VIRTUALENVS_IN_PROJECT", "true")
+
+
+def poetry_run(*args: str) -> list[str]:
+    if not POETRY:
+        msg.fail("Poetry is required for the Fuel Python backend")
+        raise typer.Exit(1)
+    return [POETRY, "-P", str(BACKEND_DIR), "run", *args]
+
+
+def backend_environment_ready() -> bool:
+    return bool(POETRY and BACKEND_UVICORN.exists())
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -167,11 +180,11 @@ def _start_backend():
     if is_backend_running():
         msg.warn(f"backend already running on port {BACKEND_PORT}")
         return
-    if not BACKEND_UVICORN.exists():
-        msg.fail(f"backend venv not found ({BACKEND_UVICORN}) — run: python3 -m venv backend/.venv && backend/.venv/bin/pip install -r backend/requirements.txt")
+    if not backend_environment_ready():
+        msg.fail("Fuel Python environment is missing; run: POETRY_VIRTUALENVS_IN_PROJECT=true poetry -P backend install --only main --no-root")
         return
 
-    migration = subprocess.run([str(BACKEND_PYTHON), "-m", "backend.migrate"], cwd=DEV_DIR)
+    migration = subprocess.run(poetry_run("python", "-m", "backend.migrate"), cwd=DEV_DIR)
     if migration.returncode != 0:
         msg.fail("backend migrations failed; backend was not started")
         return
@@ -182,7 +195,7 @@ def _start_backend():
 
     gum_log("info", f"Starting backend (FastAPI) in background (Logs: {BACKEND_LOGFILE})...")
     proc = subprocess.Popen(
-        [str(BACKEND_UVICORN), "backend.api.main:app", "--host", BACKEND_HOST, "--port", BACKEND_PORT],
+        poetry_run("uvicorn", "backend.api.main:app", "--host", BACKEND_HOST, "--port", BACKEND_PORT),
         stdout=open(BACKEND_LOGFILE, "a"),
         stderr=subprocess.STDOUT,
         cwd=DEV_DIR,
@@ -409,19 +422,19 @@ def deploy():
 def dev(target: str = typer.Argument("v3", help="v3 | v4 — welcher Prozess läuft im Vordergrund")):
     """Run v3 or v4 in the foreground (for debugging)."""
     if target == "v4":
-        if not BACKEND_UVICORN.exists():
-            msg.fail(f"backend venv not found ({BACKEND_UVICORN}) — run: python3 -m venv backend/.venv && backend/.venv/bin/pip install -r backend/requirements.txt")
+        if not backend_environment_ready():
+            msg.fail("Fuel Python environment is missing; run: POETRY_VIRTUALENVS_IN_PROJECT=true poetry -P backend install --only main --no-root")
             raise typer.Exit(1)
         if is_backend_running():
             msg.info("Stopping backgrounded backend (port freed for foreground reload)...")
             _stop_backend()
-        migration = subprocess.run([str(BACKEND_PYTHON), "-m", "backend.migrate"], cwd=DEV_DIR)
+        migration = subprocess.run(poetry_run("python", "-m", "backend.migrate"), cwd=DEV_DIR)
         if migration.returncode != 0:
             msg.fail("backend migrations failed; foreground server was not started")
             raise typer.Exit(migration.returncode)
         msg.divider("Foreground Mode (v4)")
         try:
-            subprocess.run([str(BACKEND_UVICORN), "backend.api.main:app", "--host", BACKEND_HOST, "--port", BACKEND_PORT, "--reload"], cwd=DEV_DIR)
+            subprocess.run(poetry_run("uvicorn", "backend.api.main:app", "--host", BACKEND_HOST, "--port", BACKEND_PORT, "--reload"), cwd=DEV_DIR)
         except KeyboardInterrupt:
             print("\n")
             msg.info("Foreground process stopped by user.")
