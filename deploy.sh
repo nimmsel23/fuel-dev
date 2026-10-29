@@ -20,11 +20,8 @@ fi
 : "${USER_HOME:=$HOME}"
 STAGE="$USER_HOME/.local/fuel"
 NODE_DEST="/opt/fuel"
-PYTHON_DEST="/opt/fuel-python"
 SERVICE="fuel.service"
-PY_SERVICE="fuel-python.service"
 UNIT_TARGET="/etc/systemd/system/fuel.service"
-PY_UNIT_TARGET="/etc/systemd/system/fuel-python.service"
 INSTALL_UNIT=false
 INSTALL_ONLY=false
 BUILD=false
@@ -124,25 +121,6 @@ RestartSec=10
 WantedBy=multi-user.target
 EOF
 
-read -r -d '' PY_UNIT_CONTENT <<'EOF' || true
-[Unit]
-Description=Fuel Centre Python Backend (Desktop Prod)
-After=network.target
-
-[Service]
-Type=simple
-User=alpha
-Group=alpha
-WorkingDirectory=/opt/fuel-python
-Environment=DATABASE_URL=sqlite:////home/alpha/.aos/fuel/nutrition/nutrition.db
-ExecStart=/opt/fuel-python/backend/.venv/bin/uvicorn backend.api.main:app --host 127.0.0.1 --port 4000
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
 # Staging-Unit: user-scope, wie fitness-preview.service. Der Firestore-Sync läuft
 # NICHT hier, sondern im eigenen Dienst fuel-sync.service (sonst zwei Instanzen auf
 # demselben Datenordner). Keine Push-Reminder: der Datenordner wird mit Prod geteilt.
@@ -217,15 +195,8 @@ install_prod_unit() {
 
   msg "🧩 Installing systemd unit to $UNIT_TARGET"
   printf '%s\n' "$UNIT_CONTENT" | sudo tee "$UNIT_TARGET" >/dev/null
-  current="$(sudo cat "$PY_UNIT_TARGET" 2>/dev/null || true)"
-  if [[ "$current" != "$PY_UNIT_CONTENT" ]]; then
-    msg "🧩 Installing systemd unit to $PY_UNIT_TARGET"
-    printf '%s\n' "$PY_UNIT_CONTENT" | sudo tee "$PY_UNIT_TARGET" >/dev/null
-  else
-    msg "✅ $PY_UNIT_TARGET bereits aktuell."
-  fi
   sudo systemctl daemon-reload
-  msg "✅ Installed prod units and reloaded systemd."
+  msg "✅ Installed Fuel Node prod unit and reloaded systemd."
 }
 
 if [[ "$TARGET" == "staging" ]]; then
@@ -379,51 +350,11 @@ fi
 
 msg "✅ Node deployed to $NODE_DEST."
 
-# ── 3. Prod: Python ($STAGE/{backend,frontend} → $PYTHON_DEST) ──────────────
-
-if [[ ! -d "$PYTHON_DEST" ]]; then
-  msg "📂 Creating target directory $PYTHON_DEST"
-  sudo mkdir -p "$PYTHON_DEST"
-  sudo chown "$(id -u):$(id -g)" "$PYTHON_DEST"
-fi
-
-msg "📦 Syncing backend/ (Python) $SOURCE/backend → $PYTHON_DEST/backend"
-rsync -av --delete \
-  --exclude ".venv" --exclude "__pycache__" --exclude "*.pyc" \
-  --exclude ".env" --exclude "logs" \
-  "$SOURCE/backend/" "$PYTHON_DEST/backend/"
-require_file "$PYTHON_DEST/backend/pyproject.toml" "Python backend Poetry manifest"
-require_file "$PYTHON_DEST/backend/poetry.lock" "Python backend Poetry lockfile"
-# Das Backend importiert fuel.omega3 (Shared-Paket aus dem Repo-Root); uvicorn
-# läuft mit WorkingDirectory=$PYTHON_DEST, also muss fuel/ dort liegen.
-msg "📦 Syncing fuel/ (Python-Shared-Paket) $SOURCE/fuel → $PYTHON_DEST/fuel"
-rsync -av --delete \
-  --exclude "__pycache__" --exclude "*.pyc" \
-  "$SOURCE/fuel/" "$PYTHON_DEST/fuel/"
-msg "📦 Syncing frontend/ (React) $SOURCE/frontend → $PYTHON_DEST/frontend"
-rsync -av --delete \
-  --exclude "node_modules" \
-  "$SOURCE/frontend/" "$PYTHON_DEST/frontend/"
-
-# Laufzeit-Daten: fuel-python.service verwendet die SQLite-Datei
-# /home/alpha/.aos/fuel/nutrition/nutrition.db. Vor dem Service-Neustart wird
-# genau diese Datenbank mit demselben DATABASE_URL migriert.
-
-if ! command -v poetry >/dev/null 2>&1; then
-  die "❌ Poetry is required to install Fuel Python dependencies"
-fi
-msg "🐍 Installing locked Fuel Python dependencies with Poetry"
-(cd "$PYTHON_DEST" && POETRY_VIRTUALENVS_IN_PROJECT=true poetry -P backend install --only main --no-root --sync)
-
-msg "🗃️ Applying Fuel Python database migrations"
-(cd "$PYTHON_DEST" && DATABASE_URL="sqlite:////home/alpha/.aos/fuel/nutrition/nutrition.db" \
-  "$PYTHON_DEST/backend/.venv/bin/python" -m backend.migrate)
-
-if systemctl list-unit-files "$PY_SERVICE" >/dev/null 2>&1; then
-  msg "🔄 Restarting $PY_SERVICE"
-  sudo systemctl restart "$PY_SERVICE"
-else
-  warn "⚠️ $PY_SERVICE not found. Run deploy.sh prod --install once to install it."
+# The Fuel FastAPI routers are composed by ~/workspace/VitalOS on :8000.
+# Keep an old standalone unit from being resurrected by a legacy local deploy.
+if sudo systemctl cat fuel-python.service >/dev/null 2>&1; then
+  msg "🛑 Disabling retired fuel-python.service (:4000)"
+  sudo systemctl disable --now fuel-python.service
 fi
 
 msg "🩺 Verifying production runtime"
@@ -434,27 +365,10 @@ if systemctl list-unit-files "$SERVICE" >/dev/null 2>&1; then
   fi
 fi
 
-if systemctl list-unit-files "$PY_SERVICE" >/dev/null 2>&1; then
-  if ! sudo systemctl is-active --quiet "$PY_SERVICE"; then
-    print_systemd_failure_context "$PY_SERVICE"
-    die "❌ $PY_SERVICE is not active after deploy"
-  fi
-fi
-
 if ! wait_for_http "http://127.0.0.1:7000/health" "Prod Node health" >/dev/null; then
   print_systemd_failure_context "$SERVICE"
   die "❌ Prod Node healthcheck failed"
 fi
 
-if ! wait_for_http "http://127.0.0.1:4000/health" "Prod Python health" >/dev/null; then
-  print_systemd_failure_context "$PY_SERVICE"
-  die "❌ Prod Python healthcheck failed"
-fi
-
-if ! wait_for_http "http://127.0.0.1:7000/v4/health" "Prod v4 proxy health" >/dev/null; then
-  warn "⚠️ Node prod is up, but /v4/health failed."
-  die "❌ Prod v4 proxy healthcheck failed"
-fi
-
-msg "✅ backend/ (Python) + frontend/ (React) deployed to $PYTHON_DEST."
-msg "✅ Deployment to $NODE_DEST (:7000) + $PYTHON_DEST (:4000) complete."
+msg "ℹ️ Fuel FastAPI is provided by VitalOS on :8000 (/api/fuel/*)."
+msg "✅ Fuel Node deployed to $NODE_DEST (:7000); no standalone Python service is installed."

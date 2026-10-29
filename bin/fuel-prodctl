@@ -5,7 +5,7 @@ fuel-prodctl — Fuel Prod Controller (system-scope service)
 Kontrolliert den tatsächlich laufenden Prod-Service, getrennt vom
 fuel-devctl-Stack (falls vorhanden). Deploy-Pfad laut deploy.sh:
   ~/fuel-dev (dev) -> ~/.local/fuel (staging, git-versioniert)
-  -> /opt/fuel (Node prod) + /opt/fuel-python (Python-Backend)
+  -> /opt/fuel (optional Node prod); Fuel API runs in VitalOS on :8000
 
   - fuel.service :7000  system-scope, Node aus /opt/fuel (sudo für restart/stop)
     (vormals fuel-v2.service, umbenannt weil der Compose-/Unit-Name nie
@@ -28,7 +28,7 @@ app = typer.Typer(help="Fuel Prod Controller", no_args_is_help=True)
 DEV_DIR = Path(__file__).resolve().parent.parent
 
 PROD_SERVICE = "fuel.service"  # system-scope, sudo
-PY_SERVICE = "fuel-python.service"
+FUEL_API_HEALTH_URL = "http://127.0.0.1:8000/api/fuel/health"
 
 
 def _unit_port(service: str, fallback: str) -> str:
@@ -78,7 +78,10 @@ def _status_line(service: str, fallback_port: str):
 def status():
     """Status der Prod-Services."""
     _status_line(PROD_SERVICE, "7000")
-    _status_line(PY_SERVICE, "4000")
+    if _check_url(FUEL_API_HEALTH_URL):
+        msg.good("Fuel API is served by VitalOS on :8000 (/api/fuel)")
+    else:
+        msg.warn("VitalOS Fuel API is not responding on :8000")
 
 
 @app.command()
@@ -109,11 +112,11 @@ def restart():
 
 @app.command()
 def enable():
-    """Aktiviert die Prod-Units für Autostart beim Boot (sudo)."""
-    msg.info(f"Enabling {PROD_SERVICE} and {PY_SERVICE} for boot (sudo)")
-    rc = subprocess.run(["sudo", "systemctl", "enable", PROD_SERVICE, PY_SERVICE]).returncode
+    """Aktiviert die optionale Fuel Node Prod-Unit für Autostart (sudo)."""
+    msg.info(f"Enabling {PROD_SERVICE} for boot (sudo)")
+    rc = subprocess.run(["sudo", "systemctl", "enable", PROD_SERVICE]).returncode
     if rc == 0:
-        msg.good(f"{PROD_SERVICE} + {PY_SERVICE} enabled")
+        msg.good(f"{PROD_SERVICE} enabled")
     else:
         msg.fail(f"enable failed (exit {rc})")
         raise typer.Exit(rc)
@@ -133,7 +136,7 @@ def deploy(
         False, "--install", help="Vorher die systemd-Unit installieren/aktualisieren"
     )
 ):
-    """Deployt ~/.local/fuel nach /opt/fuel[-python]; optional inkl. Unit-Install."""
+    """Deployt den optionalen Node-Prod-Server nach /opt/fuel."""
     args = ["prod"]
     if install:
         args.append("--install")

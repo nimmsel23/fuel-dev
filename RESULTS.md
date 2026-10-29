@@ -408,6 +408,13 @@ Gemeinsame mini-app-shell erweitert bzw. aktualisiert: versionsunabhängiger öf
 - `httpx` ist als direkte API-Abhängigkeit eingetragen; die bereits gelockte Version bleibt bestehen. PyPI war nicht erreichbar, daher den Hash mit Poetrys Locker aktualisiert statt die Paketauflösung zu ändern.
 - Geprüft: `poetry -P backend check --lock` meldet `All set!`; kein Testlauf, Deploy oder Dienst-Restart ausgeführt.
 
+## Fuel FastAPI in VitalOS; Port 4000 stillgelegt (2026-10-29)
+
+- Auf Nutzerfreigabe `fuel-python.service` gestoppt und deaktiviert. Port :4000 ist geschlossen; Firebase bleibt der Produkt-Einstieg. Die Router laufen lokal im VitalOS-Backend auf :8000 unter `/api/fuel/*`; Coach-Forwarding ist live.
+- `deploy.sh prod`, `fuel-prodctl` und `fuelctl` installieren/aktivieren den separaten Python-Dienst nicht mehr und prüfen stattdessen VitalOS `/api/fuel/health`. Eine alte Unit wird bei einem lokalen Prod-Deploy deaktiviert.
+- Boot-Report-Registry von `VitalOS-Buchhaltung-API` auf `VitalOS-API` aktualisiert, damit :8000 als gemeinsame API erscheint.
+- Live geprüft: Fuel und VitalOS Health auf :8000 sowie Coach `/api/fuel/health` liefern 200; :4000 ist geschlossen und `fuel-python.service` ist `inactive`/`disabled`. SQLite-Integrität und Alembic-Revision geprüft. Keine Testsuite ausgeführt.
+
 ## Fuel API in VitalOS Workspace eingebunden (2026-10-29)
 
 - Fuel-Router sind in `backend/api/integration.py` aus dem Fuel-Source-Repo gruppiert und können sowohl von der Fuel-Standalone-App als auch vom Workspace-Server verwendet werden. Fuel-Migration/Backfill teilen denselben Initialisierungspfad.
@@ -415,4 +422,4 @@ Gemeinsame mini-app-shell erweitert bzw. aktualisiert: versionsunabhängiger öf
 - `poetry -P backend check --lock` und `git diff --check` geprüft. Keine automatisierten Tests ausgeführt.
 
 - Host-Aktivierung: Fuel-Backfill ignoriert jetzt JSON-Dateien, die keine Tageslogs sind, etwa `catalog.json`, und überspringt nicht lesbare/verschwundene Dateien. Der Docker-Daten-Mount erhält die absolute Symlink-Auflösung des Fuel-UID-Datenbaums; PostgreSQL-URL im VitalOS-Container erzwingt den installierten `psycopg2`-Treiber.
-- Live geprüft: VitalOS `/health`, Fuel `/api/fuel/health`, Coach `/api/fuel/health` sowie die Standalone-Fuel-Oberfläche und deren Health auf :4000 antworten mit 200. :4000 bleibt aktiv, solange diese Oberfläche dort bereitgestellt wird.
+- Live geprüft vor Stilllegung: VitalOS `/health`, Fuel `/api/fuel/health`, Coach `/api/fuel/health` sowie Standalone-Fuel-Oberfläche und Health auf :4000 antworteten mit 200. Nutzer hat danach bestätigt, dass alle Fuel-Nutzer Firebase verwenden und die lokale API ungenutzt ist; Details siehe Abschnitt „Fuel FastAPI in VitalOS; Port 4000 stillgelegt“.

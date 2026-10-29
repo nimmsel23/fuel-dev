@@ -3,9 +3,11 @@
 Dieses Dokument beschreibt den aktuellen Übergang zwischen **v3** (Node/Fastify)
 und **v4** (Python/FastAPI).
 
-## 1. Die zwei Laufzeit-Schichten
+## 1. Laufzeit-Schichten
 
-Fuel Centre operiert aktuell mit zwei koexistierenden Schichten.
+Firebase Hosting ist der Fuel-Produkt-Einstieg. Lokal bleiben v3/v4-Dev-Tools
+optional; die Fuel-FastAPI-Router sind in den VitalOS-Workspace-Server auf
+`:8000` eingebunden. `fuel-python.service` auf `:4000` ist abgeschaltet.
 
 ### v3
 - **Rolle:** Aktueller Node/Fastify-Entry-Point und Kompatibilitäts-Layer.
@@ -16,9 +18,11 @@ Fuel Centre operiert aktuell mit zwei koexistierenden Schichten.
 
 ### v4
 - **Rolle:** Eigentliche Nachfolger-Architektur mit FastAPI + React-Frontend.
-- **Dev:** `:4000`
+- **Standalone-Dev:** `:4000` (optional über `fuel-devctl --v4`)
+- **Workspace API:** `:8000/api/fuel/*` (VitalOS, in-process)
 - **Code:** `backend/` + `frontend/`
-- **Besonderheit:** Servt sein eigenes gebautes Frontend und kann `/v3/*` zurück an v3 weiterreichen.
+- **Daten:** Fuel-owned SQLite unter `~/.aos/fuel/`
+- **Besonderheit:** Kein eigener systemd-Prod-Service; VitalOS teilt Router und DB-Initialisierung.
 
 ---
 
@@ -38,7 +42,7 @@ Eine Inbox-Funktion für die schnelle Erfassung von Rohdaten zur späteren Katal
 
 ### Desktop lokal
 - `fuelctl dev deploy`: `~/fuel-dev -> ~/.local/fuel`
-- `fuelctl prod deploy`: `~/.local/fuel -> /opt/fuel` plus `/opt/fuel-python`
+- `fuelctl prod deploy`: `~/.local/fuel -> /opt/fuel` (optionaler Node-Prod-Server)
 
 Der lokale Desktop-Deploy ist bewusst zweistufig:
 
@@ -52,7 +56,7 @@ Der lokale Desktop-Deploy ist bewusst zweistufig:
 
 2. **Staging -> Localhost-Prod**
    - Quelle: `~/.local/fuel`
-   - Ziele: `/opt/fuel` (Node) und `/opt/fuel-python` (Python)
+   - Ziel: `/opt/fuel` (Node)
    - Mechanik: `deploy.sh prod`
    - Wrapper: `fuel-prodctl deploy` bzw. `fuelctl prod deploy`
    - Zweck: echter localhost-Prod-Stand unter systemd
@@ -71,17 +75,18 @@ Lokale Ports:
 - Dev Node / v3: `http://127.0.0.1:9000`
 - Dev Python / v4: `http://127.0.0.1:4000`
 - Localhost-Prod Node / `fuel.service`: `http://127.0.0.1:7000`
-- Localhost-Prod v4-Proxy über Node: `http://127.0.0.1:7000/v4/*`
+- VitalOS Fuel API: `http://127.0.0.1:8000/api/fuel/*`
 
 Wichtig:
 - `~/.local/fuel` ist Staging, nicht der Live-Prod-Stand
-- `/opt/fuel` und `/opt/fuel-python` sind der echte lokale Prod-Stand
+- `/opt/fuel` ist der optionale lokale Node-Prod-Stand; `/opt/fuel-python` wird nicht mehr deployed
 - `deploy.sh prod` liest **nicht** aus `~/fuel-dev`, sondern aus `~/.local/fuel`
 - damit ist die Reihenfolge bewusst: erst Staging aktualisieren, dann Prod
 
 Aktueller Desktop-Prod-Zustand:
-- der laufende systemd-Entry-Point ist noch **v3** (`fuel.service`)
-- v4 wird bereits nach `/opt/fuel-python` mitdeployt, ist aber noch nicht der aktive Prod-Service
+- Firebase ist der Produkt-Einstieg
+- die lokalen systemd-Units `fuel.service` und `fuel-python.service` sind deaktiviert
+- die Workspace-API auf :8000 enthält die Fuel-Router; der Standalone-Dev-Server kann weiterhin separat gestartet werden
 
 ### Firebase
 Das Deployment nach Firebase erfolgt getrennt für die Cloud-Seite.

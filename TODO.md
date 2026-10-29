@@ -3,7 +3,7 @@ Agents dürfen sich nicht auf den lokalen dev server versteifen; prod = firebase
 ## Immediate — Python Backend Standard (2026-10-29)
 
 - [x] Fuel Python/FastAPI-Backend auf den projektspezifischen Poetry-Standard umgestellt: Dev-Start, Anleitung und Standalone-Deploy nutzen `pyproject.toml` + `poetry.lock`. Siehe `RESULTS.md` (Python Backend Poetry Standard, 2026-10-29).
-- [x] Fuel-Router aggregiert und in `~/workspace/VitalOS` unter `/api/fuel/*` im zentralen `:8000`-Backend eingebunden. Das Coach-Gateway zeigt auf diese API; Fuel-Source und SQLite-Daten bleiben Fuel-owned. `:4000` bleibt vorerst als eigenständige Fuel-Centre-Oberfläche mit API aktiv. Siehe `RESULTS.md` (VitalOS unified API, 2026-10-29).
+- [x] Fuel-Router aggregiert und in `~/workspace/VitalOS` unter `/api/fuel/*` im zentralen `:8000`-Backend eingebunden. Das Coach-Gateway zeigt auf diese API; Fuel-Source und SQLite-Daten bleiben Fuel-owned. `fuel-python.service` auf :4000 ist seit 2026-10-29 gestoppt und deaktiviert; Firebase bleibt der Produkt-Einstieg. Siehe `RESULTS.md` (VitalOS unified API, 2026-10-29).
 
 ## v3 → v4 Migration (2026-08-07, laufend)
 
@@ -23,11 +23,11 @@ Wegwerf-Prototyp — kein Rückbau von Postgres/SQLAlchemy, kein reiner Proxy-La
   bereits Frontend + eigene API tragen und im Zweifelsfall Legacy an v3 zurückreichen.
 - Reine Erreichbarkeits-Routen, kein gemeinsamer Datenlayer.
 
-**Ziel:** v4 übernimmt schrittweise Prod-Verantwortung von v3. Der Desktop-
-Einstieg läuft weiter über `fuel.service` (v3). `deploy.sh` liefert v4 bereits
-unter `/opt/fuel-python` aus und definiert `fuel-python.service` auf Port 4000;
-der v3-Einstieg prüft `/v4/health`. Das ist ein paralleler Backend-Betrieb,
-noch keine Umstellung des Produkt-Einstiegs auf v4.
+**Aktueller Stand (2026-10-29):** Die Fuel-FastAPI-Router sind in-process in
+`~/workspace/VitalOS` unter `/api/fuel/*` eingebunden. Coach nutzt diese API auf
+`:8000`; SQLite und Fuel-Quellcode bleiben Fuel-owned. `fuel-python.service`
+(:4000) ist gestoppt und deaktiviert. Firebase bleibt der Produkt-Einstieg.
+Der ältere Ablauf darunter beschreibt den vorherigen v3/v4-Übergang.
 
 **Offen:**
 - v4 hat einen eigenen Backend-Service, aber noch keinen eigenen öffentlichen
