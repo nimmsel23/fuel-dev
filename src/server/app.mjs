@@ -99,7 +99,11 @@ export async function startServer() {
   console.log(`🍽️  Fuel Centre running on http://${HOST}:${PORT}`);
 
   // Background schedulers
-  startPushScheduler(GLOBAL_DATA_DIR, CATALOGS_DIR);
+  if (process.env.FUEL_DISABLE_PUSH_SCHEDULER === "1") {
+    console.log("[push-scheduler] disabled (FUEL_DISABLE_PUSH_SCHEDULER=1)");
+  } else {
+    startPushScheduler(GLOBAL_DATA_DIR, CATALOGS_DIR);
+  }
   if (firestoreSyncEnabled()) {
     startFirestorePullScheduler();
   } else {

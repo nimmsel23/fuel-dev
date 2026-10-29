@@ -27,6 +27,11 @@ UNIT_TARGET="/etc/systemd/system/fuel.service"
 PY_UNIT_TARGET="/etc/systemd/system/fuel-python.service"
 INSTALL_UNIT=false
 INSTALL_ONLY=false
+BUILD=false
+# Staging-Service (user-scope, analog fitness-preview.service :8100)
+STAGE_SERVICE="fuel-preview.service"
+STAGE_PORT=8700
+STAGE_UNIT_TARGET="$USER_HOME/.config/systemd/user/$STAGE_SERVICE"
 
 for arg in "$@"; do
   case "$arg" in
@@ -37,8 +42,11 @@ for arg in "$@"; do
       INSTALL_UNIT=true
       INSTALL_ONLY=true
       ;;
+    --build)
+      BUILD=true
+      ;;
     *)
-      die "Invalid argument '$arg'. Supported: --install | --install-only"
+      die "Invalid argument '$arg'. Supported: --install | --install-only | --build"
       ;;
   esac
 done
@@ -82,6 +90,16 @@ print_systemd_failure_context() {
   sudo journalctl -u "$unit" -n 40 --no-pager || true
 }
 
+# systemctl --user auch dann, wenn das Skript unter sudo/pkexec läuft
+user_systemctl() {
+  if [[ "$(id -u)" == "0" && -n "${PKEXEC_UID:-}${SUDO_USER:-}" ]]; then
+    local uid="${PKEXEC_UID:-$(id -u "$SUDO_USER")}"
+    sudo -u "#$uid" XDG_RUNTIME_DIR="/run/user/$uid" systemctl --user "$@"
+  else
+    systemctl --user "$@"
+  fi
+}
+
 read -r -d '' UNIT_CONTENT <<'EOF' || true
 [Unit]
 Description=Fuel Centre (Desktop Prod)
@@ -122,6 +140,44 @@ RestartSec=10
 WantedBy=multi-user.target
 EOF
 
+# Staging-Unit: user-scope, wie fitness-preview.service. Teilt den Datenordner
+# mit Prod, deshalb kein Firestore-Sync und keine Push-Reminder.
+read -r -d '' STAGE_UNIT_CONTENT <<UNIT || true
+[Unit]
+Description=Fuel Centre Staging Service (Node :$STAGE_PORT)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=$STAGE
+Environment=NODE_ENV=production
+Environment=PORT=$STAGE_PORT
+Environment=HOST=127.0.0.1
+Environment=FUEL_STATIC_DIR=$STAGE/dist
+Environment=FUEL_BUILD_DIR=$STAGE/dist
+Environment=FUEL_ENABLE_FIRESTORE_SYNC=0
+Environment=FUEL_DISABLE_PUSH_SCHEDULER=1
+ExecStart=/usr/bin/node server.mjs
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+UNIT
+
+install_stage_unit() {
+  local current
+  current="$(cat "$STAGE_UNIT_TARGET" 2>/dev/null || true)"
+  if [[ "$current" == "$STAGE_UNIT_CONTENT" ]]; then
+    msg "🧩 Unit $STAGE_SERVICE bereits aktuell"
+    return
+  fi
+  msg "🧩 Schreibe/aktualisiere systemd Unit $STAGE_SERVICE"
+  mkdir -p "$(dirname "$STAGE_UNIT_TARGET")"
+  printf '%s\n' "$STAGE_UNIT_CONTENT" > "$STAGE_UNIT_TARGET"
+  user_systemctl daemon-reload
+}
+
 install_prod_unit() {
   local current
   current="$(sudo cat "$UNIT_TARGET" 2>/dev/null || true)"
@@ -159,17 +215,26 @@ msg "📍 Using source checkout $SOURCE"
 if [[ "$TARGET" == "staging" && ( "$INSTALL_UNIT" == true || "$INSTALL_ONLY" == true ) ]]; then
   die "--install and --install-only are only supported for target 'prod'"
 fi
+if [[ "$TARGET" == "prod" && "$BUILD" == true ]]; then
+  die "--build gilt nur für target 'staging'"
+fi
 
 if [[ "$TARGET" == "staging" ]]; then
   # Cross-Repo-Aliase (@habits, @journal, @fitness/constants) lösen nur relativ
   # zu $SOURCE auf (Sibling-Repos liegen neben fuel-dev). Nach dem Build ist
   # dist/ standalone gebündelt — Stage/Prod brauchen die Sibling-Repos danach
   # nicht mehr.
-  msg "🔨 Building Node UI in $SOURCE"
-  (cd "$SOURCE" && pnpm run build:local > /dev/null)
+  if [[ "$BUILD" == true ]]; then
+    msg "🔨 Building Node UI in $SOURCE"
+    (cd "$SOURCE" && pnpm run build:local > /dev/null)
 
-  msg "🔨 Building frontend/ (React, für den Python-Server)"
-  (cd "$SOURCE/frontend" && pnpm run build > /dev/null)
+    msg "🔨 Building frontend/ (React, für den Python-Server)"
+    (cd "$SOURCE/frontend" && pnpm run build > /dev/null)
+  else
+    msg "♻️  Kein frischer Build — bestehende dist/ wird übernommen (--build für neuen Build)"
+    [[ -f "$SOURCE/dist/index.html" ]] || die "❌ $SOURCE/dist/index.html fehlt — einmalig mit --build bauen"
+    [[ -f "$SOURCE/frontend/dist/index.html" ]] || die "❌ $SOURCE/frontend/dist/index.html fehlt — einmalig mit --build bauen"
+  fi
 
   msg "📦 Staging: $SOURCE → $STAGE"
   mkdir -p "$STAGE"
@@ -208,7 +273,23 @@ if [[ "$TARGET" == "staging" ]]; then
   require_file "$STAGE/frontend/dist/index.html" "Python frontend dist"
   require_file "$STAGE/backend/requirements.txt" "Python backend requirements"
 
-  msg "✅ Deployment to $STAGE complete (staging, no running service)."
+  # node_modules sind vom rsync ausgenommen -> im Stage-Ordner selbst installieren
+  msg "📦 Installing Node dependencies in $STAGE"
+  (cd "$STAGE" && pnpm install --frozen-lockfile --prod > /dev/null)
+
+  install_stage_unit
+  msg "🔄 Restarting user-scope $STAGE_SERVICE"
+  user_systemctl enable "$STAGE_SERVICE" > /dev/null 2>&1 || true
+  user_systemctl restart "$STAGE_SERVICE"
+
+  msg "🩺 Verifying staging runtime on :$STAGE_PORT"
+  if ! user_systemctl is-active --quiet "$STAGE_SERVICE"; then
+    user_systemctl status "$STAGE_SERVICE" --no-pager || true
+    die "❌ $STAGE_SERVICE is not active after deploy"
+  fi
+  wait_for_http "http://127.0.0.1:$STAGE_PORT/health" "Staging Node health" > /dev/null
+
+  msg "✅ Deployment to $STAGE complete (staging, $STAGE_SERVICE :$STAGE_PORT)."
   exit 0
 fi
 

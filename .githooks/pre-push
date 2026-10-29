@@ -24,9 +24,11 @@ while read -r local_ref local_sha remote_ref remote_sha; do
   [ "${local_ref#refs/heads/}" = "dev" ] || continue
 
   # dev-Push spiegelt den Staging-Stand nur bei Backend-Änderungen nach ~/.local/fuel.
-  # deploy.sh ohne Argument = TARGET=staging: rsync + build:local +
-  # frontend/-Build, endet mit `exit 0` VOR dem Prod-Block — kein /opt,
-  # kein systemctl, kein sudo. Schlägt es fehl, läuft der Push trotzdem
+  # deploy.sh ohne Argument = TARGET=staging: rsync der BESTEHENDEN dist/ (kein
+  # frischer Build, dafür `./deploy.sh staging --build`), Dependencies im
+  # Stage-Ordner und Neustart des user-scope fuel-preview.service (:8700).
+  # Endet mit `exit 0` VOR dem Prod-Block — kein /opt, kein sudo, Prod
+  # bleibt unberührt. Schlägt es fehl, läuft der Push trotzdem
   # weiter (dev-Push ist das Primärziel, Staging nur der Spiegel);
   # manuell nachziehen mit `pnpm run deploy:local`.
   if [ "$remote_sha" = "0000000000000000000000000000000000000000" ]; then
