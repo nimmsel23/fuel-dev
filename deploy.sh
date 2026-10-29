@@ -140,8 +140,9 @@ RestartSec=10
 WantedBy=multi-user.target
 EOF
 
-# Staging-Unit: user-scope, wie fitness-preview.service. Teilt den Datenordner
-# mit Prod, deshalb kein Firestore-Sync und keine Push-Reminder.
+# Staging-Unit: user-scope, wie fitness-preview.service. Einziger Firestore-Sync
+# (Dev und Prod synchronisieren nie, siehe firestoreSyncEnabled() in src/server/app.mjs).
+# Keine Push-Reminder: der Datenordner wird mit Prod geteilt.
 read -r -d '' STAGE_UNIT_CONTENT <<UNIT || true
 [Unit]
 Description=Fuel Centre Staging Service (Node :$STAGE_PORT)
@@ -155,7 +156,7 @@ Environment=PORT=$STAGE_PORT
 Environment=HOST=127.0.0.1
 Environment=FUEL_STATIC_DIR=$STAGE/dist
 Environment=FUEL_BUILD_DIR=$STAGE/dist
-Environment=FUEL_ENABLE_FIRESTORE_SYNC=0
+Environment=FUEL_ENABLE_FIRESTORE_SYNC=1
 Environment=FUEL_DISABLE_PUSH_SCHEDULER=1
 ExecStart=/usr/bin/node server.mjs
 Restart=always
