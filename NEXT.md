@@ -82,3 +82,8 @@ Aktive Arbeitsliste (max. 5 Punkte).
 **Gemini-Review (potenzielle blinde Flecken, 2026-10-26):**
 *   **Ungeprüfte Annahme zum Google-Login:** Claude behauptet, dass der Google-Login auf `fuel-os.web.app` funktionieren würde, da die Domain nicht in der Liste der *fehlenden* Auth-Domains auftauchte. Dies ist eine Schlussfolgerung aus der Abwesenheit eines Eintrags, nicht aus einer expliziten Bestätigung, dass die Domain korrekt für den Google-Login konfiguriert und getestet wurde.
 *   **Teilweise Problembehandlung/Reihenfolge der Analyse:** Claude hat die Deployment-Konfiguration für `fuel-dev` auf `fuel-os.web.app` umgestellt, *bevor* es vollständig die Natur der dort bereits gehosteten
+
+**Gemini-Review (potenzielle blinde Flecken, 2026-10-29):**
+*   Die `user_systemctl`-Hilfsfunktion setzt eine aktive `systemd --user`-Session des Zielbenutzers voraus. Scheitert diese (z.B. bei fehlender Login-Session), könnten Service-Restarts fehlschlagen, ohne dass die Ursache klar wird.
+*   Angesichts der erwähnten 1,5 GB freien RAM könnte der `pnpm install --frozen-lockfile --prod`-Schritt bei jedem Staging-Deploy auf einem ressourcenbeschränkten Server zu Performance-Problemen oder OOM-Fehlern führen, was nicht explizit geprüft wurde.
+*   Das `pnpm install --frozen-lockfile` setzt voraus, dass `pnpm-lock.yaml` immer korrekt in den Stage-Ordner synchronisiert wird. Dies ist nicht explizit verifiziert, obwohl `node_modules` vom rsync ausgenommen ist.
