@@ -1,65 +1,66 @@
-# Live-Deploy für Fuel: Push auf master
-#
-# Baut die App und lädt sie direkt live auf Firebase hoch (Hosting-Target "fuelos" = Site fuel-os, https://fuel-os.web.app).
-# Fuel ist eigenständig (keine Imports aus Nachbar-Repos): nackter Checkout dieses Repos,
-# kein vitalos-Meta-Repo, keine Submodule.
+# Standalone-Prod Fuel: Push auf master deployt live (nur CI). Gleiche Schritte wie das frühere
+# Meta-Repo-Workflow deploy-fuel.yml; das Meta-Repo liefert nur die Nachbar-Repos (Cross-Repo-Aliase),
+# fuel-app wird auf den ausgelösten Commit gesetzt.
 
 name: Live Deploy (Fuel master)
-
-on:
-  workflow_dispatch:
+'on':
+  workflow_dispatch: null
   push:
-    branches: [master]
-    paths:
-      - 'src/**'
-      - 'vite.config.*'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - '.github/workflows/deploy-master.yml'
-
+    branches:
+    - master
+concurrency:
+  group: live-fuel-master
+  cancel-in-progress: false
+permissions:
+  contents: read
 jobs:
-  deploy_live:
+  deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 11.3.0
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Install
-        run: pnpm install --frozen-lockfile
-
-      - name: Build Fuel (Live)
-        run: pnpm run build:cloud
-
-      - name: Deploy Live
-        id: firebase_deploy
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_FITNESS_AOS || secrets.FIREBASE_SERVICE_ACCOUNT }}
-          projectId: fitness-aos
-          # firebase.json kennt mehrere Hosting-Targets — master geht auf die Site fuel-os (Target "fuelos").
-          # fuel-vos (Target "client") bedient die vitalos-Pipeline ("Deploy Fuel PWA"), die Mini-Apps werden
-          # bewusst nur manuell deployt (pnpm run deploy:solo:<x>).
-          target: fuelos
-          channelId: live
-
-      - name: Telegram-Benachrichtigung senden
-        if: success()
-        uses: appleboy/telegram-action@master
-        with:
-          to: ${{ secrets.TELEGRAM_TO }}
-          token: ${{ secrets.TELEGRAM_TOKEN }}
-          message: |
-            🚀 Fuel ist LIVE deployed (master)!
-
-            🔗 Live-URL: https://fuel-os.web.app
-
-            Commit: ${{ github.event.head_commit.message }}
+    - name: Checkout vitalos (Meta-Repo, liefert Nachbar-Repos)
+      uses: actions/checkout@v4
+      with:
+        repository: nimmsel23/vitalos
+        ref: master
+    - name: Private Skills submodule access
+      uses: ./.github/actions/skills-submodule-auth
+      with:
+        deploy-key: ${{ secrets.SKILLS_DEPLOY_KEY }}
+    - name: Submodules via HTTPS + Token
+      run: |
+        git config --global url."https://x-access-token:${{ secrets.GH_SUBMODULE_TOKEN || secrets.GITHUB_TOKEN }}@github.com/".insteadOf "git@github.com:"
+        git submodule sync
+        git submodule update --init --recursive
+    - name: fuel-app auf den ausgelösten Commit setzen
+      run: |
+        cd fuel-app
+        SHA="${{ github.sha }}"
+        git fetch origin "$SHA"
+        git checkout "$SHA"
+    - uses: pnpm/action-setup@v4
+      with:
+        version: 11.3.0
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 22
+        cache: pnpm
+    - name: Install (Workspaces)
+      run: pnpm install --no-frozen-lockfile
+    - name: Generate fitness KB data (transitive dependency via journal→habits)
+      run: pnpm --filter ./fitness-app run build:kb-data
+    - name: Firebase config schreiben
+      run: |
+        if [ -n "$FIREBASE_CONFIG" ]; then
+          echo "$FIREBASE_CONFIG" > fuel-app/src/client/lib/firebase.config.js
+        fi
+      env:
+        FIREBASE_CONFIG: ${{ secrets.FIREBASE_CONFIG }}
+    - name: Build Fuel
+      run: pnpm --filter ./fuel-app run build:cloud
+    - name: Deploy Fuel to Firebase Hosting
+      run: |
+        cd fuel-app
+        echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT || secrets.FIREBASE_SERVICE_ACCOUNT_FITNESS_AOS }}' > /tmp/sa.json
+        GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json \
+          npx firebase-tools@latest deploy --only hosting:client \
+          --project fitness-aos --non-interactive
