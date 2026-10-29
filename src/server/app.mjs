@@ -24,8 +24,9 @@ function serverMode() {
   return String(PORT) === "7000" ? "prod" : "dev";
 }
 
-// Firestore-Sync (stündlicher Pull/Push über alle UIDs) hat genau einen Besitzer: den Staging-Server
-// (fuel-preview.service :8700, FUEL_ENABLE_FIRESTORE_SYNC=1). Dev und Prod synchronisieren nie
+// Firestore-Sync hat genau einen Besitzer: den eigenen Dienst fuel-sync.service
+// (scripts/sync-daemon.mjs, ohne Fastify). Dieser Server startet ihn nur mit explizitem
+// FUEL_ENABLE_FIRESTORE_SYNC=1 (Notnagel/Dev-Test). Dev und Prod synchronisieren nie
 // automatisch — früher lief der Sync nur auf Prod (:7000), das seit 2026-10-29 aus ist; zwei
 // Instanzen auf demselben Datenordner wären das Multi-Writer-Problem.
 export function firestoreSyncEnabled(env = process.env) {

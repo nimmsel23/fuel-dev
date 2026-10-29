@@ -32,6 +32,9 @@ BUILD=false
 STAGE_SERVICE="fuel-preview.service"
 STAGE_PORT=8700
 STAGE_UNIT_TARGET="$USER_HOME/.config/systemd/user/$STAGE_SERVICE"
+# Firestore-Sync als eigener Dienst (scripts/sync-daemon.mjs, ohne Fastify)
+SYNC_SERVICE="fuel-sync.service"
+SYNC_UNIT_TARGET="$USER_HOME/.config/systemd/user/$SYNC_SERVICE"
 
 for arg in "$@"; do
   case "$arg" in
@@ -140,9 +143,9 @@ RestartSec=10
 WantedBy=multi-user.target
 EOF
 
-# Staging-Unit: user-scope, wie fitness-preview.service. Einziger Firestore-Sync
-# (Dev und Prod synchronisieren nie, siehe firestoreSyncEnabled() in src/server/app.mjs).
-# Keine Push-Reminder: der Datenordner wird mit Prod geteilt.
+# Staging-Unit: user-scope, wie fitness-preview.service. Der Firestore-Sync läuft
+# NICHT hier, sondern im eigenen Dienst fuel-sync.service (sonst zwei Instanzen auf
+# demselben Datenordner). Keine Push-Reminder: der Datenordner wird mit Prod geteilt.
 read -r -d '' STAGE_UNIT_CONTENT <<UNIT || true
 [Unit]
 Description=Fuel Centre Staging Service (Node :$STAGE_PORT)
@@ -156,7 +159,7 @@ Environment=PORT=$STAGE_PORT
 Environment=HOST=127.0.0.1
 Environment=FUEL_STATIC_DIR=$STAGE/dist
 Environment=FUEL_BUILD_DIR=$STAGE/dist
-Environment=FUEL_ENABLE_FIRESTORE_SYNC=1
+Environment=FUEL_ENABLE_FIRESTORE_SYNC=0
 Environment=FUEL_DISABLE_PUSH_SCHEDULER=1
 ExecStart=/usr/bin/node server.mjs
 Restart=always
@@ -166,17 +169,42 @@ RestartSec=5
 WantedBy=default.target
 UNIT
 
-install_stage_unit() {
-  local current
-  current="$(cat "$STAGE_UNIT_TARGET" 2>/dev/null || true)"
-  if [[ "$current" == "$STAGE_UNIT_CONTENT" ]]; then
-    msg "🧩 Unit $STAGE_SERVICE bereits aktuell"
+# Sync-Daemon: einziger Besitzer des Firestore-Syncs (stündlicher Multi-UID-Pull
+# + Realtime-Katalog-Listener). Dev und Prod synchronisieren nie.
+read -r -d '' SYNC_UNIT_CONTENT <<UNIT || true
+[Unit]
+Description=Fuel Firestore Sync (Cloud -> ~/.aos/fuel, ohne Fastify)
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=$STAGE
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node scripts/sync-daemon.mjs
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=default.target
+UNIT
+
+# install_user_unit <Name> <Ziel> <Inhalt> — schreibt die Unit nur bei Änderung
+install_user_unit() {
+  local name="$1" target="$2" content="$3" current
+  current="$(cat "$target" 2>/dev/null || true)"
+  if [[ "$current" == "$content" ]]; then
+    msg "🧩 Unit $name bereits aktuell"
     return
   fi
-  msg "🧩 Schreibe/aktualisiere systemd Unit $STAGE_SERVICE"
-  mkdir -p "$(dirname "$STAGE_UNIT_TARGET")"
-  printf '%s\n' "$STAGE_UNIT_CONTENT" > "$STAGE_UNIT_TARGET"
+  msg "🧩 Schreibe/aktualisiere systemd Unit $name"
+  mkdir -p "$(dirname "$target")"
+  printf '%s\n' "$content" > "$target"
   user_systemctl daemon-reload
+}
+
+install_stage_unit() {
+  install_user_unit "$STAGE_SERVICE" "$STAGE_UNIT_TARGET" "$STAGE_UNIT_CONTENT"
+  install_user_unit "$SYNC_SERVICE" "$SYNC_UNIT_TARGET" "$SYNC_UNIT_CONTENT"
 }
 
 install_prod_unit() {
@@ -289,6 +317,17 @@ if [[ "$TARGET" == "staging" ]]; then
     die "❌ $STAGE_SERVICE is not active after deploy"
   fi
   wait_for_http "http://127.0.0.1:$STAGE_PORT/health" "Staging Node health" > /dev/null
+
+  # Erst NACH dem Neustart des Staging-Servers (der den Sync nicht mehr startet),
+  # damit nie zwei Sync-Instanzen gleichzeitig laufen.
+  msg "🔄 Restarting user-scope $SYNC_SERVICE"
+  user_systemctl enable "$SYNC_SERVICE" > /dev/null 2>&1 || true
+  user_systemctl restart "$SYNC_SERVICE"
+  sleep 2
+  user_systemctl is-active --quiet "$SYNC_SERVICE" || {
+    user_systemctl status "$SYNC_SERVICE" --no-pager || true
+    die "❌ $SYNC_SERVICE is not active after deploy"
+  }
 
   msg "✅ Deployment to $STAGE complete (staging, $STAGE_SERVICE :$STAGE_PORT)."
   exit 0
