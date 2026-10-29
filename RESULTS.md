@@ -412,4 +412,7 @@ Gemeinsame mini-app-shell erweitert bzw. aktualisiert: versionsunabhängiger öf
 
 - Fuel-Router sind in `backend/api/integration.py` aus dem Fuel-Source-Repo gruppiert und können sowohl von der Fuel-Standalone-App als auch vom Workspace-Server verwendet werden. Fuel-Migration/Backfill teilen denselben Initialisierungspfad.
 - Die Workspace-Komposition mountet nur API-Router unter `/api/fuel/*`; der Fuel-Static-/SPA-Catch-all bleibt außerhalb. Fuel nutzt `FUEL_DATABASE_URL`, damit seine vorhandene SQLite-DB nicht mit VitalOS-Postgres kollidiert.
-- `poetry -P backend check --lock` und `git diff --check` geprüft. Tests, Docker-Start und Runtime-Abnahme nicht ausgeführt.
+- `poetry -P backend check --lock` und `git diff --check` geprüft. Keine automatisierten Tests ausgeführt.
+
+- Host-Aktivierung: Fuel-Backfill ignoriert jetzt JSON-Dateien, die keine Tageslogs sind, etwa `catalog.json`, und überspringt nicht lesbare/verschwundene Dateien. Der Docker-Daten-Mount erhält die absolute Symlink-Auflösung des Fuel-UID-Datenbaums; PostgreSQL-URL im VitalOS-Container erzwingt den installierten `psycopg2`-Treiber.
+- Live geprüft: VitalOS `/health`, Fuel `/api/fuel/health`, Coach `/api/fuel/health` sowie die Standalone-Fuel-Oberfläche und deren Health auf :4000 antworten mit 200. :4000 bleibt aktiv, solange diese Oberfläche dort bereitgestellt wird.

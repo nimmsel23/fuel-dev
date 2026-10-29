@@ -1,5 +1,6 @@
 import json
 import sqlite3
+from datetime import date
 from pathlib import Path
 
 from sqlalchemy.orm import Session
@@ -108,15 +109,15 @@ def _load_v3_json_logs() -> dict[str, dict]:
 
     logs: dict[str, dict] = {}
     for file_path in nutrition_dir.glob("*.json"):
-        if file_path.name == "nutrition.db":
+        try:
+            log_date = date.fromisoformat(file_path.stem).isoformat()
+        except ValueError:
             continue
         try:
             payload = json.loads(file_path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
+        except (OSError, json.JSONDecodeError):
             continue
-        if not file_path.stem:
-            continue
-        logs[file_path.stem] = {
+        logs[log_date] = {
             "meals": payload.get("meals") or [],
             "water_ml": int(payload.get("water_ml") or 0),
         }
