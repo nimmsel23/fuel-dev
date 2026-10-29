@@ -3,6 +3,10 @@
 `backend/` ist der FastAPI-Port des Fuel-Trackers. Der Tagesdatensatz wird in
 `DailyJournal` gespeichert; Food- und Supplement-Einträge sowie deren
 Mikronährstoffprofile bleiben innerhalb des Tagesdatensatzes nachvollziehbar.
+Die Router werden zusätzlich direkt von `/home/alpha/workspace/VitalOS` unter
+`/api/fuel/*` in dessen zentralen Server auf `:8000` eingebunden. Dabei bleibt
+Fuel Datenbesitzer; die VitalOS-Postgres-Verbindung und die Fuel-SQLite-Datei
+werden getrennt konfiguriert.
 
 ## Start
 
@@ -29,6 +33,9 @@ Standardmäßig verwendet Fuel
 `~/.aos/fuel/nutrition/nutrition.db`. `DATABASE_URL` kann auf eine andere
 SQLite- oder PostgreSQL-Datenbank zeigen. Alembic verwaltet Schemaänderungen;
 `create_all()` wird beim Start nicht mehr als Upgrade-Ersatz verwendet.
+In einem zusammengesetzten Server kann `FUEL_DATABASE_URL` die Fuel-Datenbank
+getrennt von der Host-Anwendung konfigurieren; diese Variable hat Vorrang vor
+`DATABASE_URL`.
 
 Ein vollständiges, bisher unversioniertes v4-Schema wird einmalig auf die
 bekannte Basisrevision gestempelt und danach bis zum aktuellen Stand migriert.

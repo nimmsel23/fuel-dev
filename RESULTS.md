@@ -407,3 +407,9 @@ Gemeinsame mini-app-shell erweitert bzw. aktualisiert: versionsunabhängiger öf
 - FastAPI-Startup auf `lifespan` umgestellt; Backfill-Ausgabe nutzt den Uvicorn-Logger.
 - `httpx` ist als direkte API-Abhängigkeit eingetragen; die bereits gelockte Version bleibt bestehen. PyPI war nicht erreichbar, daher den Hash mit Poetrys Locker aktualisiert statt die Paketauflösung zu ändern.
 - Geprüft: `poetry -P backend check --lock` meldet `All set!`; kein Testlauf, Deploy oder Dienst-Restart ausgeführt.
+
+## Fuel API in VitalOS Workspace eingebunden (2026-10-29)
+
+- Fuel-Router sind in `backend/api/integration.py` aus dem Fuel-Source-Repo gruppiert und können sowohl von der Fuel-Standalone-App als auch vom Workspace-Server verwendet werden. Fuel-Migration/Backfill teilen denselben Initialisierungspfad.
+- Die Workspace-Komposition mountet nur API-Router unter `/api/fuel/*`; der Fuel-Static-/SPA-Catch-all bleibt außerhalb. Fuel nutzt `FUEL_DATABASE_URL`, damit seine vorhandene SQLite-DB nicht mit VitalOS-Postgres kollidiert.
+- `poetry -P backend check --lock` und `git diff --check` geprüft. Tests, Docker-Start und Runtime-Abnahme nicht ausgeführt.

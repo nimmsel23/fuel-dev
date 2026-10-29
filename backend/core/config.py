@@ -27,7 +27,10 @@ _AOS_FUEL_DATA_DIR = Path(
 class Config:
     # Database Configuration
     DATABASE_URL = _expand_sqlite_url(
-        os.getenv("DATABASE_URL", f"sqlite:///{_AOS_FUEL_DATA_DIR / 'nutrition' / 'nutrition.db'}")
+        os.getenv(
+            "FUEL_DATABASE_URL",
+            os.getenv("DATABASE_URL", f"sqlite:///{_AOS_FUEL_DATA_DIR / 'nutrition' / 'nutrition.db'}"),
+        )
     )
 
     # Gemini Configuration

@@ -2,7 +2,8 @@ Agents dürfen sich nicht auf den lokalen dev server versteifen; prod = firebase
 
 ## Immediate — Python Backend Standard (2026-10-29)
 
-- [x] Fuel Python/FastAPI-Backend auf den projektspezifischen Poetry-Standard umgestellt: Dev-Start, Anleitung und Prod-Deploy nutzen `pyproject.toml` + `poetry.lock`; Fuel bleibt auf :4000. Siehe `RESULTS.md` (Python Backend Poetry Standard, 2026-10-29).
+- [x] Fuel Python/FastAPI-Backend auf den projektspezifischen Poetry-Standard umgestellt: Dev-Start, Anleitung und Standalone-Deploy nutzen `pyproject.toml` + `poetry.lock`. Siehe `RESULTS.md` (Python Backend Poetry Standard, 2026-10-29).
+- [x] Fuel-Router aggregiert und in `~/workspace/VitalOS` unter `/api/fuel/*` im zentralen `:8000`-Backend eingebunden. Das Coach-Gateway zeigt auf diese API; Fuel-Source und SQLite-Daten bleiben Fuel-owned. Der Hostdienst auf :4000 ist bis zur Laufzeit-Aktivierung nicht gestoppt; Fuel-v3-Kompatibilitätsrouten können ihn weiter benötigen. Siehe `RESULTS.md` (VitalOS unified API, 2026-10-29).
 
 ## v3 → v4 Migration (2026-08-07, laufend)
 
