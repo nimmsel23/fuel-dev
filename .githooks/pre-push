@@ -44,7 +44,7 @@ while read -r local_ref local_sha remote_ref remote_sha; do
   echo "$relevant" | grep -Eq '^(fuel/|backend/|server/|deploy\.sh$)' && backend_hit=true
 
   if [ "$frontend_hit" = true ] || [ "$backend_hit" = true ]; then
-    echo "💡 Tipp: für den kompletten dev->master->vitalos-Flow gibt es ~/vitalos/bin/fuel-release (vos-release fuel --help)." >&2
+    echo "💡 Release: dev → master per PR mit 'vos-release-pr fuel' (Check, Auto-Merge, Live per CI); master → vitalos (Shell) mit 'fuel-release'. Doku: ~/vitalos/docs/DEPLOYMENT.md" >&2
   fi
 
   # Staging-Spiegel nur bei Backend-Änderungen (User-Vorgabe 2026-10-26); Frontend-Änderungen
