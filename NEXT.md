@@ -2,6 +2,14 @@
 
 Aktive Arbeitsliste (max. 5 Punkte).
 
+## 2026-10-29
+
+- [ ] `skipPush`-Fix im Prod verifizieren: nach dem nächsten vollen Stunden-Sync `journalctl -u fuel.service --since "-10min" | grep -oE 'direction=push uid=\S+ target=\S+' | sort | uniq -c | sort -rn | head` — pro Tag darf kein Mehrfach-Push mehr auftauchen.
+- [ ] `959543a` (Staging ohne Build, `fuel-preview.service` :8700) ist nur auf `dev` committet, nicht gepusht; der Push startet über den Hook den Staging-Service neu.
+- [ ] `fuel.service` ist `disabled` (kein Autostart nach Reboot) und `fitness-firestore-daemon.service` ist `disabled`/`inactive` — entscheiden, ob beides so bleibt; CLAUDE.md (Sync-Tabelle, „überlappt für die Operator-UID") ist dazu veraltet. `owner_uid`-Backfill auf Bestandsdaten steht ebenfalls noch aus.
+- [ ] v3/v4 teilen sich `~/.aos/fuel/nutrition/nutrition.db`; der Prod-Deploy hat die v4-Alembic-Migrationen (bis `supplement_catalog_notes_004`) darauf angewendet — Tabellenkollisionen mit v3 (`default`-Nutzer) nicht geprüft. Ein v4-Staging-Service wurde bewusst nicht angelegt (RAM), Entscheidung offen.
+- [ ] Untracked Backups aufräumen (`deploy.sh.bak`, `bin/fuelctl.bak`, `*.bak2`, `.github/workflows/*.bak*`); neue Exit-Code-Kette von `fuel prod deploy` einmal mit einem echten Fehlschlag testen.
+
 ## 2026-10-26
 
 - [ ] `fuel-os`-Site vs. `master`-Deploy klären: `deploy-master.yml` zielt auf Site `fuel-os` (Target `fuelos`), dort liegt aber die separate Wochen-Planer-App aus `~/vitalos/fuel-os/`. Entscheidung offen — (1) `fuel-os` eigenständig lassen und `master` zurück auf `fuel-vos`/dritte Site, (2) Wochen-Planer als Tab nach `fuel-dev` holen, (3) beide parallel. Bis dahin **nicht** auf `master` pushen. Der User nannte es nur „eine Idee".
