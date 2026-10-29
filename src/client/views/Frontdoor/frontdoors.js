@@ -1,4 +1,6 @@
-import { lazy } from "react";
+import TapBoardFrontdoor from "./TapBoardFrontdoor.jsx";
+import ShutterFrontdoor from "./ShutterFrontdoor.jsx";
+import TagesfadenFrontdoor from "./TagesfadenFrontdoor.jsx";
 import { LayoutGrid, Camera, MessageSquareText, Gauge } from "lucide-react";
 
 // Frontdoor = der Screen, den die App beim Öffnen zeigt. Der Nutzer wählt ihn
@@ -15,7 +17,7 @@ export const FRONTDOORS = [
     best: "Wenn du oft dasselbe isst",
     Icon: LayoutGrid,
     accent: "orange",
-    View: lazy(() => import("./TapBoardFrontdoor.jsx")),
+    View: TapBoardFrontdoor,
   },
   {
     key: "shutter",
@@ -26,7 +28,7 @@ export const FRONTDOORS = [
     best: "Wenn du auswärts oder wechselnd isst",
     Icon: Camera,
     accent: "emerald",
-    View: lazy(() => import("./ShutterFrontdoor.jsx")),
+    View: ShutterFrontdoor,
   },
   {
     key: "tagesfaden",
@@ -37,7 +39,7 @@ export const FRONTDOORS = [
     best: "Wenn du mehrere Sachen auf einmal nachträgst",
     Icon: MessageSquareText,
     accent: "sky",
-    View: lazy(() => import("./TagesfadenFrontdoor.jsx")),
+    View: TagesfadenFrontdoor,
   },
   {
     key: "classic",

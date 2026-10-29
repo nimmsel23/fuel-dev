@@ -1,13 +1,11 @@
-import { useState, lazy, Suspense } from "react";
+import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Settings2, Sparkles, Plus, Repeat, Bell } from "lucide-react";
 import { Empty } from "../../components/ui.jsx";
 import { formatMetric } from "../../../shared/utils/utils.js";
 import SupplementEditor from "./SupplementEditor.jsx";
 
-const GeminiCatalogModal = import.meta.env.VITE_APP_MODE === "client"
-  ? () => null
-  : lazy(() => import("../../components/GeminiCatalogModal.jsx"));
+import GeminiCatalogModal from "../../components/GeminiCatalogModal.jsx";
 
 const SCHEDULE_LABEL = {
   daily: "täglich",
@@ -97,9 +95,7 @@ export default function CatalogCard({ catalog }) {
       )}
 
       {geminiOpen && import.meta.env.VITE_APP_MODE !== "client" && (
-        <Suspense fallback={null}>
-          <GeminiCatalogModal onClose={() => setGeminiOpen(false)} onSaved={() => { setGeminiOpen(false); queryClient.invalidateQueries({ queryKey: ["supp-catalog"] }); }} />
-        </Suspense>
+        <GeminiCatalogModal onClose={() => setGeminiOpen(false)} onSaved={() => { setGeminiOpen(false); queryClient.invalidateQueries({ queryKey: ["supp-catalog"] }); }} />
       )}
     </section>
   );

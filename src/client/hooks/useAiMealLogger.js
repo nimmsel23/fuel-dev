@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchJson, postJson } from "@api";
 import { isCloud, resolveMealText } from "../lib/aiMealLogger.js";
+import * as firestore from "../lib/db.firestore.js";
 import { usePendingAiEntries } from "./useNutrition.js";
 
 // Ein Einstiegspunkt für den Freitext-AI-Logger, geteilt zwischen dem
@@ -48,7 +49,6 @@ export function useAiMealLogger(date) {
   };
 
   const resolvePendingEntry = async (entry) => {
-    const firestore = await import("../lib/db.firestore.js");
     await resolveMealText({ date, rawText: entry.text, catalogItems, suppCatalog });
     await firestore.removePendingAiEntry(date, entry);
   };
@@ -86,7 +86,6 @@ export function useAiMealLogger(date) {
 
     // 1. Optimistic Save — Text landet sofort als wartender Eintrag,
     //    unabhängig davon ob Vertex AI danach erreichbar ist.
-    const firestore = await import("../lib/db.firestore.js");
     const entry = { id: `ai_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`, text: rawText, created_at: new Date().toISOString() };
     await firestore.addPendingAiEntry(date, entry);
     qc.invalidateQueries({ queryKey: ["ai-pending", date] });

@@ -4,7 +4,8 @@ import { addDays, format, parseISO } from "date-fns";
 import { de } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, RotateCcw } from "lucide-react";
 
-const SupplementsApp = React.lazy(() => import("./SupplementsApp.jsx"));
+import SupplementsApp from "./SupplementsApp.jsx";
+import FrontdoorHost from "./views/Frontdoor/FrontdoorHost.jsx";
 import { TAB_CONFIG } from "./routes.js";
 import TabContent from "./components/TabContent.jsx";
 import { IosInstallHint } from "./components/IosInstallHint.jsx";
@@ -23,7 +24,6 @@ const SOLO = import.meta.env.VITE_SOLO || "";
 // Schnelleinstieg (z. B. "shutter"): die Mini-App öffnet direkt in der Frontdoor, ohne eigenen Header
 // (der Rahmen, etwa 6Pack, liefert Zurück-Navigation). "Alles anzeigen" bzw. Tippen wechselt in den Tab.
 const SOLO_FRONTDOOR = import.meta.env.VITE_SOLO_FRONTDOOR || "";
-const FrontdoorHost = React.lazy(() => import("./views/Frontdoor/FrontdoorHost.jsx"));
 
 // date: Tagesnavigation im Header; totals: kcal/Makros des Tages im Header
 const META = {
@@ -93,14 +93,12 @@ export default function SoloShell() {
   if (frontdoorOpen && user) {
     return (
       <div style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}>
-        <React.Suspense fallback={<p role="status" className="py-20 text-center text-sm text-slate-500">Laden…</p>}>
-          <FrontdoorHost
-            frontdoorKey={SOLO_FRONTDOOR}
-            userName={user.displayName?.split(" ")[0]}
-            onEnterApp={() => setFrontdoorOpen(false)}
-            onOpenApp={() => setFrontdoorOpen(false)}
-          />
-        </React.Suspense>
+        <FrontdoorHost
+          frontdoorKey={SOLO_FRONTDOOR}
+          userName={user.displayName?.split(" ")[0]}
+          onEnterApp={() => setFrontdoorOpen(false)}
+          onOpenApp={() => setFrontdoorOpen(false)}
+        />
       </div>
     );
   }
@@ -151,7 +149,7 @@ export default function SoloShell() {
                 {authError && <p role="alert" className="mt-3 text-sm text-rose-300">{authError}</p>}
               </div>
             ) : (
-              SOLO === "supplements" ? <React.Suspense fallback={<p role="status">Laden…</p>}><SupplementsApp date={activeDate} onDateChange={setActiveDate} /></React.Suspense> : <FuelSoloContent activeDate={activeDate} setActiveDate={setActiveDate} setActiveTab={setActiveTab} />
+              SOLO === "supplements" ? <SupplementsApp date={activeDate} onDateChange={setActiveDate} /> : <FuelSoloContent activeDate={activeDate} setActiveDate={setActiveDate} setActiveTab={setActiveTab} />
             )}
           </main>
         </div>

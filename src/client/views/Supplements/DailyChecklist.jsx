@@ -4,6 +4,9 @@ import { Empty } from "../../components/ui.jsx";
 import { formatMetric, normalizeSupplementUnit } from "../../../shared/utils/utils.js";
 import { isDueToday, TIME_LABELS } from "./utils.js";
 import { useSupplementMutations } from "./useSupplementMutations.js";
+import { messaging } from "../../lib/firebase.js";
+import { getToken } from "firebase/messaging";
+import { saveFcmToken } from "../../lib/db.firestore.js";
 
 export default function DailyChecklist({ date, catalog, intakes }) {
   const { createIntake, deleteIntake } = useSupplementMutations(date);
@@ -32,9 +35,6 @@ export default function DailyChecklist({ date, catalog, intakes }) {
       if (permission !== "granted") return;
 
       if (isCloudMode) {
-        const { messaging } = await import("../../lib/firebase.js");
-        const { getToken } = await import("firebase/messaging");
-        const { saveFcmToken } = await import("../../lib/db.firestore.js");
         
         if (!messaging) throw new Error("FCM is not supported in this browser.");
         

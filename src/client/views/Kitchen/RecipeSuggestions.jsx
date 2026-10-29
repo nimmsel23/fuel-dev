@@ -4,6 +4,7 @@ import { twMerge } from "tailwind-merge";
 import { useSettings } from "../../store.js";
 import { isInStock, addShoppingItems, missingIngredients } from "../../lib/kitchenLogic.js";
 import { useActiveDeals, useShoppingMutations, useShopping } from "../../hooks/useKitchen.js";
+import { suggestRecipes } from "../../lib/kitchenAi.js";
 import { cardClass, fieldClass, primaryBtn, ghostBtn, SectionTitle, ErrorNote } from "./shared.jsx";
 
 // KI-Rezeptideen aus dem Vorrat (inkl. baldigem Ablauf, Profil aus den Settings und — falls eingelesen — echten Aktionen).
@@ -26,7 +27,6 @@ export default function RecipeSuggestions({ pantry }) {
     setError(null);
     setAdded({});
     try {
-      const { suggestRecipes } = await import("../../lib/kitchenAi.js");
       const list = await suggestRecipes({ pantry, deals: useDeals ? deals : [], wishes, settings });
       if (!list.length) throw new Error("Die KI hat keine Rezepte geliefert. Bitte noch einmal versuchen.");
       setRecipes(list);

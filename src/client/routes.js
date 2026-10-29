@@ -1,11 +1,26 @@
-import { lazy } from "react";
 import { Flame, UtensilsCrossed, NotebookPen, Pill, Microscope, Settings2, History, LayoutGrid, GitCommitVertical, TerminalSquare, ChefHat, Library, FileText, CookingPot, Refrigerator } from "lucide-react";
+
+// Keine dynamischen Imports/lazy(): jeder Chunk, der einzeln nachgeladen wird, bricht nach einem Deploy weg
+// (Firebase Hosting hält nur den letzten Release vor, der SPA-Rewrite liefert dann index.html als "Modul").
+import DashboardView from "./views/DashboardView.jsx";
+import LogView from "./views/Log/LogView.jsx";
+import FoodView from "./views/FoodView.jsx";
+import PotsView from "./views/Pots/PotsView.jsx";
+import KitchenView from "./views/Kitchen/KitchenView.jsx";
+import RecipeBuilderView from "./views/RecipeBuilderView.jsx";
+import CatalogView from "./views/CatalogView.jsx";
+import HistoryView from "./views/HistoryView.jsx";
+import NutritionReportView from "./views/Report/NutritionReportView.jsx";
+import SupplementsView from "./views/SupplementsView.jsx";
+import MicrosView from "./views/MicrosView.jsx";
+import SettingsView from "./views/SettingsView.jsx";
+import DevView from "./views/Dev/DevView.jsx";
 
 const BUILD_IS_LOCAL = import.meta.env.VITE_APP_MODE !== "client" && import.meta.env.MODE !== "firebase";
 const BUILD_IS_SHELL = import.meta.env.MODE === "firebase";
 // Mini-App-Build (VITE_SOLO=log|supplements|micros|report): nur dieser eine Tab wird gebündelt.
 // Die Bedingungen unten stehen bewusst als Literal-Vergleich, damit Rollup die übrigen
-// dynamischen Imports (und damit deren Chunks) komplett aus dem Bundle wirft.
+// Views (und deren Imports) per Tree-Shaking aus dem Bundle wirft.
 const SOLO = import.meta.env.VITE_SOLO || "";
 
 // Tab-Reihenfolge (2026-09-06, User-Vorgabe): Dashboard · Log · Food · Rezepte ·
@@ -15,14 +30,14 @@ export const TAB_CONFIG = [
     key: "dashboard",
     label: "Dashboard",
     Icon: Flame,
-    View: lazy(() => import("./views/DashboardView.jsx")),
+    View: DashboardView,
     getProps: (ctx) => ({ nutrition: ctx.nutrition, sup: ctx.sup, journal: ctx.journal, macroTrend: ctx.macroTrend, setActiveTab: ctx.setActiveTab, activeDate: ctx.activeDate }),
   }] : []),
   ...((!SOLO || SOLO === "log") ? [{
     key: "log",
     label: "Log",
     Icon: NotebookPen,
-    View: lazy(() => import("./views/Log/LogView.jsx")),
+    View: LogView,
     getProps: (ctx) => ({ date: ctx.activeDate, nutrition: ctx.nutrition, journal: ctx.journal || "" }),
   }] : []),
   ...(!SOLO ? [{
@@ -30,20 +45,20 @@ export const TAB_CONFIG = [
     key: "log-dashboard",
     label: "Log-Dashboard",
     Icon: LayoutGrid,
-    View: lazy(() => import("./views/Log/LogView.jsx")),
+    View: LogView,
     getProps: (ctx) => ({ date: ctx.activeDate, nutrition: ctx.nutrition, journal: ctx.journal || "", mode: "dashboard" }),
   }, {
     key: "log-timeline",
     label: "Timeline",
     Icon: GitCommitVertical,
-    View: lazy(() => import("./views/Log/LogView.jsx")),
+    View: LogView,
     getProps: (ctx) => ({ date: ctx.activeDate, nutrition: ctx.nutrition, journal: ctx.journal || "", mode: "timeline" }),
   }] : []),
   ...((!SOLO || SOLO === "food") ? [{
     key: "food",
     label: "Food",
     Icon: UtensilsCrossed,
-    View: lazy(() => import("./views/FoodView.jsx")),
+    View: FoodView,
     getProps: (ctx) => ({ activeDate: ctx.activeDate, setActiveDate: ctx.setActiveDate, nutrition: ctx.nutrition }),
   }] : []),
   ...(!SOLO ? [{
@@ -52,7 +67,7 @@ export const TAB_CONFIG = [
     key: "pots",
     label: "Töpfe",
     Icon: CookingPot,
-    View: lazy(() => import("./views/Pots/PotsView.jsx")),
+    View: PotsView,
     getProps: () => ({}),
     cloudOnly: true,
   }, {
@@ -61,7 +76,7 @@ export const TAB_CONFIG = [
     key: "kitchen",
     label: "Küche",
     Icon: Refrigerator,
-    View: lazy(() => import("./views/Kitchen/KitchenView.jsx")),
+    View: KitchenView,
     getProps: (ctx) => ({ activeDate: ctx.activeDate }),
     cloudOnly: true,
   }] : []),
@@ -69,21 +84,21 @@ export const TAB_CONFIG = [
     key: "recipes",
     label: "Rezepte",
     Icon: ChefHat,
-    View: lazy(() => import("./views/RecipeBuilderView.jsx")),
+    View: RecipeBuilderView,
     getProps: () => ({}),
   }] : []),
   ...((!SOLO || SOLO === "catalog") ? [{
     key: "catalog",
     label: "Katalog",
     Icon: Library,
-    View: lazy(() => import("./views/CatalogView.jsx")),
+    View: CatalogView,
     getProps: (ctx) => ({ activeDate: ctx.activeDate }),
   }] : []),
   ...((!SOLO || SOLO === "history") ? [{
     key: "history",
     label: "Historie",
     Icon: History,
-    View: lazy(() => import("./views/HistoryView.jsx")),
+    View: HistoryView,
     getProps: (ctx) => ({ setActiveDate: ctx.setActiveDate, setActiveTab: ctx.setActiveTab }),
   }] : []),
   ...((!SOLO || SOLO === "report") ? [{
@@ -93,28 +108,28 @@ export const TAB_CONFIG = [
     key: "report",
     label: "Protokoll",
     Icon: FileText,
-    View: lazy(() => import("./views/Report/NutritionReportView.jsx")),
+    View: NutritionReportView,
     getProps: () => ({}),
   }] : []),
   ...((!SOLO || SOLO === "supplements") ? [{
     key: "supplements",
     label: "Supplements",
     Icon: Pill,
-    View: lazy(() => import("./views/SupplementsView.jsx")),
+    View: SupplementsView,
     getProps: (ctx) => ({ date: ctx.activeDate, sup: ctx.sup, catalog: ctx.suppCatalog || [], suppLog: ctx.suppLog, onDateChange: ctx.setActiveDate }),
   }] : []),
   ...((!SOLO || SOLO === "micros") ? [{
     key: "micros",
     label: "Mikros",
     Icon: Microscope,
-    View: lazy(() => import("./views/MicrosView.jsx")),
+    View: MicrosView,
     getProps: () => ({}),
   }] : []),
   ...((!BUILD_IS_SHELL && !SOLO) ? [{
     key: "settings",
     label: "Setup",
     Icon: Settings2,
-    View: lazy(() => import("./views/SettingsView.jsx")),
+    View: SettingsView,
     getProps: () => ({}),
   }] : []),
   ...((BUILD_IS_LOCAL && !SOLO) ? [{
@@ -123,7 +138,7 @@ export const TAB_CONFIG = [
     key: "dev",
     label: "Dev",
     Icon: TerminalSquare,
-    View: lazy(() => import("./views/Dev/DevView.jsx")),
+    View: DevView,
     getProps: () => ({}),
     localOnly: true,
   }] : []),

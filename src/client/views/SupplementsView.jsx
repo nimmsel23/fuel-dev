@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from "react";
+import { useState } from "react";
 import { format, parseISO } from "date-fns";
 import { de } from "date-fns/locale";
 import { Pill, Plus } from "lucide-react";
@@ -13,7 +13,7 @@ import SupplementEditor from "./Supplements/SupplementEditor.jsx";
 import { routineProgress, isDueToday } from "./Supplements/utils.js";
 import { useQueryClient } from "@tanstack/react-query";
 
-const ReminderSettings = lazy(() => import("./Supplements/ReminderSettings.jsx"));
+import ReminderSettings from "./Supplements/ReminderSettings.jsx";
 const TABS = [["routine", "Tagesroutine"], ["week", "Wochentracker"], ["log", "Einnahmen"], ["catalog", "Mein Katalog"], ["insights", "Auswertung"], ...(import.meta.env.VITE_SOLO === "supplements" ? [["reminders", "Erinnerungen"]] : [])];
 
 export default function SupplementsView({ date, sup, catalog = [], suppLog, onDateChange }) {
@@ -50,7 +50,7 @@ export default function SupplementsView({ date, sup, catalog = [], suppLog, onDa
       {tab === "log" && <div className="grid items-start gap-5 lg:grid-cols-2"><SupplementLogger key={date} date={date} catalog={catalog} intakes={intakes} /><TodayStack date={date} intakes={intakes} /></div>}
       {tab === "catalog" && <CatalogCard catalog={catalog} />}
       {tab === "insights" && <StatsCard stats={stats} />}
-      {tab === "reminders" && <Suspense fallback={<p role="status">Laden…</p>}><ReminderSettings /></Suspense>}
+      {tab === "reminders" && <ReminderSettings />}
       {adding && <SupplementEditor onClose={() => setAdding(false)} onSaved={() => { setAdding(false); qc.invalidateQueries({ queryKey: ["supp-catalog"] }); }} />}
     </section>
   );

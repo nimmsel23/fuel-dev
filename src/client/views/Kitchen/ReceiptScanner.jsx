@@ -4,11 +4,12 @@ import { twMerge } from "tailwind-merge";
 import { todayISO } from "../../../shared/utils/validation.mjs";
 import { mergeIntoPantry, markShoppingBought, reviewToIncoming, normalizeName, findDuplicateReceipt, normDate } from "../../lib/kitchenLogic.js";
 import { useCommitPurchase, useReceipts } from "../../hooks/useKitchen.js";
+import { scanReceiptImage, parsePantryText } from "../../lib/kitchenAi.js";
 import { cardClass, fieldClass, primaryBtn, ghostBtn, iconBtn, SectionTitle, ImageCapture, ItemReview, ErrorNote } from "./shared.jsx";
 
 // Kassenbon fotografieren oder Einkauf eintippen → KI liest die Positionen → Review → Vorrat + Bon-Verlauf.
 // Das Foto wird nach dem Auslesen verworfen, gespeichert werden nur die bestätigten Positionen.
-const analyzePhoto = async (file) => (await import("../../lib/kitchenAi.js")).scanReceiptImage(file);
+const analyzePhoto = (file) => scanReceiptImage(file);
 
 export default function ReceiptScanner({ pantry, pantryReady, shopping, onClose }) {
   const commit = useCommitPurchase();
@@ -24,7 +25,6 @@ export default function ReceiptScanner({ pantry, pantryReady, shopping, onClose 
     setParsing(true);
     setError(null);
     try {
-      const { parsePantryText } = await import("../../lib/kitchenAi.js");
       const items = await parsePantryText(text.trim());
       if (!items.length) throw new Error("Keine Lebensmittel erkannt. Bitte anders formulieren, z. B. „2 Packungen Nudeln, 1 l Milch“.");
       setDraft({ store: "", date: todayISO(), total: 0, items, source: "manual" });

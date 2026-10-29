@@ -1,4 +1,5 @@
 import { OMEGA3_KEYS, normalizeOmega3, omega3Coverage } from "../../../../shared/config/omega3.mjs";
+import { computeFastingWindows } from "../../../../shared/utils/fasting.mjs";
 import { projectCloudLog, outboxEntries, projectCloudCatalog, hasPendingFor } from "../../cloudOutbox.js";
 /**
  * Firestore Nutrition — Katalog, Tages-Logs, History, Wochen-Mikros
@@ -351,7 +352,6 @@ export async function getWeeklyMicros(year, week) {
 }
 
 export async function getFastingWindows(days = 14) {
-  const { computeFastingWindows } = await import("../../../../shared/utils/fasting.mjs");
 
   // Build array of last `days + 1` dates (oldest first)
   const dates = [];

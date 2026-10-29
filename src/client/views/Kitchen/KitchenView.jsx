@@ -1,12 +1,12 @@
-import { lazy, Suspense, useState } from "react";
+import { useState } from "react";
 import { Refrigerator, ShoppingCart } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 import { ChunkErrorBoundary } from "../../components/ErrorBoundary.jsx";
 
 // Küche (seit 2026-10-26, Cloud-Kanal): Subtabs Einkauf (Bon-Scan, Einkaufszettel, Empfehlungen, Aktionen)
 // und Vorrat (Bestand, KI-Rezeptideen). Daten: users/{uid}/fuel_* (lib/db/firestore/pantry.js).
-const ShoppingTab = lazy(() => import("./ShoppingTab.jsx"));
-const PantryTab = lazy(() => import("./PantryTab.jsx"));
+import ShoppingTab from "./ShoppingTab.jsx";
+import PantryTab from "./PantryTab.jsx";
 
 const SUBTABS = [
   { key: "shopping", label: "Einkauf", Icon: ShoppingCart, View: ShoppingTab },
@@ -41,9 +41,7 @@ export default function KitchenView() {
         ))}
       </div>
       <ChunkErrorBoundary>
-        <Suspense fallback={<div className="py-16 text-center text-sm text-slate-500 animate-pulse">Laden …</div>}>
-          <View />
-        </Suspense>
+        <View />
       </ChunkErrorBoundary>
     </div>
   );

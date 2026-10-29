@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { format } from "date-fns";
+import * as db from "./lib/db.firestore.js";
 
 export const useApp = create((set) => ({
   activeTab: "dashboard",
@@ -82,57 +83,51 @@ export const useSettings = create(
       setSetting: (key, val) => {
         set({ [key]: val });
         if (key === "frontdoor") {
-          import("./lib/db.firestore.js").then((db) => {
-            if (db.getUidOrNull?.()) {
-              db.saveDevice(val).catch(err => console.error("Device sync failed:", err));
-            }
-          });
+          if (db.getUidOrNull?.()) {
+            db.saveDevice(val).catch(err => console.error("Device sync failed:", err));
+          }
           return;
         }
         if (PROFILE_MAP[key]) {
-          import("./lib/db.firestore.js").then((db) => {
-            if (db.getUidOrNull?.()) {
-              db.saveSharedProfile({ [PROFILE_MAP[key]]: val }).catch(err => console.error("Profile sync failed:", err));
-            }
-          });
+          if (db.getUidOrNull?.()) {
+            db.saveSharedProfile({ [PROFILE_MAP[key]]: val }).catch(err => console.error("Profile sync failed:", err));
+          }
           return;
         }
         // Im Hintergrund zu Firestore syncen, falls eingeloggt
-        import("./lib/db.firestore.js").then((db) => {
-          if (db.getUidOrNull?.()) {
-            const current = get();
-            db.saveUserSettings({
-              kcal_goal: current.kcal_goal,
-              protein_goal: current.protein_goal,
-              water_goal: current.water_goal,
-              carb_ratio: current.carb_ratio,
-              activity_level: current.activity_level,
-              protein_per_kg: current.protein_per_kg,
-              nutrition_goal: current.nutrition_goal,
-              diet_type: current.diet_type,
-              eating_pattern: current.eating_pattern,
-              weight_goal: current.weight_goal,
-              nutrition_focus: current.nutrition_focus,
-              energy_level: current.energy_level,
-              hunger_notes: current.hunger_notes,
-              nutrition_satisfaction: current.nutrition_satisfaction,
-              intolerances: current.intolerances,
-              digestive_notes: current.digestive_notes,
-              nutrition_working: current.nutrition_working,
-              nutrition_not_working: current.nutrition_not_working,
-              supplement_push_enabled: current.supplement_push_enabled,
-              supplement_push_morning_time: current.supplement_push_morning_time,
-              supplement_push_midday_time: current.supplement_push_midday_time,
-              supplement_push_evening_time: current.supplement_push_evening_time,
-              supplement_push_night_time: current.supplement_push_night_time,
-              daily_fuel_quick_log_enabled: current.daily_fuel_quick_log_enabled,
-              daily_fuel_quick_log_time: current.daily_fuel_quick_log_time,
-              daily_journal_entry_enabled: current.daily_journal_entry_enabled,
-              daily_journal_entry_time: current.daily_journal_entry_time,
-              log_view_mode: current.log_view_mode,
-            }).catch(err => console.error("Cloud sync failed:", err));
-          }
-        });
+        if (db.getUidOrNull?.()) {
+          const current = get();
+          db.saveUserSettings({
+            kcal_goal: current.kcal_goal,
+            protein_goal: current.protein_goal,
+            water_goal: current.water_goal,
+            carb_ratio: current.carb_ratio,
+            activity_level: current.activity_level,
+            protein_per_kg: current.protein_per_kg,
+            nutrition_goal: current.nutrition_goal,
+            diet_type: current.diet_type,
+            eating_pattern: current.eating_pattern,
+            weight_goal: current.weight_goal,
+            nutrition_focus: current.nutrition_focus,
+            energy_level: current.energy_level,
+            hunger_notes: current.hunger_notes,
+            nutrition_satisfaction: current.nutrition_satisfaction,
+            intolerances: current.intolerances,
+            digestive_notes: current.digestive_notes,
+            nutrition_working: current.nutrition_working,
+            nutrition_not_working: current.nutrition_not_working,
+            supplement_push_enabled: current.supplement_push_enabled,
+            supplement_push_morning_time: current.supplement_push_morning_time,
+            supplement_push_midday_time: current.supplement_push_midday_time,
+            supplement_push_evening_time: current.supplement_push_evening_time,
+            supplement_push_night_time: current.supplement_push_night_time,
+            daily_fuel_quick_log_enabled: current.daily_fuel_quick_log_enabled,
+            daily_fuel_quick_log_time: current.daily_fuel_quick_log_time,
+            daily_journal_entry_enabled: current.daily_journal_entry_enabled,
+            daily_journal_entry_time: current.daily_journal_entry_time,
+            log_view_mode: current.log_view_mode,
+          }).catch(err => console.error("Cloud sync failed:", err));
+        }
       },
       hydrateFromCloud: async () => {
         // Offline-first: Das Gerät kennt seinen Schnelleinstieg lokal (persistiert) → App sofort freigeben, der
@@ -141,7 +136,6 @@ export const useSettings = create(
         if (get().frontdoor) useApp.getState().setFrontdoorResolved(true);
         else setTimeout(() => useApp.getState().setFrontdoorResolved(true), 4000);
         try {
-          const db = await import("./lib/db.firestore.js");
           if (db.getUidOrNull?.()) {
             const cloudSettings = await db.getUserSettings();
             if (cloudSettings) {

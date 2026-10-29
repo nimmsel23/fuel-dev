@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from "react";
+import { useState } from "react";
 import { ShoppingCart, Receipt, Sparkles, Loader2, Plus, Trash2, Lightbulb, History, PackageCheck } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 import { useSettings } from "../../store.js";
@@ -8,8 +8,9 @@ import {
 } from "../../hooks/useKitchen.js";
 import { cardClass, fieldClass, primaryBtn, ghostBtn, iconBtn, SectionTitle, ErrorNote, ItemReview } from "./shared.jsx";
 import DealsPanel from "./DealsPanel.jsx";
+import { suggestShopping } from "../../lib/kitchenAi.js";
 
-const ReceiptScanner = lazy(() => import("./ReceiptScanner.jsx"));
+import ReceiptScanner from "./ReceiptScanner.jsx";
 
 const eur = (n) => `${String(Number(n).toFixed(2)).replace(".", ",")} €`;
 const shortDate = (iso) => (iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.` : "");
@@ -133,7 +134,6 @@ function ShoppingAdvice({ pantry, shopping }) {
     setLoading(true);
     setError(null);
     try {
-      const { suggestShopping } = await import("../../lib/kitchenAi.js");
       const list = await suggestShopping({ pantry, receipts, deals, shopping, settings });
       if (!list.length) throw new Error("Keine Empfehlungen erhalten. Bitte noch einmal versuchen.");
       setIdeas(list);
@@ -206,9 +206,7 @@ export default function ShoppingTab() {
   return (
     <div className="space-y-5">
       {scanning ? (
-        <Suspense fallback={<div className="py-6 text-center text-sm text-slate-500 animate-pulse">Laden …</div>}>
-          <ReceiptScanner pantry={pantry} pantryReady={!pantryLoading} shopping={shopping} onClose={() => setScanning(false)} />
-        </Suspense>
+        <ReceiptScanner pantry={pantry} pantryReady={!pantryLoading} shopping={shopping} onClose={() => setScanning(false)} />
       ) : (
         <button type="button" onClick={() => setScanning(true)} className="flex w-full items-center gap-4 rounded-3xl border border-orange-400/30 bg-orange-400/5 p-5 text-left transition hover:bg-orange-400/10">
           <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-3 text-orange-300"><Receipt className="h-6 w-6" /></div>

@@ -1,4 +1,4 @@
-import React, { Suspense } from "react";
+import React from "react";
 import { ChevronDown, Loader2, Settings2 } from "lucide-react";
 import { getFrontdoor } from "./frontdoors.js";
 import { useFrontdoorLog } from "./useFrontdoorLog.js";
@@ -41,13 +41,7 @@ export default function FrontdoorHost({ frontdoorKey, userName, onEnterApp, onOp
           </button>
         </header>
 
-        <Suspense fallback={
-          <div className="flex items-center justify-center gap-3 py-20 text-slate-500">
-            <Loader2 className="h-5 w-5 animate-spin" /> lädt …
-          </div>
-        }>
-          <View fd={fd} onOpenApp={onOpenApp} />
-        </Suspense>
+        <View fd={fd} onOpenApp={onOpenApp} />
 
         <button
           onClick={onEnterApp}
