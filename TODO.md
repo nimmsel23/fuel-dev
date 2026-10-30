@@ -127,5 +127,6 @@ werden aber im Cloud-Frontend nie geladen.
 - [x] Eigene Bildqualität für Essen und Etiketten/Belege; Scanner und Shutter teilen den Dialog.
 - [x] Nutzer-/datumsgebundene Offline-Foto-Warteliste mit IndexedDB, sichtbarem Status und bewusstem Fortsetzen.
 - [x] App-Check-Site-Key in Check-/Preview-/Live-Build-Umgebung durchreichen.
-- [ ] Firebase App Check live prüfen: Registrierung, CI-Variable/Secret `VITE_RECAPTCHA_SITE_KEY`, Enforcement und gültige Tokens. Lokaler Site-Key vorhanden; Projektzugriff per gcloud hier nicht nutzbar.
-- [ ] Nach ausdrücklicher Push-/Release-Freigabe auf Jakobs Gerät abnehmen. Lokale Tests ersetzen keinen echten Firebase-/Kamera-Test.
+- [ ] Firebase App Check live prüfen: Web-App-Registrierung, Zuordnung des vorhandenen Site-Keys für Hosting-Domains, Enforcement und gültige Tokens. CI-Variable ist gesetzt und im Live-Fuel-Bundle nachgewiesen; Projektzugriff per gcloud hier nicht nutzbar.
+- [x] Push und Standalone-Firebase-Release nach Freigabe: PR #6, `master` 746e3ac, CI 41050794246 grün; Fuel-Pointer 17db6ae gepusht; Shell-Fix 2e69ba3 und Shell-CI 41051683942 grün.
+- [ ] Auf Jakobs Gerät abnehmen. Bundle/CI sind geprüft; echte Kamera und Firebase-/App-Check-Scan stehen aus.

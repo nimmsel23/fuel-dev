@@ -1,6 +1,6 @@
 # Roadmap: Vertex AI for Firebase Integration
 
-Stand 2026-10-30 (lokaler Quellstand, noch kein Release): Die Browser-Integration ist implementiert. Die verbleibenden Punkte betreffen Betriebssicherung und Offline-Verhalten. Update 2026-10-16: Der Scanner hat einen eigenen Barcode-Modus mit nativer EAN/UPC-Fotodecodierung, Nummerneingabe als Browser-Fallback, Open-Food-Facts-Produktabfrage und 30-Tage-Cache. Essens-/Etikettfotos bleiben ein separater KI-Ablauf.
+Stand 2026-10-30 (Standalone-Release `746e3ac`, CI `41050794246` erfolgreich): Die Browser-Integration ist implementiert. Die verbleibenden Punkte betreffen Betriebssicherung und Offline-Verhalten. Update 2026-10-16: Der Scanner hat einen eigenen Barcode-Modus mit nativer EAN/UPC-Fotodecodierung, Nummerneingabe als Browser-Fallback, Open-Food-Facts-Produktabfrage und 30-Tage-Cache. Essens-/Etikettfotos bleiben ein separater KI-Ablauf.
 
 ## 📌 Aktueller Stand
 - Im **lokalen Modus** (`VITE_APP_MODE=coach`) läuft ein Node-Server (`server.mjs`), der per Fastify die Route `POST /nutrition/vision` bereitstellt.
@@ -54,6 +54,6 @@ Dies wird durch das offizielle **Vertex AI for Firebase Web SDK** (`@firebase/ve
 ## 🚀 Fazit
 Die Cloud-PWA benötigt für neue KI-Schätzungen eine Verbindung zu Firebase AI Logic. Fotos können offline auf diesem Gerät gesichert und später im selben Konto und am ursprünglichen Log-Tag bewusst analysiert werden. Es werden keine Mahlzeiten oder Micros vor der Bestätigung gespeichert.
 
-App Check: Der lokale Build hat einen Site-Key. Die drei CI-Workflows reichen nun die GitHub-Variable (alternativ Secret) `VITE_RECAPTCHA_SITE_KEY` weiter. Ob diese im Repo gesetzt und für die jeweiligen Hosting-Domains registriert ist, sowie Projekt-Enforcement und echte Tokens bleiben zu prüfen. Der Versuch einer rein lesenden Projektprüfung hatte hier keinen nutzbaren gcloud-Zugriffstoken. Keine App-Check-Projekteinstellungen verändert.
+App Check: Der lokale Build hat einen Site-Key. Die drei CI-Workflows reichen nun die GitHub-Variable (alternativ Secret) `VITE_RECAPTCHA_SITE_KEY` weiter. Die Repository-Variable wurde beim Release aus dem vorhandenen lokalen öffentlichen Site-Key gesetzt; der Key ist im Live-App-Bundle nachgewiesen. Registrierung für die Hosting-Domains, Projekt-Enforcement und echte Tokens bleiben zu prüfen. Der Versuch einer rein lesenden Projektprüfung hatte hier keinen nutzbaren gcloud-Zugriffstoken. Keine App-Check-Projekteinstellungen verändert.
 
-Verifikation und Grenzen siehe `RESULTS.md`, Eintrag 2026-10-30. Kein Push/Deploy ohne ausdrückliche Freigabe.
+Verifikation und Grenzen siehe `RESULTS.md`, Eintrag 2026-10-30. Push/Standalone-Deploy wurden anschließend ausdrücklich freigegeben und erfolgreich ausgeführt; Geräteabnahme und App-Check-Projektprüfung sind weiterhin offen.
