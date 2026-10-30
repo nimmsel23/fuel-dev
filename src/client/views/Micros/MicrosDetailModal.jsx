@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { X } from "lucide-react";
+import { ArrowUpRight, Copy, Link2, X } from "lucide-react";
 import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine, Cell as RCell } from "recharts";
 import { pctColor } from "./utils.js";
 
@@ -14,7 +14,18 @@ function provenanceLabel(entry) {
   return meta.source || "Micros";
 }
 
-export default function MicrosDetailModal({ nutrient, week, weekData, onClose }) {
+function timeLabel(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleTimeString("de-AT", { hour: "2-digit", minute: "2-digit" });
+}
+
+function componentLabel(component) {
+  const amount = component.amount_g != null ? `${component.amount_g} g` : component.qty_text || component.qty || "Menge offen";
+  return `${component.name || component.description || "Zutat"} · ${amount}`;
+}
+
+export default function MicrosDetailModal({ nutrient, week, weekData, onClose, onOpenEntry }) {
   const { key, label, unit } = nutrient;
   const status = weekData?.rda_comparison?.[key];
   const dayBreakdown = weekData?.day_breakdown || {};
@@ -35,10 +46,12 @@ export default function MicrosDetailModal({ nutrient, week, weekData, onClose })
   }, [weekData, key]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [selectedDate, setSelectedDate] = useState(defaultDate);
+  const [selectedEntry, setSelectedEntry] = useState(null);
+  const [copiedId, setCopiedId] = useState(false);
   const activeDate = selectedDate && dates.includes(selectedDate) ? selectedDate : defaultDate;
 
   const contributions = (mealBreakdown[activeDate] || [])
-    .map((entry) => ({ ...entry, value: entry.micros?.[key] ?? 0 }))
+    .map((entry) => ({ ...entry, date: activeDate, value: entry.micros?.[key] ?? 0 }))
     .filter((entry) => entry.value > 0)
     .sort((a, b) => b.value - a.value);
   const activeDayTotal = dayBreakdown[activeDate]?.[key] ?? 0;
@@ -115,7 +128,11 @@ export default function MicrosDetailModal({ nutrient, week, weekData, onClose })
                   dataKey="value"
                   radius={[4, 4, 0, 0]}
                   cursor="pointer"
-                  onClick={(d) => d?.fullDate && setSelectedDate(d.fullDate)}
+                  onClick={(d) => {
+                    if (!d?.fullDate) return;
+                    setSelectedDate(d.fullDate);
+                    setSelectedEntry(null);
+                  }}
                 >
                   {chartData.map((d, i) => {
                     const color = pctColor(status?.dach > 0 ? Math.round((d.value / status.dach) * 100) : null).bg;
@@ -145,11 +162,13 @@ export default function MicrosDetailModal({ nutrient, week, weekData, onClose })
               <ul className="space-y-1.5">
                 {weekTopContributions.map((entry, i) => {
                   const pct = weekMax > 0 ? Math.round((entry.value / weekMax) * 100) : 0;
+                  const isSelected = selectedEntry?.id && selectedEntry.id === entry.id && selectedEntry.kind === entry.kind;
                   return (
-                    <li key={i}
-                      role="button"
-                      onClick={() => setSelectedDate(entry.date)}
-                      className={`flex items-center gap-3 rounded-lg px-3 py-2 cursor-pointer transition ${entry.date === activeDate ? "bg-violet-400/10 ring-1 ring-violet-400/30" : "bg-white/5 hover:bg-white/10"}`}>
+                    <li key={entry.id || `${entry.date}-${entry.name}-${i}`}>
+                      <button type="button"
+                      onClick={() => { setSelectedDate(entry.date); setSelectedEntry(entry); }}
+                      aria-pressed={Boolean(isSelected)}
+                      className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition ${isSelected ? "bg-cyan-400/10 ring-1 ring-cyan-300/40" : entry.date === activeDate ? "bg-violet-400/10 ring-1 ring-violet-400/30" : "bg-white/5 hover:bg-white/10"}`}>
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-sm text-slate-200">
                           {entry.kind === "supplement" ? "💊 " : "🍽 "}{entry.name}
@@ -168,6 +187,7 @@ export default function MicrosDetailModal({ nutrient, week, weekData, onClose })
                       <div className="shrink-0 text-right text-sm font-medium text-slate-200">
                         {entry.value} {unit}
                       </div>
+                      </button>
                     </li>
                   );
                 })}
@@ -189,8 +209,10 @@ export default function MicrosDetailModal({ nutrient, week, weekData, onClose })
               <ul className="space-y-1.5">
                 {contributions.map((entry, i) => {
                   const pct = activeDayTotal > 0 ? Math.round((entry.value / activeDayTotal) * 100) : 0;
+                  const isSelected = selectedEntry?.id && selectedEntry.id === entry.id && selectedEntry.kind === entry.kind;
                   return (
-                    <li key={i} className="flex items-center gap-3 rounded-lg bg-white/5 px-3 py-2">
+                    <li key={entry.id || `${entry.date}-${entry.name}-${i}`}>
+                    <button type="button" onClick={() => setSelectedEntry(entry)} aria-pressed={Boolean(isSelected)} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition ${isSelected ? "bg-cyan-400/10 ring-1 ring-cyan-300/40" : "bg-white/5 hover:bg-white/[0.08]"}`}>
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-sm text-slate-200">
                           {entry.kind === "supplement" ? "💊 " : "🍽 "}{entry.name}
@@ -210,12 +232,55 @@ export default function MicrosDetailModal({ nutrient, week, weekData, onClose })
                         {entry.value} {unit}
                         <div className="text-[10px] font-normal text-slate-500">{pct}%</div>
                       </div>
+                    </button>
                     </li>
                   );
                 })}
               </ul>
             )}
           </div>
+
+          {selectedEntry && (
+            <section className="mt-5 rounded-2xl border border-cyan-200/15 bg-gradient-to-br from-cyan-300/[0.07] to-slate-950/30 p-4" aria-live="polite">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-100/65">Konkreter Ursprungseintrag</div>
+                  <h4 className="mt-1 font-semibold text-slate-100">{selectedEntry.name}</h4>
+                  <p className="mt-1 text-xs text-slate-400">{selectedEntry.kind === "supplement" ? "Supplement-Einnahme" : "Mahlzeit"} · {selectedEntry.date || activeDate}{timeLabel(selectedEntry.time) ? ` · ${timeLabel(selectedEntry.time)} Uhr` : ""}</p>
+                </div>
+                <div className="rounded-xl bg-slate-950/60 px-3 py-2 text-right">
+                  <div className="text-lg font-semibold tabular-nums text-white">{selectedEntry.value ?? selectedEntry.micros?.[key] ?? 0} {unit}</div>
+                  <div className="text-[10px] text-slate-500">Beitrag für {label}</div>
+                </div>
+              </div>
+
+              <dl className="mt-4 grid gap-x-5 gap-y-3 border-t border-white/[0.07] pt-3 text-xs sm:grid-cols-2">
+                <div><dt className="text-slate-500">Stabile Eintrags-ID</dt><dd className="mt-1 flex items-center gap-2 font-mono text-[11px] text-slate-200">{selectedEntry.id || "In diesem älteren Eintrag nicht gespeichert"}{selectedEntry.id && <button type="button" title="ID kopieren" aria-label="Eintrags-ID kopieren" className="rounded p-1 text-slate-400 hover:bg-white/10 hover:text-white" onClick={() => { navigator.clipboard?.writeText(selectedEntry.id).then(() => { setCopiedId(true); setTimeout(() => setCopiedId(false), 1500); }).catch(() => {}); }}><Copy className="h-3 w-3" /></button>}{copiedId && <span className="font-sans text-emerald-300">kopiert</span>}</dd></div>
+                {selectedEntry.kind === "meal" ? (
+                  <>
+                    <div><dt className="text-slate-500">Menge & Energie</dt><dd className="mt-1 text-slate-200">{selectedEntry.grams != null ? `${selectedEntry.grams} g · ` : ""}{selectedEntry.kcal ?? 0} kcal · P {selectedEntry.protein ?? 0} g · KH {selectedEntry.carbs ?? 0} g · F {selectedEntry.fat ?? 0} g</dd></div>
+                    {selectedEntry.catalog_item_id && <div><dt className="text-slate-500">Katalog-ID</dt><dd className="mt-1 break-all font-mono text-[11px] text-slate-200">{selectedEntry.catalog_item_id}</dd></div>}
+                    {selectedEntry.components?.length > 0 && <div className="sm:col-span-2"><dt className="text-slate-500">Gespeicherte Bestandteile</dt><dd className="mt-1 flex flex-wrap gap-1.5">{selectedEntry.components.map((component, i) => <span key={`${component.name || "zutat"}-${i}`} className="rounded-lg border border-white/[0.07] bg-white/[0.035] px-2 py-1 text-[11px] text-slate-300">{componentLabel(component)}</span>)}</dd></div>}
+                  </>
+                ) : (
+                  <>
+                    <div><dt className="text-slate-500">Dosis</dt><dd className="mt-1 text-slate-200">{selectedEntry.dose ?? "—"} {selectedEntry.unit || ""}</dd></div>
+                    {selectedEntry.supplement_id && <div><dt className="text-slate-500">Supplement-Katalog-ID</dt><dd className="mt-1 break-all font-mono text-[11px] text-slate-200">{selectedEntry.supplement_id}</dd></div>}
+                  </>
+                )}
+                <div><dt className="text-slate-500">Wertquelle</dt><dd className="mt-1 text-slate-200">{provenanceLabel(selectedEntry) || selectedEntry.source || "Keine Herkunft mitgespeichert"}</dd></div>
+                {selectedEntry.micros_meta?.lookup_name && <div><dt className="text-slate-500">Aufgelöst über</dt><dd className="mt-1 text-slate-200">{selectedEntry.micros_meta.lookup_name}</dd></div>}
+                {selectedEntry.micros_meta?.inferred_from && <div><dt className="text-slate-500">Ursprünglicher Name / Schlüssel</dt><dd className="mt-1 break-all text-slate-200">{selectedEntry.micros_meta.inferred_from}</dd></div>}
+              </dl>
+
+              {selectedEntry.kind === "meal" && onOpenEntry && selectedEntry.id && (
+                <button type="button" onClick={() => onOpenEntry(selectedEntry, selectedEntry.date || activeDate)} className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-xl border border-cyan-200/20 bg-cyan-200/[0.08] px-3.5 text-xs font-semibold text-cyan-100 transition hover:bg-cyan-200/[0.14] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200"><Link2 className="h-4 w-4" />Mahlzeit im Log öffnen <ArrowUpRight className="h-3.5 w-3.5" /></button>
+              )}
+              {selectedEntry.kind === "supplement" && onOpenEntry && selectedEntry.id && (
+                <button type="button" onClick={() => onOpenEntry(selectedEntry, selectedEntry.date || activeDate)} className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-xl border border-lime-200/20 bg-lime-200/[0.08] px-3.5 text-xs font-semibold text-lime-100 transition hover:bg-lime-200/[0.14] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-200"><Link2 className="h-4 w-4" />Einnahme im Tageslog öffnen <ArrowUpRight className="h-3.5 w-3.5" /></button>
+              )}
+            </section>
+          )}
         </div>
       </div>
     </div>

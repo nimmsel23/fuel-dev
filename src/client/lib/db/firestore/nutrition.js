@@ -269,8 +269,19 @@ export async function getWeeklyMicros(year, week) {
     const contributions = (log.meals || [])
       .map((m) => ({
         kind: "meal",
+        id: m.id || null,
+        date,
         name: m.description,
+        type: m.type || null,
+        time: m.time || m.logged_at || null,
+        grams: m.grams ?? null,
         kcal: m.kcal || 0,
+        protein: m.protein || 0,
+        carbs: m.carbs || 0,
+        fat: m.fat || 0,
+        catalog_item_id: m.catalog_item_id || m.catalog_id || null,
+        source: m.source || null,
+        components: Array.isArray(m.components) ? m.components : [],
         micros: m.micros,
         micros_meta: m.micros_meta || null,
       }));
@@ -290,6 +301,10 @@ export async function getWeeklyMicros(year, week) {
         }
         contributions.push({
           kind: "supplement",
+          id: intake.id || null,
+          date,
+          supplement_id: intake.supplement_id,
+          time: intake.time || null,
           name: entry.name || intake.supplement_id,
           dose: intake.dose,
           unit: entry.unit || "",
@@ -345,7 +360,7 @@ export async function getWeeklyMicros(year, week) {
   }
 
   Object.assign(rda_comparison, omega3Coverage(mealBreakdown, rda_comparison));
-  const result = { ok: true, year, week, dates, week_totals: weekTotals, rda_comparison, day_breakdown: dayBreakdown, meal_breakdown: mealBreakdown, missing_meals: Array.from(missingMeals) };
+  const result = { ok: true, trace_version: 1, year, week, dates, week_totals: weekTotals, rda_comparison, day_breakdown: dayBreakdown, meal_breakdown: mealBreakdown, missing_meals: Array.from(missingMeals) };
 
 
   return result;

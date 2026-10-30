@@ -123,7 +123,7 @@ export const TAB_CONFIG = [
     label: "Mikros",
     Icon: Microscope,
     View: MicrosView,
-    getProps: () => ({}),
+    getProps: (ctx) => ({ setActiveDate: ctx.setActiveDate, setActiveTab: SOLO ? undefined : ctx.setActiveTab }),
   }] : []),
   ...((!BUILD_IS_SHELL && !SOLO) ? [{
     key: "settings",
