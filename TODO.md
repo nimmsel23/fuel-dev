@@ -119,3 +119,13 @@ werden aber im Cloud-Frontend nie geladen.
 
 - [x] Omega-3-Erkennung vertiefen: ALA/EPA/DHA/DPA, EPA+DHA separat, Einheiten, Etikettbezug und unbekannte Werte korrekt behandeln; USDA-EPA korrigieren.
 - [ ] Omega-3 weiter vertiefen: Fettsäurebelege pro Quelle/Etikett, Plausibilitätsprüfung gegen Gesamtfett und gezielte Korrektur belegter Fehlprofile (siehe OMEGA3.md).
+
+## Fotoscanner für Jakob (2026-10-30)
+
+- [x] Globalen TODO-Stand mit Code/Roadmap abgleichen und erledigte Barcode-/Micros-Punkte korrigieren.
+- [x] Katalogauswahl vor KI-Aufruf, Zutatenvertrag mit Text-Logger teilen, Zutaten beim Portionswechsel mitskalieren.
+- [x] Eigene Bildqualität für Essen und Etiketten/Belege; Scanner und Shutter teilen den Dialog.
+- [x] Nutzer-/datumsgebundene Offline-Foto-Warteliste mit IndexedDB, sichtbarem Status und bewusstem Fortsetzen.
+- [x] App-Check-Site-Key in Check-/Preview-/Live-Build-Umgebung durchreichen.
+- [ ] Firebase App Check live prüfen: Registrierung, CI-Variable/Secret `VITE_RECAPTCHA_SITE_KEY`, Enforcement und gültige Tokens. Lokaler Site-Key vorhanden; Projektzugriff per gcloud hier nicht nutzbar.
+- [ ] Nach ausdrücklicher Push-/Release-Freigabe auf Jakobs Gerät abnehmen. Lokale Tests ersetzen keinen echten Firebase-/Kamera-Test.

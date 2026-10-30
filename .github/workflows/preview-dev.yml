@@ -50,6 +50,8 @@ jobs:
 
       - name: Build Fuel (Cloud)
         run: pnpm run build:cloud
+        env:
+          VITE_RECAPTCHA_SITE_KEY: ${{ vars.VITE_RECAPTCHA_SITE_KEY || secrets.VITE_RECAPTCHA_SITE_KEY }}
 
       - name: Deploy Preview Channel
         id: firebase_deploy

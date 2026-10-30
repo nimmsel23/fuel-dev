@@ -57,6 +57,8 @@ jobs:
         FIREBASE_CONFIG: ${{ secrets.FIREBASE_CONFIG }}
     - name: Build Fuel
       run: pnpm --filter ./fuel-app run build:cloud
+      env:
+        VITE_RECAPTCHA_SITE_KEY: ${{ vars.VITE_RECAPTCHA_SITE_KEY || secrets.VITE_RECAPTCHA_SITE_KEY }}
     - name: Deploy Fuel to Firebase Hosting
       run: |
         cd fuel-app
