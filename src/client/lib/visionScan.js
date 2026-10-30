@@ -1,4 +1,4 @@
-import { OMEGA3_RULES, normalizeOmega3, OMEGA3_KEYS } from "../../shared/config/omega3.mjs";
+import { OMEGA3_RULES } from "../../shared/config/omega3.mjs";
 import { scanToMeal } from "./mealDetails.js";
 import { postJson } from "@api";
 import { vertexAI } from "./firebase.js";
@@ -12,10 +12,13 @@ import { MICRO_KEYS } from "../../shared/config/dach.mjs";
 // weiterhin genau eine Vision-Implementierung.
 
 const PROMPT =
-  "Dies ist ein Foto von Essen, einem Barcode oder einer Einkaufsquittung. Identifiziere die Mahlzeit oder Zutaten und schätze die Nährwerte (Makros) sowie die genauen Mikronährstoffe (Vitamine, Mineralstoffe) so genau wie möglich ab. Gib außerdem in 'grams' an, auf welches Gewicht (in Gramm) sich diese Makros beziehen — von einer erkannten Verpackungsangabe oder sonst deiner besten Schätzung der abgebildeten Portionsgröße.";
+  "Dies ist ein Foto von Essen, einem Etikett oder einer Einkaufsquittung. Identifiziere die Mahlzeit oder Zutaten und schätze die Nährwerte (Makros) sowie die genauen Mikronährstoffe (Vitamine, Mineralstoffe) so genau wie möglich ab. Gib außerdem in 'grams' an, auf welches Gewicht (in Gramm) sich diese Makros beziehen — von einer erkannten Verpackungsangabe oder sonst deiner besten Schätzung der abgebildeten Portionsgröße. Zerlege die Mahlzeit in Hauptzutaten (components) mit name, qty (z.B. 200g gekocht), kcal, protein, carbs und fat für die jeweilige Zutatenmenge. Übernimm Verpackungswerte mit ihrem Bezugsgewicht. Erfinde bei unbekannten Mikronährstoffen keine Nullwerte.";
 
-// Verkleinert auf max. 800px Kantenlänge und liefert rohes base64-JPEG.
-export async function compressToBase64(file, maxSize = 800, quality = 0.7) {
+// Fotos und kleine Etikettenschrift brauchen unterschiedliche Auflösungen.
+export const SCAN_IMAGE_OPTIONS = { food: { maxSize: 1280, quality: 0.82 }, label: { maxSize: 2048, quality: 0.92 } };
+
+// Liefert rohes base64-JPEG.
+export async function compressToBase64(file, maxSize = 1280, quality = 0.82) {
   const img = new Image();
   const objectUrl = URL.createObjectURL(file);
   try {
@@ -47,13 +50,14 @@ export async function compressToBase64(file, maxSize = 800, quality = 0.7) {
 
 // Wirft bei Offline/Analysefehler — Aufrufer zeigen die Meldung und bieten
 // einen Retry auf derselben Datei an.
-export async function analyzeMealImage(file) {
+export async function analyzeMealImage(file, { scanType = "food" } = {}) {
   if (!file) throw new Error("Kein Bild übergeben.");
   if (!navigator.onLine) {
     throw new Error("Offline: Der Scan braucht eine Verbindung. Das Foto bleibt ausgewählt und kann später erneut versucht werden.");
   }
 
-  const b64Raw = await compressToBase64(file);
+  const options = SCAN_IMAGE_OPTIONS[scanType] || SCAN_IMAGE_OPTIONS.food;
+  const b64Raw = await compressToBase64(file, options.maxSize, options.quality);
   const cloud = import.meta.env.VITE_APP_MODE === "client";
   let macrosResult;
 
@@ -75,12 +79,21 @@ export async function analyzeMealImage(file) {
                 carbs: { type: SchemaType.NUMBER },
                 fat: { type: SchemaType.NUMBER },
               },
+              required: ["kcal", "protein", "carbs", "fat"],
+            },
+            components: {
+              type: SchemaType.ARRAY,
+              items: { type: SchemaType.OBJECT, properties: {
+                name: { type: SchemaType.STRING }, qty: { type: SchemaType.STRING, description: "Menge mit Gramm und Zubereitungszustand, z.B. 200g gekocht" },
+                kcal: { type: SchemaType.NUMBER }, protein: { type: SchemaType.NUMBER }, carbs: { type: SchemaType.NUMBER }, fat: { type: SchemaType.NUMBER },
+              }, required: ["name", "qty"] },
             },
             micros: {
               type: SchemaType.OBJECT,
               properties: Object.fromEntries(MICRO_KEYS.map((k) => [k, { type: SchemaType.NUMBER, description: "Wert in mg oder ug" }])),
             },
           },
+          required: ["name", "grams", "macros", "components"],
         },
       },
     });

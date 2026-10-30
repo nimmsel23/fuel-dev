@@ -58,7 +58,7 @@ Beide Channels teilen sich **dieselbe React-Codebase** in `src/client/` — Unte
 - Dev: 9000 (`server.mjs` → `src/server/app.mjs`)
 - Vite dev: 5173
 - local Prod: 7000 (static, `fuel.service`; Legacy-Unit `fuel-v2.service` am 2026-08-28 restlos entfernt)
-- v4 (Python/FastAPI, `backend/`): 4000, prod via `fuel-python.service` (`/opt/fuel-python`) — läuft parallel zu v3, siehe `ARCHITECTURE.md`
+- v4 (Python/FastAPI, `backend/`): Standalone-Dev optional auf :4000; lokal eingebunden in VitalOS auf :8000 unter `/api/fuel/*`. `fuel-python.service` ist seit 2026-10-29 deaktiviert; Firebase bleibt der Produkt-Einstieg.
 - cloud: `https://fuel-vos.web.app`
 
 **Data location (local):** `~/.aos/fuel/` (via `AOS_FUEL_DATA_DIR`)
@@ -75,10 +75,10 @@ Es gibt **zwei parallele, überlappende Sync-Engines**. Beide schreiben `~/.aos/
 
 | Engine | Läuft in | Tut | Aktiv |
 |---|---|---|---|
-| **`src/server/lib/firestore-admin.mjs`** | **`fuel-preview.service` :8700 (Staging)** (nur mit `FUEL_ENABLE_FIRESTORE_SYNC=1`; seit 2026-10-29 einziger Sync-Besitzer — Dev und Prod synchronisieren nie, `fuel.service` :7000 hat keinen Auto-Sync mehr) | **Stündlich** bidirektional Pull **und** Push über **alle** Klienten-UIDs (`discoverSyncUids()` = `FUEL_CLOUD_UID` + `FUEL_CLOUD_UIDS` + `getAllClientUids()` aus `~/vital/Klienten/*/client.json` + Ordner unter `~/.aos/fuel/users/`). Zusätzlich Fire-and-forget-Push bei jedem Log-Write (`log.mjs`/`daily.mjs`/`nutrition-weekly.mjs`). Realtime `onSnapshot` nur für den Katalog. Per-UID → `~/.aos/fuel/users/<uid>/`; Operator läuft als `uid="default"` → **Push wird geskippt**, nur der Katalog geht raus. | **JA — der Haupt-Sync** |
+| **`src/server/lib/firestore-admin.mjs`** | **`fuel-sync.service`** (user-scope, `scripts/sync-daemon.mjs`, ohne Fastify: stündlicher Pull + Realtime-Katalog-Listener; Push beim Schreiben bleibt in den Server-Routen; der Staging-Server `fuel-preview.service` :8700 startet den Sync nur noch mit `FUEL_ENABLE_FIRESTORE_SYNC=1`; seit 2026-10-29 einziger Sync-Besitzer — Dev und Prod synchronisieren nie, `fuel.service` :7000 hat keinen Auto-Sync mehr) | **Stündlich** bidirektional Pull **und** Push über **alle** Klienten-UIDs (`discoverSyncUids()` = `FUEL_CLOUD_UID` + `FUEL_CLOUD_UIDS` + `getAllClientUids()` aus `~/vital/Klienten/*/client.json` + Ordner unter `~/.aos/fuel/users/`). Zusätzlich Fire-and-forget-Push bei jedem Log-Write (`log.mjs`/`daily.mjs`/`nutrition-weekly.mjs`). Realtime `onSnapshot` nur für den Katalog. Per-UID → `~/.aos/fuel/users/<uid>/`; Operator läuft als `uid="default"` → **Push wird geskippt**, nur der Katalog geht raus. | **JA — der Haupt-Sync** |
 | **`fitness-firestore-daemon.service`** | eigener user-Service (`python -m fitness.firestore.mirror`, Repo `~/fitness-dev`) | Realtime `on_snapshot` von `nutrition/<operator-uid>/logs` + `supplements/<operator-uid>/logs`+`meta/catalog` → `~/.aos/fuel/users/<operator-uid>/`. Bulk via `fitness sync` (`fitness/firestore/fuel.py` `push_fuel`/`pull_fuel`). **Nur die Operator-UID**, keine Klienten. | **JA — überlappt Zeile 1 für die Operator-UID** |
 | `scripts/firestore-sync.mjs` (`pnpm run cloud:push`/`cloud:pull`/`cloud:watch`) | fuel-dev CLI, **kein Service** | manueller Bulk-Push/Pull/Watchdog. `PRIMARY_UID=FUEL_CLOUD_UID` → flacher Default-Store, jede andere UID → `users/<uid>/`. | nur wenn manuell gestartet |
-| v4 `fuel-python.service` :4000 | `/opt/fuel-python` | **kein Firestore** (kein `firebase_admin` im Code) | — |
+| Fuel FastAPI via VitalOS :8000 | `/home/alpha/fuel-dev/backend` | Fuel-owned SQLite; API-Router in-process | **JA** |
 | Cloud-PWA | Browser | schreibt Firestore direkt via Client-SDK — das ist die App, kein „Sync" | — |
 
 **Cross-User-Schutz (`owner_uid`):** jeder Firestore-Write stempelt `owner_uid=<uid>`; jeder Pull/Mirror
@@ -296,9 +296,10 @@ fuelctl local deploy # Python-Wrapper, ruft deploy.sh
 `~/.local/fuel`; `prod` synced von dort nach `/opt/fuel` und `/opt/fuel-python`.
 Beide Prod-Services sind aktiv und laufen parallel (verifiziert 2026-08-28):
 `fuel.service` (v3, Node, `/opt/fuel`, Port 7000) und `fuel-python.service`
-(v4, `backend/`+`frontend/`, `/opt/fuel-python`, Port 4000). `deploy.sh`
-restartet beide (`SERVICE`/`PY_SERVICE`). `fuel-v2.service` (Legacy-Unit) wurde
-entfernt (Unit-File gelöscht, disabled, `daemon-reload`).
+(v4, `backend/`+`frontend/`, Port 4000). Stand 2026-10-29 sind beide lokalen
+Prod-Units deaktiviert. Die FastAPI-Router laufen in VitalOS auf :8000;
+`deploy.sh prod` deployed nur noch den optionalen Node-Server und deaktiviert
+eine vorhandene alte `fuel-python.service`-Unit.
 
 **Environment Variables (local):**
 - `PORT` (default 9000)
@@ -487,7 +488,7 @@ See `~/.claude/agents/nutrition-agent.md` for full definition.
 - **Chunk-Splitting:** Build-Warning "Some chunks are larger than 500 kB" — dynamische Imports für FullCalendar, Recharts, etc.
 - **Offline write-through (cloud):** POST-Queue via IndexedDB (Vorbild: `~/core4-dev/public/offline-queue.js`) für Firebase-Mode
 - ~~**systemd-Unit umbenennen:** `fuel-v2.service` → `fuel-local.service`~~ — erledigt 2026-08-28: `fuel-v2.service` restlos entfernt, `fuel.service` ist alleiniger v3-Prod-Service.
-- **v3/v4-Konsolidierung:** beide Services laufen jetzt parallel in Prod (`fuel.service` :7000, `fuel-python.service` :4000) — noch kein gemeinsamer Datenlayer, Übergangs-Proxy in beide Richtungen (`/v4/*` bzw. `/v3/*`), siehe `ARCHITECTURE.md`. Klären: Zielbild ist v4 löst v3 vollständig ab, oder Dauerbetrieb nebeneinander?
+- **v3/v4-Konsolidierung:** Fuel-FastAPI ist lokal in VitalOS auf :8000 komponiert; der separate Prod-Dienst `fuel-python.service` ist deaktiviert. Firebase bleibt der Produkt-Einstieg.
 - **`v2/` archiviert:** liegt in `~/.archive/fuel-dev-v2-2026-06-17/` für ggf. Referenz
 - **CLI `fuel meal`:** schreibt via `/nutrition/log` (statt nur Supplements)
 - **Export-Endpoint:** `GET /nutrition/export?from=&to=` → CSV (lokal)

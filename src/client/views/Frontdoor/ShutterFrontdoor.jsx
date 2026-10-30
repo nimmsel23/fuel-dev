@@ -1,11 +1,10 @@
-import { scaleMeal } from "../../lib/mealDetails.js";
+import { catalogToMeal, scaleMeal } from "../../lib/mealDetails.js";
 import React from "react";
 import { Camera, Loader2, RotateCcw, Type, X, ImageUp } from "lucide-react";
-import { analyzeMealImage } from "../../lib/visionScan.js";
+import ScannerModal from "../Log/components/ScannerModal.jsx";
 
-// Frontdoor "Shutter": die App öffnet direkt in den Sucher. Auslösen ist
-// Loggen — das Bild geht durch dieselbe Vision-Pipeline wie der Scanner im
-// Log-Tab (lib/visionScan.js), das Ergebnis kommt als Blatt über dem Foto.
+// Frontdoor "Shutter": Foto im gemeinsamen Scanner analysieren,
+// anschließend das Ergebnis über dem Foto prüfen und ausdrücklich speichern.
 export default function ShutterFrontdoor({ fd, onOpenApp }) {
   const { logMeal, catalogItems } = fd;
   const videoRef = React.useRef(null);
@@ -19,13 +18,16 @@ export default function ShutterFrontdoor({ fd, onOpenApp }) {
   const [shot, setShot] = React.useState(null); // dataURL
   const [result, setResult] = React.useState(null);
   const [factor, setFactor] = React.useState(1);
+  const [scannerOpen, setScannerOpen] = React.useState(false);
+  const [scannerFile, setScannerFile] = React.useState(null);
+  React.useEffect(() => () => { if (shot?.startsWith("blob:")) URL.revokeObjectURL(shot); }, [shot]);
 
   // Sucher nur laufen lassen, solange er sichtbar ist — spart Akku, sobald
   // das Ergebnis-Blatt oben ist.
   React.useEffect(() => {
     let cancelled = false;
     async function start() {
-      if (phase !== "view") return;
+      if (phase !== "view" || scannerOpen) return;
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: { ideal: "environment" } },
@@ -46,23 +48,16 @@ export default function ShutterFrontdoor({ fd, onOpenApp }) {
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     };
-  }, [phase]);
+  }, [phase, scannerOpen]);
 
   const runAnalysis = async (file, previewUrl) => {
     lastFileRef.current = file;
     setShot(previewUrl);
     setPhase("analyzing");
     setError("");
-    try {
-      const res = await analyzeMealImage(file);
-      setResult(res);
-      setFactor(1);
-      setPhase("result");
-    } catch (err) {
-      setError(err.message || "Analyse fehlgeschlagen.");
-      setPhase("result");
-      setResult(null);
-    }
+    setResult(null);
+    setScannerFile(file);
+    setScannerOpen(true);
   };
 
   const capture = async () => {
@@ -96,24 +91,25 @@ export default function ShutterFrontdoor({ fd, onOpenApp }) {
   const catalogHit = React.useMemo(() => {
     if (!result?.description) return null;
     const q = result.description.toLowerCase();
-    return catalogItems.find((i) => i.name && (q.includes(i.name.toLowerCase()) || i.name.toLowerCase().includes(q))) || null;
+    return catalogItems.find((i) => i.name?.toLowerCase() === q) || null;
   }, [result, catalogItems]);
 
   const save = (source) => {
-    const base = source === "catalog" && catalogHit
-      ? { ...catalogHit, id: undefined, grams: catalogHit.yield_g || null, description: catalogHit.name, kcal: catalogHit.kcal, protein: catalogHit.protein, carbs: catalogHit.carbs, fat: catalogHit.fat, catalog_id: catalogHit.id }
-      : result;
+    let base;
+    try { base = source === "catalog" && catalogHit ? catalogToMeal(catalogHit) : result; }
+    catch (err) { setError(err.message); return; }
     logMeal.mutate({
       ...scaleMeal(base, factor),
       kcal: (base.kcal || 0) * factor,
       protein: (base.protein || 0) * factor,
       carbs: (base.carbs || 0) * factor,
       fat: (base.fat || 0) * factor,
-      notes: source === "catalog" ? "Foto-Log, Makros aus Katalog" : "Foto-Log (Gemini Vision)",
+      notes: base.source === "catalog" ? "Makros aus Katalog" : base.source === "openfoodfacts" ? "Barcode-Log (Open Food Facts)" : "Foto-Log (Gemini Vision)",
     }, { onSuccess: reset });
   };
 
   return (
+    <>
     <div className="relative mx-auto w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-black" style={{ aspectRatio: "9 / 16" }}>
       {/* Sucher bzw. eingefrorenes Foto */}
       {phase === "view" ? (
@@ -135,6 +131,7 @@ export default function ShutterFrontdoor({ fd, onOpenApp }) {
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
           {phase === "view" ? "Teller anvisieren" : phase === "analyzing" ? "Analyse" : "Foto aufgenommen"}
         </span>
+        {phase === "view" && <button type="button" onClick={() => { setScannerFile(null); setScannerOpen(true); }} className="rounded-full border border-white/20 bg-black/70 px-3 py-2 text-xs text-white">Katalog / Barcode / wartende Fotos</button>}
         {phase !== "view" && (
           <button onClick={reset} aria-label="Verwerfen" className="grid h-9 w-9 place-items-center rounded-full border border-white/20 bg-black/50 text-white backdrop-blur">
             <X className="h-4 w-4" />
@@ -205,7 +202,7 @@ export default function ShutterFrontdoor({ fd, onOpenApp }) {
                 </button>
               ) : (
                 <p className="mt-2 text-[11px] uppercase tracking-[0.14em] text-slate-500">
-                  Gemini Vision{result.grams ? ` · ca. ${Math.round(result.grams)} g` : ""}
+                  {result.source === "catalog" ? "Katalog" : result.source === "openfoodfacts" ? "Open Food Facts" : "Gemini Vision"}{result.grams ? ` · ${Math.round(result.grams)} g` : ""}
                 </p>
               )}
 
@@ -248,5 +245,9 @@ export default function ShutterFrontdoor({ fd, onOpenApp }) {
 
       <input type="file" accept="image/*" ref={fileRef} onChange={onPick} className="hidden" />
     </div>
+    {scannerOpen && <ScannerModal key={fd.date} date={fd.date} initialFile={scannerFile}
+      onClose={() => { setScannerOpen(false); setPhase(p => p === "analyzing" ? "view" : p); }}
+      onResult={res => { setResult(res); setFactor(1); setPhase("result"); setError(""); }} />}
+    </>
   );
 }

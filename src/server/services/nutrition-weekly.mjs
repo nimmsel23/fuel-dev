@@ -138,6 +138,10 @@ function addSupplementMicros(dayTotals, date, supplementCatalogMap, supplementsL
     }
     contributions.push({
       kind: "supplement",
+      id: intake.id || null,
+      date,
+      supplement_id: intake.supplement_id,
+      time: intake.time || null,
       name: entry.name || intake.supplement_id,
       dose: intake.dose,
       unit: entry.unit || "",
@@ -164,7 +168,7 @@ export async function assembleWeek(year, week, ctx) {
   const cacheStore = loadWeekCacheStore(reqPaths.nutrition);
   const cacheKey = weekCacheKey(year, week);
   const cached = cacheStore[cacheKey];
-  if (cached && cached.complete && cached.data?.omega3_version === 1) {
+  if (cached && cached.complete && cached.data?.omega3_version === 1 && cached.data?.trace_version === 1) {
     return cached.data;
   }
 
@@ -269,7 +273,24 @@ export async function assembleWeek(year, week, ctx) {
     // bereits aufgelöst (computeMealMicroTotals mutiert in-place) oder
     // stammt aus dem Cache (beim ersten Auflösen persistiert).
     const mealContributions = (log.meals || [])
-      .map((m) => ({ kind: "meal", name: m.description, kcal: m.kcal || 0, micros: m.micros, micros_meta: m.micros_meta || null }));
+      .map((m) => ({
+        kind: "meal",
+        id: m.id || null,
+        date,
+        name: m.description,
+        type: m.type || null,
+        time: m.time || m.logged_at || null,
+        grams: m.grams ?? null,
+        kcal: m.kcal || 0,
+        protein: m.protein || 0,
+        carbs: m.carbs || 0,
+        fat: m.fat || 0,
+        catalog_item_id: m.catalog_item_id || m.catalog_id || null,
+        source: m.source || null,
+        components: Array.isArray(m.components) ? m.components : [],
+        micros: m.micros,
+        micros_meta: m.micros_meta || null,
+      }));
     mealBreakdown[date] = [...mealContributions, ...suppContributions];
   }
 
@@ -289,6 +310,7 @@ export async function assembleWeek(year, week, ctx) {
   Object.assign(status, omega3Coverage(mealBreakdown, status));
   const result = {
     omega3_version: 1,
+    trace_version: 1,
     dates,
     week_totals: weekTotals,
     rda_comparison: status,

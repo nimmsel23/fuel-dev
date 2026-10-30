@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { de } from "date-fns/locale";
 import { Pill, Plus } from "lucide-react";
@@ -15,14 +15,25 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import ReminderSettings from "./Supplements/ReminderSettings.jsx";
 const TABS = [["routine", "Tagesroutine"], ["week", "Wochentracker"], ["log", "Einnahmen"], ["catalog", "Mein Katalog"], ["insights", "Auswertung"], ...(import.meta.env.VITE_SOLO === "supplements" ? [["reminders", "Erinnerungen"]] : [])];
+const MICROS_DRILLDOWN_KEY = "fuel:micros-entry-focus";
 
 export default function SupplementsView({ date, sup, catalog = [], suppLog, onDateChange }) {
   const [tab, setTab] = useState("routine");
   const [adding, setAdding] = useState(false);
+  const [focusIntakeId, setFocusIntakeId] = useState(null);
   const qc = useQueryClient();
   const stats = sup?.stats || [];
   const intakes = suppLog?.intakes || [];
   const progress = routineProgress(catalog, intakes, date);
+
+  useEffect(() => {
+    let target;
+    try { target = JSON.parse(sessionStorage.getItem(MICROS_DRILLDOWN_KEY) || "null"); } catch { return; }
+    if (target?.kind !== "supplement" || target.date !== date || !target.entryId) return;
+    sessionStorage.removeItem(MICROS_DRILLDOWN_KEY);
+    setFocusIntakeId(target.entryId);
+    setTab("log");
+  }, [date]);
 
   return (
     <section className="space-y-5">
@@ -47,7 +58,7 @@ export default function SupplementsView({ date, sup, catalog = [], suppLog, onDa
       {!catalog.length && <div className="rounded-3xl border border-dashed border-lime-300/30 p-6 text-center"><Pill className="mx-auto mb-3 h-8 w-8 text-lime-300" /><h3 className="text-lg font-semibold">Dein persönlicher Supplement-Plan</h3><p className="mx-auto my-3 max-w-md text-sm text-slate-400">Lege dein erstes Produkt mit deiner eigenen Dosis und deinem Rhythmus an. Danach kannst du Einnahmen direkt abhaken.</p><button onClick={() => setAdding(true)} className="rounded-full bg-lime-300 px-4 py-2 text-sm font-semibold text-slate-950">Erstes Supplement anlegen</button></div>}
       {tab === "routine" && <div className="space-y-5"><DailyChecklist date={date} catalog={catalog} intakes={intakes} /><QuickLog date={date} catalog={catalog} stats={stats} /><WeeklyTracker key={date} date={date} catalog={catalog} onDateChange={onDateChange} /></div>}
       {tab === "week" && <WeeklyTracker key={date} date={date} catalog={catalog} onDateChange={onDateChange} />}
-      {tab === "log" && <div className="grid items-start gap-5 lg:grid-cols-2"><SupplementLogger key={date} date={date} catalog={catalog} intakes={intakes} /><TodayStack date={date} intakes={intakes} /></div>}
+      {tab === "log" && <div className="grid items-start gap-5 lg:grid-cols-2"><SupplementLogger key={date} date={date} catalog={catalog} intakes={intakes} /><TodayStack date={date} intakes={intakes} focusIntakeId={focusIntakeId} /></div>}
       {tab === "catalog" && <CatalogCard catalog={catalog} />}
       {tab === "insights" && <StatsCard stats={stats} />}
       {tab === "reminders" && <ReminderSettings />}

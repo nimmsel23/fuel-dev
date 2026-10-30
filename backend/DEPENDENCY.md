@@ -6,10 +6,11 @@ Dieses Dokument listet alle relevanten technologischen Abhängigkeiten des Fuel 
 
 | Technologie | Version | Zweck |
 |-------------|---------|-------|
-| **Python** | 3.10+ | Die primäre Programmiersprache des Backends. |
-| **Poetry** | 1.x+ | Paketmanager für Python. Sorgt für exakt reproduzierbare Umgebungen (`poetry.lock`) und verwaltet die `pyproject.toml`. |
-| **PostgreSQL** | 15+ | Die relationale Datenbank für die Produktion. Bietet extrem verlässliche Datenspeicherung und exzellenten JSON-Support (für die Zutaten-Listen). |
-| **Docker** | - | Wird genutzt, um die PostgreSQL-Datenbank (`docker-compose.yml`) lokal isoliert bereitzustellen. |
+| **Python** | 3.14+ | Die vom Projektmanifest geforderte Laufzeitversion. |
+| **Poetry** | 2.x+ | Installiert die in `pyproject.toml` und `poetry.lock` festgelegten Abhängigkeiten. |
+| **SQLite** | - | Aktuell verwendete Datenbank für lokale Entwicklung und den produktiven Desktop-Dienst. |
+| **PostgreSQL** | - | Über `DATABASE_URL` unterstütztes alternatives Datenbankziel; kein aktiver Produktionsdienst. |
+| **Docker** | - | Optional für die lokale PostgreSQL-Entwicklung über `docker-compose.yml`. |
 
 ## Python Core-Libraries (Production)
 

@@ -94,25 +94,38 @@ function LoadingState() {
   return <div className="space-y-2" aria-label="Mikronährstoffdaten werden geladen"><div className="h-10 animate-pulse rounded-xl bg-white/[0.04]" />{NUTRIENTS.slice(0, 8).map((item) => <div key={item.key} className="h-10 animate-pulse rounded-lg bg-white/[0.025]" />)}</div>;
 }
 
-export default function MicrosView() {
+const DRILLDOWN_KEY = "fuel:micros-entry-focus";
+
+export default function MicrosView({ setActiveDate, setActiveTab }) {
   const [estimatorOpen, setEstimatorOpen] = useState(false);
   const [coachOpen, setCoachOpen] = useState(false);
   const [detail, setDetail] = useState(null);
   const weeks = lastNWeeks(8);
   const results = useQueries({
     queries: weeks.map(({ year, week }) => ({
-      queryKey: ["nutrition-weekly", year, week],
+      queryKey: ["nutrition-weekly", "trace-v1", year, week],
       queryFn: () => fetchJson(`/nutrition/weekly/${year}/${week}`).then((data) => {
         if (data.ok) writeCache(cacheKey(year, week), data);
         return data.ok ? data : null;
       }),
-      placeholderData: () => readCache(cacheKey(year, week), CACHE_MAX_AGE_MS),
+      placeholderData: () => {
+        const cached = readCache(cacheKey(year, week), CACHE_MAX_AGE_MS);
+        return cached?.trace_version === 1 ? cached : undefined;
+      },
       staleTime: 5 * 60 * 1000,
     })),
   });
   const missingMeals = Array.from(new Set(results.flatMap((result) => result.data?.missing_meals || []).filter(Boolean)));
   const loading = results.some((result) => result.isPending);
   const failed = results.some((result) => result.isError);
+  const openContribution = (entry, date) => {
+    if (!entry?.id || !setActiveDate || !setActiveTab) return;
+    try {
+      sessionStorage.setItem(DRILLDOWN_KEY, JSON.stringify({ date, kind: entry.kind, entryId: entry.id }));
+    } catch { /* Navigation still works if session storage is unavailable. */ }
+    setActiveDate(date);
+    setActiveTab(entry.kind === "supplement" ? "supplements" : "log");
+  };
 
   return (
     <main className="mx-auto max-w-[1440px] space-y-5 p-3 pb-10 sm:space-y-6 sm:p-6">
@@ -135,7 +148,7 @@ export default function MicrosView() {
       </section>
       {coachOpen && <MicrosAiCoach weeks={weeks} results={results} onClose={() => setCoachOpen(false)} />}
       {estimatorOpen && <MicrosEstimator missingMeals={missingMeals} onClose={() => setEstimatorOpen(false)} />}
-      {detail && <MicrosDetailModal nutrient={detail.nutrient} week={detail.week} weekData={detail.weekData} onClose={() => setDetail(null)} />}
+      {detail && <MicrosDetailModal nutrient={detail.nutrient} week={detail.week} weekData={detail.weekData} onOpenEntry={setActiveTab ? openContribution : undefined} onClose={() => setDetail(null)} />}
     </main>
   );
 }

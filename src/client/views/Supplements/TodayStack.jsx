@@ -1,10 +1,16 @@
 import { Pill } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { Empty } from "../../components/ui.jsx";
 import { formatMetric } from "../../../shared/utils/utils.js";
 import { useSupplementMutations } from "./useSupplementMutations.js";
 
-export default function TodayStack({ date, intakes }) {
+export default function TodayStack({ date, intakes, focusIntakeId }) {
   const { deleteIntake } = useSupplementMutations(date);
+  const focusedIntake = useRef(null);
+
+  useEffect(() => {
+    focusedIntake.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [focusIntakeId, intakes]);
 
   return (
     <section className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur">
@@ -14,7 +20,7 @@ export default function TodayStack({ date, intakes }) {
       </div>
       <div className="grid gap-3">
         {intakes.length ? intakes.slice().reverse().map((intake) => (
-          <div key={intake.id} className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
+          <div key={intake.id} ref={intake.id === focusIntakeId ? focusedIntake : null} aria-current={intake.id === focusIntakeId ? "true" : undefined} className={`rounded-2xl border bg-slate-950/60 p-4 transition ${intake.id === focusIntakeId ? "border-lime-300/60 ring-2 ring-lime-300/30" : "border-white/10"}`}>
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="font-semibold text-slate-100">{intake.name}</div>

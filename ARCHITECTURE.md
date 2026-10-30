@@ -279,15 +279,14 @@ Wichtig:
 
 ### Open Direction
 
-Stand 2026-08-31 ist Prod noch v3-fronted (`fuel.service` auf `:7000`) mit
-parallelem v4-Service auf `:4000`.
+Der Stand vom 2026-08-31 wurde am 2026-10-29 abgelöst: Fuel-FastAPI-Router
+laufen in-process im VitalOS-Workspace auf `:8000` unter `/api/fuel/*`.
+`fuel-python.service` auf `:4000` ist deaktiviert; Firebase bleibt der
+Produkt-Einstieg.
 
 Offene Architekturfrage:
 
-- ob Desktop-Prod mittelfristig nicht direkt v4 als eigentlichen Prod-Entry
-  nehmen sollte
-- statt v3 dauerhaft als Frontdoor vor einem ebenfalls laufenden v4-Service zu
-  behalten
+- ob der optionale lokale Node-Prod-Server (`:7000`) weiterhin gebraucht wird
 
 Hintergrund:
 
@@ -364,7 +363,7 @@ FastAPI kann das React-Frontend direkt ausliefern:
 - Build in `frontend/` erzeugt `frontend/dist`
 - FastAPI servt statische Assets
 - SPA-Routen fallen auf `index.html` zurück
-- lokal läuft v4 auf Port `4000`
+- Standalone-Dev kann v4 auf Port `4000` starten; der integrierte API-Pfad ist VitalOS `:8000/api/fuel/*`
 
 Trotzdem ist in der aktuellen Desktop-Topologie der lokale Haupteinstieg noch
 nicht ausschließlich FastAPI:

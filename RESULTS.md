@@ -399,3 +399,42 @@ Gemeinsame mini-app-shell erweitert bzw. aktualisiert: versionsunabhängiger öf
 
 - Öffentliche Repository-URLs werden aus Protokoll, Host und Pfad aufgebaut; Zugangsdaten, Query und Fragment werden ausgeschlossen. Fix aus der gemeinsamen mini-app-shell-Quelle nach Fuel portiert.
 - Gezielte Tests mit temporären Git-Repositories und künstlichem Token in beiden Generatoren erfolgreich.
+
+# Python Backend Poetry Standard (2026-10-29)
+
+- Python-Abhängigkeiten laufen jetzt einheitlich über `backend/pyproject.toml` + `backend/poetry.lock`; die parallele `requirements.txt`-Liste entfernt. README und Abhängigkeitsübersicht an Python 3.14+, Poetry 2+, SQLite als tatsächlichen Desktop-Produktionsspeicher und den optionalen PostgreSQL-Pfad angepasst.
+- `backend/start-server.sh`, `fuel-devctl` und der `/opt/fuel-python`-Deploy installieren/verwenden dieselbe Poetry-Projektumgebung in `backend/.venv`; Migration und Uvicorn laufen mit dem gelockten Environment. Fuel API bleibt auf :4000; kein VitalOS-Portwechsel.
+- FastAPI-Startup auf `lifespan` umgestellt; Backfill-Ausgabe nutzt den Uvicorn-Logger.
+- `httpx` ist als direkte API-Abhängigkeit eingetragen; die bereits gelockte Version bleibt bestehen. PyPI war nicht erreichbar, daher den Hash mit Poetrys Locker aktualisiert statt die Paketauflösung zu ändern.
+- Geprüft: `poetry -P backend check --lock` meldet `All set!`; kein Testlauf, Deploy oder Dienst-Restart ausgeführt.
+
+## Fuel FastAPI in VitalOS; Port 4000 stillgelegt (2026-10-29)
+
+- Auf Nutzerfreigabe `fuel-python.service` gestoppt und deaktiviert. Port :4000 ist geschlossen; Firebase bleibt der Produkt-Einstieg. Die Router laufen lokal im VitalOS-Backend auf :8000 unter `/api/fuel/*`; Coach-Forwarding ist live.
+- `deploy.sh prod`, `fuel-prodctl` und `fuelctl` installieren/aktivieren den separaten Python-Dienst nicht mehr und prüfen stattdessen VitalOS `/api/fuel/health`. Eine alte Unit wird bei einem lokalen Prod-Deploy deaktiviert.
+- Boot-Report-Registry von `VitalOS-Buchhaltung-API` auf `VitalOS-API` aktualisiert, damit :8000 als gemeinsame API erscheint.
+- Live geprüft: Fuel und VitalOS Health auf :8000 sowie Coach `/api/fuel/health` liefern 200; :4000 ist geschlossen und `fuel-python.service` ist `inactive`/`disabled`. SQLite-Integrität und Alembic-Revision geprüft. Keine Testsuite ausgeführt.
+
+## Fuel API in VitalOS Workspace eingebunden (2026-10-29)
+
+- Fuel-Router sind in `backend/api/integration.py` aus dem Fuel-Source-Repo gruppiert und können sowohl von der Fuel-Standalone-App als auch vom Workspace-Server verwendet werden. Fuel-Migration/Backfill teilen denselben Initialisierungspfad.
+- Die Workspace-Komposition mountet nur API-Router unter `/api/fuel/*`; der Fuel-Static-/SPA-Catch-all bleibt außerhalb. Fuel nutzt `FUEL_DATABASE_URL`, damit seine vorhandene SQLite-DB nicht mit VitalOS-Postgres kollidiert.
+- `poetry -P backend check --lock` und `git diff --check` geprüft. Keine automatisierten Tests ausgeführt.
+
+- Host-Aktivierung: Fuel-Backfill ignoriert jetzt JSON-Dateien, die keine Tageslogs sind, etwa `catalog.json`, und überspringt nicht lesbare/verschwundene Dateien. Der Docker-Daten-Mount erhält die absolute Symlink-Auflösung des Fuel-UID-Datenbaums; PostgreSQL-URL im VitalOS-Container erzwingt den installierten `psycopg2`-Treiber.
+- Live geprüft vor Stilllegung: VitalOS `/health`, Fuel `/api/fuel/health`, Coach `/api/fuel/health` sowie Standalone-Fuel-Oberfläche und Health auf :4000 antworteten mit 200. Nutzer hat danach bestätigt, dass alle Fuel-Nutzer Firebase verwenden und die lokale API ungenutzt ist; Details siehe Abschnitt „Fuel FastAPI in VitalOS; Port 4000 stillgelegt“.
+
+
+## 2026-10-30 — Fotoscanner für Jakob
+
+- Globales `~/TODO.md`, Repo-TODO und Vertex-Roadmap mit dem tatsächlichen Code abgeglichen: Barcode-Decoder/Nummerneingabe/OFF/localStorage-Cache, Supplement-Vertex und entfallene vorzeitige Micros-Schreibvorgänge waren bereits vorhanden.
+- Scanner bietet vor dem KI-Aufruf eine ausdrückliche Katalogauswahl mit vollständigen Makros. Katalogportion, Nährstoffherkunft und Katalog-ID bleiben erhalten; es wird keine Meal-Ereignis-ID aus dem Katalog kopiert. Automatische Namenserkennung aus beliebigen Fotos erfordert weiterhin die Bilderkennung.
+- Cloud-Fotoschema liefert Hauptzutaten mit Mengen und Makros. Text und Foto teilen `mealComponents.js`; Portionskorrekturen skalieren Zutatenmengen und Zutatenmakros neben den Meal-Makros/Micros. Vorhandene normalisierte Komponenten und per-100-g-Referenzen bleiben unterstützt.
+- Bildqualität nach Typ: Essen 1280 px/0,82, Etikett/Beleg 2048 px/0,92. Barcode-Decoder erhält weiter das unverkleinerte Bild.
+- Foto-Warteliste in IndexedDB mit Konto, ursprünglichem Log-Datum und Scan-Typ: offline automatisch sichern, nach Online-Fehler auf Wunsch sichern; bewusste Wiederaufnahme und Entfernen mit sichtbarem Status. Maximal zwölf Bilder bis je 8 MB pro Konto/Gerät. Kein anonymer Cloud-Speicherbereich; Konto-Wechsel schließt den Dialog und verhindert späte Ergebnisübernahme. Andere Tage werden angezeigt und verlangen die passende Log-Datumsauswahl. Erfolgreiche Übernahme entfernt das Foto aus der Warteliste; der anschließende Formularentwurf bleibt wie bisher flüchtig bis zum Speichern.
+- Shutter und Log-Scanner teilen denselben Dialog, einschließlich Katalog/Barcode/Warteliste. Die Kamera pausiert während des Dialogs; Vorschau-Object-URLs werden freigegeben. Die Analyse selbst schreibt weder Meal-Logs noch Micros.
+- App-Check-Site-Key in Check-/Preview-/Live-CI verdrahtet (`vars.VITE_RECAPTCHA_SITE_KEY`, alternativ gleichnamiges Secret). Lokaler Key vorhanden; Projektregistrierung, CI-Variablenwert, Enforcement und echte Tokens bleiben offen. Rein lesender Prüfversuch ohne nutzbaren gcloud-Zugriffstoken; keine Firebase-Projekteinstellungen verändert.
+- Validierung: 121 JavaScript-Tests erfolgreich; neue Pipeline-Tests mit künstlicher SDK/Canvas-Grenze prüfen Zutaten, Bildqualität, Offline-Verhalten und fehlende vorzeitige Schreibvorgänge. Queue-Tests prüfen Konto-Wechsel, Datums-/Datei-Erhalt, Größen-/Anzahlgrenzen und Speicherfehler. Anschließende gezielte Tests nach Katalog-ID-Ergänzung ebenfalls grün.
+- Bestehende Release-Test-Fixture von `src/views/Test.jsx` nach `src/views/Food.jsx` umbenannt: Der bestehende Release-Filter schließt Test-Dateien aus, dadurch war die erwartete Release-Metadatenantwort zuvor null. Produktionslogik unverändert. Git-Unterprozesse der Suite benötigten Ausführung außerhalb der Sandbox.
+- Cloud- und Local-Vite-Build erfolgreich (bekannte Chunk-Größenwarnung). Isolierter Thorium-Test mit echten React-/Radix-Komponenten und IndexedDB, künstlichen Konten/KI-Antworten: Katalog überspringt KI, Offline-Foto übersteht Reload, Konto-/Datumswechsel isoliert, Wiederaufnahme normalisiert Zutaten; 320×568 scrollbar ohne horizontalen Überlauf, Escape schließt den Dialog. Screenshot: `/tmp/fuel-scanner-review/mobile.png`.
+- Kein echter Kamera-/Firebase-/App-Check-Token-Test, kein Push/Release/Deploy. Geräteabnahme nach Freigabe weiter offen.

@@ -1,6 +1,6 @@
 # Roadmap: Vertex AI for Firebase Integration
 
-Stand 2026-09-23: Die Browser-Integration ist implementiert. Die verbleibenden Punkte betreffen Betriebssicherung und Offline-Verhalten. Update 2026-10-16: Der Scanner hat einen eigenen Barcode-Modus mit nativer EAN/UPC-Fotodecodierung, Nummerneingabe als Browser-Fallback, Open-Food-Facts-Produktabfrage und 30-Tage-Cache. Essens-/Etikettfotos bleiben ein separater KI-Ablauf.
+Stand 2026-10-30 (lokaler Quellstand, noch kein Release): Die Browser-Integration ist implementiert. Die verbleibenden Punkte betreffen Betriebssicherung und Offline-Verhalten. Update 2026-10-16: Der Scanner hat einen eigenen Barcode-Modus mit nativer EAN/UPC-Fotodecodierung, Nummerneingabe als Browser-Fallback, Open-Food-Facts-Produktabfrage und 30-Tage-Cache. Essens-/Etikettfotos bleiben ein separater KI-Ablauf.
 
 ## 📌 Aktueller Stand
 - Im **lokalen Modus** (`VITE_APP_MODE=coach`) läuft ein Node-Server (`server.mjs`), der per Fastify die Route `POST /nutrition/vision` bereitstellt.
@@ -8,7 +8,7 @@ Stand 2026-09-23: Die Browser-Integration ist implementiert. Die verbleibenden P
 - Im **Cloud Modus** (`VITE_APP_MODE=client` via Firebase Hosting) verwenden Scanner, AI-Logger und Supplement-Schätzung `firebase/vertexai` direkt im Browser. Ein `GEMINI_API_KEY` wird dafür nicht ins Frontend gepackt.
 
 ## 🎯 Das Ziel
-Wir wollen den `ScannerModal.jsx` (und später auch `GeminiCatalogModal.jsx`) so umbauen, dass er im Cloud-Modus **direkt aus dem Browser** mit Gemini kommunizieren kann, ohne dass ein eigener Server betrieben werden muss.
+Wir wollen den `ScannerModal.jsx` (und später auch `GeminiCatalogModal.jsx`) so umbauen, dass er im Cloud-Modus **direkt aus dem Browser** mit Gemini kommunizieren kann, ohne dass ein eigener Server betrieben werden muss. Scanner und Shutter teilen jetzt `ScannerModal.jsx` und `lib/visionScan.js`.
 Dies wird durch das offizielle **Vertex AI for Firebase Web SDK** (`@firebase/vertexai`) realisiert, welches den API-Schlüssel verbirgt und durch **Firebase App Check** abgesichert ist.
 
 ## 🗺️ Meilensteine & Schritte
@@ -41,12 +41,19 @@ Dies wird durch das offizielle **Vertex AI for Firebase Web SDK** (`@firebase/ve
 ### Phase 5: Reliability & Robustness (Verlässlichkeit)
 - [x] **Structured Outputs:** Scanner, AI-Logger und Supplement-Schätzung nutzen `responseMimeType: "application/json"` und `responseSchema` mit `gemini-2.5-flash`. JSON-Parsing und fachliche Prüfung der Antwort bleiben erforderlich.
 - [x] **Fehlerbehandlung & Retry:** `withAiRetry` wiederholt transiente Fehler; Scanner, AI-Logger und Supplement-Modal zeigen Fehler mit einer Wiederholen-Aktion.
-- [x] **Caching von Barcodes (2026-10-16, `lib/barcode.js`):** Ein lokales Cache-System (z.B. IndexedDB) einführen, sodass ein bereits gescannter Barcode sofort aus dem Speicher geladen wird, ohne dass Vertex AI noch einmal kontaktiert werden muss (spart Zeit und API-Kosten).
-- [ ] **Offline-Warteschlange für KI-Anfragen:** `public/offline-queue.js` puffert lokale HTTP-POSTs, aber keine direkten Vertex-AI-Aufrufe im Cloud-Client. Für Scans/Prompts braucht es eine gesonderte, nutzergebundene Queue mit sichtbarem Status.
+- [x] **Caching von Barcodes (2026-10-16, `lib/barcode.js`):** Öffentliche OFF-Produktdaten liegen 30 Tage in localStorage; bekannte Produkte brauchen weder Gemini noch Netzwerk. Native Barcode-Fotodecodierung ist browserabhängig, Nummerneingabe bleibt der Fallback.
+- [x] **Offline-Foto-Warteschlange (2026-10-30):** `scanQueue.js` speichert Fotos mit Konto, ursprünglichem Log-Tag und Scan-Typ in IndexedDB. Im Scanner werden Status, Datum, Analysieren und Entfernen angezeigt. Offline-Fotos landen dort automatisch; nach Online-Analysefehlern kann das Foto ausdrücklich gesichert werden. Fortsetzen erfolgt bewusst bei Verbindung und passendem ausgewähltem Log-Tag, ohne automatisches Meal-Logging. Fotos anderer Tage werden mit Hinweis angezeigt. Maximal 12 Fotos mit je 8 MB pro Konto/Gerät; Speicherfehler bleiben sichtbar. Erfolgreich übernommene Ergebnisse verlassen die Warteliste und bleiben zunächst ein editierbarer Entwurf. Normale Formularentwürfe sind nicht dauerhaft gesichert.
+- [x] **Bekanntes Essen ohne KI:** Explizite Katalogsuche im Scanner vor dem Scan; kein angeblicher automatischer Namensabgleich vor Bilderkennung.
+- [x] **Zutaten/Portionen:** Foto-Schema fordert Hauptzutaten mit Mengen und Makros; gemeinsame Normalisierung (`mealComponents.js`) mit dem Text-Logger, Zutatenmenge und Zutatenmakros skalieren mit der Portion.
+- [x] **Bildqualität:** Essen 1280 px/0,82; Etikett/Beleg 2048 px/0,92. Auswahl im gemeinsamen Scanner-Dialog, Barcode-Decodierung erhält das Originalbild.
 
 ### Phase 6: UX Polish (Benutzererlebnis)
 - [ ] **Streaming Responses prüfen:** Für strukturierte JSON-Nährwerte erst einen sinnvollen Vorschau-Flow definieren; rohe JSON-Fragmente sollten nicht als Nährwerte angezeigt werden.
 - [ ] **Erweitertes Kamera-Feedback:** Dem Scanner visuelle Indikatoren (z.B. einen Rahmen, der Barcodes oder Essen fokussiert) hinzufügen.
 
 ## 🚀 Fazit
-Die Cloud-PWA benötigt für neue KI-Schätzungen eine Verbindung zu Firebase AI Logic. Offline-Nutzung ist erst mit einem gesonderten Queue- und Wiederaufnahme-Flow für diese Anfragen möglich.
+Die Cloud-PWA benötigt für neue KI-Schätzungen eine Verbindung zu Firebase AI Logic. Fotos können offline auf diesem Gerät gesichert und später im selben Konto und am ursprünglichen Log-Tag bewusst analysiert werden. Es werden keine Mahlzeiten oder Micros vor der Bestätigung gespeichert.
+
+App Check: Der lokale Build hat einen Site-Key. Die drei CI-Workflows reichen nun die GitHub-Variable (alternativ Secret) `VITE_RECAPTCHA_SITE_KEY` weiter. Ob diese im Repo gesetzt und für die jeweiligen Hosting-Domains registriert ist, sowie Projekt-Enforcement und echte Tokens bleiben zu prüfen. Der Versuch einer rein lesenden Projektprüfung hatte hier keinen nutzbaren gcloud-Zugriffstoken. Keine App-Check-Projekteinstellungen verändert.
+
+Verifikation und Grenzen siehe `RESULTS.md`, Eintrag 2026-10-30. Kein Push/Deploy ohne ausdrückliche Freigabe.

@@ -1,5 +1,10 @@
 Agents dürfen sich nicht auf den lokalen dev server versteifen; prod = firebase!
 
+## Immediate — Python Backend Standard (2026-10-29)
+
+- [x] Fuel Python/FastAPI-Backend auf den projektspezifischen Poetry-Standard umgestellt: Dev-Start, Anleitung und Standalone-Deploy nutzen `pyproject.toml` + `poetry.lock`. Siehe `RESULTS.md` (Python Backend Poetry Standard, 2026-10-29).
+- [x] Fuel-Router aggregiert und in `~/workspace/VitalOS` unter `/api/fuel/*` im zentralen `:8000`-Backend eingebunden. Das Coach-Gateway zeigt auf diese API; Fuel-Source und SQLite-Daten bleiben Fuel-owned. `fuel-python.service` auf :4000 ist seit 2026-10-29 gestoppt und deaktiviert; Firebase bleibt der Produkt-Einstieg. Siehe `RESULTS.md` (VitalOS unified API, 2026-10-29).
+
 ## v3 → v4 Migration (2026-08-07, laufend)
 
 **Naming:** `src/` (Node/Fastify + altes React-Frontend) = **v3**, aktuell live
@@ -18,11 +23,11 @@ Wegwerf-Prototyp — kein Rückbau von Postgres/SQLAlchemy, kein reiner Proxy-La
   bereits Frontend + eigene API tragen und im Zweifelsfall Legacy an v3 zurückreichen.
 - Reine Erreichbarkeits-Routen, kein gemeinsamer Datenlayer.
 
-**Ziel:** v4 übernimmt schrittweise Prod-Verantwortung von v3. Der Desktop-
-Einstieg läuft weiter über `fuel.service` (v3). `deploy.sh` liefert v4 bereits
-unter `/opt/fuel-python` aus und definiert `fuel-python.service` auf Port 4000;
-der v3-Einstieg prüft `/v4/health`. Das ist ein paralleler Backend-Betrieb,
-noch keine Umstellung des Produkt-Einstiegs auf v4.
+**Aktueller Stand (2026-10-29):** Die Fuel-FastAPI-Router sind in-process in
+`~/workspace/VitalOS` unter `/api/fuel/*` eingebunden. Coach nutzt diese API auf
+`:8000`; SQLite und Fuel-Quellcode bleiben Fuel-owned. `fuel-python.service`
+(:4000) ist gestoppt und deaktiviert. Firebase bleibt der Produkt-Einstieg.
+Der ältere Ablauf darunter beschreibt den vorherigen v3/v4-Übergang.
 
 **Offen:**
 - v4 hat einen eigenen Backend-Service, aber noch keinen eigenen öffentlichen
@@ -114,3 +119,13 @@ werden aber im Cloud-Frontend nie geladen.
 
 - [x] Omega-3-Erkennung vertiefen: ALA/EPA/DHA/DPA, EPA+DHA separat, Einheiten, Etikettbezug und unbekannte Werte korrekt behandeln; USDA-EPA korrigieren.
 - [ ] Omega-3 weiter vertiefen: Fettsäurebelege pro Quelle/Etikett, Plausibilitätsprüfung gegen Gesamtfett und gezielte Korrektur belegter Fehlprofile (siehe OMEGA3.md).
+
+## Fotoscanner für Jakob (2026-10-30)
+
+- [x] Globalen TODO-Stand mit Code/Roadmap abgleichen und erledigte Barcode-/Micros-Punkte korrigieren.
+- [x] Katalogauswahl vor KI-Aufruf, Zutatenvertrag mit Text-Logger teilen, Zutaten beim Portionswechsel mitskalieren.
+- [x] Eigene Bildqualität für Essen und Etiketten/Belege; Scanner und Shutter teilen den Dialog.
+- [x] Nutzer-/datumsgebundene Offline-Foto-Warteliste mit IndexedDB, sichtbarem Status und bewusstem Fortsetzen.
+- [x] App-Check-Site-Key in Check-/Preview-/Live-Build-Umgebung durchreichen.
+- [ ] Firebase App Check live prüfen: Registrierung, CI-Variable/Secret `VITE_RECAPTCHA_SITE_KEY`, Enforcement und gültige Tokens. Lokaler Site-Key vorhanden; Projektzugriff per gcloud hier nicht nutzbar.
+- [ ] Nach ausdrücklicher Push-/Release-Freigabe auf Jakobs Gerät abnehmen. Lokale Tests ersetzen keinen echten Firebase-/Kamera-Test.

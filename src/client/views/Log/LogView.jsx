@@ -26,6 +26,7 @@ const LOG_VIEW_MODES = [
   { value: "dashboard", label: "Dashboard", icon: LayoutGrid },
   { value: "timeline", label: "Timeline", icon: GitCommitVertical },
 ];
+const MICROS_DRILLDOWN_KEY = "fuel:micros-entry-focus";
 
 // Vergleicht Journal-Freitext gegen die bereits geloggten Mahlzeiten des Tages
 // und liefert nur eindeutig erwähnte, aber nicht geloggte Ernährungs-Infos zurück.
@@ -251,6 +252,17 @@ export default function LogView({ date, nutrition, notes, mode }) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  useEffect(() => {
+    if (!nutrition) return;
+    let target;
+    try { target = JSON.parse(sessionStorage.getItem(MICROS_DRILLDOWN_KEY) || "null"); } catch { return; }
+    if (target?.kind !== "meal" || target.date !== date || !target.entryId) return;
+    if (qc.getQueryState(["nutrition", date])?.fetchStatus === "fetching") return;
+    sessionStorage.removeItem(MICROS_DRILLDOWN_KEY);
+    const meal = meals.find((item) => item.id === target.entryId);
+    if (meal) loadForEdit(meal);
+  }, [date, nutrition, meals, qc]);
+
   // Speicher-Plan: Request-Body UND der optimistische Befehl aus denselben Werten (inkl. vorab erzeugter ID),
   // damit der sofort angezeigte Eintrag exakt dem entspricht, was später in die Cloud geschrieben wird.
   function buildSavePlan() {
@@ -426,6 +438,8 @@ export default function LogView({ date, nutrition, notes, mode }) {
         
         {scannerOpen && (
           <ScannerModal
+            key={date}
+            date={date}
             onClose={() => setScannerOpen(false)}
             onResult={(res) => {
               setForm(f => ({
