@@ -94,6 +94,17 @@ export async function getNutritionLogsInRange(dates) {
   return map;
 }
 
+function mealComponentTrace(meal, catalog) {
+  const logged = Array.isArray(meal.components) && meal.components.length > 0;
+  const catalogId = meal.catalog_item_id || meal.catalog_id;
+  const catalogMeal = catalogId ? catalog.find((item) => item.id === catalogId) : null;
+  if (logged) return { components: meal.components, components_source: "meal_snapshot" };
+  if (catalogMeal?.components?.length) {
+    return { components: catalogMeal.components, components_source: "catalog_current" };
+  }
+  return { components: [], components_source: "unavailable" };
+}
+
 // Kanonisch für Cross-Tempel-Konsumenten (z.B. der Journal-Aggregator in
 // journal-dev/vitalos). Dokument-IDs sind YYYY-MM-DD, also lexikographisch
 // = chronologisch sortierbar.
@@ -281,7 +292,7 @@ export async function getWeeklyMicros(year, week) {
         fat: m.fat || 0,
         catalog_item_id: m.catalog_item_id || m.catalog_id || null,
         source: m.source || null,
-        components: Array.isArray(m.components) ? m.components : [],
+        ...mealComponentTrace(m, catalog),
         micros: m.micros,
         micros_meta: m.micros_meta || null,
       }));
@@ -360,7 +371,7 @@ export async function getWeeklyMicros(year, week) {
   }
 
   Object.assign(rda_comparison, omega3Coverage(mealBreakdown, rda_comparison));
-  const result = { ok: true, trace_version: 1, year, week, dates, week_totals: weekTotals, rda_comparison, day_breakdown: dayBreakdown, meal_breakdown: mealBreakdown, missing_meals: Array.from(missingMeals) };
+  const result = { ok: true, trace_version: 2, year, week, dates, week_totals: weekTotals, rda_comparison, day_breakdown: dayBreakdown, meal_breakdown: mealBreakdown, missing_meals: Array.from(missingMeals) };
 
 
   return result;

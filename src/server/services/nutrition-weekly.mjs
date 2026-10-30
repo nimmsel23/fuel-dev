@@ -112,6 +112,19 @@ function saveNutritionLog(log, nutritionDir) {
   fs.writeFileSync(path.join(nutritionDir, `${log.date}.json`), JSON.stringify(log, null, 2), "utf-8");
 }
 
+function mealComponentTrace(meal, catalog) {
+  const logged = Array.isArray(meal.components) && meal.components.length > 0;
+  const catalogId = meal.catalog_item_id || meal.catalog_id;
+  const catalogMeal = catalogId
+    ? (catalog.items || []).find((item) => item.id === catalogId)
+    : null;
+  if (logged) return { components: meal.components, components_source: "meal_snapshot" };
+  if (catalogMeal?.components?.length) {
+    return { components: catalogMeal.components, components_source: "catalog_current" };
+  }
+  return { components: [], components_source: "unavailable" };
+}
+
 // Gibt zusätzlich die Pro-Supplement-Beiträge zurück (für Modal-Aufschlüsselung
 // "welcher Eintrag hat wie viel beigetragen") — dayTotals bleibt wie bisher
 // die aufsummierte Quelle für Heatmap/Status.
@@ -168,7 +181,7 @@ export async function assembleWeek(year, week, ctx) {
   const cacheStore = loadWeekCacheStore(reqPaths.nutrition);
   const cacheKey = weekCacheKey(year, week);
   const cached = cacheStore[cacheKey];
-  if (cached && cached.complete && cached.data?.omega3_version === 1 && cached.data?.trace_version === 1) {
+  if (cached && cached.complete && cached.data?.omega3_version === 1 && cached.data?.trace_version === 2) {
     return cached.data;
   }
 
@@ -287,7 +300,7 @@ export async function assembleWeek(year, week, ctx) {
         fat: m.fat || 0,
         catalog_item_id: m.catalog_item_id || m.catalog_id || null,
         source: m.source || null,
-        components: Array.isArray(m.components) ? m.components : [],
+        ...mealComponentTrace(m, catalog),
         micros: m.micros,
         micros_meta: m.micros_meta || null,
       }));
@@ -310,7 +323,7 @@ export async function assembleWeek(year, week, ctx) {
   Object.assign(status, omega3Coverage(mealBreakdown, status));
   const result = {
     omega3_version: 1,
-    trace_version: 1,
+    trace_version: 2,
     dates,
     week_totals: weekTotals,
     rda_comparison: status,

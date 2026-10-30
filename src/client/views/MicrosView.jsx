@@ -103,14 +103,14 @@ export default function MicrosView({ setActiveDate, setActiveTab }) {
   const weeks = lastNWeeks(8);
   const results = useQueries({
     queries: weeks.map(({ year, week }) => ({
-      queryKey: ["nutrition-weekly", "trace-v1", year, week],
+      queryKey: ["nutrition-weekly", "trace-v2", year, week],
       queryFn: () => fetchJson(`/nutrition/weekly/${year}/${week}`).then((data) => {
         if (data.ok) writeCache(cacheKey(year, week), data);
         return data.ok ? data : null;
       }),
       placeholderData: () => {
         const cached = readCache(cacheKey(year, week), CACHE_MAX_AGE_MS);
-        return cached?.trace_version === 1 ? cached : undefined;
+        return cached?.trace_version === 2 ? cached : undefined;
       },
       staleTime: 5 * 60 * 1000,
     })),
