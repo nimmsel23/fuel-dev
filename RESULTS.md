@@ -438,3 +438,7 @@ Gemeinsame mini-app-shell erweitert bzw. aktualisiert: versionsunabhängiger öf
 - Bestehende Release-Test-Fixture von `src/views/Test.jsx` nach `src/views/Food.jsx` umbenannt: Der bestehende Release-Filter schließt Test-Dateien aus, dadurch war die erwartete Release-Metadatenantwort zuvor null. Produktionslogik unverändert. Git-Unterprozesse der Suite benötigten Ausführung außerhalb der Sandbox.
 - Cloud- und Local-Vite-Build erfolgreich (bekannte Chunk-Größenwarnung). Isolierter Thorium-Test mit echten React-/Radix-Komponenten und IndexedDB, künstlichen Konten/KI-Antworten: Katalog überspringt KI, Offline-Foto übersteht Reload, Konto-/Datumswechsel isoliert, Wiederaufnahme normalisiert Zutaten; 320×568 scrollbar ohne horizontalen Überlauf, Escape schließt den Dialog. Screenshot: `/tmp/fuel-scanner-review/mobile.png`.
 - Kein echter Kamera-/Firebase-/App-Check-Token-Test, kein Push/Release/Deploy. Geräteabnahme nach Freigabe weiter offen.
+
+## 2026-10-31 — Dependabot
+
+Enabled Dependabot alerts and security updates. Configured weekly GitHub Actions and npm/pnpm updates plus Python dependency updates; version updates target `dev`. Minor/patch updates are grouped; vendored mini-app-shell copies stay maintained at their source. Validated YAML, repository manifest paths and update targets.
