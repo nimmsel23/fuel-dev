@@ -4,7 +4,7 @@ fuel-prodctl — Fuel Prod Controller (system-scope service)
 
 Kontrolliert den tatsächlich laufenden Prod-Service, getrennt vom
 fuel-devctl-Stack (falls vorhanden). Deploy-Pfad laut deploy.sh:
-  ~/fuel-dev (dev) -> ~/.local/fuel (staging, git-versioniert)
+  ~/dev/fuel-dev (dev) -> ~/.local/fuel (staging, git-versioniert)
   -> /opt/fuel (optional Node prod); Fuel API runs in VitalOS on :8000
 
   - fuel.service :7000  system-scope, Node aus /opt/fuel (sudo für restart/stop)

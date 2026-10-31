@@ -450,3 +450,8 @@ Gemeinsame mini-app-shell erweitert bzw. aktualisiert: versionsunabhängiger öf
 
 - Shell-Abschluss: kompatiblen `messaging`-Live-Export im gemeinsamen Firebase-Layer ergänzt (VitalOS `2e69ba3`), einschließlich Regressionstest für unterstützte/nicht unterstützte Browser und Fehler bei der Support-Prüfung. Neuer Test und bestehender 6Pack-Auth-Test grün, vollständiger lokaler pnpm-Firebase-Build grün. Shell-CI `41051683942` erfolgreich; `https://vitalos.web.app` liefert HTTP 200 und `/assets/index-DKFGd6dq.js` mit Foto-Warteliste, Etikett-Modus und Katalogübernahme. Service Worker: 2026-10-30 11:57:46 UTC.
 - Abschließender Live-Browsertest mit frischem, isoliertem Profil ohne Login: Fuel und VitalOS rendern ihre Login-Oberflächen ohne unbehandelte JavaScript-Fehler. Kein authentifizierter Scan, keine Änderung echter Nutzerdaten. Dev-Quelle, Fuel-Produktionsbranch und Shell-Pointer sind gepusht; Fuel-Mini-Apps unverändert.
+
+
+## 2026-10-31 — Dev-Projekte unter ~/dev
+
+Lokale Entwicklungspfade und betroffene Verknüpfungen auf `~/dev/*-dev` umgestellt. Runtime-Daten, Branches und Release-Checkouts behalten ihre Zuständigkeit. Keine Pushes oder Releases. Gesamter Umzug und Prüfungen: `~/RESULTS.md`.

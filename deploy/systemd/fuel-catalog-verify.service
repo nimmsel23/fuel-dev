@@ -4,9 +4,9 @@ After=network.target
 
 [Service]
 Type=oneshot
-WorkingDirectory=/home/alpha/fuel-dev
+WorkingDirectory=/home/alpha/dev/fuel-dev
 Environment=AOS_FUEL_LOG_LEVEL=INFO
-Environment=PYTHONPATH=/home/alpha/fuel-dev
+Environment=PYTHONPATH=/home/alpha/dev/fuel-dev
 ExecStart=/usr/bin/python3 -m fuel.catalog_verify --limit 20
 StandardOutput=journal
 StandardError=journal

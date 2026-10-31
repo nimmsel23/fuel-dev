@@ -1,6 +1,6 @@
 """Fasting window analysis from meal timestamps.
 
-1:1 Port von ~/fuel-dev/src/shared/utils/fasting.mjs::computeFastingWindows().
+1:1 Port von ~/dev/fuel-dev/src/shared/utils/fasting.mjs::computeFastingWindows().
 Pure function — kein I/O, keine DB-Abhängigkeit. Klassifikationsschwellen
 (36h/20h/14h) sind identisch zum Node-Original übernommen, NICHT neu erfunden.
 """

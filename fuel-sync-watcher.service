@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=/home/alpha/fuel-dev
+WorkingDirectory=/home/alpha/dev/fuel-dev
 EnvironmentFile=/home/alpha/.env/fuel.env
 ExecStart=/usr/bin/node scripts/firestore-sync.mjs watch
 Restart=always

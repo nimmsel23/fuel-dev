@@ -1,6 +1,6 @@
 """Catalog-Lookup für Meals + Supplements.
 
-DB-backed Port von ~/fuel-dev/fuel/catalog_lookup.py (dort: YAML-Dateiscan).
+DB-backed Port von ~/dev/fuel-dev/fuel/catalog_lookup.py (dort: YAML-Dateiscan).
 Ziel: vor jedem Gemini-Call erst den Catalog durchsuchen. Bei Hit werden die
 gespeicherten Makros übernommen — kein Gemini-Call nötig.
 """

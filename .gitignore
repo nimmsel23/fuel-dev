@@ -1,5 +1,5 @@
 node_modules/
-# functions/node_modules ist ein Symlink (-> ~/fuel-dev/functions/node_modules),
+# functions/node_modules ist ein Symlink (-> ~/dev/fuel-dev/functions/node_modules),
 # die node_modules/-Regel mit Trailing-Slash matcht nur echte Verzeichnisse.
 functions/node_modules
 dist/

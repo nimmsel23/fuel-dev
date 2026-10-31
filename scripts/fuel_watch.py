@@ -8,7 +8,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
 # --- Configuration ---
-WATCH_DIR = "/home/alpha/fuel-dev/catalogs/nutrition/meals"
+WATCH_DIR = "/home/alpha/dev/fuel-dev/catalogs/nutrition/meals"
 # We could trigger the existing JS sync or implement Python-based Firestore push here.
 # For now, let's focus on detecting changes and potentially triggering a sync.
 
@@ -30,7 +30,7 @@ class CatalogHandler(FileSystemEventHandler):
         # Strategy: Since firestore-sync.mjs already has the logic to bundle everything,
         # the most robust way is to trigger 'npm run sync:push'.
         # However, for catalog-only, we could eventually optimize this in Python.
-        os.system(f"cd /home/alpha/fuel-dev && npm run sync:push > /dev/null 2>&1 &")
+        os.system(f"cd /home/alpha/dev/fuel-dev && npm run sync:push > /dev/null 2>&1 &")
         print("✅ Sync triggered in background.")
 
 if __name__ == "__main__":

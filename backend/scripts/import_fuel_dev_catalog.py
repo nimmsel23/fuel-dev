@@ -1,6 +1,6 @@
-"""Einmaliges Import-Skript: ~/fuel-dev/catalogs/*.yaml -> Postgres (meal_catalog, supplement_catalog).
+"""Einmaliges Import-Skript: ~/dev/fuel-dev/catalogs/*.yaml -> Postgres (meal_catalog, supplement_catalog).
 
-~/fuel-dev bleibt dabei unverändert (reine Lesequelle). Idempotent: existierende
+~/dev/fuel-dev bleibt dabei unverändert (reine Lesequelle). Idempotent: existierende
 IDs werden übersprungen (ON CONFLICT DO NOTHING), mehrfaches Ausführen ist sicher.
 
 Aufruf: poetry run python scripts/import_fuel_dev_catalog.py
@@ -17,7 +17,7 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from backend.db.database import SessionLocal
 from backend.db.models.catalog import MealCatalogItem, SupplementCatalogItem
 
-FUEL_DEV_CATALOGS = Path.home() / "fuel-dev" / "catalogs"
+FUEL_DEV_CATALOGS = Path.home() / "dev" / "fuel-dev" / "catalogs"
 MEALS_DIR = FUEL_DEV_CATALOGS / "nutrition" / "meals"
 SUPPLEMENTS_YAML = FUEL_DEV_CATALOGS / "supplements" / "catalog.yaml"
 

@@ -3,7 +3,7 @@
 Source: DGE (Deutsche Gesellschaft für Ernährung), ÖGE (Österreichische
 Gesellschaft für Ernährung). Standard für Deutschland, Österreich, Schweiz.
 
-1:1 Port von ~/fuel-dev/src/shared/config/dach.mjs — Werte müssen mit dem
+1:1 Port von ~/dev/fuel-dev/src/shared/config/dach.mjs — Werte müssen mit dem
 Node-Original übereinstimmen (Single Source of Truth bleibt vorerst das
 Node-Repo, dieser Port ist der aktuelle Snapshot).
 """

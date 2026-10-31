@@ -4,7 +4,7 @@ import yaml
 from pathlib import Path
 
 def convert_json_to_yaml():
-    base_dir = Path("/home/alpha/fuel-dev/catalogs/nutrition/meals")
+    base_dir = Path("/home/alpha/dev/fuel-dev/catalogs/nutrition/meals")
     if not base_dir.exists():
         print(f"Directory {base_dir} not found.")
         return
