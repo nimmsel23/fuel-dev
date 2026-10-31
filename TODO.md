@@ -130,3 +130,7 @@ werden aber im Cloud-Frontend nie geladen.
 - [ ] Firebase App Check live prüfen: Web-App-Registrierung, Zuordnung des vorhandenen Site-Keys für Hosting-Domains, Enforcement und gültige Tokens. CI-Variable ist gesetzt und im Live-Fuel-Bundle nachgewiesen; Projektzugriff per gcloud hier nicht nutzbar.
 - [x] Push und Standalone-Firebase-Release nach Freigabe: PR #6, `master` 746e3ac, CI 41050794246 grün; Fuel-Pointer 17db6ae gepusht; Shell-Fix 2e69ba3 und Shell-CI 41051683942 grün.
 - [ ] Auf Jakobs Gerät abnehmen. Bundle/CI sind geprüft; echte Kamera und Firebase-/App-Check-Scan stehen aus.
+
+## 2026-10-31 — Lokales Produkt unter /opt
+
+- [x] Lokales Produkt mit expliziter Runtime-Allowlist, eigenem Server-Paket/Lockfile (12 direkte Node-Abhängigkeiten), Python-Helfern und Python-Umgebung. Kataloge zentral unter ~/.aos/fuel/catalogs; keine Links zu Quellrepos. Stage/Prod bauen keine Frontends im Ziel. Dry-run ergänzt.

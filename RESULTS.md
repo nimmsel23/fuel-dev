@@ -455,3 +455,9 @@ Gemeinsame mini-app-shell erweitert bzw. aktualisiert: versionsunabhängiger öf
 ## 2026-10-31 — Dev-Projekte unter ~/dev
 
 Lokale Entwicklungspfade und betroffene Verknüpfungen auf `~/dev/*-dev` umgestellt. Runtime-Daten, Branches und Release-Checkouts behalten ihre Zuständigkeit. Keine Pushes oder Releases. Gesamter Umzug und Prüfungen: `~/RESULTS.md`.
+
+## 2026-10-31 — Schlankes lokales Deployment
+
+Lokales Produkt mit expliziter Runtime-Allowlist, eigenem Server-Paket/Lockfile (12 direkte Node-Abhängigkeiten), Python-Helfern und Python-Umgebung. Kataloge zentral unter ~/.aos/fuel/catalogs; keine Links zu Quellrepos. Stage/Prod bauen keine Frontends im Ziel. Dry-run ergänzt.
+
+Payload 3.25 MB plus 146 MB Node-Laufzeitbibliotheken. Offline-Node-Installation, isolierte Python-Paketinstallation und Vision-/Katalog-/Compose-Imports, Fastify-Requests für Health, SPA und lokale Nutrition-Logs sowie Filter-Regressionsprüfung erfolgreich. Kein /opt-Deploy oder Push.
