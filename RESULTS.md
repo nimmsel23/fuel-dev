@@ -461,3 +461,7 @@ Lokale Entwicklungspfade und betroffene Verknüpfungen auf `~/dev/*-dev` umgeste
 Lokales Produkt mit expliziter Runtime-Allowlist, eigenem Server-Paket/Lockfile (12 direkte Node-Abhängigkeiten), Python-Helfern und Python-Umgebung. Kataloge zentral unter ~/.aos/fuel/catalogs; keine Links zu Quellrepos. Stage/Prod bauen keine Frontends im Ziel. Dry-run ergänzt.
 
 Payload 3.25 MB plus 146 MB Node-Laufzeitbibliotheken. Offline-Node-Installation, isolierte Python-Paketinstallation und Vision-/Katalog-/Compose-Imports, Fastify-Requests für Health, SPA und lokale Nutrition-Logs sowie Filter-Regressionsprüfung erfolgreich. Kein /opt-Deploy oder Push.
+
+## 2026-11-01 — Splash blockiert nicht mehr auf Service-Worker-Update
+
+Die vendorte Mini-App-Shell mit der aktuellen VitalOS-Quelle synchronisiert. Ein langsamer Netzwerk-/Service-Worker-Updatecheck hält den Splash nicht mehr offen; er verschwindet nach dem App-Start (mindestens 200 ms, maximal 12 s nur falls der App-Root gar nicht bereit wird).
