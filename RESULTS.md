@@ -439,6 +439,41 @@ Gemeinsame mini-app-shell erweitert bzw. aktualisiert: versionsunabhängiger öf
 - Cloud- und Local-Vite-Build erfolgreich (bekannte Chunk-Größenwarnung). Isolierter Thorium-Test mit echten React-/Radix-Komponenten und IndexedDB, künstlichen Konten/KI-Antworten: Katalog überspringt KI, Offline-Foto übersteht Reload, Konto-/Datumswechsel isoliert, Wiederaufnahme normalisiert Zutaten; 320×568 scrollbar ohne horizontalen Überlauf, Escape schließt den Dialog. Screenshot: `/tmp/fuel-scanner-review/mobile.png`.
 - Kein echter Kamera-/Firebase-/App-Check-Token-Test, kein Push/Release/Deploy. Geräteabnahme nach Freigabe weiter offen.
 
+## 2026-10-30 — Fotoscanner veröffentlicht
+
+- Auf ausdrückliche Nutzerfreigabe die sieben lokalen Fuel-Commits einschließlich Scanner `d4ba0ae` nach `origin/dev` gepusht. Der dev-Pre-Push-Hook hätte zusätzlich einen unbenötigten lokalen Backend-Staging-Deploy ausgeführt; für diesen geprüften Firebase-Release gezielt übersprungen.
+- Vorhandenen lokalen öffentlichen reCAPTCHA-Site-Key als Repository-Variable `VITE_RECAPTCHA_SITE_KEY` gesetzt; kein Secret-Wert ausgegeben. Registrierung/Enforcement und echte App-Check-Tokens damit noch nicht nachgewiesen.
+- Release-PR #6 (`https://github.com/nimmsel23/fuel-dev/pull/6`) nach grünem Check automatisch mit Merge-Commit `746e3ac` nach `master` übernommen. Standalone-CI `41050794246` erfolgreich; `https://fuel-vos.web.app` liefert HTTP 200 und Release-Metadaten mit diesem Commit. Tatsächliches App-Bundle `/assets/index-CrDf4wmY.js` enthält Foto-Warteliste, Etikett-Modus und den App-Check-Site-Key. Service Worker zuletzt geändert: 2026-10-30 11:50:19 UTC.
+- Anschließend `vos-release fuel --yes` im sichtbaren Kitty-Tab: `vitalos`-Branch des Fuel-Checkouts auf `746e3ac` gepusht, Lockfile-Check grün, Fuel-Pointer im Meta-Repo mit `17db6ae` committed und gepusht. Der vorher vorhandene Meta-Commit `987a901` enthielt ausschließlich pnpm-Sandbox-Dokumentation und ging mit hinaus. Shell-CI `41051151490` scheiterte anschließend am bisher fehlenden Shell-Export `messaging` für Fuel; Integrationsfix und Abschluss siehe unten.
+- Keine Fuel-Mini-App, Firestore-Rules oder Push-Functions veröffentlicht. Physischer Kamera-/Jakob-Gerätetest und echte App-Check-Projektprüfung bleiben ausstehend.
+
+- Shell-Abschluss: kompatiblen `messaging`-Live-Export im gemeinsamen Firebase-Layer ergänzt (VitalOS `2e69ba3`), einschließlich Regressionstest für unterstützte/nicht unterstützte Browser und Fehler bei der Support-Prüfung. Neuer Test und bestehender 6Pack-Auth-Test grün, vollständiger lokaler pnpm-Firebase-Build grün. Shell-CI `41051683942` erfolgreich; `https://vitalos.web.app` liefert HTTP 200 und `/assets/index-DKFGd6dq.js` mit Foto-Warteliste, Etikett-Modus und Katalogübernahme. Service Worker: 2026-10-30 11:57:46 UTC.
+- Abschließender Live-Browsertest mit frischem, isoliertem Profil ohne Login: Fuel und VitalOS rendern ihre Login-Oberflächen ohne unbehandelte JavaScript-Fehler. Kein authentifizierter Scan, keine Änderung echter Nutzerdaten. Dev-Quelle, Fuel-Produktionsbranch und Shell-Pointer sind gepusht; Fuel-Mini-Apps unverändert.
+
+
+## 2026-10-31 — Dev-Projekte unter ~/dev
+
+Lokale Entwicklungspfade und betroffene Verknüpfungen auf `~/dev/*-dev` umgestellt. Runtime-Daten, Branches und Release-Checkouts behalten ihre Zuständigkeit. Keine Pushes oder Releases. Gesamter Umzug und Prüfungen: `~/RESULTS.md`.
+
+## 2026-10-31 — Schlankes lokales Deployment
+
+Lokales Produkt mit expliziter Runtime-Allowlist, eigenem Server-Paket/Lockfile (12 direkte Node-Abhängigkeiten), Python-Helfern und Python-Umgebung. Kataloge zentral unter ~/.aos/fuel/catalogs; keine Links zu Quellrepos. Stage/Prod bauen keine Frontends im Ziel. Dry-run ergänzt.
+
+Payload 3.25 MB plus 146 MB Node-Laufzeitbibliotheken. Offline-Node-Installation, isolierte Python-Paketinstallation und Vision-/Katalog-/Compose-Imports, Fastify-Requests für Health, SPA und lokale Nutrition-Logs sowie Filter-Regressionsprüfung erfolgreich. Kein /opt-Deploy oder Push.
+
+## 2026-11-01 — Splash blockiert nicht mehr auf Service-Worker-Update
+
+Die vendorte Mini-App-Shell mit der aktuellen VitalOS-Quelle synchronisiert. Ein langsamer Netzwerk-/Service-Worker-Updatecheck hält den Splash nicht mehr offen; er verschwindet nach dem App-Start (mindestens 200 ms, maximal 12 s nur falls der App-Root gar nicht bereit wird).
+
+## 2026-11-02 — Ernährungstrainer-Modul und Fastentimer
+
+- Neuer Fuel-Tab „Modul“ bündelt sechs Lernblöcke aus den lokalen FlexyFit-Skripten (Ernährungslehre/Bedarf, Erhebung/Beratung, Ernährungsformen, Ernährungsphysiologie, Sporternährung, beruflicher Rahmen), lokalen Fortschritt und einen vierteiligen Selbstcheck.
+- Die Master-MOC liefert jetzt den vollständigen Curriculum-Index mit 11 A-Lizenz- und 4 B-Lizenz-Fächern. Die sechs Kurskarten sind als erste thematische Lernzugänge gekennzeichnet, nicht als vollständiger Inhaltsersatz; lokale Notizen/Konvertierungen sind von Originalskripten abgegrenzt. Eine Modulnummer wird nicht behauptet.
+- Die Pflichtaufgabe wurde direkt im Original-PDF geprüft: sieben Tage, Lebensmittel und Getränke in Vormittag (00–12), Nachmittag (12–18), Abend (18–00), Kalorien je Tag. Das Modul führt zum Fuel-Log und vorhandenen Report; es weist darauf hin, die konkreten Abgabeanforderungen zu prüfen.
+- Neuer Fuel-Tab „Fasten“ bietet Start, optionales persönliches Zeit-Ziel, laufende Anzeige, Beenden/Verwerfen und die letzten 20 Sitzungen. Speicherung lokal im Browser, je angemeldetem Konto getrennt; keine Übernahme in Mahlzeiten, keine Cloud-Synchronisierung und keine Fastenempfehlung.
+- `pnpm run build:firebase` erfolgreich; bestehende Warnung zu Chunkgrößen über 500 kB. Keine Tests ausgeführt, nicht gepusht oder deployed.
+
+
 ## 2026-10-31 — Dependabot
 
 Enabled Dependabot alerts and security updates. Configured weekly GitHub Actions and npm/pnpm updates plus Python dependency updates; version updates target `dev`. Minor/patch updates are grouped; vendored mini-app-shell copies stay maintained at their source. Validated YAML, repository manifest paths and update targets.

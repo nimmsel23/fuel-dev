@@ -1,4 +1,4 @@
-import { Flame, UtensilsCrossed, NotebookPen, Pill, Microscope, Settings2, History, LayoutGrid, GitCommitVertical, TerminalSquare, ChefHat, Library, FileText, CookingPot, Refrigerator } from "lucide-react";
+import { Flame, UtensilsCrossed, NotebookPen, Pill, Microscope, Settings2, History, LayoutGrid, GitCommitVertical, TerminalSquare, ChefHat, Library, FileText, CookingPot, Refrigerator, Timer, GraduationCap } from "lucide-react";
 
 // Keine dynamischen Imports/lazy(): jeder Chunk, der einzeln nachgeladen wird, bricht nach einem Deploy weg
 // (Firebase Hosting hält nur den letzten Release vor, der SPA-Rewrite liefert dann index.html als "Modul").
@@ -15,6 +15,8 @@ import SupplementsView from "./views/SupplementsView.jsx";
 import MicrosView from "./views/MicrosView.jsx";
 import SettingsView from "./views/SettingsView.jsx";
 import DevView from "./views/Dev/DevView.jsx";
+import FastingTimerView from "./views/FastingTimerView.jsx";
+import TrainingModuleView from "./views/TrainingModuleView.jsx";
 
 const BUILD_IS_LOCAL = import.meta.env.VITE_APP_MODE !== "client" && import.meta.env.MODE !== "firebase";
 const BUILD_IS_SHELL = import.meta.env.MODE === "firebase";
@@ -32,6 +34,19 @@ export const TAB_CONFIG = [
     Icon: Flame,
     View: DashboardView,
     getProps: (ctx) => ({ nutrition: ctx.nutrition, sup: ctx.sup, journal: ctx.journal, macroTrend: ctx.macroTrend, setActiveTab: ctx.setActiveTab, activeDate: ctx.activeDate }),
+  }] : []),
+  ...(!SOLO ? [{
+    key: "training-module",
+    label: "Modul",
+    Icon: GraduationCap,
+    View: TrainingModuleView,
+    getProps: (ctx) => ({ setActiveTab: ctx.setActiveTab }),
+  }, {
+    key: "fasting",
+    label: "Fasten",
+    Icon: Timer,
+    View: FastingTimerView,
+    getProps: () => ({}),
   }] : []),
   ...((!SOLO || SOLO === "log") ? [{
     key: "log",

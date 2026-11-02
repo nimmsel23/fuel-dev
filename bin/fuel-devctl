@@ -410,7 +410,7 @@ def build():
 
 @app.command()
 def deploy():
-    """Builds in ~/fuel-dev and syncs the result to ~/.local/fuel."""
+    """Builds in ~/dev/fuel-dev and syncs the result to ~/.local/fuel."""
     if not DEPLOY_SCRIPT.exists():
         msg.fail(f"deploy.sh not found in {DEV_DIR}")
         raise typer.Exit(1)

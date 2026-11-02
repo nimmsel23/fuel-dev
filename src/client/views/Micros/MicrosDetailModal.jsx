@@ -25,6 +25,29 @@ function componentLabel(component) {
   return `${component.name || component.description || "Zutat"} · ${amount}`;
 }
 
+function componentNutrient(component, nutrientKey) {
+  const per100g = component.per_100g || null;
+  const profile = per100g?.micros && typeof per100g.micros === "object" ? per100g.micros : per100g;
+  const raw = profile?.[nutrientKey];
+  const source = component.micros_source || per100g?.micros_source || per100g?.source || null;
+  if (raw == null || !Number.isFinite(Number(raw))) {
+    return { value: null, source, reason: profile ? "nutrient_missing" : "profile_missing" };
+  }
+  const grams = Number(component.amount_g);
+  if (!(grams > 0)) return { value: null, source, reason: "amount_missing" };
+  return { value: Number(raw) * grams / 100, per100g: Number(raw), grams, source, reason: null };
+}
+
+function formatMicro(value, unit) {
+  return `${Number(value).toLocaleString("de-AT", { maximumFractionDigits: 3 })} ${unit}`;
+}
+
+function componentSourceLabel(source) {
+  if (!source) return "Quelle im Zutatenprofil nicht dokumentiert";
+  if (/usda|bls|souci|efsa|etikett|hersteller/i.test(source)) return source;
+  return `Profilquelle: ${source}`;
+}
+
 export default function MicrosDetailModal({ nutrient, week, weekData, onClose, onOpenEntry }) {
   const { key, label, unit } = nutrient;
   const status = weekData?.rda_comparison?.[key];
@@ -48,6 +71,19 @@ export default function MicrosDetailModal({ nutrient, week, weekData, onClose, o
   const [selectedDate, setSelectedDate] = useState(defaultDate);
   const [selectedEntry, setSelectedEntry] = useState(null);
   const [copiedId, setCopiedId] = useState(false);
+  const componentTrace = useMemo(() => {
+    if (selectedEntry?.kind !== "meal") return null;
+    const rows = (selectedEntry.components || []).map((component) => ({
+      component,
+      trace: componentNutrient(component, key),
+    }));
+    const known = rows.filter((row) => row.trace.value != null);
+    return {
+      rows,
+      known,
+      knownTotal: known.reduce((sum, row) => sum + row.trace.value, 0),
+    };
+  }, [selectedEntry, key]);
   const activeDate = selectedDate && dates.includes(selectedDate) ? selectedDate : defaultDate;
 
   const contributions = (mealBreakdown[activeDate] || [])
@@ -55,6 +91,14 @@ export default function MicrosDetailModal({ nutrient, week, weekData, onClose, o
     .filter((entry) => entry.value > 0)
     .sort((a, b) => b.value - a.value);
   const activeDayTotal = dayBreakdown[activeDate]?.[key] ?? 0;
+  const selectedDayTotal = selectedEntry ? dayBreakdown[selectedEntry.date || activeDate]?.[key] ?? 0 : 0;
+  const selectedDayShare = selectedDayTotal > 0
+    ? Math.round(((selectedEntry?.value ?? selectedEntry?.micros?.[key] ?? 0) / selectedDayTotal) * 100)
+    : null;
+  const omega3NeedsReview = selectedEntry?.kind === "meal"
+    && key.startsWith("omega3")
+    && selectedDayShare >= 80
+    && componentTrace?.known.length === 0;
 
   // Top-Beiträge über die GANZE Woche (nicht nur den angeklickten Tag) — ohne
   // das lässt sich ein einzelner Ausreißer (z.B. eine Gemini-Mikros-Schätzung,
@@ -271,7 +315,59 @@ export default function MicrosDetailModal({ nutrient, week, weekData, onClose, o
                 <div><dt className="text-slate-500">Wertquelle</dt><dd className="mt-1 text-slate-200">{provenanceLabel(selectedEntry) || selectedEntry.source || "Keine Herkunft mitgespeichert"}</dd></div>
                 {selectedEntry.micros_meta?.lookup_name && <div><dt className="text-slate-500">Aufgelöst über</dt><dd className="mt-1 text-slate-200">{selectedEntry.micros_meta.lookup_name}</dd></div>}
                 {selectedEntry.micros_meta?.inferred_from && <div><dt className="text-slate-500">Ursprünglicher Name / Schlüssel</dt><dd className="mt-1 break-all text-slate-200">{selectedEntry.micros_meta.inferred_from}</dd></div>}
+                {selectedEntry.micros_meta?.method && <div><dt className="text-slate-500">Berechnungsweg</dt><dd className="mt-1 text-slate-200">{selectedEntry.micros_meta.method}</dd></div>}
+                {selectedEntry.micros_meta?.reference_grams != null && <div><dt className="text-slate-500">Schätz-Bezugsmenge</dt><dd className="mt-1 text-slate-200">{selectedEntry.micros_meta.reference_grams} g</dd></div>}
+                {selectedEntry.micros_meta?.scaling_factor != null && <div><dt className="text-slate-500">Portions-Skalierung</dt><dd className="mt-1 text-slate-200">×{Number(selectedEntry.micros_meta.scaling_factor).toLocaleString("de-AT", { maximumFractionDigits: 3 })}</dd></div>}
+                {selectedEntry.micros_meta?.resolved_at && <div><dt className="text-slate-500">Wert aufgelöst</dt><dd className="mt-1 text-slate-200">{new Date(selectedEntry.micros_meta.resolved_at).toLocaleString("de-AT")}</dd></div>}
               </dl>
+
+              {selectedEntry.kind === "meal" && (
+                <div className="mt-4 rounded-xl border border-white/[0.07] bg-slate-950/45 p-3.5">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <h5 className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-300">Auf Zutatenebene · {label}</h5>
+                      <p className="mt-1 text-[11px] text-slate-500">
+                        {selectedEntry.components_source === "catalog_current" ? "Zutaten aus dem aktuellen Katalog; kein historischer Meal-Snapshot." : selectedEntry.components_source === "meal_snapshot" ? "Zutaten-Snapshot des geloggten Eintrags." : "Für diesen Eintrag sind keine Zutatenprofile verfügbar."}
+                      </p>
+                    </div>
+                    {componentTrace?.rows.length > 0 && <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] tabular-nums text-slate-400">{componentTrace.known.length}/{componentTrace.rows.length} mit {label}-Wert</span>}
+                  </div>
+
+                  {componentTrace?.rows.length ? (
+                    <ul className="mt-3 divide-y divide-white/[0.06]">
+                      {componentTrace.rows.map(({ component, trace }, i) => (
+                        <li key={`${component.name || "zutat"}-${i}`} className="grid gap-1 py-2 first:pt-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+                          <div className="min-w-0">
+                            <div className="text-xs font-medium text-slate-200">{componentLabel(component)}</div>
+                            <div className="mt-0.5 break-words text-[10px] leading-4 text-slate-500">
+                              {trace.value != null ? componentSourceLabel(trace.source) : <>{trace.reason === "nutrient_missing" ? `${label} im gespeicherten Zutatenprofil nicht ausgewiesen` : trace.reason === "amount_missing" ? "Menge fehlt; Beiträge lassen sich nicht skalieren" : "Kein per-100-g-Mikroprofil gespeichert"}{trace.source ? ` · ${componentSourceLabel(trace.source)}` : ""}</>}
+                            </div>
+                          </div>
+                          <div className={`text-xs font-semibold tabular-nums sm:text-right ${trace.value != null ? "text-cyan-100" : "text-slate-500"}`}>
+                            {trace.value != null ? <>{formatMicro(trace.value, unit)} <span className="font-normal text-slate-500">({formatMicro(trace.per100g, unit)}/100 g)</span></> : "unbekannt"}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-3 text-xs leading-5 text-slate-400">Der gespeicherte Mikrowert lässt sich nicht auf Zutaten aufteilen. Es gibt keine Zutaten mit einem hinterlegten {label}-Profil.</p>
+                  )}
+
+                  {componentTrace?.known.length > 0 && (
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-white/[0.07] pt-3 text-[11px]">
+                      <span className="text-slate-400">Belegte Zutaten zusammen: <strong className="text-cyan-100">{formatMicro(componentTrace.knownTotal, unit)}</strong></span>
+                      <span className="text-slate-500">Mahlzeit gesamt: {formatMicro(selectedEntry.value ?? selectedEntry.micros?.[key] ?? 0, unit)} · Differenz bleibt nicht zugeordnet</span>
+                    </div>
+                  )}
+
+                  {selectedEntry.micros_meta?.source && /gemini|estimate|ai/i.test(`${selectedEntry.micros_meta.source} ${selectedEntry.micros_meta.method || ""}`) && componentTrace?.known.length === 0 && (
+                    <p className="mt-3 rounded-lg border border-amber-200/15 bg-amber-200/[0.06] px-3 py-2 text-[11px] leading-5 text-amber-100/80">Der angezeigte Mahlzeitenwert ist eine Gesamtschätzung ({selectedEntry.micros_meta.source}); für {label} ist kein Zutatenbeitrag belegt. Er lässt sich daher nicht auf einzelne Zutaten zurückführen.</p>
+                  )}
+                  {omega3NeedsReview && (
+                    <p className="mt-2 rounded-lg border border-amber-300/20 bg-amber-300/[0.08] px-3 py-2 text-[11px] leading-5 text-amber-100/90">Prüfhinweis: Dieser Eintrag erklärt {selectedDayShare}% des erfassten Omega-3-Tageswerts, aber kein Zutatenprofil belegt den Beitrag.</p>
+                  )}
+                </div>
+              )}
 
               {selectedEntry.kind === "meal" && onOpenEntry && selectedEntry.id && (
                 <button type="button" onClick={() => onOpenEntry(selectedEntry, selectedEntry.date || activeDate)} className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-xl border border-cyan-200/20 bg-cyan-200/[0.08] px-3.5 text-xs font-semibold text-cyan-100 transition hover:bg-cyan-200/[0.14] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200"><Link2 className="h-4 w-4" />Mahlzeit im Log öffnen <ArrowUpRight className="h-3.5 w-3.5" /></button>

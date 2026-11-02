@@ -205,8 +205,10 @@ items:
 - id: melatonin_1mg
   name: Melatonin (Sunday Natural 1mg)
   unit: mg
-  default_dose: 1
+  default_dose: 4
   default_time_of_day: night
+  schedule:
+    type: daily
   product: Melatonin 1mg Sunday Natural
   per_unit:
     melatonin_mg: 1.0

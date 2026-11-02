@@ -1,6 +1,6 @@
 """Phase 4a: Frame-Snapshots (Ernährungs-Anamnese).
 
-Konzept-Referenz: ~/fuel-dev/src/server/routes/nutrition/frames.mjs — dort
+Konzept-Referenz: ~/dev/fuel-dev/src/server/routes/nutrition/frames.mjs — dort
 laufen Frame-Snapshots über Firestore (Cloud-Channel-only). Diese
 Python-Implementierung portiert NICHT die Firestore-Logik, sondern das
 Konzept: unveränderliche Snapshots, die per POST angelegt und per GET

@@ -25,6 +25,7 @@ UNIT_TARGET="/etc/systemd/system/fuel.service"
 INSTALL_UNIT=false
 INSTALL_ONLY=false
 BUILD=false
+DRY_RUN=false
 # Staging-Service (user-scope, analog fitness-preview.service :8100)
 STAGE_SERVICE="fuel-preview.service"
 STAGE_PORT=8700
@@ -33,8 +34,13 @@ STAGE_UNIT_TARGET="$USER_HOME/.config/systemd/user/$STAGE_SERVICE"
 SYNC_SERVICE="fuel-sync.service"
 SYNC_UNIT_TARGET="$USER_HOME/.config/systemd/user/$SYNC_SERVICE"
 
+die() { printf '\033[1;31m%s\033[0m\n' "$*" >&2; exit 1; }
+
 for arg in "$@"; do
   case "$arg" in
+    --dry-run)
+      DRY_RUN=true
+      ;;
     --install)
       INSTALL_UNIT=true
       ;;
@@ -46,14 +52,80 @@ for arg in "$@"; do
       BUILD=true
       ;;
     *)
-      die "Invalid argument '$arg'. Supported: --install | --install-only | --build"
+      die "Invalid argument '$arg'. Supported: --install | --install-only | --build | --dry-run"
       ;;
   esac
 done
 
 msg() { printf '\033[1;32m%s\033[0m\n' "$*"; }
 warn() { printf '\033[1;33m%s\033[0m\n' "$*" >&2; }
-die() { printf '\033[1;31m%s\033[0m\n' "$*" >&2; exit 1; }
+
+
+# Product payload; excludes are NOT a growing list of development leftovers.
+RSYNC_RUNTIME=(
+  --exclude '*.bak*' --exclude '*.map' --exclude '.claude' --exclude '.codex'
+  --filter 'P /node_modules/***' --filter 'P /.venv/***'
+  --filter 'P /.env*' --filter 'P /data/***' --filter 'P /.git/***'
+  --filter 'P /catalogs/***'
+  --exclude 'node_modules' --exclude '.venv' --exclude '__pycache__'
+  --exclude '*.pyc' --exclude 'tests' --exclude '.git'
+  --include '/dist/***' --include '/public/***'
+  --include '/server.mjs'
+  --include '/src/' --include '/src/server/***' --include '/src/shared/***'
+  --include '/src/client/' --include '/src/client/lib/'
+  --include '/src/client/lib/mealDetails.js' --include '/src/client/lib/mealComponents.js'
+  --include '/fuel/constants/***'
+  --include '/fuel/' --include '/fuel/**/' --include '/fuel/**.py'
+  --include '/bin/' --include '/bin/gemini-estimate' --include '/bin/gemini-compose' --include '/bin/gemini-micros'
+  --include '/scripts/' --include '/scripts/sync-daemon.mjs'
+  --include '/deploy/' --include '/deploy/runtime/***'
+  --include '/pyproject.toml' --include '/README.md'
+  --exclude '*'
+)
+
+sync_runtime() {
+  local dest="$1"
+  shift
+  "$@" rsync -aL --delete --delete-excluded "${RSYNC_RUNTIME[@]}" "$SOURCE/" "$dest/"
+  # Separate locked server dependencies: React, Vite and frontend SDKs are
+  # already bundled in dist and never get installed into the runtime.
+  cp "$SOURCE/deploy/runtime/"{package.json,pnpm-lock.yaml,pnpm-workspace.yaml} "$dest/"
+}
+
+link_catalogs() {
+  local dest="$1" central="$USER_HOME/.aos/fuel/catalogs" seed
+  mkdir -p "$central"
+  # Preserve deployed writes before considering the source seed.
+  for seed in "$dest/catalogs" "$SOURCE/catalogs" "$DEV_SOURCE/catalogs"; do
+    if [[ -d "$seed" && "$(realpath "$seed")" != "$(realpath "$central")" ]]; then
+      rsync -aL --ignore-existing --exclude '.git' "$seed/" "$central/"
+    fi
+  done
+  if [[ -L "$dest/catalogs" ]]; then
+    rm "$dest/catalogs"
+  elif [[ -e "$dest/catalogs" ]]; then
+    # Keep conflicting originals for inspection outside the installed product.
+    local archive="$USER_HOME/.aos/fuel/catalog-migrations/$(date +%Y%m%dT%H%M%S)-$(basename "$dest")"
+    mkdir -p "$(dirname "$archive")"
+    mv "$dest/catalogs" "$archive"
+    msg "Preserved original catalog directory at $archive"
+  fi
+  ln -s "$central" "$dest/catalogs"
+}
+
+install_runtime() {
+  local dest="$1"
+  (cd "$dest" && pnpm install --frozen-lockfile --prod)
+  (cd "$dest" && {
+    if command -v uv >/dev/null; then
+      [[ -x .venv/bin/python ]] || uv venv --quiet
+      uv pip install . --quiet
+    else
+      [[ -x .venv/bin/python ]] || python3 -m venv .venv
+      .venv/bin/python -m pip install . --quiet
+    fi
+  })
+}
 
 require_file() {
   local path="$1"
@@ -112,8 +184,9 @@ Group=alpha
 WorkingDirectory=/opt/fuel
 Environment=PORT=7000
 Environment=HOST=0.0.0.0
-Environment=FUEL_STATIC_DIR=/opt/fuel
-ExecStart=/usr/bin/pnpm run prod
+Environment=FUEL_STATIC_DIR=/opt/fuel/dist
+Environment=PATH=/opt/fuel/.venv/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/bin/node server.mjs
 Restart=always
 RestartSec=10
 
@@ -137,6 +210,7 @@ Environment=PORT=$STAGE_PORT
 Environment=HOST=127.0.0.1
 Environment=FUEL_STATIC_DIR=$STAGE/dist
 Environment=FUEL_BUILD_DIR=$STAGE/dist
+Environment=PATH=$STAGE/.venv/bin:/usr/local/bin:/usr/bin:/bin
 Environment=FUEL_ENABLE_FIRESTORE_SYNC=0
 Environment=FUEL_DISABLE_PUSH_SCHEDULER=1
 ExecStart=/usr/bin/node server.mjs
@@ -219,6 +293,15 @@ if [[ "$TARGET" == "prod" && "$BUILD" == true ]]; then
   die "--build gilt nur für target 'staging'"
 fi
 
+if $DRY_RUN; then
+  require_file "$SOURCE/dist/index.html" "built local frontend"
+  require_file "$SOURCE/deploy/runtime/package.json" "locked runtime manifest (deploy staging first)"
+  dest="$STAGE"
+  [[ "$TARGET" != prod ]] || dest="$NODE_DEST"
+  rsync -ani --delete --delete-excluded "${RSYNC_RUNTIME[@]}" "$SOURCE/" "$dest/"
+  exit 0
+fi
+
 if [[ "$TARGET" == "staging" ]]; then
   # Cross-Repo-Aliase (@habits, @journal, @fitness/constants) lösen nur relativ
   # zu $SOURCE auf (Sibling-Repos liegen neben fuel-dev). Nach dem Build ist
@@ -228,53 +311,17 @@ if [[ "$TARGET" == "staging" ]]; then
     msg "🔨 Building Node UI in $SOURCE"
     (cd "$SOURCE" && pnpm run build:local > /dev/null)
 
-    msg "🔨 Building frontend/ (React, für den Python-Server)"
-    (cd "$SOURCE/frontend" && pnpm run build > /dev/null)
   else
     msg "♻️  Kein frischer Build — bestehende dist/ wird übernommen (--build für neuen Build)"
     [[ -f "$SOURCE/dist/index.html" ]] || die "❌ $SOURCE/dist/index.html fehlt — einmalig mit --build bauen"
-    [[ -f "$SOURCE/frontend/dist/index.html" ]] || die "❌ $SOURCE/frontend/dist/index.html fehlt — einmalig mit --build bauen"
   fi
 
   msg "📦 Staging: $SOURCE → $STAGE"
   mkdir -p "$STAGE"
-  rsync -a --delete \
-    --exclude ".git" \
-    --exclude "node_modules" \
-    --exclude ".venv" --exclude "__pycache__" --exclude "*.pyc" \
-    --exclude "data" \
-    --exclude "dev-dist" \
-    --exclude ".firebase" \
-    --exclude ".archiv" \
-    --exclude "*.bak" \
-    --exclude ".claude" \
-    --exclude "*.log" \
-    --exclude ".env" --exclude ".env.*" \
-    "$SOURCE/" "$STAGE/"
-
-  if [[ -d "$STAGE/.git" ]]; then
-    (
-      cd "$STAGE"
-      git add -A
-      if ! git diff --cached --quiet; then
-        git commit -q -m "deploy: sync from fuel-dev $(date +%Y-%m-%dT%H:%M:%S)"
-        msg "✅ ~/.local/fuel committed ($(git rev-parse --short HEAD))"
-      else
-        msg "ℹ️  ~/.local/fuel unverändert, kein neuer Commit"
-      fi
-    )
-  else
-    warn "⚠️ $STAGE ist kein Git-Repo — Staging-Historie nicht versioniert"
-  fi
-
-  msg "🩺 Verifying staged artifacts"
-  require_file "$STAGE/package.json" "Fuel checkout manifest"
-  require_file "$STAGE/dist/index.html" "Node staging dist"
-  require_file "$STAGE/frontend/dist/index.html" "Python frontend dist"
-
-  # node_modules sind vom rsync ausgenommen -> im Stage-Ordner selbst installieren
-  msg "📦 Installing Node dependencies in $STAGE"
-  (cd "$STAGE" && pnpm install --frozen-lockfile --prod > /dev/null)
+  sync_runtime "$STAGE"
+  link_catalogs "$STAGE"
+  require_file "$STAGE/dist/index.html" "installed frontend"
+  install_runtime "$STAGE"
 
   install_stage_unit
   msg "🔄 Restarting user-scope $STAGE_SERVICE"
@@ -319,27 +366,14 @@ if [[ ! -d "$NODE_DEST" ]]; then
   sudo chown "$(id -u):$(id -g)" "$NODE_DEST"
 fi
 
-msg "📦 Syncing Node code $SOURCE → $NODE_DEST"
-sudo rsync -av --delete \
-  --exclude "catalogs" \
-  --exclude "backend" \
-  --exclude "frontend" \
-  --exclude "node_modules" \
-  "$SOURCE/" "$NODE_DEST/"
-
-# Laufzeit-Daten NICHT kopieren, sondern symlinken (Katalog-JSONs sind
-# git-tracked, aber prod schreibt live per POST /nutrition/catalog rein —
-# eine rsync --delete-Kopie hätte das beim nächsten Deploy überschrieben).
-# Kanonischer Ort bleibt fuel-dev (dev), nicht die Staging-Kopie.
-if [[ -e "$NODE_DEST/catalogs" && ! -L "$NODE_DEST/catalogs" ]]; then
-  rm -rf "$NODE_DEST/catalogs"
-fi
-ln -sfn "$SOURCE/catalogs" "$NODE_DEST/catalogs"
-msg "🔗 $NODE_DEST/catalogs → $SOURCE/catalogs (Daten-Symlink)"
-
-msg "📦 Installing Node server dependencies"
+require_file "$SOURCE/dist/index.html" "staged frontend"
+require_file "$SOURCE/deploy/runtime/package.json" "locked runtime manifest (deploy staging first)"
+msg "📦 Syncing runtime $SOURCE → $NODE_DEST"
+sync_runtime "$NODE_DEST" sudo
 sudo chown -R "$(id -u):$(id -g)" "$NODE_DEST"
-(cd "$NODE_DEST" && pnpm install --frozen-lockfile)
+link_catalogs "$NODE_DEST"
+install_runtime "$NODE_DEST"
+install_prod_unit
 
 if systemctl list-unit-files "$SERVICE" >/dev/null 2>&1; then
   msg "🔄 Restarting $SERVICE"
