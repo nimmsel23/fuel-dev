@@ -7,16 +7,35 @@ import {
   onAuthStateChanged,
   signOut as fbSignOut,
 } from "firebase/auth";
-import { serverTimestamp } from "firebase/firestore";
+import { serverTimestamp, doc, getDoc, setDoc } from "firebase/firestore";
 import { db, auth, googleProvider } from "../../firebase.js";
 
 export { serverTimestamp, db, auth, googleProvider };
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
+// Coach-Klientenliste (fitness-app ClientsPanel) liest nur fitness/{uid}/profile/metadata.
+// Wer sich nur in Fuel einloggt, bekam dort nie ein Profil und fehlte in der Liste.
+// Legt das Dokument einmalig an; vorhandene Felder (z. B. von Coach gesetzter clientStatus) bleiben unberührt.
+async function ensureCoachProfile(user) {
+  try {
+    const ref = doc(db, "fitness", user.uid, "profile", "metadata");
+    if ((await getDoc(ref)).exists()) return;
+    await setDoc(ref, {
+      displayName: user.displayName || user.email || "",
+      email: user.email || "",
+      clientStatus: "friend",
+      updated_at: serverTimestamp(),
+    }, { merge: true });
+  } catch (error) {
+    console.warn("[Auth] Coach-Profil nicht angelegt:", error);
+  }
+}
+
 export function watchAuth(callback) {
   return onAuthStateChanged(auth, (user) => {
     console.log(`[Auth] User status changed: ${user ? user.email : "logged out"}`);
+    if (user) ensureCoachProfile(user);
     callback(user);
   });
 }
