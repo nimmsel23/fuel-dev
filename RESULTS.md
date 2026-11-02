@@ -439,7 +439,6 @@ Gemeinsame mini-app-shell erweitert bzw. aktualisiert: versionsunabhängiger öf
 - Cloud- und Local-Vite-Build erfolgreich (bekannte Chunk-Größenwarnung). Isolierter Thorium-Test mit echten React-/Radix-Komponenten und IndexedDB, künstlichen Konten/KI-Antworten: Katalog überspringt KI, Offline-Foto übersteht Reload, Konto-/Datumswechsel isoliert, Wiederaufnahme normalisiert Zutaten; 320×568 scrollbar ohne horizontalen Überlauf, Escape schließt den Dialog. Screenshot: `/tmp/fuel-scanner-review/mobile.png`.
 - Kein echter Kamera-/Firebase-/App-Check-Token-Test, kein Push/Release/Deploy. Geräteabnahme nach Freigabe weiter offen.
 
-
 ## 2026-10-30 — Fotoscanner veröffentlicht
 
 - Auf ausdrückliche Nutzerfreigabe die sieben lokalen Fuel-Commits einschließlich Scanner `d4ba0ae` nach `origin/dev` gepusht. Der dev-Pre-Push-Hook hätte zusätzlich einen unbenötigten lokalen Backend-Staging-Deploy ausgeführt; für diesen geprüften Firebase-Release gezielt übersprungen.
@@ -473,3 +472,8 @@ Die vendorte Mini-App-Shell mit der aktuellen VitalOS-Quelle synchronisiert. Ein
 - Die Pflichtaufgabe wurde direkt im Original-PDF geprüft: sieben Tage, Lebensmittel und Getränke in Vormittag (00–12), Nachmittag (12–18), Abend (18–00), Kalorien je Tag. Das Modul führt zum Fuel-Log und vorhandenen Report; es weist darauf hin, die konkreten Abgabeanforderungen zu prüfen.
 - Neuer Fuel-Tab „Fasten“ bietet Start, optionales persönliches Zeit-Ziel, laufende Anzeige, Beenden/Verwerfen und die letzten 20 Sitzungen. Speicherung lokal im Browser, je angemeldetem Konto getrennt; keine Übernahme in Mahlzeiten, keine Cloud-Synchronisierung und keine Fastenempfehlung.
 - `pnpm run build:firebase` erfolgreich; bestehende Warnung zu Chunkgrößen über 500 kB. Keine Tests ausgeführt, nicht gepusht oder deployed.
+
+
+## 2026-10-31 — Dependabot
+
+Enabled Dependabot alerts and security updates. Configured weekly GitHub Actions and npm/pnpm updates plus Python dependency updates; version updates target `dev`. Minor/patch updates are grouped; vendored mini-app-shell copies stay maintained at their source. Validated YAML, repository manifest paths and update targets.
