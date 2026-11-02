@@ -134,3 +134,10 @@ werden aber im Cloud-Frontend nie geladen.
 ## 2026-10-31 — Lokales Produkt unter /opt
 
 - [x] Lokales Produkt mit expliziter Runtime-Allowlist, eigenem Server-Paket/Lockfile (12 direkte Node-Abhängigkeiten), Python-Helfern und Python-Umgebung. Kataloge zentral unter ~/.aos/fuel/catalogs; keine Links zu Quellrepos. Stage/Prod bauen keine Frontends im Ziel. Dry-run ergänzt.
+
+## Fuel Ernährungstrainer-Modul und Fastentimer (2026-11-02)
+
+- [x] Eigenen Modul-Tab mit Lernblöcken zu Ernährung, Erhebung/Beratung, Formen/Diäten, Ernährungsphysiologie, Sporternährung und Berufsrahmen ergänzen; Quellen aus den vorhandenen Kursnotizen kenntlich machen.
+- [x] Vollständige Fachliste der Master-MOC (11 A-Lizenz- und 4 B-Lizenz-Fächer) anzeigen; die sechs vorhandenen Vertiefungskarten ausdrücklich als thematische Einstiege kennzeichnen.
+- [x] Die 7-Tage-Pflichtaufgabe mit konkreter Tagesgliederung und Links zu Log und druckfertigem Report im Modul verknüpfen; vierteiligen Lerncheck und lokale Fortschrittsmarkierung ergänzen.
+- [x] Fastentimer mit optionalem persönlichem Zeit-Ziel, Sekundenanzeige, Ende/Verwerfen und lokalem Sitzungsverlauf ergänzen; Konto-Trennung und fehlende Mahlzeit-/Cloud-Schreibvorgänge dokumentieren.

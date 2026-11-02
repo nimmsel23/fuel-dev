@@ -465,3 +465,11 @@ Payload 3.25 MB plus 146 MB Node-Laufzeitbibliotheken. Offline-Node-Installation
 ## 2026-11-01 — Splash blockiert nicht mehr auf Service-Worker-Update
 
 Die vendorte Mini-App-Shell mit der aktuellen VitalOS-Quelle synchronisiert. Ein langsamer Netzwerk-/Service-Worker-Updatecheck hält den Splash nicht mehr offen; er verschwindet nach dem App-Start (mindestens 200 ms, maximal 12 s nur falls der App-Root gar nicht bereit wird).
+
+## 2026-11-02 — Ernährungstrainer-Modul und Fastentimer
+
+- Neuer Fuel-Tab „Modul“ bündelt sechs Lernblöcke aus den lokalen FlexyFit-Skripten (Ernährungslehre/Bedarf, Erhebung/Beratung, Ernährungsformen, Ernährungsphysiologie, Sporternährung, beruflicher Rahmen), lokalen Fortschritt und einen vierteiligen Selbstcheck.
+- Die Master-MOC liefert jetzt den vollständigen Curriculum-Index mit 11 A-Lizenz- und 4 B-Lizenz-Fächern. Die sechs Kurskarten sind als erste thematische Lernzugänge gekennzeichnet, nicht als vollständiger Inhaltsersatz; lokale Notizen/Konvertierungen sind von Originalskripten abgegrenzt. Eine Modulnummer wird nicht behauptet.
+- Die Pflichtaufgabe wurde direkt im Original-PDF geprüft: sieben Tage, Lebensmittel und Getränke in Vormittag (00–12), Nachmittag (12–18), Abend (18–00), Kalorien je Tag. Das Modul führt zum Fuel-Log und vorhandenen Report; es weist darauf hin, die konkreten Abgabeanforderungen zu prüfen.
+- Neuer Fuel-Tab „Fasten“ bietet Start, optionales persönliches Zeit-Ziel, laufende Anzeige, Beenden/Verwerfen und die letzten 20 Sitzungen. Speicherung lokal im Browser, je angemeldetem Konto getrennt; keine Übernahme in Mahlzeiten, keine Cloud-Synchronisierung und keine Fastenempfehlung.
+- `pnpm run build:firebase` erfolgreich; bestehende Warnung zu Chunkgrößen über 500 kB. Keine Tests ausgeführt, nicht gepusht oder deployed.
