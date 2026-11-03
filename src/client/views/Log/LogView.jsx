@@ -1,4 +1,4 @@
-import { mealDetails, scaleMeal } from "../../lib/mealDetails.js";
+import { mealDetails, scaleMeal, rebaseMealPortion } from "../../lib/mealDetails.js";
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { NotebookPen, UtensilsCrossed, Pencil, Sparkles, AlertTriangle, RefreshCw, Check, X, ScanSearch, Clock, AlignJustify, LayoutGrid, GitCommitVertical } from "lucide-react";
@@ -156,6 +156,7 @@ export default function LogView({ date, nutrition, notes, mode }) {
   const notesRef = useRef(null);
 
   const isEditing = Boolean(form.id);
+  const incompleteMacros = ["kcal", "protein", "carbs", "fat"].some((key) => form[key] === "" || form[key] == null || !Number.isFinite(Number(form[key])) || Number(form[key]) < 0);
   const meals = nutrition?.meals || [];
   const cloud = window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com");
 
@@ -231,14 +232,20 @@ export default function LogView({ date, nutrition, notes, mode }) {
   // existiert (siehe scanBaseline oben) — sonst reines Textfeld wie vorher.
   const setGrams = (e) => {
     const newGrams = e.target.value;
+    if (!newGrams && scanBaseline) setScanBaseline(rebaseMealPortion(form) || scanBaseline);
     setForm((f) => {
-      if (!scanBaseline || !newGrams || Number(newGrams) <= 0) {
+      if (!scanBaseline || !rebaseMealPortion({ ...f, grams: newGrams }) || !newGrams || Number(newGrams) <= 0) {
         return { ...f, grams: newGrams };
       }
       const factor = Number(newGrams) / scanBaseline.grams;
       const scaled = scaleMeal(scanBaseline, factor);
       return { ...f, ...mealDetails(scaled), kcal: scaled.kcal, protein: scaled.protein, carbs: scaled.carbs, fat: scaled.fat, grams: newGrams };
     });
+  };
+  const setMacro = (key, value) => {
+    const next = { ...form, [key]: value };
+    setForm(next);
+    if (scanBaseline) setScanBaseline(rebaseMealPortion({ ...next, grams: next.grams || scanBaseline.grams }) || scanBaseline);
   };
   const cancelEdit = () => { setForm(emptyForm()); setScanBaseline(null); setMoveDate(""); };
 
@@ -446,10 +453,10 @@ export default function LogView({ date, nutrition, notes, mode }) {
                 ...emptyForm(),
                 ...mealDetails(res),
                 description: res.description,
-                kcal: res.kcal || "",
-                protein: res.protein || "",
-                carbs: res.carbs || "",
-                fat: res.fat || "",
+                kcal: res.kcal ?? "",
+                protein: res.protein ?? "",
+                carbs: res.carbs ?? "",
+                fat: res.fat ?? "",
                 grams: res.grams || "",
               }));
               // Nur setzen wenn die Analyse eine Mengenangabe mitliefert —
@@ -538,7 +545,7 @@ export default function LogView({ date, nutrition, notes, mode }) {
               <input className={inputCls} placeholder="Mahlzeit…" value={form.description} onChange={set("description")} />
             </Field>
             <Field label="Gewicht (g)">
-              <input type="number" min="0" className={twMerge(inputCls, "sm:w-28")} placeholder="optional" value={form.grams} onChange={setGrams} />
+              <input type="number" min="0" className={twMerge(inputCls, "sm:w-28", scanBaseline && incompleteMacros && "opacity-50")} placeholder="optional" value={form.grams} onChange={setGrams} disabled={Boolean(scanBaseline && incompleteMacros)} />
             </Field>
           </div>
 
@@ -546,14 +553,17 @@ export default function LogView({ date, nutrition, notes, mode }) {
             {[["kcal", "kcal"], ["protein", "Prot g"], ["carbs", "Carb g"], ["fat", "Fett g"]].map(([k, lbl]) => (
               <Field key={k} label={lbl}>
                 <input type="number" min="0" className={inputCls} value={form[k]}
-                  onChange={(e) => { setScanBaseline(null); set(k)(e); }} />
+                  onChange={(e) => setMacro(k, e.target.value)} />
               </Field>
             ))}
           </div>
-          {scanBaseline && (
+          {scanBaseline && rebaseMealPortion(form) && (
             <p className="text-xs text-emerald-400">
-              Scan-Referenz aktiv ({scanBaseline.grams}g) — Gewicht ändern skaliert die Makros automatisch mit.
+              Portionsreferenz aktiv ({scanBaseline.grams} g) — Gewicht ändern skaliert Nährwerte und Zutaten automatisch mit.
             </p>
+          )}
+          {scanBaseline && !rebaseMealPortion(form) && (
+            <p className="text-xs text-amber-300">Für die Portionsskalierung bitte Gewicht und alle Makrowerte vollständig eingeben.</p>
           )}
           {form.grams && !scanBaseline && (
             <p className="text-xs text-slate-500">

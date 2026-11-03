@@ -52,3 +52,17 @@ export function scanToMeal(result) {
     ...(Array.isArray(result.components) && result.components.length ? { components: normalizeComponents(result.components) } : {}),
   };
 }
+
+// After a manual correction, the current portion becomes the new scaling reference.
+export function rebaseMealPortion(meal) {
+  const grams = Number(meal.grams);
+  if (!Number.isFinite(grams) || grams <= 0) return null;
+  const macros = {};
+  for (const key of ["kcal", "protein", "carbs", "fat"]) {
+    if (meal[key] === "" || meal[key] == null) return null;
+    const value = Number(meal[key]);
+    if (!Number.isFinite(value) || value < 0) return null;
+    macros[key] = value;
+  }
+  return { ...meal, ...macros, grams };
+}

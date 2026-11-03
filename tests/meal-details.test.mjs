@@ -53,3 +53,16 @@ test('catalog selection keeps its portion and provenance and rejects incomplete 
   assert.equal(scaleMeal(meal, 0.5).micros.calcium_mg, 20);
   assert.throws(() => catalogToMeal({ ...item, protein: null }), /vollständigen Makros/);
 });
+
+test('manual macro corrections become the reference for subsequent portion changes', async () => {
+  const { rebaseMealPortion } = await import('../src/client/lib/mealDetails.js');
+  const corrected = { grams: '200', kcal: '350', protein: '0', carbs: '40', fat: '10', micros: { calcium_mg: 80 }, components: [{ name: 'Rice', amount_g: 100 }] };
+  const reference = rebaseMealPortion(corrected);
+  const half = scaleMeal(reference, 0.5);
+  assert.equal(half.kcal, 175);
+  assert.equal(half.protein, 0);
+  assert.equal(half.micros.calcium_mg, 40);
+  assert.equal(half.components[0].amount_g, 50);
+  assert.equal(rebaseMealPortion({ ...corrected, fat: '' }), null);
+  assert.equal(rebaseMealPortion({ ...corrected, grams: 0 }), null);
+});
