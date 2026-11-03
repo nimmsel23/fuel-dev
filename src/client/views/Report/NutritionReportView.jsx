@@ -2,6 +2,7 @@ import { Fragment, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FileText, Printer } from "lucide-react";
 import { fetchJson } from "@api";
+import { sumMeals, macroSplit, averageMealsByDay, displayMacro } from "./reportMacros.mjs";
 import { requireCompleteLog } from "../../lib/logCompleteness.js";
 import { localISO as isoToday, shiftISO as shiftIso, reportDates, loadReportDays, hasReportEntries, reportMealAmount } from "./reportDates.mjs";
 
@@ -52,33 +53,9 @@ function slotForMeal(meal) {
   return TYPE_TO_SLOT[meal.type] || "nachmittag";
 }
 
-const n1 = (v) => Math.round((Number(v) || 0) * 10) / 10;
-const n0 = (v) => Math.round(Number(v) || 0);
-
-function macroSplit({ protein, carbs, fat }) {
-  const pK = (Number(protein) || 0) * 4;
-  const cK = (Number(carbs) || 0) * 4;
-  const fK = (Number(fat) || 0) * 9;
-  const sum = pK + cK + fK;
-  if (sum <= 0) return { protein: 0, carbs: 0, fat: 0 };
-  return {
-    protein: Math.round((pK / sum) * 100),
-    carbs: Math.round((cK / sum) * 100),
-    fat: Math.round((fK / sum) * 100),
-  };
-}
-
-function sumMeals(meals) {
-  return (meals || []).reduce(
-    (acc, m) => ({
-      kcal: acc.kcal + (Number(m.kcal) || 0),
-      protein: acc.protein + (Number(m.protein) || 0),
-      carbs: acc.carbs + (Number(m.carbs) || 0),
-      fat: acc.fat + (Number(m.fat) || 0),
-    }),
-    { kcal: 0, protein: 0, carbs: 0, fat: 0 },
-  );
-}
+const n1 = (value) => displayMacro(value, 1);
+const n0 = (value) => displayMacro(value, 0);
+const pct = (value) => value == null ? "—" : `${value} %`;
 
 function MacroCells({ totals }) {
   return (
@@ -161,7 +138,7 @@ function DayBlock({ iso, log }) {
       {meals.length > 0 && (
         <p style={{ margin: "4px 0 0", color: "#374151" }}>
           Gesamtkalorien: <strong>{n0(dayTotals.kcal)} kcal</strong> · Makro-Verteilung (energetisch):
-          {" "}KH {split.carbs}&nbsp;% · Fett {split.fat}&nbsp;% · Eiweiß {split.protein}&nbsp;%
+          {" "}KH {pct(split?.carbs)} · Fett {pct(split?.fat)} · Eiweiß {pct(split?.protein)}
         </p>
       )}
       {water > 0 && <p style={{ margin: "4px 0 0", color: "#374151" }}>Wasser: {water} ml</p>}
@@ -223,20 +200,7 @@ export default function NutritionReportView() {
 
   const summary = useMemo(() => {
     const loggedDates = validDates.filter((d) => (logsByDate[d]?.meals || []).length > 0);
-    const totals = loggedDates.reduce(
-      (acc, d) => {
-        const t = sumMeals(logsByDate[d].meals);
-        return {
-          kcal: acc.kcal + t.kcal,
-          protein: acc.protein + t.protein,
-          carbs: acc.carbs + t.carbs,
-          fat: acc.fat + t.fat,
-        };
-      },
-      { kcal: 0, protein: 0, carbs: 0, fat: 0 },
-    );
-    const n = loggedDates.length || 1;
-    const avg = { kcal: totals.kcal / n, protein: totals.protein / n, carbs: totals.carbs / n, fat: totals.fat / n };
+    const avg = averageMealsByDay(loggedDates.map((date) => logsByDate[date].meals));
     return { loggedCount: loggedDates.length, avg, split: macroSplit(avg) };
   }, [dates, logsByDate]);
 
@@ -384,14 +348,14 @@ export default function NutritionReportView() {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr><td>Gesamtenergie</td><td className="num">{n0(summary.avg.kcal)} kcal</td><td className="num">100 %</td></tr>
-                  <tr><td>Kohlenhydrate</td><td className="num">{n1(summary.avg.carbs)} g</td><td className="num">{summary.split.carbs} %</td></tr>
-                  <tr><td>Fett</td><td className="num">{n1(summary.avg.fat)} g</td><td className="num">{summary.split.fat} %</td></tr>
-                  <tr><td>Eiweiß</td><td className="num">{n1(summary.avg.protein)} g</td><td className="num">{summary.split.protein} %</td></tr>
+                  <tr><td>Gesamtenergie</td><td className="num">{n0(summary.avg.kcal)} kcal</td><td className="num">{summary.avg.kcal == null ? "—" : "100 %"}</td></tr>
+                  <tr><td>Kohlenhydrate</td><td className="num">{n1(summary.avg.carbs)} g</td><td className="num">{pct(summary.split?.carbs)}</td></tr>
+                  <tr><td>Fett</td><td className="num">{n1(summary.avg.fat)} g</td><td className="num">{pct(summary.split?.fat)}</td></tr>
+                  <tr><td>Eiweiß</td><td className="num">{n1(summary.avg.protein)} g</td><td className="num">{pct(summary.split?.protein)}</td></tr>
                 </tbody>
               </table>
               <p style={{ margin: "4px 0 0", color: "#6b7280" }}>
-                Grundlage: {summary.loggedCount} von {dayCount} Tagen mit Mahlzeiten; Wasser allein fließt nicht in den Durchschnitt ein.
+                Grundlage: {summary.loggedCount} von {dayCount} Tagen mit Mahlzeiten; Wasser allein fließt nicht in den Durchschnitt ein. „—“ bedeutet: Wert fehlt oder lässt sich nicht vollständig berechnen.
               </p>
             </section>
 
