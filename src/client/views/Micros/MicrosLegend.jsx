@@ -11,7 +11,7 @@ export default function MicrosLegend() {
         <span className="h-2.5 w-2.5 rounded-sm ring-1 ring-rose-200/20" style={{ background: "#dc2626" }} /> &lt; 50%
       </span>
       <span className="flex items-center gap-1.5">
-        <span className="h-2.5 w-2.5 rounded-sm border border-slate-600 bg-slate-800/60" /> Menge ohne Referenz / keine Daten
+        <span className="h-2.5 w-2.5 rounded-sm border border-slate-600 bg-slate-800/60" /> bekannter Teilwert / keine Daten / keine Referenz
       </span>
     </div>
   );
