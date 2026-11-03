@@ -2,6 +2,7 @@ import { Fragment, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FileText, Printer } from "lucide-react";
 import { fetchJson } from "@api";
+import { requireCompleteLog } from "../../lib/logCompleteness.js";
 import { localISO as isoToday, shiftISO as shiftIso, reportDates, loadReportDays, hasReportEntries, reportMealAmount } from "./reportDates.mjs";
 
 // Ernährungsprotokoll-Report — deckt die FFA-Pflichtaufgabe „7 Tage
@@ -187,7 +188,7 @@ export default function NutritionReportView() {
     queryFn: () => loadReportDays(dates, async (date) => {
       const result = await fetchJson(`/nutrition/log?date=${encodeURIComponent(date)}`);
       if (!result?.data || !Array.isArray(result.data.meals)) throw new Error("Ungültige Tagesdaten");
-      return result.data;
+      return requireCompleteLog(result.data);
     }),
   });
 

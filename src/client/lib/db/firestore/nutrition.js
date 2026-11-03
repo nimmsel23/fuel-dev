@@ -1,3 +1,4 @@
+import { requireCompleteLog } from "../../logCompleteness.js";
 import { nutrientCoverage } from "../../../../shared/config/nutrient-coverage.mjs";
 import { scaleKnownMicros } from "../../knownMicros.js";
 import { OMEGA3_KEYS, normalizeOmega3 } from "../../../../shared/config/omega3.mjs";
@@ -63,12 +64,15 @@ function applyMealTombstones(data) {
 
 export async function getNutritionLog(date = todayISO()) {
   let snap;
+  let localBaseUnavailable = false;
   try { snap = await getDoc(doc(db, "nutrition", getUid(), "logs", date)); }
   catch (error) {
     if (navigator.onLine || !outboxEntries(getUid()).some(e => e.kind === "nutrition" && e.date === date)) throw error;
     snap = { exists: () => false };
+    localBaseUnavailable = true;
   }
-  return projectCloudLog("nutrition", date, snap.exists() ? applyMealTombstones(snap.data()) : { date, meals: [], water_ml: 0 });
+  const base = snap.exists() ? applyMealTombstones(snap.data()) : { date, meals: [], water_ml: 0 };
+  return projectCloudLog("nutrition", date, { ...base, ...(localBaseUnavailable ? { local_base_unavailable: true } : {}) });
 }
 
 export async function saveNutritionLog(date, data) {
@@ -87,7 +91,7 @@ export async function saveNutritionLog(date, data) {
 }
 
 export async function getNutritionLogsInRange(dates) {
-  const logs = await Promise.all(dates.map((date) => getNutritionLog(date)));
+  const logs = await Promise.all(dates.map(async (date) => requireCompleteLog(await getNutritionLog(date))));
   return Object.fromEntries(dates.map((date, index) => [date, logs[index]]));
 }
 
@@ -241,7 +245,7 @@ export async function getWeeklyMicros(year, week) {
 
   const dates = getWeekDates(year, week);
   const logsMap = await getNutritionLogsInRange(dates);
-  const suppLogs = await Promise.all(dates.map((date) => getSupplementLog(date)));
+  const suppLogs = await Promise.all(dates.map(async (date) => requireCompleteLog(await getSupplementLog(date))));
   const suppLogsMap = Object.fromEntries(dates.map((date, index) => [date, suppLogs[index]]));
 
   const catalog = await getNutritionCatalog();
