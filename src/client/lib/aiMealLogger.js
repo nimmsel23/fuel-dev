@@ -1,9 +1,10 @@
-import { OMEGA3_RULES, normalizeOmega3, OMEGA3_KEYS } from "../../shared/config/omega3.mjs";
+import { OMEGA3_RULES } from "../../shared/config/omega3.mjs";
 import { postJson } from "@api";
 import { vertexAI } from "./firebase.js";
 import { getGenerativeModel, SchemaType } from "firebase/ai";
 import { withAiRetry } from "./aiRetry.js";
 import { MICRO_KEYS } from "../../shared/config/dach.mjs";
+import { knownMicros } from "./knownMicros.js";
 import { findCatalogMatch } from "./mealCatalogMatch.js";
 import { catalogToMeal } from "./mealDetails.js";
 export { findCatalogMatch } from "./mealCatalogMatch.js";
@@ -145,10 +146,8 @@ export async function resolveMealText({ date, rawText, entryId, catalogItems, su
 
   const mealName = parsed.name || rawText;
   const components = normalizeComponents(parsed.components);
-  const micros = parsed.micros
-    ? normalizeOmega3(Object.fromEntries(MICRO_KEYS.filter(k => !OMEGA3_KEYS.includes(k) || parsed.micros[k] != null).map((k) => [k, parsed.micros[k] ?? 0])))
-    : null;
-  const hasMicros = micros && Object.values(micros).some((v) => v > 0);
+  const micros = knownMicros(parsed.micros);
+  const hasMicros = Object.keys(micros).length > 0;
 
   assertOwner();
   await postJson("/nutrition/log", {
@@ -157,6 +156,7 @@ export async function resolveMealText({ date, rawText, entryId, catalogItems, su
       ...(entryId ? { id: `${entryId}_meal_0` } : {}),
       type: parsed.type || "snack",
       description: mealName,
+      source: "gemini",
       notes: "",
       kcal: parsed.macros.kcal || 0,
       protein: parsed.macros.protein || 0,

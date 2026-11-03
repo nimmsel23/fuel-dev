@@ -1,6 +1,5 @@
 import { normalizeComponents } from "./mealComponents.js";
-import { normalizeOmega3 } from "../../shared/config/omega3.mjs";
-import { MICRO_KEYS } from "../../shared/config/dach.mjs";
+import { knownMicros } from "./knownMicros.js";
 
 const DETAIL_KEYS = ["grams", "micros", "micros_meta", "components", "source", "source_url", "barcode", "catalog_id"];
 export function mealDetails(meal) {
@@ -37,8 +36,7 @@ export function scaleMeal(meal, factor) {
 
 export function scanToMeal(result) {
   if (!result?.macros) throw new Error("Konnte keine Makros erkennen.");
-  const micros = normalizeOmega3(Object.fromEntries(MICRO_KEYS.filter(k => result.micros?.[k] != null && Number.isFinite(Number(result.micros[k])) && Number(result.micros[k]) >= 0)
-    .map(k => [k, Number(result.micros[k])])));
+  const micros = knownMicros(result.micros);
   const grams = Number(result.grams) > 0 ? Number(result.grams) : null;
   const macros = Object.fromEntries(["kcal", "protein", "carbs", "fat"].map(k => {
     const value = Number(result.macros[k] ?? 0);

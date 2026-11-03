@@ -1,3 +1,4 @@
+import { scaleKnownMicros } from "../../knownMicros.js";
 import { OMEGA3_KEYS, normalizeOmega3, omega3Coverage } from "../../../../shared/config/omega3.mjs";
 import { computeFastingWindows } from "../../../../shared/utils/fasting.mjs";
 import { projectCloudLog, outboxEntries, projectCloudCatalog, hasPendingFor } from "../../cloudOutbox.js";
@@ -159,11 +160,7 @@ function resolveMealMicros(meal, catalog, microsMap) {
     const src = normalizeOmega3(catalogEntry.micros);
     let factor = 1;
     if (meal.kcal && catalogEntry.kcal) factor = meal.kcal / catalogEntry.kcal;
-    const resolved = {};
-    for (const k of MICRO_KEYS) {
-      if (OMEGA3_KEYS.includes(k) && src[k] == null) continue;
-      resolved[k] = Math.round((src[k] || 0) * factor * 10) / 10;
-    }
+    const resolved = scaleKnownMicros(src, factor);
     meal.micros = resolved;
     meal.micros_meta = {
       source: catalogEntry.micros_meta?.source || "catalog",
@@ -185,11 +182,7 @@ function resolveMealMicros(meal, catalog, microsMap) {
   let factor = 1;
   if (meal.kcal && micros.kcal) factor = meal.kcal / micros.kcal;
 
-  const resolved = {};
-  for (const k of MICRO_KEYS) {
-    if (OMEGA3_KEYS.includes(k) && micros[k] == null) continue;
-    resolved[k] = Math.round((micros[k] || 0) * factor * 10) / 10;
-  }
+  const resolved = scaleKnownMicros(micros, factor);
   meal.micros = resolved;
   meal.micros_meta = {
     source: micros.source || "unknown",
@@ -319,7 +312,7 @@ export async function getWeeklyMicros(year, week) {
           name: entry.name || intake.supplement_id,
           dose: intake.dose,
           unit: entry.unit || "",
-          micros: Object.fromEntries(MICRO_KEYS.filter(k => !OMEGA3_KEYS.includes(k) || profile[k] != null).map((k) => [k, profile[k] ? Math.round((profile[k] * factor) * 10) / 10 : 0])),
+          micros: scaleKnownMicros(profile, factor),
           micros_meta: {
             source: "supplement_catalog",
             lookup_name: entry.name || intake.supplement_id,
