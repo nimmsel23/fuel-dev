@@ -18,3 +18,12 @@ test('report loads the requested dates and propagates failed reads', async () =>
   assert.deepEqual(logs['2020-01-02'].meals, []);
   await assert.rejects(loadReportDays(dates, async date => { if (date.endsWith('02')) throw Error('offline'); return {}; }), /offline/);
 });
+
+test('water-only days and recorded portion weights remain visible in the report', async () => {
+  const { hasReportEntries, reportMealAmount } = await import('../src/client/views/Report/reportDates.mjs');
+  assert.equal(hasReportEntries({ meals: [], water_ml: 750 }), true);
+  assert.equal(hasReportEntries({ meals: [], water_ml: 0 }), false);
+  assert.equal(hasReportEntries({ meals: [{}] }), true);
+  assert.equal(reportMealAmount({ grams: 125.5 }), '125,5 g');
+  assert.equal(reportMealAmount({ grams: null }), '');
+});

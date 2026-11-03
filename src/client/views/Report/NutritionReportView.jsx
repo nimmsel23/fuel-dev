@@ -2,7 +2,7 @@ import { Fragment, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FileText, Printer } from "lucide-react";
 import { fetchJson } from "@api";
-import { localISO as isoToday, shiftISO as shiftIso, reportDates, loadReportDays } from "./reportDates.mjs";
+import { localISO as isoToday, shiftISO as shiftIso, reportDates, loadReportDays, hasReportEntries, reportMealAmount } from "./reportDates.mjs";
 
 // Ernährungsprotokoll-Report — deckt die FFA-Pflichtaufgabe „7 Tage
 // Makronutrient-Protokoll" (Ernährungstrainer, Task 1), das „14 Tage
@@ -94,14 +94,15 @@ function DayBlock({ iso, log }) {
   const meals = log?.meals || [];
   const dayTotals = sumMeals(meals);
   const split = macroSplit(dayTotals);
+  const water = Number(log?.water_ml) > 0 ? n0(log.water_ml) : 0;
 
   return (
     <section className="report-day" style={{ marginTop: 18 }}>
       <h3 style={{ fontSize: 13, fontWeight: 700, margin: "0 0 4px" }}>{fmtDE(iso)}</h3>
 
-      {meals.length === 0 ? (
+      {!hasReportEntries(log) ? (
         <p style={{ margin: 0, fontStyle: "italic", color: "#6b7280" }}>Keine Einträge protokolliert.</p>
-      ) : (
+      ) : meals.length > 0 ? (
         <table>
           <thead>
             <tr>
@@ -132,6 +133,7 @@ function DayBlock({ iso, log }) {
                       <td>{hhmm(m.time)}</td>
                       <td>
                         {m.description}
+                        {reportMealAmount(m) ? <span style={{ color: "#6b7280" }}> ({reportMealAmount(m)})</span> : null}
                         {m.notes ? <span style={{ color: "#6b7280" }}> — {m.notes}</span> : null}
                       </td>
                       <td className="num">{n0(m.kcal)}</td>
@@ -153,15 +155,15 @@ function DayBlock({ iso, log }) {
             </tr>
           </tbody>
         </table>
-      )}
+      ) : null}
 
       {meals.length > 0 && (
         <p style={{ margin: "4px 0 0", color: "#374151" }}>
           Gesamtkalorien: <strong>{n0(dayTotals.kcal)} kcal</strong> · Makro-Verteilung (energetisch):
           {" "}KH {split.carbs}&nbsp;% · Fett {split.fat}&nbsp;% · Eiweiß {split.protein}&nbsp;%
-          {log?.water_ml ? <> · Wasser {n0(log.water_ml)} ml</> : null}
         </p>
       )}
+      {water > 0 && <p style={{ margin: "4px 0 0", color: "#374151" }}>Wasser: {water} ml</p>}
     </section>
   );
 }
@@ -212,10 +214,11 @@ export default function NutritionReportView() {
   const dayCount = validDates.length;
   // Tage ohne Einträge optional ausblenden; Kennzahlen (Ø, „x von y Tagen") rechnen weiter über den ganzen Zeitraum.
   const visibleDates = useMemo(
-    () => (hideEmpty ? validDates.filter((d) => (logsByDate[d]?.meals || []).length > 0) : validDates),
+    () => (hideEmpty ? validDates.filter((d) => hasReportEntries(logsByDate[d])) : validDates),
     [dates, hideEmpty, logsByDate],
   );
   const hiddenCount = dayCount - visibleDates.length;
+  const recordedCount = validDates.filter((d) => hasReportEntries(logsByDate[d])).length;
 
   const summary = useMemo(() => {
     const loggedDates = validDates.filter((d) => (logsByDate[d]?.meals || []).length > 0);
@@ -326,7 +329,7 @@ export default function NutritionReportView() {
         {!dates && <p role="alert" className="text-sm text-amber-300">Bitte einen gültigen Zeitraum von höchstens 400 Tagen wählen.</p>}
         {isError && <p role="alert" className="text-sm text-red-300">Die Tagesdaten konnten nicht vollständig geladen werden. <button onClick={() => refetch()} className="underline">Erneut versuchen</button></p>}
         <p className="text-xs text-slate-500">
-          {dayCount} Kalendertage im Zeitraum · {summary.loggedCount} Tage mit Einträgen.
+          {dayCount} Kalendertage im Zeitraum · {recordedCount} Tage mit Einträgen.
           {hideEmpty
             ? `${hiddenCount} Tage ohne Protokoll sind im Dokument ausgeblendet.`
             : "Tage ohne Protokoll werden im Dokument als „Keine Einträge\" ausgewiesen."}
@@ -387,7 +390,7 @@ export default function NutritionReportView() {
                 </tbody>
               </table>
               <p style={{ margin: "4px 0 0", color: "#6b7280" }}>
-                Grundlage: {summary.loggedCount} von {dayCount} Tagen mit Einträgen.
+                Grundlage: {summary.loggedCount} von {dayCount} Tagen mit Mahlzeiten; Wasser allein fließt nicht in den Durchschnitt ein.
               </p>
             </section>
 

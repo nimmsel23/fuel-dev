@@ -31,3 +31,12 @@ export async function loadReportDays(dates, fetchDay) {
   }
   return logs;
 }
+
+export function hasReportEntries(log) {
+  return (Array.isArray(log?.meals) && log.meals.length > 0) || Number(log?.water_ml) > 0;
+}
+
+export function reportMealAmount(meal) {
+  const grams = Number(meal?.grams);
+  return Number.isFinite(grams) && grams > 0 ? `${new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format(grams)} g` : "";
+}
