@@ -27,7 +27,7 @@ export default function MealListTimeline({
             <div className="min-w-0 flex-1">
               <div className="truncate text-sm font-medium text-slate-100">{m.description}</div>
               <div className="mt-0.5 text-[11px] tabular-nums text-slate-500">
-                {m.kcal} kcal · P{m.protein} · C{m.carbs} · F{m.fat}
+                {m.kcal ?? "—"} kcal · P{m.protein ?? "—"} · C{m.carbs ?? "—"} · F{m.fat ?? "—"}
               </div>
             </div>
             <div className="flex shrink-0 gap-1 opacity-60 transition group-hover:opacity-100">

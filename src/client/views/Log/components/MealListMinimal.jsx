@@ -18,12 +18,12 @@ export default function MealListMinimal({ meals, mealLabel, formId, onRepeat, on
             <div className="truncate text-sm font-medium text-slate-100">{m.description}</div>
             <div className="mt-0.5 text-[11.5px] text-slate-500">
               {mealLabel[m.type] || MEAL_LABEL_FALLBACK(m.type)}
-              {" · "}P{m.protein} C{m.carbs} F{m.fat}
+              {" · "}P{m.protein ?? "—"} C{m.carbs ?? "—"} F{m.fat ?? "—"}
             </div>
           </div>
           <div className="flex shrink-0 items-baseline gap-3">
             <span className="text-sm font-semibold tabular-nums text-slate-100">
-              {m.kcal}<span className="ml-0.5 text-[11px] font-normal text-slate-500">kcal</span>
+              {m.kcal ?? "—"}<span className="ml-0.5 text-[11px] font-normal text-slate-500">kcal</span>
             </span>
             <div className="flex gap-1">
               <button onClick={() => onRepeat(m)}

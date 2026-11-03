@@ -21,6 +21,7 @@ import { computeMacroGoals } from "../Settings/GoalsSection.jsx";
 import { Camera, RotateCcw } from "lucide-react";
 import { sumMetric, formatMetric } from "../../../shared/utils/utils.js";
 import { consumeNotificationIntent } from "../../lib/notification-intents.js";
+import { missingMealMacros } from "../../lib/mealMacros.js";
 
 const LOG_VIEW_MODES = [
   { value: "minimal", label: "Liste", icon: AlignJustify },
@@ -367,10 +368,10 @@ export default function LogView({ date, nutrition, notes, mode }) {
   const repeat = (meal) => repeatMeal.mutate({ ...meal, repeat_id: crypto.randomUUID(), repeat_at: new Date().toISOString() });
 
   const totals = {
-    kcal: sumMetric(meals, "kcal"),
-    protein: sumMetric(meals, "protein"),
-    carbs: sumMetric(meals, "carbs"),
-    fat: sumMetric(meals, "fat"),
+    kcal: missingMealMacros(meals).kcal ? null : sumMetric(meals, "kcal"),
+    protein: missingMealMacros(meals).protein ? null : sumMetric(meals, "protein"),
+    carbs: missingMealMacros(meals).carbs ? null : sumMetric(meals, "carbs"),
+    fat: missingMealMacros(meals).fat ? null : sumMetric(meals, "fat"),
   };
   const goals = { kcal_goal, protein_goal, ...computeMacroGoals({ kcal_goal, protein_goal, carb_ratio }) };
 

@@ -22,3 +22,12 @@ export function missingMealMacros(meals) {
   }
   return missing;
 }
+
+export function sumKnownMealMacro(meals, key) {
+  return (meals || []).reduce((sum, meal) => {
+    const value = meal[key];
+    return value == null || value === '' || typeof value === 'boolean' || !Number.isFinite(Number(value)) || Number(value) < 0
+      ? sum
+      : sum + Number(value);
+  }, 0);
+}
