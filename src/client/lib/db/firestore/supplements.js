@@ -35,12 +35,15 @@ export async function deleteSupplementFromCatalog(id) {
 
 export async function getSupplementLog(date = todayISO()) {
   let snap;
+  let localBaseUnavailable = false;
   try { snap = await getDoc(doc(db, "supplements", getUid(), "logs", date)); }
   catch (error) {
     if (navigator.onLine || !outboxEntries(getUid()).some(e => e.kind === "supplements" && e.date === date)) throw error;
     snap = { exists: () => false };
+    localBaseUnavailable = true;
   }
-  return projectCloudLog("supplements", date, snap.exists() ? snap.data() : { date, intakes: [] });
+  const base = snap.exists() ? snap.data() : { date, intakes: [] };
+  return projectCloudLog("supplements", date, { ...base, ...(localBaseUnavailable ? { local_base_unavailable: true } : {}) });
 }
 
 export async function saveSupplementLog(date, data) {

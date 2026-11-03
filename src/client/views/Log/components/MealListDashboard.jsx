@@ -1,14 +1,16 @@
 import { CopyPlus, Pencil, Trash2 } from "lucide-react";
 import { twMerge } from "tailwind-merge";
+import { missingMealMacros } from "../../../lib/mealMacros.js";
 
 export function StatTile({ label, value, unit, goal, color }) {
-  const pct = goal > 0 ? Math.min(100, Math.round((value / goal) * 100)) : 0;
+  const incomplete = value == null;
+  const pct = !incomplete && goal > 0 ? Math.min(100, Math.round((value / goal) * 100)) : 0;
   return (
     <div className="rounded-2xl border border-white/10 bg-slate-950/40 px-2.5 py-2.5">
       <div className="text-[9.5px] uppercase tracking-[0.14em] text-slate-500">{label}</div>
-      <div className="mt-0.5 text-base font-bold tabular-nums text-slate-100">{Math.round(value)}{unit}</div>
+      <div className="mt-0.5 text-base font-bold tabular-nums text-slate-100">{incomplete ? "—" : Math.round(value)}{unit}</div>
       <div className="mt-2 h-1 rounded-full bg-white/10 overflow-hidden">
-        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: color }} />
+        <div className={`h-full rounded-full transition-all ${incomplete ? "opacity-40" : ""}`} style={{ width: `${pct}%`, backgroundColor: color }} />
       </div>
     </div>
   );
@@ -21,14 +23,15 @@ export default function MealListDashboard({
   meals, mealLabel, formId, onRepeat, onEdit, onDelete, repeatPendingId,
   totals, goals, getTime, showTotals = true,
 }) {
+  const missing = missingMealMacros(meals);
   return (
     <div>
       {showTotals && (
         <div className="grid grid-cols-4 gap-2">
-          <StatTile label="Kcal" value={totals.kcal} unit="" goal={goals.kcal_goal} color="#fb923c" />
-          <StatTile label="Protein" value={totals.protein} unit="g" goal={goals.protein_goal} color="#34d399" />
-          <StatTile label="Carbs" value={totals.carbs} unit="g" goal={goals.carbs_goal} color="#38bdf8" />
-          <StatTile label="Fett" value={totals.fat} unit="g" goal={goals.fat_goal} color="#a78bfa" />
+          <StatTile label="Kcal" value={missing.kcal ? null : totals.kcal} unit="" goal={goals.kcal_goal} color="#fb923c" />
+          <StatTile label="Protein" value={missing.protein ? null : totals.protein} unit="g" goal={goals.protein_goal} color="#34d399" />
+          <StatTile label="Carbs" value={missing.carbs ? null : totals.carbs} unit="g" goal={goals.carbs_goal} color="#38bdf8" />
+          <StatTile label="Fett" value={missing.fat ? null : totals.fat} unit="g" goal={goals.fat_goal} color="#a78bfa" />
         </div>
       )}
 
@@ -40,10 +43,11 @@ export default function MealListDashboard({
       </div>
 
       {meals.map((m) => {
-        const sum = (m.protein || 0) + (m.carbs || 0) + (m.fat || 0) || 1;
-        const pPct = (m.protein / sum) * 100;
-        const cPct = (m.carbs / sum) * 100;
-        const fPct = (m.fat / sum) * 100;
+        const macrosKnown = [m.protein, m.carbs, m.fat].every(value => value != null && value !== '' && Number.isFinite(Number(value)) && Number(value) >= 0);
+        const sum = macrosKnown ? (Number(m.protein) + Number(m.carbs) + Number(m.fat) || 1) : 1;
+        const pPct = macrosKnown ? (Number(m.protein) / sum) * 100 : 0;
+        const cPct = macrosKnown ? (Number(m.carbs) / sum) * 100 : 0;
+        const fPct = macrosKnown ? (Number(m.fat) / sum) * 100 : 0;
         return (
           <div key={m.id}
             className={twMerge(
@@ -52,12 +56,12 @@ export default function MealListDashboard({
             )}>
             <span className="font-mono text-[10px] text-slate-500">{getTime(m)}</span>
             <span className="truncate text-[13px] text-slate-200" title={m.description}>{m.description}</span>
-            <span className="mx-auto flex h-1.5 w-14 overflow-hidden rounded-full bg-white/5" title={`P${m.protein} C${m.carbs} F${m.fat}`}>
+            <span className="mx-auto flex h-1.5 w-14 overflow-hidden rounded-full bg-white/5" title={macrosKnown ? `P${m.protein} C${m.carbs} F${m.fat}` : "Makroverteilung unvollständig"}>
               <span style={{ width: `${pPct}%`, backgroundColor: "#34d399" }} />
               <span style={{ width: `${cPct}%`, backgroundColor: "#38bdf8" }} />
               <span style={{ width: `${fPct}%`, backgroundColor: "#a78bfa" }} />
             </span>
-            <span className="text-right text-[13px] font-bold tabular-nums text-slate-100">{m.kcal}</span>
+            <span className="text-right text-[13px] font-bold tabular-nums text-slate-100">{m.kcal ?? "—"}</span>
             <div className="col-span-4 mt-1 hidden justify-end gap-1 group-hover:flex">
               <span className="mr-auto text-[10px] text-slate-500">{mealLabel[m.type] || m.type}</span>
               <button onClick={() => onRepeat(m)} disabled={repeatPendingId === m.id} title="Nochmal loggen"

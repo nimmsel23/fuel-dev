@@ -1,13 +1,13 @@
 import React from "react";
 import { NUTRIENTS, pctColor } from "./utils.js";
 
-function Cell({ pct, dach, unit, avg, onClick }) {
+function Cell({ pct, dach, unit, avg, coverage, onClick }) {
   const { bg, text } = pctColor(pct);
   const formattedAvg = avg == null ? null : Number(avg).toLocaleString("de-AT", { maximumFractionDigits: 1 });
   const formattedPct = pct == null ? null : Math.round(pct);
   const title = pct != null
     ? `${formattedAvg} ${unit}/Tag · ${dach} ${unit} Referenz · ${formattedPct}% — Details öffnen`
-    : avg != null ? `${formattedAvg} ${unit}/Tag · Referenzwert nicht verfügbar — Details öffnen` : "Keine Daten für diese Woche — Details öffnen";
+    : avg != null ? `${formattedAvg} ${unit}/Tag · ${coverage === "partial" ? "unvollständige Daten, bekannter Anteil" : "Referenzwert nicht verfügbar"} — Details öffnen` : "Keine Daten für diese Woche — Details öffnen";
 
   return (
     <button
@@ -53,6 +53,7 @@ export default function MicrosGrid({ weeks, results, onCellClick }) {
                   dach={d?.dach ?? null}
                   unit={unit}
                   avg={d?.avg_daily ?? null}
+                  coverage={d?.coverage}
                   onClick={() => onCellClick?.({ key, label, unit }, weeks[wi], res.data)}
                 />
               );

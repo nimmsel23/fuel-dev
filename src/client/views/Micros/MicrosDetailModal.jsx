@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { ArrowUpRight, Copy, Link2, X } from "lucide-react";
 import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine, Cell as RCell } from "recharts";
 import { pctColor } from "./utils.js";
+import { dayNutrientSummary } from "./dayCoverage.js";
 
 function provenanceLabel(entry) {
   const meta = entry?.micros_meta || null;
@@ -51,20 +52,19 @@ function componentSourceLabel(source) {
 export default function MicrosDetailModal({ nutrient, week, weekData, onClose, onOpenEntry }) {
   const { key, label, unit } = nutrient;
   const status = weekData?.rda_comparison?.[key];
-  const dayBreakdown = weekData?.day_breakdown || {};
   const mealBreakdown = weekData?.meal_breakdown || {};
   const dates = weekData?.dates || [];
 
   const chartData = dates.map((date) => ({
-    date: date.slice(5), // MM-DD
+    date: date.slice(5),
     fullDate: date,
-    value: dayBreakdown[date]?.[key] ?? 0,
+    ...dayNutrientSummary(mealBreakdown[date], key),
   }));
 
   // Standardmäßig der letzte Tag mit Daten für diesen Nährstoff — Klick auf
   // einen Balken wechselt die Auswahl (siehe Bar onClick unten).
   const defaultDate = useMemo(() => {
-    const withData = [...chartData].reverse().find((d) => d.value > 0);
+    const withData = [...chartData].reverse().find((d) => d.value != null);
     return (withData || chartData[chartData.length - 1])?.fullDate;
   }, [weekData, key]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -86,13 +86,13 @@ export default function MicrosDetailModal({ nutrient, week, weekData, onClose, o
   }, [selectedEntry, key]);
   const activeDate = selectedDate && dates.includes(selectedDate) ? selectedDate : defaultDate;
 
-  const contributions = (mealBreakdown[activeDate] || [])
-    .map((entry) => ({ ...entry, date: activeDate, value: entry.micros?.[key] ?? 0 }))
-    .filter((entry) => entry.value > 0)
-    .sort((a, b) => b.value - a.value);
-  const activeDayTotal = dayBreakdown[activeDate]?.[key] ?? 0;
-  const selectedDayTotal = selectedEntry ? dayBreakdown[selectedEntry.date || activeDate]?.[key] ?? 0 : 0;
-  const selectedDayShare = selectedDayTotal > 0
+  const activeDay = dayNutrientSummary(mealBreakdown[activeDate], key);
+  const contributions = activeDay.contributions
+    .map((entry) => ({ ...entry, date: activeDate }))
+    .sort((a, b) => (b.value ?? -1) - (a.value ?? -1));
+  const activeDayTotal = activeDay.value;
+  const selectedDayTotal = selectedEntry ? dayNutrientSummary(mealBreakdown[selectedEntry.date || activeDate], key).value : null;
+  const selectedDayShare = selectedEntry?.value != null && selectedDayTotal > 0
     ? Math.round(((selectedEntry?.value ?? selectedEntry?.micros?.[key] ?? 0) / selectedDayTotal) * 100)
     : null;
   const omega3NeedsReview = selectedEntry?.kind === "meal"
@@ -150,10 +150,10 @@ export default function MicrosDetailModal({ nutrient, week, weekData, onClose, o
             <p className="mb-4 text-sm text-slate-500">Keine Daten für diese Woche.</p>
           )}
 
+          {status?.coverage && <p className="mb-3 text-xs text-slate-400">Datenlage: {status.coverage === "complete" ? "vollständig für erfasste Einträge" : status.coverage === "partial" ? "teilweise; angezeigte Mengen sind bekannte Anteile" : "unbekannt"} ({status.known_entries}/{status.total_entries} Einträge). Nicht erfasste Mahlzeiten sind darin nicht enthalten.</p>}
           {key.startsWith("omega3") && <p className="mb-4 text-xs text-slate-400">
             ALA, EPA, DHA und DPA werden getrennt erfasst. 250 mg ist die EFSA-Referenz für EPA + DHA.
             Bekannte Mengen sind bei fehlenden Detailwerten eine Teilsumme, kein vollständiges Profil.
-            {status?.coverage && ` Datenlage: ${status.coverage === "complete" ? "vollständig für erfasste Einträge" : status.coverage === "partial" ? "teilweise" : "unbekannt"} (${status.known_entries}/${status.total_entries} Einträge).`}
           </p>}
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
@@ -179,7 +179,7 @@ export default function MicrosDetailModal({ nutrient, week, weekData, onClose, o
                   }}
                 >
                   {chartData.map((d, i) => {
-                    const color = pctColor(status?.dach > 0 ? Math.round((d.value / status.dach) * 100) : null).bg;
+                    const color = pctColor(d.coverage === "complete" && status?.dach > 0 ? Math.round((d.value / status.dach) * 100) : null).bg;
                     const isActive = d.fullDate === activeDate;
                     return (
                       <RCell
@@ -194,8 +194,11 @@ export default function MicrosDetailModal({ nutrient, week, weekData, onClose, o
               </BarChart>
             </ResponsiveContainer>
           </div>
+          <div className="mt-3 flex flex-wrap gap-1" aria-label="Tag auswählen">
+            {chartData.map((day) => <button key={day.fullDate} type="button" onClick={() => { setSelectedDate(day.fullDate); setSelectedEntry(null); }} aria-pressed={day.fullDate === activeDate} className="rounded-lg border border-white/10 px-2 py-1 text-xs text-slate-300 aria-pressed:border-cyan-300">{day.date}</button>)}
+          </div>
           <p className="mt-3 text-[11px] text-slate-600">
-            Gestrichelte Linie = Tagesreferenz ({status?.dach ?? "—"} {unit}). Balken anklicken für Beiträge dieses Tages.
+            Gestrichelte Linie = Tagesreferenz ({status?.dach ?? "—"} {unit}). Balken oder Datum wählen; graue Balken zeigen unvollständige Angaben.
           </p>
 
           {weekTopContributions.length > 0 && (
@@ -245,14 +248,14 @@ export default function MicrosDetailModal({ nutrient, week, weekData, onClose, o
               <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                 Beiträge — {activeDate ? activeDate.slice(5).split("-").reverse().join(".") : "—"}
               </h4>
-              <span className="text-xs text-slate-500">{activeDayTotal} {unit} gesamt</span>
+              <span className="text-xs text-slate-500">{activeDayTotal == null ? "unbekannt" : `${activeDayTotal} ${unit} ${activeDay.coverage === "partial" ? "bekannter Anteil" : "gesamt"}`}</span>
             </div>
             {contributions.length === 0 ? (
-              <p className="text-sm text-slate-600">Keine Einträge mit {label}-Beitrag an diesem Tag.</p>
+              <p className="text-sm text-slate-600">Keine Einträge an diesem Tag.</p>
             ) : (
               <ul className="space-y-1.5">
                 {contributions.map((entry, i) => {
-                  const pct = activeDayTotal > 0 ? Math.round((entry.value / activeDayTotal) * 100) : 0;
+                  const pct = activeDayTotal > 0 && entry.value != null ? Math.round((entry.value / activeDayTotal) * 100) : null;
                   const isSelected = selectedEntry?.id && selectedEntry.id === entry.id && selectedEntry.kind === entry.kind;
                   return (
                     <li key={entry.id || `${entry.date}-${entry.name}-${i}`}>
@@ -269,12 +272,12 @@ export default function MicrosDetailModal({ nutrient, week, weekData, onClose, o
                           </div>
                         )}
                         <div className="h-1 mt-1 rounded-full bg-white/10 overflow-hidden">
-                          <div className="h-full rounded-full bg-violet-400/70" style={{ width: `${pct}%` }} />
+                          <div className="h-full rounded-full bg-violet-400/70" style={{ width: `${pct ?? 0}%` }} />
                         </div>
                       </div>
                       <div className="shrink-0 text-right text-sm font-medium text-slate-200">
-                        {entry.value} {unit}
-                        <div className="text-[10px] font-normal text-slate-500">{pct}%</div>
+                        {entry.value == null ? "unbekannt" : `${entry.value} ${unit}`}
+                        {pct != null && <div className="text-[10px] font-normal text-slate-500">{pct}% des bekannten Anteils</div>}
                       </div>
                     </button>
                     </li>
@@ -293,7 +296,7 @@ export default function MicrosDetailModal({ nutrient, week, weekData, onClose, o
                   <p className="mt-1 text-xs text-slate-400">{selectedEntry.kind === "supplement" ? "Supplement-Einnahme" : "Mahlzeit"} · {selectedEntry.date || activeDate}{timeLabel(selectedEntry.time) ? ` · ${timeLabel(selectedEntry.time)} Uhr` : ""}</p>
                 </div>
                 <div className="rounded-xl bg-slate-950/60 px-3 py-2 text-right">
-                  <div className="text-lg font-semibold tabular-nums text-white">{selectedEntry.value ?? selectedEntry.micros?.[key] ?? 0} {unit}</div>
+                  <div className="text-lg font-semibold tabular-nums text-white">{selectedEntry.value == null ? "unbekannt" : `${selectedEntry.value} ${unit}`}</div>
                   <div className="text-[10px] text-slate-500">Beitrag für {label}</div>
                 </div>
               </div>
@@ -356,7 +359,7 @@ export default function MicrosDetailModal({ nutrient, week, weekData, onClose, o
                   {componentTrace?.known.length > 0 && (
                     <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-white/[0.07] pt-3 text-[11px]">
                       <span className="text-slate-400">Belegte Zutaten zusammen: <strong className="text-cyan-100">{formatMicro(componentTrace.knownTotal, unit)}</strong></span>
-                      <span className="text-slate-500">Mahlzeit gesamt: {formatMicro(selectedEntry.value ?? selectedEntry.micros?.[key] ?? 0, unit)} · Differenz bleibt nicht zugeordnet</span>
+                      <span className="text-slate-500">Mahlzeit gesamt: {selectedEntry.value == null ? "unbekannt" : formatMicro(selectedEntry.value, unit)}{selectedEntry.value != null ? " · Differenz bleibt nicht zugeordnet" : ""}</span>
                     </div>
                   )}
 

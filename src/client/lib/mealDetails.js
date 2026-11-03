@@ -1,6 +1,5 @@
 import { normalizeComponents } from "./mealComponents.js";
-import { normalizeOmega3 } from "../../shared/config/omega3.mjs";
-import { MICRO_KEYS } from "../../shared/config/dach.mjs";
+import { knownMicros } from "./knownMicros.js";
 
 const DETAIL_KEYS = ["grams", "micros", "micros_meta", "components", "source", "source_url", "barcode", "catalog_id"];
 export function mealDetails(meal) {
@@ -37,8 +36,7 @@ export function scaleMeal(meal, factor) {
 
 export function scanToMeal(result) {
   if (!result?.macros) throw new Error("Konnte keine Makros erkennen.");
-  const micros = normalizeOmega3(Object.fromEntries(MICRO_KEYS.filter(k => result.micros?.[k] != null && Number.isFinite(Number(result.micros[k])) && Number(result.micros[k]) >= 0)
-    .map(k => [k, Number(result.micros[k])])));
+  const micros = knownMicros(result.micros);
   const grams = Number(result.grams) > 0 ? Number(result.grams) : null;
   const macros = Object.fromEntries(["kcal", "protein", "carbs", "fat"].map(k => {
     const value = Number(result.macros[k] ?? 0);
@@ -51,4 +49,18 @@ export function scanToMeal(result) {
     micros_meta: { source: "gemini", method: "meal_estimate", reference_grams: grams, scaling_factor: 1, resolved_at: new Date().toISOString() },
     ...(Array.isArray(result.components) && result.components.length ? { components: normalizeComponents(result.components) } : {}),
   };
+}
+
+// After a manual correction, the current portion becomes the new scaling reference.
+export function rebaseMealPortion(meal) {
+  const grams = Number(meal.grams);
+  if (!Number.isFinite(grams) || grams <= 0) return null;
+  const macros = {};
+  for (const key of ["kcal", "protein", "carbs", "fat"]) {
+    if (meal[key] === "" || meal[key] == null) return null;
+    const value = Number(meal[key]);
+    if (!Number.isFinite(value) || value < 0) return null;
+    macros[key] = value;
+  }
+  return { ...meal, ...macros, grams };
 }

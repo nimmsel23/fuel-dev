@@ -1,9 +1,13 @@
-import { OMEGA3_RULES, normalizeOmega3, OMEGA3_KEYS } from "../../shared/config/omega3.mjs";
+import { OMEGA3_RULES } from "../../shared/config/omega3.mjs";
 import { postJson } from "@api";
 import { vertexAI } from "./firebase.js";
 import { getGenerativeModel, SchemaType } from "firebase/ai";
 import { withAiRetry } from "./aiRetry.js";
 import { MICRO_KEYS } from "../../shared/config/dach.mjs";
+import { knownMicros } from "./knownMicros.js";
+import { findCatalogMatch } from "./mealCatalogMatch.js";
+import { catalogToMeal } from "./mealDetails.js";
+export { findCatalogMatch } from "./mealCatalogMatch.js";
 
 export const isCloud = () =>
   typeof window !== "undefined" &&
@@ -18,25 +22,6 @@ export function parseQuantityPrefix(text) {
 
 import { normalizeComponents } from "./mealComponents.js";
 export { amountToGrams, normalizeComponents, sumYieldG } from "./mealComponents.js";
-
-// Sucht einen bereits im Katalog gespeicherten Treffer, bevor überhaupt
-// Vertex gefragt wird — bekannte Sachen (mit echten Makros) brauchen keine
-// KI-Schätzung, die zudem bei z.B. Getränken gerne mal unzuverlässig ist.
-export function findCatalogMatch(catalog, name) {
-  const norm = (s) => String(s || "").trim().toLowerCase();
-  // Wortgrenzen statt reinem includes() — sonst matcht z.B. der Katalogeintrag
-  // "Reis" fälschlich in "Reisepass" oder Freitext, der "reis" nur als Teilwort enthält.
-  const hasWord = (haystack, needle) => new RegExp(`(^|\\W)${needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\W|$)`).test(haystack);
-  const target = norm(name);
-  if (!target || target.length < 3) return null;
-  const label = (i) => norm(i.name || i.description);
-  return (
-    catalog.find((i) => label(i) === target) ||
-    catalog.find((i) => label(i).length > 3 && hasWord(target, label(i))) ||
-    catalog.find((i) => label(i).length > 3 && hasWord(label(i), target)) ||
-    null
-  );
-}
 
 // Gemeinsames Response-Schema für Makro/Mikro-Analyse (AI-Logger + Re-Analyse).
 export async function analyzeMealText(promptText) {
@@ -110,27 +95,30 @@ Eingabe: "${promptText}"`;
 }
 
 // Loggt einen Katalog-Treffer qty-fach + automatisch verknüpfte Supplemente.
-async function logCatalogMatch({ date, qty, match, suppCatalog }) {
+async function logCatalogMatch({ date, qty, match, suppCatalog, entryId, assertOwner }) {
   for (let i = 0; i < qty; i++) {
+    assertOwner();
     await postJson("/nutrition/log", {
       date,
       meal: {
+        ...catalogToMeal(match),
+        ...(entryId ? { id: `${entryId}_meal_${i}` } : {}),
         type: match.meal_type || match.type || "meal",
-        description: match.name || match.description,
         notes: "",
-        kcal: match.kcal || 0, protein: match.protein || 0,
-        carbs: match.carbs || 0, fat: match.fat || 0,
-        catalog_item_id: match.id,
+        ...(match.id ? { catalog_item_id: match.id } : {}),
       },
     });
   }
-  for (const suppId of (match.linked_supplement_ids || [])) {
+  for (const [index, suppId] of (match.linked_supplement_ids || []).entries()) {
     const suppEntry = suppCatalog.find((s) => s.id === suppId);
     if (!suppEntry) continue;
+    assertOwner();
     await postJson("/supplements/log", {
       date,
       intake: {
+        ...(entryId ? { id: `${entryId}_supp_${index}` } : {}),
         supplement_id: suppEntry.id,
+        name: suppEntry.name || suppEntry.id,
         dose: suppEntry.default_dose ?? 0,
         unit: suppEntry.unit || "g",
         time_of_day: suppEntry.default_time_of_day || "morning",
@@ -144,11 +132,12 @@ async function logCatalogMatch({ date, qty, match, suppCatalog }) {
 // Vertex-Schätzung inkl. Mikros. Wird sowohl beim initialen Log-Versuch als
 // auch bei der Re-Analyse eines wartenden Pending-Eintrags verwendet — genau
 // eine Implementierung statt der früheren Kopie in QuickAiLog.jsx.
-export async function resolveMealText({ date, rawText, catalogItems, suppCatalog }) {
+export async function resolveMealText({ date, rawText, entryId, catalogItems, suppCatalog, assertOwner = () => {} }) {
+  assertOwner();
   const { qty, rest } = parseQuantityPrefix(rawText);
   const match = findCatalogMatch(catalogItems, rest);
   if (match) {
-    await logCatalogMatch({ date, qty, match, suppCatalog });
+    await logCatalogMatch({ date, qty, match, suppCatalog, entryId, assertOwner });
     return { matched: true };
   }
 
@@ -157,16 +146,17 @@ export async function resolveMealText({ date, rawText, catalogItems, suppCatalog
 
   const mealName = parsed.name || rawText;
   const components = normalizeComponents(parsed.components);
-  const micros = parsed.micros
-    ? normalizeOmega3(Object.fromEntries(MICRO_KEYS.filter(k => !OMEGA3_KEYS.includes(k) || parsed.micros[k] != null).map((k) => [k, parsed.micros[k] ?? 0])))
-    : null;
-  const hasMicros = micros && Object.values(micros).some((v) => v > 0);
+  const micros = knownMicros(parsed.micros);
+  const hasMicros = Object.keys(micros).length > 0;
 
+  assertOwner();
   await postJson("/nutrition/log", {
     date,
     meal: {
+      ...(entryId ? { id: `${entryId}_meal_0` } : {}),
       type: parsed.type || "snack",
       description: mealName,
+      source: "gemini",
       notes: "",
       kcal: parsed.macros.kcal || 0,
       protein: parsed.macros.protein || 0,
@@ -190,6 +180,7 @@ export async function resolveMealText({ date, rawText, catalogItems, suppCatalog
   });
 
   if (hasMicros) {
+    assertOwner();
     await postJson("/nutrition/micros", {
       items: [{
         meal_name: mealName,

@@ -1,4 +1,5 @@
-import { mealDetails, scaleMeal } from "../../lib/mealDetails.js";
+import { normalizeMealMacros, mealMacrosAreValid } from "../../lib/mealMacros.js";
+import { mealDetails, scaleMeal, rebaseMealPortion } from "../../lib/mealDetails.js";
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { NotebookPen, UtensilsCrossed, Pencil, Sparkles, AlertTriangle, RefreshCw, Check, X, ScanSearch, Clock, AlignJustify, LayoutGrid, GitCommitVertical } from "lucide-react";
@@ -20,6 +21,7 @@ import { computeMacroGoals } from "../Settings/GoalsSection.jsx";
 import { Camera, RotateCcw } from "lucide-react";
 import { sumMetric, formatMetric } from "../../../shared/utils/utils.js";
 import { consumeNotificationIntent } from "../../lib/notification-intents.js";
+import { missingMealMacros } from "../../lib/mealMacros.js";
 
 const LOG_VIEW_MODES = [
   { value: "minimal", label: "Liste", icon: AlignJustify },
@@ -156,6 +158,8 @@ export default function LogView({ date, nutrition, notes, mode }) {
   const notesRef = useRef(null);
 
   const isEditing = Boolean(form.id);
+  const validMacros = mealMacrosAreValid(form);
+  const incompleteMacros = ["kcal", "protein", "carbs", "fat"].some((key) => form[key] === "" || form[key] == null || !Number.isFinite(Number(form[key])) || Number(form[key]) < 0);
   const meals = nutrition?.meals || [];
   const cloud = window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com");
 
@@ -231,14 +235,20 @@ export default function LogView({ date, nutrition, notes, mode }) {
   // existiert (siehe scanBaseline oben) — sonst reines Textfeld wie vorher.
   const setGrams = (e) => {
     const newGrams = e.target.value;
+    if (!newGrams && scanBaseline) setScanBaseline(rebaseMealPortion(form) || scanBaseline);
     setForm((f) => {
-      if (!scanBaseline || !newGrams || Number(newGrams) <= 0) {
+      if (!scanBaseline || !rebaseMealPortion({ ...f, grams: newGrams }) || !newGrams || Number(newGrams) <= 0) {
         return { ...f, grams: newGrams };
       }
       const factor = Number(newGrams) / scanBaseline.grams;
       const scaled = scaleMeal(scanBaseline, factor);
       return { ...f, ...mealDetails(scaled), kcal: scaled.kcal, protein: scaled.protein, carbs: scaled.carbs, fat: scaled.fat, grams: newGrams };
     });
+  };
+  const setMacro = (key, value) => {
+    const next = { ...form, [key]: value };
+    setForm(next);
+    if (scanBaseline) setScanBaseline(rebaseMealPortion({ ...next, grams: next.grams || scanBaseline.grams }) || scanBaseline);
   };
   const cancelEdit = () => { setForm(emptyForm()); setScanBaseline(null); setMoveDate(""); };
 
@@ -268,7 +278,7 @@ export default function LogView({ date, nutrition, notes, mode }) {
   function buildSavePlan() {
     const fields = {
       ...mealDetails(form), type: form.type, description: form.description, notes: form.notes,
-      kcal: form.kcal, protein: form.protein, carbs: form.carbs, fat: form.fat,
+      ...normalizeMealMacros(form),
       grams: Number(form.grams) || null,
     };
     if (isEditing) {
@@ -309,10 +319,7 @@ export default function LogView({ date, nutrition, notes, mode }) {
         description: form.description.trim(),
         meal_type: form.type,
         notes: form.notes,
-        kcal: Number(form.kcal) || 0,
-        protein: Number(form.protein) || 0,
-        carbs: Number(form.carbs) || 0,
-        fat: Number(form.fat) || 0,
+        ...normalizeMealMacros(form),
         yield_g: Number(form.grams) || null,
         source: form.source || "manual",
       }
@@ -361,10 +368,10 @@ export default function LogView({ date, nutrition, notes, mode }) {
   const repeat = (meal) => repeatMeal.mutate({ ...meal, repeat_id: crypto.randomUUID(), repeat_at: new Date().toISOString() });
 
   const totals = {
-    kcal: sumMetric(meals, "kcal"),
-    protein: sumMetric(meals, "protein"),
-    carbs: sumMetric(meals, "carbs"),
-    fat: sumMetric(meals, "fat"),
+    kcal: missingMealMacros(meals).kcal ? null : sumMetric(meals, "kcal"),
+    protein: missingMealMacros(meals).protein ? null : sumMetric(meals, "protein"),
+    carbs: missingMealMacros(meals).carbs ? null : sumMetric(meals, "carbs"),
+    fat: missingMealMacros(meals).fat ? null : sumMetric(meals, "fat"),
   };
   const goals = { kcal_goal, protein_goal, ...computeMacroGoals({ kcal_goal, protein_goal, carb_ratio }) };
 
@@ -446,10 +453,10 @@ export default function LogView({ date, nutrition, notes, mode }) {
                 ...emptyForm(),
                 ...mealDetails(res),
                 description: res.description,
-                kcal: res.kcal || "",
-                protein: res.protein || "",
-                carbs: res.carbs || "",
-                fat: res.fat || "",
+                kcal: res.kcal ?? "",
+                protein: res.protein ?? "",
+                carbs: res.carbs ?? "",
+                fat: res.fat ?? "",
                 grams: res.grams || "",
               }));
               // Nur setzen wenn die Analyse eine Mengenangabe mitliefert —
@@ -538,22 +545,27 @@ export default function LogView({ date, nutrition, notes, mode }) {
               <input className={inputCls} placeholder="Mahlzeit…" value={form.description} onChange={set("description")} />
             </Field>
             <Field label="Gewicht (g)">
-              <input type="number" min="0" className={twMerge(inputCls, "sm:w-28")} placeholder="optional" value={form.grams} onChange={setGrams} />
+              <input type="number" min="0" className={twMerge(inputCls, "sm:w-28", scanBaseline && incompleteMacros && "opacity-50")} placeholder="optional" value={form.grams} onChange={setGrams} disabled={Boolean(scanBaseline && incompleteMacros)} />
             </Field>
           </div>
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[["kcal", "kcal"], ["protein", "Prot g"], ["carbs", "Carb g"], ["fat", "Fett g"]].map(([k, lbl]) => (
               <Field key={k} label={lbl}>
-                <input type="number" min="0" className={inputCls} value={form[k]}
-                  onChange={(e) => { setScanBaseline(null); set(k)(e); }} />
+                <input type="number" min="0" className={inputCls} value={form[k] ?? ""}
+                  onChange={(e) => setMacro(k, e.target.value)} />
               </Field>
             ))}
           </div>
-          {scanBaseline && (
+          {!validMacros && <p role="alert" className="text-xs text-amber-300">Nährwerte müssen gültige, nicht negative Zahlen sein.</p>}
+          <p className="text-xs text-slate-500">Leere Nährwertfelder bleiben unbekannt; 0 steht für einen bekannten Nullwert.</p>
+          {scanBaseline && rebaseMealPortion(form) && (
             <p className="text-xs text-emerald-400">
-              Scan-Referenz aktiv ({scanBaseline.grams}g) — Gewicht ändern skaliert die Makros automatisch mit.
+              Portionsreferenz aktiv ({scanBaseline.grams} g) — Gewicht ändern skaliert Nährwerte und Zutaten automatisch mit.
             </p>
+          )}
+          {scanBaseline && !rebaseMealPortion(form) && (
+            <p className="text-xs text-amber-300">Für die Portionsskalierung bitte Gewicht und alle Makrowerte vollständig eingeben.</p>
           )}
           {form.grams && !scanBaseline && (
             <p className="text-xs text-slate-500">
@@ -562,9 +574,9 @@ export default function LogView({ date, nutrition, notes, mode }) {
           )}
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <button onClick={() => saveMeal.mutate(buildSavePlan())} disabled={saveMeal.isPending || !form.description}
+            <button onClick={() => saveMeal.mutate(buildSavePlan())} disabled={saveMeal.isPending || !form.description.trim() || !validMacros}
               className={twMerge("w-full rounded-2xl py-4 font-bold transition shadow-lg",
-                saveMeal.isPending || !form.description
+                saveMeal.isPending || !form.description.trim() || !validMacros
                   ? "bg-slate-800 text-slate-500 cursor-not-allowed"
                   : "bg-orange-400 text-slate-950 hover:bg-orange-300 active:scale-[0.98]"
               )}>
@@ -572,10 +584,10 @@ export default function LogView({ date, nutrition, notes, mode }) {
             </button>
             <button
               onClick={() => saveCatalog.mutate()}
-              disabled={saveCatalog.isPending || !form.description}
+              disabled={saveCatalog.isPending || !form.description.trim() || !validMacros}
               className={twMerge(
                 "w-full rounded-2xl border py-4 font-bold transition border-white/10 bg-white/5 text-slate-200 hover:bg-white/10",
-                (saveCatalog.isPending || !form.description) && "opacity-50 cursor-not-allowed"
+                (saveCatalog.isPending || !form.description.trim() || !validMacros) && "opacity-50 cursor-not-allowed"
               )}
             >
               Katalog+

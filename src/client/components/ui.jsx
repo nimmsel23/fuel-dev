@@ -48,16 +48,16 @@ export function Card({ icon: Icon, title, value, hint, className }) {
   );
 }
 
-export function GoalBar({ label, value, goal, unit, color = "bg-orange-400" }) {
+export function GoalBar({ label, value, goal, unit, color = "bg-orange-400", incomplete = false }) {
   const pct = goal > 0 ? Math.min(100, Math.round((value / goal) * 100)) : 0;
   return (
     <div>
       <div className="mb-1 flex justify-between text-xs text-slate-400">
         <span className="uppercase tracking-[0.15em]">{label}</span>
-        <span>{formatMetric(value)}{unit} / {goal}{unit}</span>
+        <span>{formatMetric(value)}{incomplete ? " bekannte Werte" : ""}{unit} / {goal}{unit}</span>
       </div>
       <div className="h-2 rounded-full bg-white/10">
-        <div className={`h-2 rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />
+        <div className={`h-2 rounded-full transition-all ${color} ${incomplete ? "opacity-50" : ""}`} style={{ width: `${pct}%` }} />
       </div>
     </div>
   );

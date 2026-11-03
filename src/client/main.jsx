@@ -161,7 +161,7 @@ function App() {
     }
   }, [activeDate, activeTab]);
 
-  const { nutrition, sup, suppCatalog, suppLog, journal, macroTrend } = useAppData(activeDate);
+  const { nutrition, sup, suppCatalog, suppLog, journal, macroTrend, nutritionError, reloadNutrition } = useAppData(activeDate);
 
   const meals = nutrition?.meals || [];
   const totalKcal = sumMetric(meals, "kcal");
@@ -187,7 +187,7 @@ function App() {
     document.title = tab?.label || runtimeTitle;
   }, [activeTab, runtimeTitle]);
 
-  const tabCtx = { nutrition, sup, suppCatalog, suppLog, journal, macroTrend, activeDate, setActiveDate, setActiveTab };
+  const tabCtx = { nutrition, sup, suppCatalog, suppLog, journal, macroTrend, nutritionError, reloadNutrition, activeDate, setActiveDate, setActiveTab };
 
   // Der Schnelleinstieg wird erst entschieden, wenn die Settings-Quelle
   // feststeht — in der Cloud also nach Login und aufgelöstem Geräte-Eintrag

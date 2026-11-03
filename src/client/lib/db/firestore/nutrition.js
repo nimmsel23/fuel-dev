@@ -1,4 +1,7 @@
-import { OMEGA3_KEYS, normalizeOmega3, omega3Coverage } from "../../../../shared/config/omega3.mjs";
+import { requireCompleteLog } from "../../logCompleteness.js";
+import { nutrientCoverage } from "../../../../shared/config/nutrient-coverage.mjs";
+import { scaleKnownMicros } from "../../knownMicros.js";
+import { OMEGA3_KEYS, normalizeOmega3 } from "../../../../shared/config/omega3.mjs";
 import { computeFastingWindows } from "../../../../shared/utils/fasting.mjs";
 import { projectCloudLog, outboxEntries, projectCloudCatalog, hasPendingFor } from "../../cloudOutbox.js";
 /**
@@ -24,7 +27,7 @@ import { db } from "../../firebase.js";
 import { getUid } from "./core.js";
 import { MICRO_KEYS, zeroMicros, todayISO, getWeekDates, dateToISOWeek } from "./utils.js";
 import { mutateCloudLog } from "../../cloudMutations.js";
-import { getSupplementsCatalog } from "./supplements.js";
+import { getSupplementLog, getSupplementsCatalog } from "./supplements.js";
 import { DACH, getStatus } from "../../../../shared/config/dach.mjs";
 
 export async function getNutritionCatalog() {
@@ -61,12 +64,15 @@ function applyMealTombstones(data) {
 
 export async function getNutritionLog(date = todayISO()) {
   let snap;
+  let localBaseUnavailable = false;
   try { snap = await getDoc(doc(db, "nutrition", getUid(), "logs", date)); }
   catch (error) {
     if (navigator.onLine || !outboxEntries(getUid()).some(e => e.kind === "nutrition" && e.date === date)) throw error;
     snap = { exists: () => false };
+    localBaseUnavailable = true;
   }
-  return projectCloudLog("nutrition", date, snap.exists() ? applyMealTombstones(snap.data()) : { date, meals: [], water_ml: 0 });
+  const base = snap.exists() ? applyMealTombstones(snap.data()) : { date, meals: [], water_ml: 0 };
+  return projectCloudLog("nutrition", date, { ...base, ...(localBaseUnavailable ? { local_base_unavailable: true } : {}) });
 }
 
 export async function saveNutritionLog(date, data) {
@@ -85,13 +91,8 @@ export async function saveNutritionLog(date, data) {
 }
 
 export async function getNutritionLogsInRange(dates) {
-  const uid = getUid();
-  const map = {};
-  await Promise.all(dates.map(async (date) => {
-    const snap = await getDoc(doc(db, "nutrition", uid, "logs", date));
-    if (snap.exists()) map[date] = applyMealTombstones(snap.data());
-  }));
-  return map;
+  const logs = await Promise.all(dates.map(async (date) => requireCompleteLog(await getNutritionLog(date))));
+  return Object.fromEntries(dates.map((date, index) => [date, logs[index]]));
 }
 
 function mealComponentTrace(meal, catalog) {
@@ -159,11 +160,7 @@ function resolveMealMicros(meal, catalog, microsMap) {
     const src = normalizeOmega3(catalogEntry.micros);
     let factor = 1;
     if (meal.kcal && catalogEntry.kcal) factor = meal.kcal / catalogEntry.kcal;
-    const resolved = {};
-    for (const k of MICRO_KEYS) {
-      if (OMEGA3_KEYS.includes(k) && src[k] == null) continue;
-      resolved[k] = Math.round((src[k] || 0) * factor * 10) / 10;
-    }
+    const resolved = scaleKnownMicros(src, factor);
     meal.micros = resolved;
     meal.micros_meta = {
       source: catalogEntry.micros_meta?.source || "catalog",
@@ -185,11 +182,7 @@ function resolveMealMicros(meal, catalog, microsMap) {
   let factor = 1;
   if (meal.kcal && micros.kcal) factor = meal.kcal / micros.kcal;
 
-  const resolved = {};
-  for (const k of MICRO_KEYS) {
-    if (OMEGA3_KEYS.includes(k) && micros[k] == null) continue;
-    resolved[k] = Math.round((micros[k] || 0) * factor * 10) / 10;
-  }
+  const resolved = scaleKnownMicros(micros, factor);
   meal.micros = resolved;
   meal.micros_meta = {
     source: micros.source || "unknown",
@@ -252,9 +245,8 @@ export async function getWeeklyMicros(year, week) {
 
   const dates = getWeekDates(year, week);
   const logsMap = await getNutritionLogsInRange(dates);
-  const suppLogsSnap = await getDocs(query(collection(db, "supplements", getUid(), "logs"), where("date", "in", dates)));
-  const suppLogsMap = {};
-  suppLogsSnap.forEach(d => { suppLogsMap[d.id] = d.data(); });
+  const suppLogs = await Promise.all(dates.map(async (date) => requireCompleteLog(await getSupplementLog(date))));
+  const suppLogsMap = Object.fromEntries(dates.map((date, index) => [date, suppLogs[index]]));
 
   const catalog = await getNutritionCatalog();
   const suppCatalog = await getSupplementsCatalog();
@@ -319,7 +311,7 @@ export async function getWeeklyMicros(year, week) {
           name: entry.name || intake.supplement_id,
           dose: intake.dose,
           unit: entry.unit || "",
-          micros: Object.fromEntries(MICRO_KEYS.filter(k => !OMEGA3_KEYS.includes(k) || profile[k] != null).map((k) => [k, profile[k] ? Math.round((profile[k] * factor) * 10) / 10 : 0])),
+          micros: scaleKnownMicros(profile, factor),
           micros_meta: {
             source: "supplement_catalog",
             lookup_name: entry.name || intake.supplement_id,
@@ -370,7 +362,7 @@ export async function getWeeklyMicros(year, week) {
     };
   }
 
-  Object.assign(rda_comparison, omega3Coverage(mealBreakdown, rda_comparison));
+  Object.assign(rda_comparison, nutrientCoverage(mealBreakdown, rda_comparison));
   const result = { ok: true, trace_version: 2, year, week, dates, week_totals: weekTotals, rda_comparison, day_breakdown: dayBreakdown, meal_breakdown: mealBreakdown, missing_meals: Array.from(missingMeals) };
 
 

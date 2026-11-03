@@ -1,3 +1,4 @@
+import NutritionDataNotice from "./NutritionDataNotice.jsx";
 import { TAB_CONFIG } from "../routes.js";
 import { ChunkErrorBoundary } from "./ErrorBoundary.jsx";
 
@@ -7,6 +8,7 @@ export default function TabContent({ activeTab, ctx }) {
   const { View, getProps } = tab;
   return (
     <ChunkErrorBoundary>
+      {["dashboard", "log", "log-dashboard", "log-timeline", "food"].includes(activeTab) && <NutritionDataNotice nutrition={ctx.nutrition} error={ctx.nutritionError} onRetry={ctx.reloadNutrition} />}
       <View {...getProps(ctx)} />
     </ChunkErrorBoundary>
   );

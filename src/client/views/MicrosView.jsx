@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from "react";
-import { useQueries } from "@tanstack/react-query";
+import React, { useEffect, useMemo, useState } from "react";
+import { useQueries, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, ArrowUpRight, Check, CircleHelp, Microscope, Sparkles, Wand2 } from "lucide-react";
 import { fetchJson } from "@api";
+import { OUTBOX_EVENT } from "../lib/cloudOutbox.js";
 import { lastNWeeks } from "./Micros/utils.js";
 import { readCache, writeCache } from "../lib/localCache.js";
 import MicrosLegend from "./Micros/MicrosLegend.jsx";
@@ -12,7 +13,7 @@ import MicrosAiCoach from "./Micros/MicrosAiCoach.jsx";
 import { NUTRIENTS } from "./Micros/utils.js";
 
 const CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
-const cacheKey = (year, week) => `nutrition-weekly:${year}:${week}`;
+const cacheKey = (year, week) => `nutrition-weekly:coverage-v3:${year}:${week}`;
 const pct = (value) => Number.isFinite(value) ? `${Math.round(value)}%` : "—";
 
 function Snapshot({ weeks, results }) {
@@ -48,7 +49,7 @@ function Snapshot({ weeks, results }) {
           <div className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4">
             <div className="flex items-center gap-2 text-xs text-slate-400"><AlertTriangle className="h-3.5 w-3.5 text-amber-300" /> Aufmerksamkeit</div>
             <div className="mt-2 text-3xl font-semibold tracking-tight text-white">{hasData ? gaps.length : "—"}<span className="ml-1 text-sm font-medium text-slate-500">Nährstoffe</span></div>
-            <div className="mt-1 truncate text-[11px] text-slate-500">{gaps[0] ? `Niedrigster Wert: ${gaps[0].label} · ${pct(gaps[0].percent_of_dach)}` : hasData ? "Kein Referenzwert unterschritten" : "Wird geladen …"}</div>
+            <div className="mt-1 truncate text-[11px] text-slate-500">{gaps[0] ? `Niedrigster Wert: ${gaps[0].label} · ${pct(gaps[0].percent_of_dach)}` : hasData ? "Kein Referenzwert unterschritten" : latest ? "Keine vollständige Datenlage" : "Wird geladen …"}</div>
           </div>
         </div>
       </div>
@@ -103,7 +104,7 @@ export default function MicrosView({ setActiveDate, setActiveTab }) {
   const weeks = lastNWeeks(8);
   const results = useQueries({
     queries: weeks.map(({ year, week }) => ({
-      queryKey: ["nutrition-weekly", "trace-v2", year, week],
+      queryKey: ["nutrition-weekly", "coverage-v3", year, week],
       queryFn: () => fetchJson(`/nutrition/weekly/${year}/${week}`).then((data) => {
         if (data.ok) writeCache(cacheKey(year, week), data);
         return data.ok ? data : null;
@@ -112,9 +113,19 @@ export default function MicrosView({ setActiveDate, setActiveTab }) {
         const cached = readCache(cacheKey(year, week), CACHE_MAX_AGE_MS);
         return cached?.trace_version === 2 ? cached : undefined;
       },
-      staleTime: 5 * 60 * 1000,
+      staleTime: 0,
     })),
   });
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    const refresh = (event) => {
+      if (["nutrition", "supplements", "catalog:nutrition", "catalog:supplements", "micros"].includes(event.entry?.kind)) {
+        void queryClient.invalidateQueries({ queryKey: ["nutrition-weekly"] });
+      }
+    };
+    window.addEventListener(OUTBOX_EVENT, refresh);
+    return () => window.removeEventListener(OUTBOX_EVENT, refresh);
+  }, [queryClient]);
   const missingMeals = Array.from(new Set(results.flatMap((result) => result.data?.missing_meals || []).filter(Boolean)));
   const loading = results.some((result) => result.isPending);
   const failed = results.some((result) => result.isError);

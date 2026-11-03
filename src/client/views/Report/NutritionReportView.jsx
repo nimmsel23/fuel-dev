@@ -2,6 +2,9 @@ import { Fragment, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FileText, Printer } from "lucide-react";
 import { fetchJson } from "@api";
+import { sumMeals, macroSplit, averageMealsByDay, displayMacro } from "./reportMacros.mjs";
+import { requireCompleteLog } from "../../lib/logCompleteness.js";
+import { localISO as isoToday, shiftISO as shiftIso, reportDates, loadReportDays, hasReportEntries, reportMealAmount } from "./reportDates.mjs";
 
 // Ernährungsprotokoll-Report — deckt die FFA-Pflichtaufgabe „7 Tage
 // Makronutrient-Protokoll" (Ernährungstrainer, Task 1), das „14 Tage
@@ -24,28 +27,6 @@ const SLOTS = [
 ];
 
 const TYPE_TO_SLOT = { breakfast: "vormittag", lunch: "nachmittag", dinner: "abend", snack: "nachmittag" };
-
-function isoToday() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function shiftIso(iso, days) {
-  const d = new Date(`${iso}T12:00:00`);
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
-}
-
-function isoRange(fromIso, toIso) {
-  if (fromIso > toIso) return [];
-  const out = [];
-  let cur = fromIso;
-  // harte Obergrenze gegen versehentliche Riesen-Zeiträume
-  for (let i = 0; i < 400 && cur <= toIso; i++) {
-    out.push(cur);
-    cur = shiftIso(cur, 1);
-  }
-  return out;
-}
 
 function fmtDE(iso) {
   const d = new Date(`${iso}T12:00:00`);
@@ -72,33 +53,9 @@ function slotForMeal(meal) {
   return TYPE_TO_SLOT[meal.type] || "nachmittag";
 }
 
-const n1 = (v) => Math.round((Number(v) || 0) * 10) / 10;
-const n0 = (v) => Math.round(Number(v) || 0);
-
-function macroSplit({ protein, carbs, fat }) {
-  const pK = (Number(protein) || 0) * 4;
-  const cK = (Number(carbs) || 0) * 4;
-  const fK = (Number(fat) || 0) * 9;
-  const sum = pK + cK + fK;
-  if (sum <= 0) return { protein: 0, carbs: 0, fat: 0 };
-  return {
-    protein: Math.round((pK / sum) * 100),
-    carbs: Math.round((cK / sum) * 100),
-    fat: Math.round((fK / sum) * 100),
-  };
-}
-
-function sumMeals(meals) {
-  return (meals || []).reduce(
-    (acc, m) => ({
-      kcal: acc.kcal + (Number(m.kcal) || 0),
-      protein: acc.protein + (Number(m.protein) || 0),
-      carbs: acc.carbs + (Number(m.carbs) || 0),
-      fat: acc.fat + (Number(m.fat) || 0),
-    }),
-    { kcal: 0, protein: 0, carbs: 0, fat: 0 },
-  );
-}
+const n1 = (value) => displayMacro(value, 1);
+const n0 = (value) => displayMacro(value, 0);
+const pct = (value) => value == null ? "—" : `${value} %`;
 
 function MacroCells({ totals }) {
   return (
@@ -115,14 +72,15 @@ function DayBlock({ iso, log }) {
   const meals = log?.meals || [];
   const dayTotals = sumMeals(meals);
   const split = macroSplit(dayTotals);
+  const water = Number(log?.water_ml) > 0 ? n0(log.water_ml) : 0;
 
   return (
     <section className="report-day" style={{ marginTop: 18 }}>
       <h3 style={{ fontSize: 13, fontWeight: 700, margin: "0 0 4px" }}>{fmtDE(iso)}</h3>
 
-      {meals.length === 0 ? (
+      {!hasReportEntries(log) ? (
         <p style={{ margin: 0, fontStyle: "italic", color: "#6b7280" }}>Keine Einträge protokolliert.</p>
-      ) : (
+      ) : meals.length > 0 ? (
         <table>
           <thead>
             <tr>
@@ -153,6 +111,7 @@ function DayBlock({ iso, log }) {
                       <td>{hhmm(m.time)}</td>
                       <td>
                         {m.description}
+                        {reportMealAmount(m) ? <span style={{ color: "#6b7280" }}> ({reportMealAmount(m)})</span> : null}
                         {m.notes ? <span style={{ color: "#6b7280" }}> — {m.notes}</span> : null}
                       </td>
                       <td className="num">{n0(m.kcal)}</td>
@@ -174,15 +133,15 @@ function DayBlock({ iso, log }) {
             </tr>
           </tbody>
         </table>
-      )}
+      ) : null}
 
       {meals.length > 0 && (
         <p style={{ margin: "4px 0 0", color: "#374151" }}>
           Gesamtkalorien: <strong>{n0(dayTotals.kcal)} kcal</strong> · Makro-Verteilung (energetisch):
-          {" "}KH {split.carbs}&nbsp;% · Fett {split.fat}&nbsp;% · Eiweiß {split.protein}&nbsp;%
-          {log?.water_ml ? <> · Wasser {n0(log.water_ml)} ml</> : null}
+          {" "}KH {pct(split?.carbs)} · Fett {pct(split?.fat)} · Eiweiß {pct(split?.protein)}
         </p>
       )}
+      {water > 0 && <p style={{ margin: "4px 0 0", color: "#374151" }}>Wasser: {water} ml</p>}
     </section>
   );
 }
@@ -199,16 +158,16 @@ export default function NutritionReportView() {
     try { return localStorage.getItem(HIDE_EMPTY_STORAGE_KEY) === "1"; } catch { return false; }
   });
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["nutrition-history", "report"],
-    queryFn: () => fetchJson("/nutrition/history?limit=180"),
+  const dates = useMemo(() => reportDates(fromIso, toIso), [fromIso, toIso]);
+  const { data: logsByDate = {}, isLoading, isError, refetch } = useQuery({
+    queryKey: ["nutrition-report-days", fromIso, toIso],
+    enabled: dates !== null,
+    queryFn: () => loadReportDays(dates, async (date) => {
+      const result = await fetchJson(`/nutrition/log?date=${encodeURIComponent(date)}`);
+      if (!result?.data || !Array.isArray(result.data.meals)) throw new Error("Ungültige Tagesdaten");
+      return requireCompleteLog(result.data);
+    }),
   });
-
-  const logsByDate = useMemo(() => {
-    const map = {};
-    for (const log of data?.history || []) map[log.date] = log;
-    return map;
-  }, [data]);
 
   const applyPreset = (value) => {
     setPreset(value);
@@ -229,31 +188,19 @@ export default function NutritionReportView() {
     try { localStorage.setItem(HIDE_EMPTY_STORAGE_KEY, v ? "1" : "0"); } catch { /* ignore */ }
   };
 
-  const dates = useMemo(() => isoRange(fromIso, toIso), [fromIso, toIso]);
-  const dayCount = dates.length;
+  const validDates = dates || [];
+  const dayCount = validDates.length;
   // Tage ohne Einträge optional ausblenden; Kennzahlen (Ø, „x von y Tagen") rechnen weiter über den ganzen Zeitraum.
   const visibleDates = useMemo(
-    () => (hideEmpty ? dates.filter((d) => (logsByDate[d]?.meals || []).length > 0) : dates),
+    () => (hideEmpty ? validDates.filter((d) => hasReportEntries(logsByDate[d])) : validDates),
     [dates, hideEmpty, logsByDate],
   );
   const hiddenCount = dayCount - visibleDates.length;
+  const recordedCount = validDates.filter((d) => hasReportEntries(logsByDate[d])).length;
 
   const summary = useMemo(() => {
-    const loggedDates = dates.filter((d) => (logsByDate[d]?.meals || []).length > 0);
-    const totals = loggedDates.reduce(
-      (acc, d) => {
-        const t = sumMeals(logsByDate[d].meals);
-        return {
-          kcal: acc.kcal + t.kcal,
-          protein: acc.protein + t.protein,
-          carbs: acc.carbs + t.carbs,
-          fat: acc.fat + t.fat,
-        };
-      },
-      { kcal: 0, protein: 0, carbs: 0, fat: 0 },
-    );
-    const n = loggedDates.length || 1;
-    const avg = { kcal: totals.kcal / n, protein: totals.protein / n, carbs: totals.carbs / n, fat: totals.fat / n };
+    const loggedDates = validDates.filter((d) => (logsByDate[d]?.meals || []).length > 0);
+    const avg = averageMealsByDay(loggedDates.map((date) => logsByDate[date].meals));
     return { loggedCount: loggedDates.length, avg, split: macroSplit(avg) };
   }, [dates, logsByDate]);
 
@@ -336,15 +283,18 @@ export default function NutritionReportView() {
 
           <button
             onClick={() => window.print()}
-            className="inline-flex items-center gap-2 rounded-full border border-orange-400/40 bg-orange-400 px-5 py-2.5 text-sm font-semibold text-slate-950 hover:bg-orange-300 transition"
+            disabled={!dates || isLoading || isError}
+            className="inline-flex items-center gap-2 rounded-full border border-orange-400/40 bg-orange-400 px-5 py-2.5 text-sm font-semibold text-slate-950 hover:bg-orange-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Printer className="h-4 w-4" />
             Drucken / als PDF
           </button>
         </div>
 
+        {!dates && <p role="alert" className="text-sm text-amber-300">Bitte einen gültigen Zeitraum von höchstens 400 Tagen wählen.</p>}
+        {isError && <p role="alert" className="text-sm text-red-300">Die Tagesdaten konnten nicht vollständig geladen werden. <button onClick={() => refetch()} className="underline">Erneut versuchen</button></p>}
         <p className="text-xs text-slate-500">
-          {dayCount} Kalendertage im Zeitraum · {summary.loggedCount} Tage mit Einträgen.
+          {dayCount} Kalendertage im Zeitraum · {recordedCount} Tage mit Einträgen.
           {hideEmpty
             ? `${hiddenCount} Tage ohne Protokoll sind im Dokument ausgeblendet.`
             : "Tage ohne Protokoll werden im Dokument als „Keine Einträge\" ausgewiesen."}
@@ -353,8 +303,12 @@ export default function NutritionReportView() {
 
       {/* Das Blatt */}
       <div className="report-sheet mx-auto max-w-[820px] rounded-2xl p-10 shadow-glow">
-        {isLoading ? (
+        {!dates ? (
+          <p>Bitte einen gültigen Zeitraum wählen.</p>
+        ) : isLoading ? (
           <p style={{ fontStyle: "italic", color: "#6b7280" }}>Daten werden geladen…</p>
+        ) : isError ? (
+          <p>Das Protokoll konnte nicht vollständig geladen werden.</p>
         ) : (
           <>
             <header style={{ borderBottom: "2px solid #14181f", paddingBottom: 10, marginBottom: 12 }}>
@@ -394,14 +348,14 @@ export default function NutritionReportView() {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr><td>Gesamtenergie</td><td className="num">{n0(summary.avg.kcal)} kcal</td><td className="num">100 %</td></tr>
-                  <tr><td>Kohlenhydrate</td><td className="num">{n1(summary.avg.carbs)} g</td><td className="num">{summary.split.carbs} %</td></tr>
-                  <tr><td>Fett</td><td className="num">{n1(summary.avg.fat)} g</td><td className="num">{summary.split.fat} %</td></tr>
-                  <tr><td>Eiweiß</td><td className="num">{n1(summary.avg.protein)} g</td><td className="num">{summary.split.protein} %</td></tr>
+                  <tr><td>Gesamtenergie</td><td className="num">{n0(summary.avg.kcal)} kcal</td><td className="num">{summary.avg.kcal == null ? "—" : "100 %"}</td></tr>
+                  <tr><td>Kohlenhydrate</td><td className="num">{n1(summary.avg.carbs)} g</td><td className="num">{pct(summary.split?.carbs)}</td></tr>
+                  <tr><td>Fett</td><td className="num">{n1(summary.avg.fat)} g</td><td className="num">{pct(summary.split?.fat)}</td></tr>
+                  <tr><td>Eiweiß</td><td className="num">{n1(summary.avg.protein)} g</td><td className="num">{pct(summary.split?.protein)}</td></tr>
                 </tbody>
               </table>
               <p style={{ margin: "4px 0 0", color: "#6b7280" }}>
-                Grundlage: {summary.loggedCount} von {dayCount} Tagen mit Einträgen.
+                Grundlage: {summary.loggedCount} von {dayCount} Tagen mit Mahlzeiten; Wasser allein fließt nicht in den Durchschnitt ein. „—“ bedeutet: Wert fehlt oder lässt sich nicht vollständig berechnen.
               </p>
             </section>
 

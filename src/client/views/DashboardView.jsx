@@ -1,4 +1,4 @@
-import { sumMetric } from "../../shared/utils/utils.js";
+import { missingMealMacros, sumKnownMealMacro } from "../lib/mealMacros.js";
 import StatsGrid from "./Dashboard/StatsGrid.jsx";
 import DailyGoals from "./Dashboard/DailyGoals.jsx";
 import MacroTrendChart from "./Dashboard/MacroTrendChart.jsx";
@@ -15,8 +15,9 @@ import { format } from "date-fns";
 export default function DashboardView({ nutrition, sup, journal, macroTrend, setActiveTab, activeDate }) {
   const meals = nutrition?.meals || [];
   const streak = sup?.stats?.[0]?.current_streak || 0;
-  const totalKcal = sumMetric(meals, "kcal");
-  const totalProtein = sumMetric(meals, "protein");
+  const missing = missingMealMacros(meals);
+  const totalKcal = sumKnownMealMacro(meals, "kcal");
+  const totalProtein = sumKnownMealMacro(meals, "protein");
   const waterMl = nutrition?.water_ml || 0;
   const isToday = activeDate === format(new Date(), "yyyy-MM-dd");
 
@@ -24,12 +25,12 @@ export default function DashboardView({ nutrition, sup, journal, macroTrend, set
     <div className="grid gap-6 xl:grid-cols-[1.4fr_0.9fr]">
       <div className="grid gap-6">
         <QuickAiLog date={activeDate} />
-        <IncompleteDayHint totalKcal={totalKcal} isToday={isToday} />
+        {missing.kcal === 0 && <IncompleteDayHint totalKcal={totalKcal} isToday={isToday} />}
         <FastingWindowBadge />
         <FirstMealTrend activeDate={activeDate} />
         <StatsGrid mealsCount={meals.length} totalProtein={totalProtein} waterMl={waterMl} />
         <WaterTracker date={activeDate} waterMl={waterMl} />
-        <DailyGoals totalKcal={totalKcal} totalProtein={totalProtein} waterMl={waterMl} />
+        <DailyGoals totalKcal={totalKcal} totalProtein={totalProtein} waterMl={waterMl} missing={missing} />
         <MacroTrendChart macroTrend={macroTrend} />
       </div>
 

@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchJson, postJson } from "@api";
 import { isCloud, resolveMealText } from "../lib/aiMealLogger.js";
 import * as firestore from "../lib/db.firestore.js";
+import { getUidOrNull } from "../lib/db/firestore/core.js";
+import { createDraftOwnerGuard } from "../lib/aiDraftOwner.js";
 import { usePendingAiEntries } from "./useNutrition.js";
 
 // Ein Einstiegspunkt für den Freitext-AI-Logger, geteilt zwischen dem
@@ -48,8 +50,10 @@ export function useAiMealLogger(date) {
     qc.invalidateQueries({ queryKey: ["nutrition-catalog"] });
   };
 
-  const resolvePendingEntry = async (entry) => {
-    await resolveMealText({ date, rawText: entry.text, catalogItems, suppCatalog });
+  const resolvePendingEntry = async (entry, assertOwner = createDraftOwnerGuard(getUidOrNull)) => {
+    assertOwner();
+    await resolveMealText({ date, rawText: entry.text, entryId: entry.id, catalogItems, suppCatalog, assertOwner });
+    assertOwner();
     await firestore.removePendingAiEntry(date, entry);
   };
 
@@ -87,14 +91,30 @@ export function useAiMealLogger(date) {
     // 1. Optimistic Save — Text landet sofort als wartender Eintrag,
     //    unabhängig davon ob Vertex AI danach erreichbar ist.
     const entry = { id: `ai_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`, text: rawText, created_at: new Date().toISOString() };
-    await firestore.addPendingAiEntry(date, entry);
+    let assertOwner;
+    try {
+      assertOwner = createDraftOwnerGuard(getUidOrNull);
+      await firestore.addPendingAiEntry(date, entry);
+    } catch (saveErr) {
+      console.error("Pending AI entry save error:", saveErr);
+      setError((saveErr.message || "Entwurf konnte nicht gespeichert werden.") + " Der Text bleibt im Eingabefeld. Bitte erneut versuchen.");
+      setSubmitting(false);
+      return;
+    }
+    try {
+      assertOwner();
+    } catch (ownerErr) {
+      setError(ownerErr.message);
+      setSubmitting(false);
+      return;
+    }
     qc.invalidateQueries({ queryKey: ["ai-pending", date] });
     setText("");
 
     // 2. Analyse nachgelagert — Fehler hier verlieren den Text nicht mehr,
     //    er bleibt als wartender Eintrag mit Retry-Button stehen.
     try {
-      await resolvePendingEntry(entry);
+      await resolvePendingEntry(entry, assertOwner);
     } catch (analysisErr) {
       console.error("AI Logging analysis error:", analysisErr);
       setError((analysisErr.message || "Analyse fehlgeschlagen.") + " Text wurde gesichert — über \"Neu analysieren\" erneut versuchen.");
