@@ -1,3 +1,4 @@
+import { normalizeMealMacros } from "./mealMacros.js";
 import { mealDetails } from "./mealDetails.js";
 const normalize = name => String(name || "").trim().toLowerCase().replace(/\s+/g, " ");
 
@@ -19,7 +20,7 @@ export function catalogFromLoggedMeal(items, meal) {
     next.push({
       ...mealDetails(meal), id: `catalog_${meal.id}`, kind: "meal", category: meal.type || "meal", meal_type: meal.type || "meal",
       name: meal.description, description: meal.description, notes: meal.notes || "",
-      kcal: meal.kcal || 0, protein: meal.protein || 0, carbs: meal.carbs || 0, fat: meal.fat || 0,
+      ...normalizeMealMacros(meal),
       yield_g: meal.grams || meal.components?.reduce((sum, c) => sum + (Number(c.amount_g) || 0), 0) || null,
       source: meal.source || "logged", use_count: 1, last_used_at: now, created_at: now, updated_at: now,
     });

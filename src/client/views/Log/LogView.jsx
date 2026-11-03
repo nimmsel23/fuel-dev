@@ -1,3 +1,4 @@
+import { normalizeMealMacros, mealMacrosAreValid } from "../../lib/mealMacros.js";
 import { mealDetails, scaleMeal, rebaseMealPortion } from "../../lib/mealDetails.js";
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -156,6 +157,7 @@ export default function LogView({ date, nutrition, notes, mode }) {
   const notesRef = useRef(null);
 
   const isEditing = Boolean(form.id);
+  const validMacros = mealMacrosAreValid(form);
   const incompleteMacros = ["kcal", "protein", "carbs", "fat"].some((key) => form[key] === "" || form[key] == null || !Number.isFinite(Number(form[key])) || Number(form[key]) < 0);
   const meals = nutrition?.meals || [];
   const cloud = window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com");
@@ -275,7 +277,7 @@ export default function LogView({ date, nutrition, notes, mode }) {
   function buildSavePlan() {
     const fields = {
       ...mealDetails(form), type: form.type, description: form.description, notes: form.notes,
-      kcal: form.kcal, protein: form.protein, carbs: form.carbs, fat: form.fat,
+      ...normalizeMealMacros(form),
       grams: Number(form.grams) || null,
     };
     if (isEditing) {
@@ -316,10 +318,7 @@ export default function LogView({ date, nutrition, notes, mode }) {
         description: form.description.trim(),
         meal_type: form.type,
         notes: form.notes,
-        kcal: Number(form.kcal) || 0,
-        protein: Number(form.protein) || 0,
-        carbs: Number(form.carbs) || 0,
-        fat: Number(form.fat) || 0,
+        ...normalizeMealMacros(form),
         yield_g: Number(form.grams) || null,
         source: form.source || "manual",
       }
@@ -552,11 +551,13 @@ export default function LogView({ date, nutrition, notes, mode }) {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[["kcal", "kcal"], ["protein", "Prot g"], ["carbs", "Carb g"], ["fat", "Fett g"]].map(([k, lbl]) => (
               <Field key={k} label={lbl}>
-                <input type="number" min="0" className={inputCls} value={form[k]}
+                <input type="number" min="0" className={inputCls} value={form[k] ?? ""}
                   onChange={(e) => setMacro(k, e.target.value)} />
               </Field>
             ))}
           </div>
+          {!validMacros && <p role="alert" className="text-xs text-amber-300">Nährwerte müssen gültige, nicht negative Zahlen sein.</p>}
+          <p className="text-xs text-slate-500">Leere Nährwertfelder bleiben unbekannt; 0 steht für einen bekannten Nullwert.</p>
           {scanBaseline && rebaseMealPortion(form) && (
             <p className="text-xs text-emerald-400">
               Portionsreferenz aktiv ({scanBaseline.grams} g) — Gewicht ändern skaliert Nährwerte und Zutaten automatisch mit.
@@ -572,9 +573,9 @@ export default function LogView({ date, nutrition, notes, mode }) {
           )}
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <button onClick={() => saveMeal.mutate(buildSavePlan())} disabled={saveMeal.isPending || !form.description}
+            <button onClick={() => saveMeal.mutate(buildSavePlan())} disabled={saveMeal.isPending || !form.description.trim() || !validMacros}
               className={twMerge("w-full rounded-2xl py-4 font-bold transition shadow-lg",
-                saveMeal.isPending || !form.description
+                saveMeal.isPending || !form.description.trim() || !validMacros
                   ? "bg-slate-800 text-slate-500 cursor-not-allowed"
                   : "bg-orange-400 text-slate-950 hover:bg-orange-300 active:scale-[0.98]"
               )}>
@@ -582,10 +583,10 @@ export default function LogView({ date, nutrition, notes, mode }) {
             </button>
             <button
               onClick={() => saveCatalog.mutate()}
-              disabled={saveCatalog.isPending || !form.description}
+              disabled={saveCatalog.isPending || !form.description.trim() || !validMacros}
               className={twMerge(
                 "w-full rounded-2xl border py-4 font-bold transition border-white/10 bg-white/5 text-slate-200 hover:bg-white/10",
-                (saveCatalog.isPending || !form.description) && "opacity-50 cursor-not-allowed"
+                (saveCatalog.isPending || !form.description.trim() || !validMacros) && "opacity-50 cursor-not-allowed"
               )}
             >
               Katalog+
