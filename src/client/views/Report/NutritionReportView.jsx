@@ -2,6 +2,7 @@ import { Fragment, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FileText, Printer } from "lucide-react";
 import { fetchJson } from "@api";
+import { localISO as isoToday, shiftISO as shiftIso, reportDates, loadReportDays } from "./reportDates.mjs";
 
 // Ernährungsprotokoll-Report — deckt die FFA-Pflichtaufgabe „7 Tage
 // Makronutrient-Protokoll" (Ernährungstrainer, Task 1), das „14 Tage
@@ -24,28 +25,6 @@ const SLOTS = [
 ];
 
 const TYPE_TO_SLOT = { breakfast: "vormittag", lunch: "nachmittag", dinner: "abend", snack: "nachmittag" };
-
-function isoToday() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function shiftIso(iso, days) {
-  const d = new Date(`${iso}T12:00:00`);
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
-}
-
-function isoRange(fromIso, toIso) {
-  if (fromIso > toIso) return [];
-  const out = [];
-  let cur = fromIso;
-  // harte Obergrenze gegen versehentliche Riesen-Zeiträume
-  for (let i = 0; i < 400 && cur <= toIso; i++) {
-    out.push(cur);
-    cur = shiftIso(cur, 1);
-  }
-  return out;
-}
 
 function fmtDE(iso) {
   const d = new Date(`${iso}T12:00:00`);
@@ -199,16 +178,16 @@ export default function NutritionReportView() {
     try { return localStorage.getItem(HIDE_EMPTY_STORAGE_KEY) === "1"; } catch { return false; }
   });
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["nutrition-history", "report"],
-    queryFn: () => fetchJson("/nutrition/history?limit=180"),
+  const dates = useMemo(() => reportDates(fromIso, toIso), [fromIso, toIso]);
+  const { data: logsByDate = {}, isLoading, isError, refetch } = useQuery({
+    queryKey: ["nutrition-report-days", fromIso, toIso],
+    enabled: dates !== null,
+    queryFn: () => loadReportDays(dates, async (date) => {
+      const result = await fetchJson(`/nutrition/log?date=${encodeURIComponent(date)}`);
+      if (!result?.data || !Array.isArray(result.data.meals)) throw new Error("Ungültige Tagesdaten");
+      return result.data;
+    }),
   });
-
-  const logsByDate = useMemo(() => {
-    const map = {};
-    for (const log of data?.history || []) map[log.date] = log;
-    return map;
-  }, [data]);
 
   const applyPreset = (value) => {
     setPreset(value);
@@ -229,17 +208,17 @@ export default function NutritionReportView() {
     try { localStorage.setItem(HIDE_EMPTY_STORAGE_KEY, v ? "1" : "0"); } catch { /* ignore */ }
   };
 
-  const dates = useMemo(() => isoRange(fromIso, toIso), [fromIso, toIso]);
-  const dayCount = dates.length;
+  const validDates = dates || [];
+  const dayCount = validDates.length;
   // Tage ohne Einträge optional ausblenden; Kennzahlen (Ø, „x von y Tagen") rechnen weiter über den ganzen Zeitraum.
   const visibleDates = useMemo(
-    () => (hideEmpty ? dates.filter((d) => (logsByDate[d]?.meals || []).length > 0) : dates),
+    () => (hideEmpty ? validDates.filter((d) => (logsByDate[d]?.meals || []).length > 0) : validDates),
     [dates, hideEmpty, logsByDate],
   );
   const hiddenCount = dayCount - visibleDates.length;
 
   const summary = useMemo(() => {
-    const loggedDates = dates.filter((d) => (logsByDate[d]?.meals || []).length > 0);
+    const loggedDates = validDates.filter((d) => (logsByDate[d]?.meals || []).length > 0);
     const totals = loggedDates.reduce(
       (acc, d) => {
         const t = sumMeals(logsByDate[d].meals);
@@ -336,13 +315,16 @@ export default function NutritionReportView() {
 
           <button
             onClick={() => window.print()}
-            className="inline-flex items-center gap-2 rounded-full border border-orange-400/40 bg-orange-400 px-5 py-2.5 text-sm font-semibold text-slate-950 hover:bg-orange-300 transition"
+            disabled={!dates || isLoading || isError}
+            className="inline-flex items-center gap-2 rounded-full border border-orange-400/40 bg-orange-400 px-5 py-2.5 text-sm font-semibold text-slate-950 hover:bg-orange-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Printer className="h-4 w-4" />
             Drucken / als PDF
           </button>
         </div>
 
+        {!dates && <p role="alert" className="text-sm text-amber-300">Bitte einen gültigen Zeitraum von höchstens 400 Tagen wählen.</p>}
+        {isError && <p role="alert" className="text-sm text-red-300">Die Tagesdaten konnten nicht vollständig geladen werden. <button onClick={() => refetch()} className="underline">Erneut versuchen</button></p>}
         <p className="text-xs text-slate-500">
           {dayCount} Kalendertage im Zeitraum · {summary.loggedCount} Tage mit Einträgen.
           {hideEmpty
@@ -353,8 +335,12 @@ export default function NutritionReportView() {
 
       {/* Das Blatt */}
       <div className="report-sheet mx-auto max-w-[820px] rounded-2xl p-10 shadow-glow">
-        {isLoading ? (
+        {!dates ? (
+          <p>Bitte einen gültigen Zeitraum wählen.</p>
+        ) : isLoading ? (
           <p style={{ fontStyle: "italic", color: "#6b7280" }}>Daten werden geladen…</p>
+        ) : isError ? (
+          <p>Das Protokoll konnte nicht vollständig geladen werden.</p>
         ) : (
           <>
             <header style={{ borderBottom: "2px solid #14181f", paddingBottom: 10, marginBottom: 12 }}>
