@@ -1,3 +1,4 @@
+import { missingMealMacros } from "../lib/mealMacros.js";
 import { sumMetric } from "../../shared/utils/utils.js";
 import StatsGrid from "./Dashboard/StatsGrid.jsx";
 import DailyGoals from "./Dashboard/DailyGoals.jsx";
@@ -24,7 +25,7 @@ export default function DashboardView({ nutrition, sup, journal, macroTrend, set
     <div className="grid gap-6 xl:grid-cols-[1.4fr_0.9fr]">
       <div className="grid gap-6">
         <QuickAiLog date={activeDate} />
-        <IncompleteDayHint totalKcal={totalKcal} isToday={isToday} />
+        {missingMealMacros(meals).kcal === 0 && <IncompleteDayHint totalKcal={totalKcal} isToday={isToday} />}
         <FastingWindowBadge />
         <FirstMealTrend activeDate={activeDate} />
         <StatsGrid mealsCount={meals.length} totalProtein={totalProtein} waterMl={waterMl} />
