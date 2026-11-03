@@ -46,7 +46,8 @@ export function useFrontdoorLog() {
   const kcalGoal = useSettings((s) => s.kcal_goal) || 2000;
   const proteinGoal = useSettings((s) => s.protein_goal) || 150;
 
-  const { data: nutrition } = useNutritionData(date);
+  const nutritionQuery = useNutritionData(date);
+  const { data: nutrition } = nutritionQuery;
   const meals = useMemo(() => nutrition?.meals || [], [nutrition]);
 
   const { data: catalogData } = useQuery({
@@ -179,6 +180,9 @@ export function useFrontdoorLog() {
     date,
     meals,
     totals,
+    nutrition,
+    nutritionError: nutritionQuery.error,
+    reloadNutrition: nutritionQuery.refetch,
     kcalGoal,
     proteinGoal,
     catalogItems,

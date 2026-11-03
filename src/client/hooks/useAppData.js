@@ -9,5 +9,5 @@ export function useAppData(activeDate) {
   const { data: suppLog }    = useSuppLog(activeDate);
   const { data: journal }    = useNotes(activeDate);
   const { data: macroTrend } = useMacroTrend(activeDate);
-  return { nutrition, sup, suppCatalog, suppLog, journal, macroTrend, nutritionError: nutritionQuery.error };
+  return { nutrition, sup, suppCatalog, suppLog, journal, macroTrend, nutritionError: nutritionQuery.error, reloadNutrition: nutritionQuery.refetch };
 }

@@ -1,6 +1,7 @@
 import React from "react";
 import { ChevronDown, Loader2, Settings2 } from "lucide-react";
 import { getFrontdoor } from "./frontdoors.js";
+import NutritionDataNotice from "../../components/NutritionDataNotice.jsx";
 import { useFrontdoorLog } from "./useFrontdoorLog.js";
 
 function greeting(h = new Date().getHours()) {
@@ -41,6 +42,7 @@ export default function FrontdoorHost({ frontdoorKey, userName, onEnterApp, onOp
           </button>
         </header>
 
+        <NutritionDataNotice nutrition={fd.nutrition} error={fd.nutritionError} onRetry={fd.reloadNutrition} />
         <View fd={fd} onOpenApp={onOpenApp} />
 
         <button
