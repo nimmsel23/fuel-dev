@@ -4,6 +4,9 @@ import { vertexAI } from "./firebase.js";
 import { getGenerativeModel, SchemaType } from "firebase/ai";
 import { withAiRetry } from "./aiRetry.js";
 import { MICRO_KEYS } from "../../shared/config/dach.mjs";
+import { findCatalogMatch } from "./mealCatalogMatch.js";
+import { catalogToMeal } from "./mealDetails.js";
+export { findCatalogMatch } from "./mealCatalogMatch.js";
 
 export const isCloud = () =>
   typeof window !== "undefined" &&
@@ -18,25 +21,6 @@ export function parseQuantityPrefix(text) {
 
 import { normalizeComponents } from "./mealComponents.js";
 export { amountToGrams, normalizeComponents, sumYieldG } from "./mealComponents.js";
-
-// Sucht einen bereits im Katalog gespeicherten Treffer, bevor überhaupt
-// Vertex gefragt wird — bekannte Sachen (mit echten Makros) brauchen keine
-// KI-Schätzung, die zudem bei z.B. Getränken gerne mal unzuverlässig ist.
-export function findCatalogMatch(catalog, name) {
-  const norm = (s) => String(s || "").trim().toLowerCase();
-  // Wortgrenzen statt reinem includes() — sonst matcht z.B. der Katalogeintrag
-  // "Reis" fälschlich in "Reisepass" oder Freitext, der "reis" nur als Teilwort enthält.
-  const hasWord = (haystack, needle) => new RegExp(`(^|\\W)${needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\W|$)`).test(haystack);
-  const target = norm(name);
-  if (!target || target.length < 3) return null;
-  const label = (i) => norm(i.name || i.description);
-  return (
-    catalog.find((i) => label(i) === target) ||
-    catalog.find((i) => label(i).length > 3 && hasWord(target, label(i))) ||
-    catalog.find((i) => label(i).length > 3 && hasWord(label(i), target)) ||
-    null
-  );
-}
 
 // Gemeinsames Response-Schema für Makro/Mikro-Analyse (AI-Logger + Re-Analyse).
 export async function analyzeMealText(promptText) {
@@ -115,12 +99,10 @@ async function logCatalogMatch({ date, qty, match, suppCatalog }) {
     await postJson("/nutrition/log", {
       date,
       meal: {
+        ...catalogToMeal(match),
         type: match.meal_type || match.type || "meal",
-        description: match.name || match.description,
         notes: "",
-        kcal: match.kcal || 0, protein: match.protein || 0,
-        carbs: match.carbs || 0, fat: match.fat || 0,
-        catalog_item_id: match.id,
+        ...(match.id ? { catalog_item_id: match.id } : {}),
       },
     });
   }
