@@ -12,7 +12,7 @@ import MicrosAiCoach from "./Micros/MicrosAiCoach.jsx";
 import { NUTRIENTS } from "./Micros/utils.js";
 
 const CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
-const cacheKey = (year, week) => `nutrition-weekly:${year}:${week}`;
+const cacheKey = (year, week) => `nutrition-weekly:coverage-v3:${year}:${week}`;
 const pct = (value) => Number.isFinite(value) ? `${Math.round(value)}%` : "—";
 
 function Snapshot({ weeks, results }) {
@@ -48,7 +48,7 @@ function Snapshot({ weeks, results }) {
           <div className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4">
             <div className="flex items-center gap-2 text-xs text-slate-400"><AlertTriangle className="h-3.5 w-3.5 text-amber-300" /> Aufmerksamkeit</div>
             <div className="mt-2 text-3xl font-semibold tracking-tight text-white">{hasData ? gaps.length : "—"}<span className="ml-1 text-sm font-medium text-slate-500">Nährstoffe</span></div>
-            <div className="mt-1 truncate text-[11px] text-slate-500">{gaps[0] ? `Niedrigster Wert: ${gaps[0].label} · ${pct(gaps[0].percent_of_dach)}` : hasData ? "Kein Referenzwert unterschritten" : "Wird geladen …"}</div>
+            <div className="mt-1 truncate text-[11px] text-slate-500">{gaps[0] ? `Niedrigster Wert: ${gaps[0].label} · ${pct(gaps[0].percent_of_dach)}` : hasData ? "Kein Referenzwert unterschritten" : latest ? "Keine vollständige Datenlage" : "Wird geladen …"}</div>
           </div>
         </div>
       </div>
@@ -103,7 +103,7 @@ export default function MicrosView({ setActiveDate, setActiveTab }) {
   const weeks = lastNWeeks(8);
   const results = useQueries({
     queries: weeks.map(({ year, week }) => ({
-      queryKey: ["nutrition-weekly", "trace-v2", year, week],
+      queryKey: ["nutrition-weekly", "coverage-v3", year, week],
       queryFn: () => fetchJson(`/nutrition/weekly/${year}/${week}`).then((data) => {
         if (data.ok) writeCache(cacheKey(year, week), data);
         return data.ok ? data : null;

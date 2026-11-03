@@ -1,5 +1,6 @@
+import { nutrientCoverage } from "../../../../shared/config/nutrient-coverage.mjs";
 import { scaleKnownMicros } from "../../knownMicros.js";
-import { OMEGA3_KEYS, normalizeOmega3, omega3Coverage } from "../../../../shared/config/omega3.mjs";
+import { OMEGA3_KEYS, normalizeOmega3 } from "../../../../shared/config/omega3.mjs";
 import { computeFastingWindows } from "../../../../shared/utils/fasting.mjs";
 import { projectCloudLog, outboxEntries, projectCloudCatalog, hasPendingFor } from "../../cloudOutbox.js";
 /**
@@ -363,7 +364,7 @@ export async function getWeeklyMicros(year, week) {
     };
   }
 
-  Object.assign(rda_comparison, omega3Coverage(mealBreakdown, rda_comparison));
+  Object.assign(rda_comparison, nutrientCoverage(mealBreakdown, rda_comparison));
   const result = { ok: true, trace_version: 2, year, week, dates, week_totals: weekTotals, rda_comparison, day_breakdown: dayBreakdown, meal_breakdown: mealBreakdown, missing_meals: Array.from(missingMeals) };
 
 
