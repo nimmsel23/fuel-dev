@@ -94,24 +94,26 @@ Eingabe: "${promptText}"`;
 }
 
 // Loggt einen Katalog-Treffer qty-fach + automatisch verknüpfte Supplemente.
-async function logCatalogMatch({ date, qty, match, suppCatalog }) {
+async function logCatalogMatch({ date, qty, match, suppCatalog, entryId }) {
   for (let i = 0; i < qty; i++) {
     await postJson("/nutrition/log", {
       date,
       meal: {
         ...catalogToMeal(match),
+        ...(entryId ? { id: `${entryId}_meal_${i}` } : {}),
         type: match.meal_type || match.type || "meal",
         notes: "",
         ...(match.id ? { catalog_item_id: match.id } : {}),
       },
     });
   }
-  for (const suppId of (match.linked_supplement_ids || [])) {
+  for (const [index, suppId] of (match.linked_supplement_ids || []).entries()) {
     const suppEntry = suppCatalog.find((s) => s.id === suppId);
     if (!suppEntry) continue;
     await postJson("/supplements/log", {
       date,
       intake: {
+        ...(entryId ? { id: `${entryId}_supp_${index}` } : {}),
         supplement_id: suppEntry.id,
         dose: suppEntry.default_dose ?? 0,
         unit: suppEntry.unit || "g",
@@ -126,11 +128,11 @@ async function logCatalogMatch({ date, qty, match, suppCatalog }) {
 // Vertex-Schätzung inkl. Mikros. Wird sowohl beim initialen Log-Versuch als
 // auch bei der Re-Analyse eines wartenden Pending-Eintrags verwendet — genau
 // eine Implementierung statt der früheren Kopie in QuickAiLog.jsx.
-export async function resolveMealText({ date, rawText, catalogItems, suppCatalog }) {
+export async function resolveMealText({ date, rawText, entryId, catalogItems, suppCatalog }) {
   const { qty, rest } = parseQuantityPrefix(rawText);
   const match = findCatalogMatch(catalogItems, rest);
   if (match) {
-    await logCatalogMatch({ date, qty, match, suppCatalog });
+    await logCatalogMatch({ date, qty, match, suppCatalog, entryId });
     return { matched: true };
   }
 
@@ -147,6 +149,7 @@ export async function resolveMealText({ date, rawText, catalogItems, suppCatalog
   await postJson("/nutrition/log", {
     date,
     meal: {
+      ...(entryId ? { id: `${entryId}_meal_0` } : {}),
       type: parsed.type || "snack",
       description: mealName,
       notes: "",

@@ -49,7 +49,7 @@ export function useAiMealLogger(date) {
   };
 
   const resolvePendingEntry = async (entry) => {
-    await resolveMealText({ date, rawText: entry.text, catalogItems, suppCatalog });
+    await resolveMealText({ date, rawText: entry.text, entryId: entry.id, catalogItems, suppCatalog });
     await firestore.removePendingAiEntry(date, entry);
   };
 
@@ -87,7 +87,14 @@ export function useAiMealLogger(date) {
     // 1. Optimistic Save — Text landet sofort als wartender Eintrag,
     //    unabhängig davon ob Vertex AI danach erreichbar ist.
     const entry = { id: `ai_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`, text: rawText, created_at: new Date().toISOString() };
-    await firestore.addPendingAiEntry(date, entry);
+    try {
+      await firestore.addPendingAiEntry(date, entry);
+    } catch (saveErr) {
+      console.error("Pending AI entry save error:", saveErr);
+      setError((saveErr.message || "Entwurf konnte nicht gespeichert werden.") + " Der Text bleibt im Eingabefeld. Bitte erneut versuchen.");
+      setSubmitting(false);
+      return;
+    }
     qc.invalidateQueries({ queryKey: ["ai-pending", date] });
     setText("");
 

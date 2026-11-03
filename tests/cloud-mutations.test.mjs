@@ -77,3 +77,16 @@ test('offline replay adds the catalog profile in the same transaction exactly on
   assert.equal(catalog.length, 1); assert.equal(catalog[0].use_count, 1);
   assert.equal(catalog[0].yield_g, 200); assert.equal(catalog[0].micros.calcium_mg, 20);
 });
+
+test('retry with a fresh outbox operation does not duplicate a draft meal or its catalog use', async () => {
+  documents.clear(); retry = null;
+  const meal = { id: 'ai_draft_meal_0', description: 'Lunch', kcal: 300 };
+  await mutateCloudLog('nutrition', '2026-10-16', { operation_id: 'first', meal });
+  await mutateCloudLog('nutrition', '2026-10-16', { operation_id: 'retry', meal });
+  assert.equal(documents.get('nutrition/alice/logs/2026-10-16').meals.length, 1);
+  assert.equal(documents.get('nutrition/alice/meta/catalog').items[0].use_count, 1);
+  const intake = { id: 'ai_draft_supp_0', supplement_id: 'vitamin' };
+  await mutateCloudLog('supplements', '2026-10-16', { operation_id: 's1', intake });
+  await mutateCloudLog('supplements', '2026-10-16', { operation_id: 's2', intake });
+  assert.equal(documents.get('supplements/alice/logs/2026-10-16').intakes.length, 1);
+});

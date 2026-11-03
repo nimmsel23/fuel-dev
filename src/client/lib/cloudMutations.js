@@ -26,7 +26,9 @@ export async function mutateCloudLog(kind, date, command) {
     // All reads precede writes. A concurrent change retries the entire move.
     const targetRef = targetDate ? doc(db, kind, uid, "logs", targetDate) : null;
     const targetSnap = targetRef ? await tx.get(targetRef) : null;
-    const shouldCatalog = kind === "nutrition" && command.meal?.description && !command.meal_id && !command.meal.catalog_id;
+    const isNewMeal = command.meal?.id && !(current.meals || []).some(m => m.id === command.meal.id)
+      && !(current.deleted_meal_ids || []).includes(command.meal.id);
+    const shouldCatalog = kind === "nutrition" && isNewMeal && command.meal?.description && !command.meal_id && !command.meal.catalog_id;
     const catalogRef = shouldCatalog ? doc(db, "nutrition", uid, "meta", "catalog") : null;
     const catalogSnap = catalogRef ? await tx.get(catalogRef) : null;
     const next = changeLog(kind, current, command);
