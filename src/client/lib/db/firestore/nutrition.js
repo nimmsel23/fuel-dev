@@ -26,7 +26,7 @@ import { db } from "../../firebase.js";
 import { getUid } from "./core.js";
 import { MICRO_KEYS, zeroMicros, todayISO, getWeekDates, dateToISOWeek } from "./utils.js";
 import { mutateCloudLog } from "../../cloudMutations.js";
-import { getSupplementsCatalog } from "./supplements.js";
+import { getSupplementLog, getSupplementsCatalog } from "./supplements.js";
 import { DACH, getStatus } from "../../../../shared/config/dach.mjs";
 
 export async function getNutritionCatalog() {
@@ -87,13 +87,8 @@ export async function saveNutritionLog(date, data) {
 }
 
 export async function getNutritionLogsInRange(dates) {
-  const uid = getUid();
-  const map = {};
-  await Promise.all(dates.map(async (date) => {
-    const snap = await getDoc(doc(db, "nutrition", uid, "logs", date));
-    if (snap.exists()) map[date] = applyMealTombstones(snap.data());
-  }));
-  return map;
+  const logs = await Promise.all(dates.map((date) => getNutritionLog(date)));
+  return Object.fromEntries(dates.map((date, index) => [date, logs[index]]));
 }
 
 function mealComponentTrace(meal, catalog) {
@@ -246,9 +241,8 @@ export async function getWeeklyMicros(year, week) {
 
   const dates = getWeekDates(year, week);
   const logsMap = await getNutritionLogsInRange(dates);
-  const suppLogsSnap = await getDocs(query(collection(db, "supplements", getUid(), "logs"), where("date", "in", dates)));
-  const suppLogsMap = {};
-  suppLogsSnap.forEach(d => { suppLogsMap[d.id] = d.data(); });
+  const suppLogs = await Promise.all(dates.map((date) => getSupplementLog(date)));
+  const suppLogsMap = Object.fromEntries(dates.map((date, index) => [date, suppLogs[index]]));
 
   const catalog = await getNutritionCatalog();
   const suppCatalog = await getSupplementsCatalog();

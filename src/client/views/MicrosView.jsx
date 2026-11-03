@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from "react";
-import { useQueries } from "@tanstack/react-query";
+import React, { useEffect, useMemo, useState } from "react";
+import { useQueries, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, ArrowUpRight, Check, CircleHelp, Microscope, Sparkles, Wand2 } from "lucide-react";
 import { fetchJson } from "@api";
+import { OUTBOX_EVENT } from "../lib/cloudOutbox.js";
 import { lastNWeeks } from "./Micros/utils.js";
 import { readCache, writeCache } from "../lib/localCache.js";
 import MicrosLegend from "./Micros/MicrosLegend.jsx";
@@ -112,9 +113,19 @@ export default function MicrosView({ setActiveDate, setActiveTab }) {
         const cached = readCache(cacheKey(year, week), CACHE_MAX_AGE_MS);
         return cached?.trace_version === 2 ? cached : undefined;
       },
-      staleTime: 5 * 60 * 1000,
+      staleTime: 0,
     })),
   });
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    const refresh = (event) => {
+      if (["nutrition", "supplements", "catalog:nutrition", "catalog:supplements", "micros"].includes(event.entry?.kind)) {
+        void queryClient.invalidateQueries({ queryKey: ["nutrition-weekly"] });
+      }
+    };
+    window.addEventListener(OUTBOX_EVENT, refresh);
+    return () => window.removeEventListener(OUTBOX_EVENT, refresh);
+  }, [queryClient]);
   const missingMeals = Array.from(new Set(results.flatMap((result) => result.data?.missing_meals || []).filter(Boolean)));
   const loading = results.some((result) => result.isPending);
   const failed = results.some((result) => result.isError);
