@@ -7,7 +7,7 @@ import { postJson, patchJson } from "@api";
 import { patchNutritionDay, reloadNutritionDay } from "../../lib/optimisticMeal.js";
 import { syncPotAfterMealChange } from "../../hooks/usePots.js";
 import { vertexAI } from "../../lib/firebase.js";
-import { getGenerativeModel, SchemaType } from "firebase/vertexai";
+import { getGenerativeModel, SchemaType } from "firebase/ai";
 import { withAiRetry } from "../../lib/aiRetry.js";
 import { useAiMealLogger } from "../../hooks/useAiMealLogger.js";
 import { useSettings } from "../../store.js";

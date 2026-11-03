@@ -2,7 +2,7 @@
 // Muster wie lib/visionScan.js / lib/aiMealLogger.js: gemini-2.5-flash, JSON-Schema, withAiRetry. Wird nur bei
 // Bedarf dynamisch importiert, damit der Chunk der Küche klein bleibt.
 import { vertexAI } from "./firebase.js";
-import { getGenerativeModel, SchemaType } from "firebase/vertexai";
+import { getGenerativeModel, SchemaType } from "firebase/ai";
 import { withAiRetry } from "./aiRetry.js";
 import { compressToBase64 } from "./visionScan.js";
 import {

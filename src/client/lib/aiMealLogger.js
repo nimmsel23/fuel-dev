@@ -1,7 +1,7 @@
 import { OMEGA3_RULES, normalizeOmega3, OMEGA3_KEYS } from "../../shared/config/omega3.mjs";
 import { postJson } from "@api";
 import { vertexAI } from "./firebase.js";
-import { getGenerativeModel, SchemaType } from "firebase/vertexai";
+import { getGenerativeModel, SchemaType } from "firebase/ai";
 import { withAiRetry } from "./aiRetry.js";
 import { MICRO_KEYS } from "../../shared/config/dach.mjs";
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { X, Sparkles, Loader2, RotateCcw } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { vertexAI } from "../../lib/firebase.js";
-import { getGenerativeModel } from "firebase/vertexai";
+import { getGenerativeModel } from "firebase/ai";
 import { withAiRetry } from "../../lib/aiRetry.js";
 import { NUTRIENTS } from "./utils.js";
 import { postJson } from "@api";

@@ -6,7 +6,7 @@ import { postJson } from "@api";
 import { NUTRIENTS } from "./utils.js";
 import { MICRO_KEYS } from "../../lib/db/firestore/utils.js";
 import { vertexAI } from "../../lib/firebase.js";
-import { getGenerativeModel, SchemaType } from "firebase/vertexai";
+import { getGenerativeModel, SchemaType } from "firebase/ai";
 import { withAiRetry } from "../../lib/aiRetry.js";
 
 const isCloud = () => window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com");

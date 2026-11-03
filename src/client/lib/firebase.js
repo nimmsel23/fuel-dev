@@ -40,8 +40,8 @@ setPersistence(auth, browserLocalPersistence).catch(() => {});
 export const googleProvider = new GoogleAuthProvider();
 
 // Vertex AI initialization
-import { getVertexAI } from "firebase/vertexai";
-export const vertexAI = getVertexAI(app);
+import { getAI, VertexAIBackend } from "firebase/ai";
+export const vertexAI = getAI(app, { backend: new VertexAIBackend("us-central1") });
 
 // FCM Initialization
 import { getMessaging } from "firebase/messaging";

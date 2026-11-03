@@ -5,11 +5,11 @@ Stand 2026-10-30 (Standalone-Release `746e3ac`, CI `41050794246` erfolgreich): D
 ## 📌 Aktueller Stand
 - Im **lokalen Modus** (`VITE_APP_MODE=coach`) läuft ein Node-Server (`server.mjs`), der per Fastify die Route `POST /nutrition/vision` bereitstellt.
 - Diese Route spricht im Hintergrund unseren neuen lokalen Python-Server (`fuel-catalog-server.py` via FastAPI) an, welcher wiederum über `fuel/gemini.py` sicher mit Gemini kommuniziert.
-- Im **Cloud Modus** (`VITE_APP_MODE=client` via Firebase Hosting) verwenden Scanner, AI-Logger und Supplement-Schätzung `firebase/vertexai` direkt im Browser. Ein `GEMINI_API_KEY` wird dafür nicht ins Frontend gepackt.
+- Im **Cloud Modus** (`VITE_APP_MODE=client` via Firebase Hosting) verwenden Scanner, AI-Logger und Supplement-Schätzung `firebase/ai` direkt im Browser. Ein `GEMINI_API_KEY` wird dafür nicht ins Frontend gepackt.
 
 ## 🎯 Das Ziel
 Wir wollen den `ScannerModal.jsx` (und später auch `GeminiCatalogModal.jsx`) so umbauen, dass er im Cloud-Modus **direkt aus dem Browser** mit Gemini kommunizieren kann, ohne dass ein eigener Server betrieben werden muss. Scanner und Shutter teilen jetzt `ScannerModal.jsx` und `lib/visionScan.js`.
-Dies wird durch das offizielle **Vertex AI for Firebase Web SDK** (`@firebase/vertexai`) realisiert, welches den API-Schlüssel verbirgt und durch **Firebase App Check** abgesichert ist.
+Dies wird durch das offizielle **Vertex AI for Firebase Web SDK** (`@firebase/ai`) realisiert, welches den API-Schlüssel verbirgt und durch **Firebase App Check** abgesichert ist.
 
 ## 🗺️ Meilensteine & Schritte
 
@@ -18,13 +18,13 @@ Dies wird durch das offizielle **Vertex AI for Firebase Web SDK** (`@firebase/ve
 - [ ] **Firebase App Check im Projekt verifizieren:** Der Client initialisiert reCAPTCHA v3 mit `VITE_RECAPTCHA_SITE_KEY`. Registrierung, Enforcement und echte Token im Firebase-Projekt sind aus dem Repo allein nicht nachweisbar.
 - [x] **Abrechnung/Quotas prüfen:** Da Vertex AI über Google Cloud abgerechnet wird (Blaze-Plan erforderlich), Quotas und Sicherheitsregeln prüfen.
 
-### Phase 2: Frontend-Integration (`firebase/vertexai`)
-- [x] **Abhängigkeit installieren:** `npm install @firebase/vertexai` (wird über `firebase/vertexai` importiert)
+### Phase 2: Frontend-Integration (`firebase/ai`)
+- [x] **Abhängigkeit installieren:** `npm install @firebase/ai` (wird über `firebase/ai` importiert)
 - [x] **Initialisierung anpassen:** In `src/client/lib/firebase.js` das Vertex AI SDK initialisieren:
   ```javascript
-  import { getVertexAI } from "firebase/vertexai";
+  import { getAI, VertexAIBackend } from "firebase/ai";
   // Nach initializeApp(firebaseConfig)...
-  export const vertexAI = getVertexAI(app);
+  export const vertexAI = getAI(app, { backend: new VertexAIBackend("us-central1") });
   ```
 - [x] **App Check clientseitig initialisieren:** `firebase.js` ruft `initializeAppCheck` im Client-Build auf, wenn `VITE_RECAPTCHA_SITE_KEY` gesetzt ist. Die Projektseite bleibt separat zu prüfen.
 
