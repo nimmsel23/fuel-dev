@@ -9,7 +9,7 @@ const bundle = await build({
   bundle: true, write: false, format: 'esm', platform: 'browser',
   define: { 'import.meta.env.VITE_APP_MODE': '"client"' },
   plugins: [{ name: 'sdk-boundaries', setup(b) {
-    b.onResolve({ filter: /^(@api|firebase\/vertexai|\.\/firebase\.js)$/ }, args => ({ path: args.path, namespace: 'fake' }));
+    b.onResolve({ filter: /^(@api|firebase\/ai|\.\/firebase\.js)$/ }, args => ({ path: args.path, namespace: 'fake' }));
     b.onLoad({ filter: /.*/, namespace: 'fake' }, args => ({ contents: args.path === '@api'
       ? 'export const postJson = async (...args) => { globalThis.__fuelVisionTest.writes.push(args); throw Error("Unexpected write"); };'
       : args.path === './firebase.js' ? 'export const vertexAI = {};'

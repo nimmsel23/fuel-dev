@@ -39,7 +39,6 @@ export default defineConfig(async () => {
         "firebase/firestore": resolvePackageEntry("firebase/firestore"),
         "firebase/functions": resolvePackageEntry("firebase/functions"),
         "firebase/storage": resolvePackageEntry("firebase/storage"),
-        "firebase/vertexai": resolvePackageEntry("firebase/vertexai"),
         "firebase/ai": resolvePackageEntry("firebase/ai"),
       },
       dedupe: [
@@ -54,7 +53,6 @@ export default defineConfig(async () => {
         "firebase/firestore",
         "firebase/functions",
         "firebase/storage",
-        "firebase/vertexai",
         "firebase/ai",
       ],
     },

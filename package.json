@@ -68,7 +68,6 @@
     "@firebase/remote-config": "^0.6.5",
     "@firebase/storage": "^0.13.14",
     "@firebase/util": "^1.12.1",
-    "@firebase/vertexai": "^1.2.4",
     "@firebase/webchannel-wrapper": "^1.0.3",
     "@fullcalendar/core": "^6.1.15",
     "@fullcalendar/daygrid": "^6.1.15",

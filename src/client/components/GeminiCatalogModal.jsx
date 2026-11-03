@@ -5,7 +5,7 @@ import { formatMetric } from "../../shared/utils/utils.js";
 import { Modal } from "./ui.jsx";
 import { withAiRetry } from "../lib/aiRetry.js";
 import { vertexAI } from "../lib/firebase.js";
-import { getGenerativeModel, SchemaType } from "firebase/vertexai";
+import { getGenerativeModel, SchemaType } from "firebase/ai";
 
 export default function GeminiCatalogModal({ onClose, onSaved }) {
   const [description, setDescription] = useState("");

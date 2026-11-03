@@ -7,7 +7,7 @@ Dieses Dokument beschreibt das geplante Addon-Upgrade für den `MicrosView`. Zie
 - Es fehlt eine interpretative Analyse, welche Nährstoffe systematisch fehlen und welche Lebensmittel (z.B. Nüsse, Gemüse) diese Lücken schließen könnten.
 
 ## 🎯 Das Ziel
-Wir wollen einen "AI Coach"-Button im `MicrosView.jsx` integrieren. Dieser Button sammelt die lokal gerenderten Wochen-Daten, verpackt sie in einen Kontext-Prompt und bittet Vertex AI über das `@firebase/vertexai` Web SDK um konkrete Handlungs- bzw. Ernährungsempfehlungen.
+Wir wollen einen "AI Coach"-Button im `MicrosView.jsx` integrieren. Dieser Button sammelt die lokal gerenderten Wochen-Daten, verpackt sie in einen Kontext-Prompt und bittet Vertex AI über das `@firebase/ai` Web SDK um konkrete Handlungs- bzw. Ernährungsempfehlungen.
 
 ## 🗺️ Meilensteine & Schritte
 
@@ -19,7 +19,7 @@ Wir wollen einen "AI Coach"-Button im `MicrosView.jsx` integrieren. Dieser Butto
 - [ ] **AI Button & Modal:** Einen "AI Coach"- oder "Analysieren"-Button in `MicrosView.jsx` hinzufügen, der einen Overlay/Dialog öffnet.
 - [ ] **Vertex AI Anbindung:** Die Logik aus dem `ScannerModal.jsx` übernehmen (Hybrid-Modus):
   - Lokaler Modus (`VITE_APP_MODE=coach`): Daten an lokalen Python-Backend-Endpunkt schicken (muss ggf. in `server.mjs` / `fastapi` ergänzt werden).
-  - Cloud Modus (`VITE_APP_MODE=client`): Daten direkt an `getGenerativeModel` aus `firebase/vertexai` schicken.
+  - Cloud Modus (`VITE_APP_MODE=client`): Daten direkt an `getGenerativeModel` aus `firebase/ai` schicken.
 - [ ] **Lade- & Streaming-Status:** Einen schönen Ladezustand einbauen (Spinner/Skeleton) oder im besten Fall direkt *Streaming Responses* nutzen, damit der Text sofort beginnt einzufliegen.
 
 ### Phase 3: Optimierung
