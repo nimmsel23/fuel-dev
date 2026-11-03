@@ -94,8 +94,9 @@ Eingabe: "${promptText}"`;
 }
 
 // Loggt einen Katalog-Treffer qty-fach + automatisch verknüpfte Supplemente.
-async function logCatalogMatch({ date, qty, match, suppCatalog, entryId }) {
+async function logCatalogMatch({ date, qty, match, suppCatalog, entryId, assertOwner }) {
   for (let i = 0; i < qty; i++) {
+    assertOwner();
     await postJson("/nutrition/log", {
       date,
       meal: {
@@ -110,11 +111,13 @@ async function logCatalogMatch({ date, qty, match, suppCatalog, entryId }) {
   for (const [index, suppId] of (match.linked_supplement_ids || []).entries()) {
     const suppEntry = suppCatalog.find((s) => s.id === suppId);
     if (!suppEntry) continue;
+    assertOwner();
     await postJson("/supplements/log", {
       date,
       intake: {
         ...(entryId ? { id: `${entryId}_supp_${index}` } : {}),
         supplement_id: suppEntry.id,
+        name: suppEntry.name || suppEntry.id,
         dose: suppEntry.default_dose ?? 0,
         unit: suppEntry.unit || "g",
         time_of_day: suppEntry.default_time_of_day || "morning",
@@ -128,11 +131,12 @@ async function logCatalogMatch({ date, qty, match, suppCatalog, entryId }) {
 // Vertex-Schätzung inkl. Mikros. Wird sowohl beim initialen Log-Versuch als
 // auch bei der Re-Analyse eines wartenden Pending-Eintrags verwendet — genau
 // eine Implementierung statt der früheren Kopie in QuickAiLog.jsx.
-export async function resolveMealText({ date, rawText, entryId, catalogItems, suppCatalog }) {
+export async function resolveMealText({ date, rawText, entryId, catalogItems, suppCatalog, assertOwner = () => {} }) {
+  assertOwner();
   const { qty, rest } = parseQuantityPrefix(rawText);
   const match = findCatalogMatch(catalogItems, rest);
   if (match) {
-    await logCatalogMatch({ date, qty, match, suppCatalog, entryId });
+    await logCatalogMatch({ date, qty, match, suppCatalog, entryId, assertOwner });
     return { matched: true };
   }
 
@@ -146,6 +150,7 @@ export async function resolveMealText({ date, rawText, entryId, catalogItems, su
     : null;
   const hasMicros = micros && Object.values(micros).some((v) => v > 0);
 
+  assertOwner();
   await postJson("/nutrition/log", {
     date,
     meal: {
@@ -175,6 +180,7 @@ export async function resolveMealText({ date, rawText, entryId, catalogItems, su
   });
 
   if (hasMicros) {
+    assertOwner();
     await postJson("/nutrition/micros", {
       items: [{
         meal_name: mealName,
