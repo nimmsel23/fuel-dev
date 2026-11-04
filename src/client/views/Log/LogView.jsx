@@ -19,7 +19,7 @@ import MealListDashboard, { StatTile } from "./components/MealListDashboard.jsx"
 import MealListTimeline from "./components/MealListTimeline.jsx";
 import { computeMacroGoals } from "../Settings/GoalsSection.jsx";
 import { Camera, RotateCcw } from "lucide-react";
-import { sumMetric, formatMetric } from "../../../shared/utils/utils.js";
+import { sumMetric, sumCompleteMetric, formatMetric } from "../../../shared/utils/utils.js";
 import { consumeNotificationIntent } from "../../lib/notification-intents.js";
 import { missingMealMacros } from "../../lib/mealMacros.js";
 
@@ -639,11 +639,11 @@ export default function LogView({ date, nutrition, notes, mode }) {
   ) : (
     <>
       <div className="mb-2 text-xs text-slate-400 text-right">
-        <span className="font-bold text-orange-300">{formatMetric(sumMetric(meals, "kcal"))} kcal</span>
+        <span className="font-bold text-orange-300">{formatMetric(sumCompleteMetric(meals, "kcal"))} kcal</span>
         <div className="mt-0.5 space-x-2">
-          <span className="text-emerald-300">P {formatMetric(sumMetric(meals, "protein"))}g</span>
-          <span className="text-sky-300">C {formatMetric(sumMetric(meals, "carbs"))}g</span>
-          <span className="text-violet-300">F {formatMetric(sumMetric(meals, "fat"))}g</span>
+          <span className="text-emerald-300">P {formatMetric(sumCompleteMetric(meals, "protein"))}g</span>
+          <span className="text-sky-300">C {formatMetric(sumCompleteMetric(meals, "carbs"))}g</span>
+          <span className="text-violet-300">F {formatMetric(sumCompleteMetric(meals, "fat"))}g</span>
         </div>
       </div>
       <MealListMinimal

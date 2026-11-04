@@ -3,7 +3,7 @@ export function sumMetric(meals, key) {
 }
 
 export function sumCompleteMetric(meals, key) {
-  if (meals.some((meal) => meal[key] == null || meal[key] === "" || typeof meal[key] === "boolean" || !Number.isFinite(Number(meal[key])))) return null;
+  if (meals.some((meal) => meal[key] == null || (typeof meal[key] === "string" && !meal[key].trim()) || typeof meal[key] === "boolean" || !Number.isFinite(Number(meal[key])) || Number(meal[key]) < 0)) return null;
   return sumMetric(meals, key);
 }
 

@@ -20,7 +20,7 @@ import FrontdoorChooser from "./views/Frontdoor/FrontdoorChooser.jsx";
 import FrontdoorHost from "./views/Frontdoor/FrontdoorHost.jsx";
 import { getFrontdoor } from "./views/Frontdoor/frontdoors.js";
 import { useAppData } from "./hooks/useAppData.js";
-import { sumMetric, formatMetric } from "../shared/utils/utils.js";
+import { sumCompleteMetric, formatMetric } from "../shared/utils/utils.js";
 import { watchAuth, signIn, signOut, getUid } from "./lib/db.firestore.js";
 import { fetchJson } from "@api";
 import { captureNotificationIntentFromLocation } from "./lib/notification-intents.js";
@@ -164,10 +164,10 @@ function App() {
   const { nutrition, sup, suppCatalog, suppLog, journal, macroTrend, nutritionError, reloadNutrition } = useAppData(activeDate);
 
   const meals = nutrition?.meals || [];
-  const totalKcal = sumMetric(meals, "kcal");
-  const totalProtein = sumMetric(meals, "protein");
-  const totalCarbs = sumMetric(meals, "carbs");
-  const totalFat = sumMetric(meals, "fat");
+  const totalKcal = sumCompleteMetric(meals, "kcal");
+  const totalProtein = sumCompleteMetric(meals, "protein");
+  const totalCarbs = sumCompleteMetric(meals, "carbs");
+  const totalFat = sumCompleteMetric(meals, "fat");
 
   const visibleTabs = TAB_CONFIG.filter((t) => !t.localOnly || localMode !== null).filter((t) => !(t.cloudHidden && isCloudFrontend)).filter((t) => !(t.cloudOnly && !isCloudFrontend));
   // Setup-Tab (2026-09-06, User-Vorgabe): nicht als gleichwertige Pill in der
