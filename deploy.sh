@@ -83,16 +83,20 @@ RSYNC_RUNTIME=(
   --exclude '*'
 )
 
-# Node-Backend liegt im Repo unter node-backend/, im Deploy-Ziel aber im alten
-# flachen Layout (server.mjs, src/server/, scripts/sync-daemon.mjs).
+# Node-Backend lebt im eigenen Repo ~/dev/fuel-backend (Layout wie im Deploy-Ziel:
+# server.mjs, src/server/, scripts/sync-daemon.mjs). Staging liest es von dort,
+# Prod kopiert aus dem Staging-Stand ($SOURCE = $STAGE, bereits flach).
 RSYNC_BACKEND_OPTS=(-aL --exclude '*.bak*' --exclude '*.map' --exclude node_modules --exclude __pycache__)
+FUEL_BACKEND_DIR="${FUEL_BACKEND_DIR:-$(dirname "$DEV_SOURCE")/fuel-backend}"
 
 sync_backend() {
-  local dest="$1" dry="${2:-}"
+  local dest="$1" dry="${2:-}" root
   shift 2 || shift $#
-  "$@" rsync "${RSYNC_BACKEND_OPTS[@]}" ${dry:+-n -i} --delete "$SOURCE/node-backend/src/server/" "$dest/src/server/"
-  "$@" rsync "${RSYNC_BACKEND_OPTS[@]}" ${dry:+-n -i} "$SOURCE/node-backend/server.mjs" "$dest/server.mjs"
-  "$@" rsync "${RSYNC_BACKEND_OPTS[@]}" ${dry:+-n -i} "$SOURCE/node-backend/scripts/sync-daemon.mjs" "$dest/scripts/sync-daemon.mjs"
+  if [[ "$SOURCE" == "$DEV_SOURCE" ]]; then root="$FUEL_BACKEND_DIR"; else root="$SOURCE"; fi
+  [[ -f "$root/server.mjs" && -d "$root/src/server" ]] || die "Node-Backend nicht gefunden: $root (FUEL_BACKEND_DIR setzen oder ~/dev/fuel-backend auschecken)"
+  "$@" rsync "${RSYNC_BACKEND_OPTS[@]}" ${dry:+-n -i} --delete "$root/src/server/" "$dest/src/server/"
+  "$@" rsync "${RSYNC_BACKEND_OPTS[@]}" ${dry:+-n -i} "$root/server.mjs" "$dest/server.mjs"
+  "$@" rsync "${RSYNC_BACKEND_OPTS[@]}" ${dry:+-n -i} "$root/scripts/sync-daemon.mjs" "$dest/scripts/sync-daemon.mjs"
 }
 
 sync_runtime() {

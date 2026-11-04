@@ -65,7 +65,7 @@ def delegate(cmd: list) -> None:
     rc = subprocess.run(cmd).returncode
     if rc != 0:
         raise typer.Exit(rc)
-SYNC_SCRIPT = WORKDIR / "node-backend" / "scripts" / "firestore-sync.mjs"
+SYNC_SCRIPT = WORKDIR.parent / "fuel-backend" / "scripts" / "firestore-sync.mjs"
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def gum_log(level: str, text: str):
