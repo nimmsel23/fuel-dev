@@ -554,6 +554,14 @@ export default function LogView({ date, nutrition, notes, mode }) {
               <Field key={k} label={lbl}>
                 <input type="number" min="0" className={inputCls} value={form[k] ?? ""}
                   onChange={(e) => setMacro(k, e.target.value)} />
+                <label className="mt-1 flex items-center gap-1 text-xs text-slate-400">
+                  <input type="checkbox" checked={Array.isArray(form.estimated_fields) && form.estimated_fields.includes(k)}
+                    disabled={form[k] == null || form[k] === ""}
+                    onChange={(event) => setForm((current) => ({ ...current, estimated_fields: event.target.checked
+                      ? [...new Set([...(current.estimated_fields || []), k])]
+                      : (current.estimated_fields || []).filter((field) => field !== k) }))} />
+                  geschätzt
+                </label>
               </Field>
             ))}
           </div>
