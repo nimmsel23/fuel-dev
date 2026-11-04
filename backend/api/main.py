@@ -20,7 +20,10 @@ app = FastAPI(
 app.include_router(fuel_router)
 
 # Serve Frontend built assets
-FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "frontend", "dist")
+# frontend/ ist ins Nachbar-Repo ~/dev/fuel-frontend gewandert (FUEL_FRONTEND_DIR überschreibt).
+FRONTEND_DIR = os.environ.get("FUEL_FRONTEND_DIR") or os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), "fuel-frontend", "dist"
+)
 
 # Serve assets/ directly
 @app.get("/assets/{file_path:path}")
