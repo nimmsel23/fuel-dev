@@ -13,7 +13,7 @@ import { InstallPromptHandler } from "./components/InstallPromptHandler.jsx";
 import { useApp } from "./store.js";
 import { useNutritionData } from "./hooks/useNutrition.js";
 import { useAppData } from "./hooks/useAppData.js";
-import { sumMetric, formatMetric } from "../shared/utils/utils.js";
+import { sumCompleteMetric, formatMetric } from "../shared/utils/utils.js";
 import { captureNotificationIntentFromLocation } from "./lib/notification-intents.js";
 import { watchAuth, signIn, signOut } from "./lib/db.firestore.js";
 
@@ -167,9 +167,9 @@ function FuelSoloTotals({ date }) {
   const { data: nutrition } = useNutritionData(date);
   const meals = nutrition?.meals || [];
   return <div className="text-right text-xs text-slate-400">
-    <span className="text-base font-semibold text-orange-300">{formatMetric(sumMetric(meals, "kcal"))}</span> kcal
-    <span className="ml-2"><span className="text-emerald-300">{formatMetric(sumMetric(meals, "protein"))}</span> P</span>
-    <span className="ml-1.5"><span className="text-sky-300">{formatMetric(sumMetric(meals, "carbs"))}</span> K</span>
-    <span className="ml-1.5"><span className="text-violet-300">{formatMetric(sumMetric(meals, "fat"))}</span> F</span>
+    <span className="text-base font-semibold text-orange-300">{formatMetric(sumCompleteMetric(meals, "kcal"))}</span> kcal
+    <span className="ml-2"><span className="text-emerald-300">{formatMetric(sumCompleteMetric(meals, "protein"))}</span> P</span>
+    <span className="ml-1.5"><span className="text-sky-300">{formatMetric(sumCompleteMetric(meals, "carbs"))}</span> K</span>
+    <span className="ml-1.5"><span className="text-violet-300">{formatMetric(sumCompleteMetric(meals, "fat"))}</span> F</span>
   </div>;
 }

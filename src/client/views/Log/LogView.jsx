@@ -19,7 +19,7 @@ import MealListDashboard, { StatTile } from "./components/MealListDashboard.jsx"
 import MealListTimeline from "./components/MealListTimeline.jsx";
 import { computeMacroGoals } from "../Settings/GoalsSection.jsx";
 import { Camera, RotateCcw } from "lucide-react";
-import { sumMetric, formatMetric } from "../../../shared/utils/utils.js";
+import { sumMetric, sumCompleteMetric, formatMetric } from "../../../shared/utils/utils.js";
 import { consumeNotificationIntent } from "../../lib/notification-intents.js";
 import { missingMealMacros } from "../../lib/mealMacros.js";
 
@@ -551,10 +551,19 @@ export default function LogView({ date, nutrition, notes, mode }) {
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[["kcal", "kcal"], ["protein", "Prot g"], ["carbs", "Carb g"], ["fat", "Fett g"]].map(([k, lbl]) => (
-              <Field key={k} label={lbl}>
-                <input type="number" min="0" className={inputCls} value={form[k] ?? ""}
+              <div key={k} className="grid gap-2 text-sm text-slate-300">
+                <label htmlFor={`meal-macro-${k}`} className="text-xs uppercase tracking-[0.18em] text-slate-500">{lbl}</label>
+                <input id={`meal-macro-${k}`} type="number" min="0" className={inputCls} value={form[k] ?? ""}
                   onChange={(e) => setMacro(k, e.target.value)} />
-              </Field>
+                <label className="mt-1 flex items-center gap-1 text-xs text-slate-400">
+                  <input type="checkbox" checked={Array.isArray(form.estimated_fields) && form.estimated_fields.includes(k)}
+                    disabled={form[k] == null || form[k] === ""}
+                    onChange={(event) => setForm((current) => ({ ...current, estimated_fields: event.target.checked
+                      ? [...new Set([...(current.estimated_fields || []), k])]
+                      : (current.estimated_fields || []).filter((field) => field !== k) }))} />
+                  geschätzt
+                </label>
+              </div>
             ))}
           </div>
           {!validMacros && <p role="alert" className="text-xs text-amber-300">Nährwerte müssen gültige, nicht negative Zahlen sein.</p>}
@@ -630,11 +639,11 @@ export default function LogView({ date, nutrition, notes, mode }) {
   ) : (
     <>
       <div className="mb-2 text-xs text-slate-400 text-right">
-        <span className="font-bold text-orange-300">{formatMetric(sumMetric(meals, "kcal"))} kcal</span>
+        <span className="font-bold text-orange-300">{formatMetric(sumCompleteMetric(meals, "kcal"))} kcal</span>
         <div className="mt-0.5 space-x-2">
-          <span className="text-emerald-300">P {formatMetric(sumMetric(meals, "protein"))}g</span>
-          <span className="text-sky-300">C {formatMetric(sumMetric(meals, "carbs"))}g</span>
-          <span className="text-violet-300">F {formatMetric(sumMetric(meals, "fat"))}g</span>
+          <span className="text-emerald-300">P {formatMetric(sumCompleteMetric(meals, "protein"))}g</span>
+          <span className="text-sky-300">C {formatMetric(sumCompleteMetric(meals, "carbs"))}g</span>
+          <span className="text-violet-300">F {formatMetric(sumCompleteMetric(meals, "fat"))}g</span>
         </div>
       </div>
       <MealListMinimal

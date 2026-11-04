@@ -1,5 +1,6 @@
 import { CopyPlus, Pencil, Trash2 } from "lucide-react";
 import { twMerge } from "tailwind-merge";
+import { formatMealMetric } from "../../../../shared/utils/utils.js";
 
 // "Timeline" — Mahlzeiten hängen an einer Zeitachse statt an einer Liste,
 // mit "Jetzt"-Marker. Eine von drei wählbaren Log-Ansichten (siehe LogView).
@@ -10,6 +11,8 @@ export default function MealListTimeline({
   return (
     <div className="relative pl-8">
       <div className="absolute bottom-1 left-[13px] top-1 w-px bg-gradient-to-b from-orange-400/50 to-white/5" aria-hidden />
+
+      {meals.some((meal) => meal.estimated_fields?.length) && <p className="mb-2 text-xs text-slate-400">≈ geschätzt</p>}
 
       {meals.map((m) => (
         <div key={m.id} className="relative pb-4 last:pb-0">
@@ -27,7 +30,7 @@ export default function MealListTimeline({
             <div className="min-w-0 flex-1">
               <div className="truncate text-sm font-medium text-slate-100">{m.description}</div>
               <div className="mt-0.5 text-[11px] tabular-nums text-slate-500">
-                {m.kcal ?? "—"} kcal · P{m.protein ?? "—"} · C{m.carbs ?? "—"} · F{m.fat ?? "—"}
+                {formatMealMetric(m, "kcal")} kcal · P{formatMealMetric(m, "protein")} · C{formatMealMetric(m, "carbs")} · F{formatMealMetric(m, "fat")}
               </div>
             </div>
             <div className="flex shrink-0 gap-1 opacity-60 transition group-hover:opacity-100">

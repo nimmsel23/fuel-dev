@@ -1,10 +1,10 @@
 import React from "react";
 import { Calendar, ChevronRight, Trash2, Pencil, ChevronDown, ChevronUp } from "lucide-react";
 import { twMerge } from "tailwind-merge";
-import { sumMetric, formatMetric } from "../../../shared/utils/utils.js";
+import { sumCompleteMetric, formatMetric, formatMealMetric } from "../../../shared/utils/utils.js";
 
 export default function HistoryDayCard({ day, isExpanded, onToggle, setActiveDate, setActiveTab, deleteMeal }) {
-  const totalKcal = sumMetric(day.meals || [], "kcal");
+  const totalKcal = sumCompleteMetric(day.meals || [], "kcal");
   
   return (
     <div
@@ -57,7 +57,7 @@ export default function HistoryDayCard({ day, isExpanded, onToggle, setActiveDat
                 <div className="min-w-0 flex-1">
                   <div className="font-medium text-slate-200">{meal.description}</div>
                   <div className="text-xs text-slate-500">
-                    {formatMetric(meal.kcal)} kcal · P {formatMetric(meal.protein)}g · C {formatMetric(meal.carbs)}g · F {formatMetric(meal.fat)}g
+                    {formatMealMetric(meal, "kcal")} kcal · P {formatMealMetric(meal, "protein")}g · C {formatMealMetric(meal, "carbs")}g · F {formatMealMetric(meal, "fat")}g
                   </div>
                 </div>
                 <div className="flex gap-2">

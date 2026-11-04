@@ -1,3 +1,28 @@
+# Vibe als zweite Meinung bei der Makro-Prüfung, Prüfergebnis länger sichtbar (2026-11-04)
+
+Auslöser: Beim Loggen von „4 Semmeln, 20dag Wiener" schlug das Speichern in den Catalog fehl, danach wollte der User neben Haiku auch Mistral Vibe als Prüfer einsetzen. Der User hatte außerdem nur gesehen, dass Haiku zweifelt, nicht warum — die Begründung stand nur in der Notification, die nach Sekunden verschwand. Commit `9a08add` auf `dev` gepusht.
+
+- **`fuel/vibe_cli.py` (neu)**: headless-Client für das Mistral-Vibe-CLI (`vibe -p <prompt>`, `stdin=DEVNULL`, Timeout, Rückgabe `{ok, text, error}`), analog zu `claude_cli.py`. Ist `vibe` nicht installiert, wird der Prüfer übersprungen.
+- **`fuel/gemini.py`**: neue `_vibe_verdict()` (gleicher `VERIFY_PROMPT` und gleiche Rückgabeform wie `_haiku_verdict`). `verify_cli()` befragt Haiku und Vibe; der Titel nennt, wer zweifelt („Fuel: Haiku + Vibe zweifelt"), der Text zeigt je Zweifler Makros und Begründung, bei „ok" welche Prüfer geprüft haben.
+- **Sichtbarkeit (`fuel/gemini.py`)**: der volle Prüftext wird zusätzlich nach `~/.cache/fuel/last-verify.txt` geschrieben (jeweils nur der letzte Check). Die Notification bleibt bei Zweifel 60 s, sonst 20 s. Bei Zweifel ruft `verify_cli` zusätzlich `pypr show fuelcheck` auf (pyprland-Scratchpad, schlägt still fehl, solange es nicht geladen ist).
+- **Test**: Lauf mit absichtlich falschen Makros (300 kcal für „4 Semmeln, 20dag Wiener"): Haiku 1150 kcal, Vibe 1150 kcal, beide zweifeln. Der echte Eintrag lag bei 1248 kcal.
+- **Catalog-Symlink (Laufzeitdaten)**: `~/.aos/fuel/nutrition/catalog.json` zeigte auf den alten Pfad `~/fuel-dev/catalogs/…` und war nach dem Umzug nach `~/dev/fuel-dev` tot (`FileNotFoundError` beim `--save-catalog`). Symlink auf `~/dev/fuel-dev/catalogs/nutrition/catalog.json` umgebogen, Catalog wieder lesbar (48 Items). Die Mahlzeit wurde danach erneut mit `--save-catalog` geloggt.
+
+---
+
+# Backend- und Frontend-Auslagerung aus fuel-dev, Release nach master (2026-11-04)
+
+Auslöser: Dependabot-Check. Die Server-Abhängigkeiten (fastify, firebase-admin, better-sqlite3, web-push u. a.) zogen über das vitalos-Lockfile Sicherheitsmeldungen in die Shell. Deshalb wurden Node-Backend und Vite-Frontend aus `fuel-dev` in eigene Repos ausgelagert. Danach lief die Release-Kette `dev → master` (PR #14) und `vos-release`. Das Meta-Repo `~/vitalos` wurde im Zuge dessen gepusht.
+
+- **`~/dev/fuel-backend` (neu, privat `nimmsel23/fuel-backend`)**: `src/server/` per `git subtree split` mit 85 Commits Verlauf extrahiert (`server.mjs`, `src/server/`, `scripts/`, `tests/`, `package.json`). `src/shared` ist dort ein Symlink auf `../fuel-dev/src/shared`. Katalog, `dist` und `.env` findet es über das Nachbar-Repo oder `FUEL_ROOT`. Secret-Scan über Dateien und Verlauf ohne Treffer.
+- **`~/dev/fuel-frontend` (neu, privat `nimmsel23/fuel-frontend`)**: `frontend/` mit 7 Commits Verlauf herausgelöst. Serverteile sowie `nodemon` und `yaml` entfernt, `workbox-window` ergänzt, `shamefullyHoist: true` in `pnpm-workspace.yaml`. Test-Build mit `vite build` in ein Scratch-Verzeichnis läuft durch.
+- **`fuel-dev` (`01eef6c`, `6c8f2c4`, `3ecfbca`, `f305c28`)**: Server-Dependencies aus `package.json` und `pnpm-lock.yaml` entfernt. `src/server/`, `server.mjs`, Backend-Scripts (`sync-daemon`, `firestore-sync`, `coach-task` u. a.) und `frontend/` per `git rm` entfernt. `deploy.sh`, `bin/fuelctl`, `scripts/dev-runner.mjs` und `tests/test_deploy_runtime.py` auf `fuel-backend` umgestellt. `backend/api/main.py` liest das Frontend-`dist` jetzt aus `../fuel-frontend/dist` oder `FUEL_FRONTEND_DIR` (nur Syntax geprüft, Pfad nicht gestartet).
+- **`deploy.sh` (`c14c628`)**: `knownMicros.js` in die rsync-Include-Liste aufgenommen. `mealDetails.js` importiert die Datei seit `08c56cc`. Ohne sie lief `fuel-preview` (:8700) nach dem dev-Push in eine Crash-Schleife (`ERR_MODULE_NOT_FOUND`), rund 5 Minuten down. Nach dem Re-Deploy `/health` 200.
+- **`AGENTS.md` (`2e811b0`)**: neuer Abschnitt „Ausgelagerte Teile (Stand 2026-11-04)" zu `fuel-backend` und `fuel-frontend`.
+- **Release**: `dev` gepusht, PR #14 `dev → master` per Automerge gemerged, `vos-release` bumpte den `fuel-app`-Pointer. `~/vitalos` `pnpm-lock.yaml` neu aufgelöst (`a6c7884`, minus 2213 Zeilen, ohne fastify/hono/better-sqlite3/proxy-addr), Push `7f57d47..a6c7884`, Shell-CI `Deploy VitalOS Shell` grün. Dependabot-Meldungen insgesamt von 147 auf 130 gefallen. Mit dem PR kam auch `a471644` (Mini-Apps tabellengesteuert per CI) nach `master`.
+
+---
+
 # Prod-Sync ohne Mehrfach-Pushes, Deploy-Reparatur und Staging-Service (2026-10-29)
 
 Auslöser: Der User hat `fuel.service` (:7000) nach längerer Pause wieder als Systemdienst gestartet. Beim Prüfen des Stunden-Syncs fielen Mehrfach-Pushes desselben Tages auf (z. B. `2026-07-31` 6×, `2026-08-23` 10× in 10 min) — erst als „harmlos" eingestuft, vom User zu Recht zurückgewiesen. Dev-Arbeit trotz überfälliger Taskwarrior-Tasks auf ausdrücklichen Auftrag des Users. Alles auf `dev` committet; Prod-Deploys hat der User selbst ausgeführt (kein sudo durch Claude).

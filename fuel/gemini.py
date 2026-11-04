@@ -23,6 +23,7 @@ from pathlib import Path
 from .omega3 import OMEGA3_RULES, OMEGA3_KEYS, normalize_omega3
 from .constants.nutrients import MICRO_KEYS as NUTRIENT_KEYS
 from . import claude_cli
+from . import vibe_cli
 from . import log as _log  # configures loguru
 from . import paths as _paths
 
@@ -304,6 +305,18 @@ def _haiku_verdict(description: str, macros: dict, reference: str = "") -> dict 
     return claude_cli._extract_json(res["text"])
 
 
+def _vibe_verdict(description: str, macros: dict, reference: str = "") -> dict | None:
+    """Vibe (Mistral) prüft dieselben Makros als zweite Meinung. Gleiche Form wie _haiku_verdict."""
+    if not vibe_cli.available():
+        return None
+    prompt = VERIFY_PROMPT.format(description=description, reference=reference, **macros)
+    res = vibe_cli.call_vibe(prompt, timeout=60, log_label="verify_nutrition:vibe")
+    if not res["ok"]:
+        logger.warning(f"Vibe-Check übersprungen ({res['error']})")
+        return None
+    return claude_cli._extract_json(res["text"])
+
+
 def verify_cli() -> None:
     """Hintergrund-Prozess: OFF-Referenz holen, Haiku prüft die Schätzung, Ergebnis per Desktop-Benachrichtigung.
 
@@ -313,8 +326,12 @@ def verify_cli() -> None:
     description, macros = sys.argv[1], json.loads(sys.argv[2])
     components = json.loads(sys.argv[3]) if len(sys.argv) > 3 else []
     ref = _off_reference(components)
-    verdict = _haiku_verdict(description, macros, _reference_text(ref))
-    if not verdict and not ref:
+    reftext = _reference_text(ref)
+    active = [(n, v) for n, v in (
+        ("Haiku", _haiku_verdict(description, macros, reftext)),
+        ("Vibe", _vibe_verdict(description, macros, reftext)),
+    ) if v]
+    if not active and not ref:
         return
 
     off_line = ""
@@ -323,21 +340,35 @@ def verify_cli() -> None:
         off_line = f"\nOFF:    {tot['kcal']} kcal · {tot['protein']:.1f} EW · {tot['carbs']:.1f} KH · {tot['fat']:.1f} F ({len(ref)}/{len(components)} Zutaten)"
     gemini_line = f"Gemini: {macros['kcal']} kcal · {macros['protein']} EW · {macros['carbs']} KH · {macros['fat']} F"
 
-    if verdict and verdict.get("ok") is False:
-        fixed = _normalize_macros(verdict.get("macros") or {})
-        title, urgency = "Fuel: Haiku zweifelt", "normal"
-        body = (
-            f"{description}\n{gemini_line}\n"
-            f"Haiku:  {fixed['kcal']} kcal · {fixed['protein']} EW · {fixed['carbs']} KH · {fixed['fat']} F"
-            f"{off_line}\n{verdict.get('reason', '')}"
-        )
-    elif verdict:
+    doubters = [(n, v) for n, v in active if v.get("ok") is False]
+    if doubters:
+        title, urgency = f"Fuel: {' + '.join(n for n, _ in doubters)} zweifelt", "normal"
+        body = f"{description}\n{gemini_line}"
+        for n, v in doubters:
+            fixed = _normalize_macros(v.get("macros") or {})
+            body += f"\n{n + ':':<8}{fixed['kcal']} kcal · {fixed['protein']} EW · {fixed['carbs']} KH · {fixed['fat']} F"
+        body += off_line
+        for n, v in doubters:
+            body += f"\n{n}: {v.get('reason', '')}"
+    elif active:
         title, urgency = "Fuel: Check ok", "low"
-        body = f"{description}\n{gemini_line}{off_line}"
-    else:  # Haiku nicht erreichbar, OFF-Referenz gibt es trotzdem
+        body = f"{description}\n{gemini_line}{off_line}\ngeprüft: {', '.join(n for n, _ in active)}"
+    else:  # keine CLI erreichbar, OFF-Referenz gibt es trotzdem
         title, urgency = "Fuel: OFF-Vergleich", "low"
         body = f"{description}\n{gemini_line}{off_line}"
-    subprocess.run(["notify-send", "-a", "fuel", "-u", urgency, title, body], check=False)
+    # Voller Text zusätzlich in Datei: Notifications verschwinden zu schnell. Bei Zweifel
+    # poppt ein pyprland-Scratchpad (fuelcheck) mit dem vollen Ergebnis auf, bis eine Taste gedrückt wird.
+    cache = Path.home() / ".cache" / "fuel"
+    cache.mkdir(parents=True, exist_ok=True)
+    (cache / "last-verify.txt").write_text(f"{title}\n\n{body}\n")
+    timeout_ms = "60000" if doubters else "20000"
+    subprocess.run(["notify-send", "-a", "fuel", "-u", urgency, "-t", timeout_ms, title, body], check=False)
+    if doubters:
+        try:
+            subprocess.run(["pypr", "show", "fuelcheck"], check=False, timeout=10,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except (OSError, subprocess.TimeoutExpired):
+            pass
 
 
 def _spawn_verify(description: str, macros: dict, components: list[dict]) -> None:

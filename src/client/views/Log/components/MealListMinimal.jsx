@@ -1,5 +1,6 @@
 import { CopyPlus, Pencil, Trash2 } from "lucide-react";
 import { twMerge } from "tailwind-merge";
+import { formatMealMetric } from "../../../../shared/utils/utils.js";
 
 const MEAL_LABEL_FALLBACK = (type) => type;
 
@@ -8,6 +9,8 @@ const MEAL_LABEL_FALLBACK = (type) => type;
 export default function MealListMinimal({ meals, mealLabel, formId, onRepeat, onEdit, onDelete, repeatPendingId }) {
   return (
     <div>
+      {meals.some((meal) => meal.estimated_fields?.length) && <p className="mb-2 text-xs text-slate-400">≈ geschätzt</p>}
+
       {meals.map((m) => (
         <div key={m.id}
           className={twMerge(
@@ -18,12 +21,12 @@ export default function MealListMinimal({ meals, mealLabel, formId, onRepeat, on
             <div className="truncate text-sm font-medium text-slate-100">{m.description}</div>
             <div className="mt-0.5 text-[11.5px] text-slate-500">
               {mealLabel[m.type] || MEAL_LABEL_FALLBACK(m.type)}
-              {" · "}P{m.protein ?? "—"} C{m.carbs ?? "—"} F{m.fat ?? "—"}
+              {" · "}P{formatMealMetric(m, "protein")} C{formatMealMetric(m, "carbs")} F{formatMealMetric(m, "fat")}
             </div>
           </div>
           <div className="flex shrink-0 items-baseline gap-3">
             <span className="text-sm font-semibold tabular-nums text-slate-100">
-              {m.kcal ?? "—"}<span className="ml-0.5 text-[11px] font-normal text-slate-500">kcal</span>
+              {formatMealMetric(m, "kcal")}<span className="ml-0.5 text-[11px] font-normal text-slate-500">kcal</span>
             </span>
             <div className="flex gap-1">
               <button onClick={() => onRepeat(m)}
