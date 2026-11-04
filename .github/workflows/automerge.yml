@@ -35,7 +35,9 @@ jobs:
           pr=$(gh pr list -R "$REPO" --head "$BRANCH" --base master --state open --json number,headRefOid \
             --jq ".[] | select(.headRefOid == \"$SHA\") | .number")
           [ -n "$pr" ] || { echo "Kein offener PR mit Stand $SHA (veraltet oder schon gemergt)."; exit 0; }
+          before=$(gh pr view "$pr" -R "$REPO" --json baseRefOid --jq .baseRefOid)   # master vor dem Merge (für den Diff der Mini-Apps)
           gh pr merge "$pr" -R "$REPO" --merge
           # Merge mit GITHUB_TOKEN löst keinen Push-Trigger aus -> Live-Deploy per Dispatch
           gh workflow run deploy-master.yml -R "$REPO" --ref master
-          echo "Gemergt. Live-Deploy per Dispatch gestartet."
+          gh workflow run deploy-miniapps.yml -R "$REPO" --ref master -f before="$before"   # nur die betroffenen Mini-Apps
+          echo "Gemergt. Live-Deploy (App + Mini-Apps) per Dispatch gestartet."

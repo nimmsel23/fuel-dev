@@ -38,6 +38,7 @@
     "build:solo:supplements": "VITE_APP_MODE=client VITE_SOLO=supplements vite build --config vite.config.cjs && node scripts/stamp-solo.mjs supplements",
     "build:solo:micros": "VITE_APP_MODE=client VITE_SOLO=micros vite build --config vite.config.cjs && node scripts/stamp-solo.mjs micros",
     "build:solo:report": "VITE_APP_MODE=client VITE_SOLO=report vite build --config vite.config.cjs && node scripts/stamp-solo.mjs report",
+    "build:miniapp": "node scripts/build-miniapp.mjs",
     "build:solo": "pnpm run build:solo:log && pnpm run build:solo:supplements && pnpm run build:solo:micros && pnpm run build:solo:report",
     "solo:icons": "python3 scripts/solo-icons.py",
     "preview": "vite preview",
