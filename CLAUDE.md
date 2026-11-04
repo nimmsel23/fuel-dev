@@ -323,6 +323,18 @@ pnpm run deploy:preview # 24h-Preview-Channel + Telegram-Link
 **Live-Sites (2026-10-26):** `fuel-vos` (Target `client`) wird von der vitalos-Pipeline ("Deploy Fuel PWA") bedient; **`fuel-os`** (Target `fuelos`, https://fuel-os.web.app) ist das Ziel von `.github/workflows/deploy-master.yml` (Push auf `master`, nackter Checkout). Achtung: auf `fuel-os` lag bis 2026-10-23 eine andere App ("Fuel OS", vitalos-Branch `fuel-os-ernaehrungsplaene`) — der erste master-Deploy ersetzt sie (Rollback über Firebase-Hosting-Versionen). `fuelos-web` ist eine dritte, ältere Site ohne Pipeline.
 **Auto-Deploy:** `.githooks/pre-push` deployt automatisch bei Push auf `master`, wenn relevante Dateien im Diff sind (Details siehe oben) — daneben bleiben `deploy:cloud` / `deploy:preview` für manuelle/Preview-Deploys.
 
+### Android (Capacitor 8 / Native Preview)
+```bash
+pnpm run build:android  # Baut natives Bundle (build:local) & Debug-APK via Gradle/Capacitor
+pnpm run run:android    # Deployt direkt auf Android-Gerät/Emulator
+pnpm run native:sync    # Nur cap sync (nach manuellem build:local)
+pnpm run native:android # Öffnet das Android-Projekt in Android Studio
+```
+**JDK:** Temurin 21 (`~/.local/share/jvm/jdk-21`), gepinnt in `android/gradle.properties` via `org.gradle.java.home`.
+**SDK:** `/home/alpha/Android/Sdk` — in `android/local.properties` (gitignored).
+**App-ID:** `at.vitalos.fuel` · **Build-Mode:** `VITE_APP_MODE=coach` (= `build:local`).
+Gradle-Daemons nach dem Build stoppen: `cd android && ./gradlew --stop`
+
 **24h-Preview (`deploy:preview`):** `scripts/deploy-preview.mjs` deployt einen Preview-Channel (24h gültig) und schickt den Link per Telegram (`@aos_fitness_bot`, Creds aus `~/.env/fitness.env`). Läuft lokal; denselben Preview baut bei `dev`-Push auch die CI (`.github/workflows/preview-dev.yml`, **nackter Checkout dieses Repos** — kein vitalos-Meta-Repo, keine Submodule, `target: client`). Das geht, seit Fuel **keine Imports aus Nachbar-Repos** mehr hat (2026-10-26: Journal-Tab entfernt, `useSwipeToDismiss` als eigene Kopie in `src/client/hooks/`, toter `lib/db/index.js`/`@fitness-db`-Re-Export und alle Sibling-Aliase aus den Vite-Configs entfernt, `preserveSymlinks` weg). Neue Cross-Repo-Imports nicht wieder einführen — sonst bricht der Standalone-Build (Test: Repo ohne Nachbarn kopieren, `pnpm install --frozen-lockfile && pnpm run build:cloud && pnpm run build:local`). Deaktivierte CI-Workflows liegen in `.github/workflows.disabled/`.
 
 ### Branch-Modell (dev / master)

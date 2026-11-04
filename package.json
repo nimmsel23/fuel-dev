@@ -11,6 +11,11 @@
     "start": "node server.mjs",
     "ui:dev": "vite",
     "build": "pnpm run build:local",
+    "build:native": "pnpm run build:local",
+    "native:sync": "pnpm run build:native && cap sync",
+    "native:android": "cap open android",
+    "build:android": "pnpm run native:sync && cd android && ./gradlew assembleDebug",
+    "run:android": "pnpm run native:sync && cap run android",
     "build:local": "VITE_APP_MODE=coach vite build --config vite.config.js && node scripts/mini-app-shell/cli.mjs sw dist --app fuel && node scripts/mini-app-shell/cli.mjs splash dist --app fuel",
     "build:cloud": "VITE_APP_MODE=client vite build --config vite.config.cjs && pnpm run stamp:sw",
     "build:firebase": "pnpm run build:cloud",
@@ -47,6 +52,9 @@
     "deploy:solo:protokoll": "pnpm run build:solo:report && firebase deploy --only hosting:protokoll --project fitness-aos"
   },
   "dependencies": {
+    "@capacitor/android": "^8.6.0",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.6.0",
     "@fastify/cors": "^9.0.1",
     "@fastify/static": "^7.0.4",
     "@fastify/swagger": "^8.15.0",
@@ -104,6 +112,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.6.0",
     "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.5.0",
     "nodemon": "^3.1.14",
