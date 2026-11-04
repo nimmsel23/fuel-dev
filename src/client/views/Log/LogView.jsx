@@ -551,8 +551,9 @@ export default function LogView({ date, nutrition, notes, mode }) {
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[["kcal", "kcal"], ["protein", "Prot g"], ["carbs", "Carb g"], ["fat", "Fett g"]].map(([k, lbl]) => (
-              <Field key={k} label={lbl}>
-                <input type="number" min="0" className={inputCls} value={form[k] ?? ""}
+              <div key={k} className="grid gap-2 text-sm text-slate-300">
+                <label htmlFor={`meal-macro-${k}`} className="text-xs uppercase tracking-[0.18em] text-slate-500">{lbl}</label>
+                <input id={`meal-macro-${k}`} type="number" min="0" className={inputCls} value={form[k] ?? ""}
                   onChange={(e) => setMacro(k, e.target.value)} />
                 <label className="mt-1 flex items-center gap-1 text-xs text-slate-400">
                   <input type="checkbox" checked={Array.isArray(form.estimated_fields) && form.estimated_fields.includes(k)}
@@ -562,7 +563,7 @@ export default function LogView({ date, nutrition, notes, mode }) {
                       : (current.estimated_fields || []).filter((field) => field !== k) }))} />
                   geschätzt
                 </label>
-              </Field>
+              </div>
             ))}
           </div>
           {!validMacros && <p role="alert" className="text-xs text-amber-300">Nährwerte müssen gültige, nicht negative Zahlen sein.</p>}
