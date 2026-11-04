@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { History, Calendar, ChevronRight, ChevronDown, ChevronUp, Pencil, Trash2 } from "lucide-react";
 import { fetchJson, postJson } from "@api";
 import { syncPotAfterMealChange } from "../../hooks/usePots.js";
-import { sumMetric, formatMetric } from "../../../shared/utils/utils.js";
+import { sumCompleteMetric, formatMetric, formatMealMetric } from "../../../shared/utils/utils.js";
 
 const DAY_SHORT = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
 const MON_SHORT = ["Jan", "Feb", "Mar", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
@@ -139,10 +139,10 @@ export default function HistoryView({ setActiveDate, setActiveTab }) {
                     <div className="absolute bottom-0 left-[67px] top-0 w-px bg-white/10" />
                     {week.entries.map((day) => {
                       const isExpanded = expandedDays.has(day.date);
-                      const totalKcal = sumMetric(day.meals || [], "kcal");
-                      const totalProtein = sumMetric(day.meals || [], "protein");
-                      const totalCarbs = sumMetric(day.meals || [], "carbs");
-                      const totalFat = sumMetric(day.meals || [], "fat");
+                      const totalKcal = sumCompleteMetric(day.meals || [], "kcal");
+                      const totalProtein = sumCompleteMetric(day.meals || [], "protein");
+                      const totalCarbs = sumCompleteMetric(day.meals || [], "carbs");
+                      const totalFat = sumCompleteMetric(day.meals || [], "fat");
                       const dateObj = new Date(`${day.date}T12:00:00`);
                       const dayName = DAY_SHORT[dateObj.getDay()];
                       const dayNum = dateObj.getDate();
@@ -236,7 +236,7 @@ export default function HistoryView({ setActiveDate, setActiveTab }) {
                                         <div className="min-w-0 flex-1">
                                           <div className="truncate font-medium text-slate-200">{meal.description}</div>
                                           <div className="text-xs text-slate-500">
-                                            {formatMetric(meal.kcal)} kcal · P {formatMetric(meal.protein)}g · C {formatMetric(meal.carbs)}g · F {formatMetric(meal.fat)}g
+                                            {formatMealMetric(meal, "kcal")} kcal · P {formatMealMetric(meal, "protein")}g · C {formatMealMetric(meal, "carbs")}g · F {formatMealMetric(meal, "fat")}g
                                           </div>
                                         </div>
                                         <div className="flex shrink-0 gap-2">

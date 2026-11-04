@@ -1,5 +1,6 @@
 import { CopyPlus, Pencil, Trash2 } from "lucide-react";
 import { twMerge } from "tailwind-merge";
+import { formatMealMetric } from "../../../../shared/utils/utils.js";
 import { missingMealMacros } from "../../../lib/mealMacros.js";
 
 export function StatTile({ label, value, unit, goal, color }) {
@@ -42,6 +43,8 @@ export default function MealListDashboard({
         <span className="text-right">Kcal</span>
       </div>
 
+      {meals.some((meal) => meal.estimated_fields?.length) && <p className="mb-2 text-xs text-slate-400">≈ geschätzt</p>}
+
       {meals.map((m) => {
         const macrosKnown = [m.protein, m.carbs, m.fat].every(value => value != null && value !== '' && Number.isFinite(Number(value)) && Number(value) >= 0);
         const sum = macrosKnown ? (Number(m.protein) + Number(m.carbs) + Number(m.fat) || 1) : 1;
@@ -61,7 +64,7 @@ export default function MealListDashboard({
               <span style={{ width: `${cPct}%`, backgroundColor: "#38bdf8" }} />
               <span style={{ width: `${fPct}%`, backgroundColor: "#a78bfa" }} />
             </span>
-            <span className="text-right text-[13px] font-bold tabular-nums text-slate-100">{m.kcal ?? "—"}</span>
+            <span className="text-right text-[13px] font-bold tabular-nums text-slate-100">{formatMealMetric(m, "kcal")}</span>
             <div className="col-span-4 mt-1 hidden justify-end gap-1 group-hover:flex">
               <span className="mr-auto text-[10px] text-slate-500">{mealLabel[m.type] || m.type}</span>
               <button onClick={() => onRepeat(m)} disabled={repeatPendingId === m.id} title="Nochmal loggen"
