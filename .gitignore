@@ -46,3 +46,4 @@ dist-solo-*/
 # Secrets: alle env-Dateien (z. B. vapid.env mit Private Key) nie tracken
 *.env
 .env.*
+.idea/

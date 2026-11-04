@@ -17,15 +17,17 @@ class RuntimePayloadTest(unittest.TestCase):
                 file = base / name
                 file.parent.mkdir(parents=True, exist_ok=True)
                 file.write_text(text)
-            for name in ("dist/index.html", "src/server/app.mjs", "frontend/node_modules/junk", ".env", "dist/old.js.bak", "docs/notes.md"):
+            for name in ("dist/index.html", "fuel-backend/src/server/app.mjs", "frontend/node_modules/junk", ".env", "dist/old.js.bak", "docs/notes.md"):
                 write(source, name)
-            for name in ("frontend/node_modules/old", "node_modules/.keep", ".venv/.keep", "data/.keep", ".env", "catalogs/.keep"):
+            for name in ("src/server/app.mjs", "frontend/node_modules/old", "node_modules/.keep", ".venv/.keep", "data/.keep", ".env", "catalogs/.keep"):
                 write(dest, name)
             # A build-output link must become a real installed file.
             (source / "dist/linked.txt").symlink_to(source / "dist/index.html")
             subprocess.run(["bash", "-c", array + '\nrsync -aL --delete --delete-excluded "${RSYNC_RUNTIME[@]}" "$1/" "$2/"', "sync", str(source), str(dest)], check=True)
             for name in ("dist/index.html", "src/server/app.mjs", "node_modules/.keep", ".venv/.keep", "data/.keep", ".env", "catalogs/.keep"):
                 self.assertTrue((dest / name).is_file(), name)
+            # Backend wird separat aus fuel-backend/ gesynct (sync_backend); der Haupt-Rsync darf es nicht löschen.
+            self.assertFalse((dest / "fuel-backend").exists())
             for name in ("frontend", "docs", "dist/old.js.bak"):
                 self.assertFalse((dest / name).exists(), name)
             self.assertFalse((dest / "dist/linked.txt").is_symlink())

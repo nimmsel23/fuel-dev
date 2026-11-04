@@ -1,0 +1,13 @@
+{
+  "_note": "SSOT der Fuel-Mini-Apps (je ein Tab aus fuel-dev). Genutzt von scripts/build-miniapp.mjs und .github/workflows/deploy-miniapps.yml. Branding (Name, Akzent, Icons) steht in mini-app.json (apps.<id>), Icons in solo-icons/<id>/. Neue App: Eintrag hier + mini-app.json + Hosting-Target <target> in firebase.json/.firebaserc + Icon in scripts/solo-icons.py + VITE_SOLO-Zweig in routes.js/SoloShell.jsx. id = VITE_SOLO-Wert, target = Firebase-Hosting-Target, paths = Dateien/Ordner, die nur diese App betreffen (alles andere unter src/ gilt als gemeinsamer Code -> alle Apps).",
+  "apps": [
+    { "id": "log", "target": "log", "site": "vos-fuel-log",
+      "paths": ["src/client/views/Log/"] },
+    { "id": "supplements", "target": "supplements", "site": "vos-fuel-supplements",
+      "paths": ["src/client/views/Supplements/", "src/client/views/SupplementsView.jsx", "src/client/SupplementsApp.jsx", "src/client/solo-main.jsx"] },
+    { "id": "micros", "target": "mikros", "site": "vos-fuel-mikros",
+      "paths": ["src/client/views/Micros/", "src/client/views/MicrosView.jsx"] },
+    { "id": "report", "target": "protokoll", "site": "vos-fuel-protokoll",
+      "paths": ["src/client/views/Report/"] }
+  ]
+}

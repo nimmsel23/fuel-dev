@@ -1,0 +1,146 @@
+# Fuel-Mini-Apps, je Tab eine App (vos-fuel-log, -supplements, -mikros, -protokoll).
+# SSOT ist scripts/miniapps.json (id, Hosting-Target, Site, betroffene Pfade). Gebaut wird mit
+# `pnpm run build:miniapp <id>` (VITE_SOLO=<id>, danach stamp-solo). Neue App = Eintrag in der Tabelle
+# (+ mini-app.json, Target, Icon, siehe _note); an diesem Workflow ändert sich nichts.
+#
+# Push auf master deployt nur die betroffenen Apps:
+#   - Dateien in den "paths" einer App                        -> diese App
+#   - solo-icons/<id>/                                        -> diese App
+#   - gemeinsamer Code (src/ ausser den App-paths, scripts/, vite.config.cjs, package.json, Lockfile,
+#     mini-app.json, firebase.json, miniapps.json, diese Datei) -> alle Apps
+# workflow_dispatch: alle oder eine App gezielt; mit `before` (so startet automerge.yml nach dem
+# Release-Merge) wie ein Push per Diff. Ein Merge mit GITHUB_TOKEN löst keinen push-Trigger aus.
+# Aufbau wie fitness-dev/deploy-miniapps.yml; Fuel baut aus nacktem Checkout (keine Nachbar-Repos).
+
+name: Live Deploy (Fuel Mini-Apps je Tab)
+
+'on':
+  workflow_dispatch:
+    inputs:
+      app:
+        description: "Welche Mini-App? (all oder eine id aus scripts/miniapps.json)"
+        type: string
+        default: all
+      before:
+        description: "Optional: Commit vor dem Merge. Gesetzt = nur die vom Diff betroffenen Apps (setzt automerge.yml)"
+        type: string
+        default: ''
+  push:
+    branches:
+      - master
+    paths:
+      - 'src/**'
+      - 'scripts/**'
+      - 'vite.config.cjs'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'mini-app.json'
+      - 'firebase.json'
+      - 'solo-icons/**'
+      - '.github/workflows/deploy-miniapps.yml'
+
+concurrency:
+  group: live-deploy-fuel-miniapps
+  cancel-in-progress: false
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.apps.outputs.matrix }}
+      any: ${{ steps.apps.outputs.any }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Betroffene Apps
+        id: apps
+        env:
+          BEFORE: ${{ github.event.before }}
+          INPUT_APP: ${{ inputs.app }}
+          INPUT_BEFORE: ${{ inputs.before }}
+        run: |
+          set -euo pipefail
+          SHARED='^(src/|scripts/|vite\.config\.cjs$|package\.json$|pnpm-lock\.yaml$|mini-app\.json$|firebase\.json$|\.github/workflows/deploy-miniapps\.yml$)'
+          all_ids=$(jq -r '.apps[].id' scripts/miniapps.json)
+          selected=""
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] && [ -z "${INPUT_BEFORE:-}" ]; then
+            if [ -z "${INPUT_APP:-}" ] || [ "$INPUT_APP" = "all" ]; then selected="$all_ids"
+            else
+              echo "$all_ids" | grep -qx "$INPUT_APP" || { echo "::error::unbekannte App: $INPUT_APP"; exit 1; }
+              selected="$INPUT_APP"
+            fi
+          else
+            BEFORE="${INPUT_BEFORE:-$BEFORE}"   # dispatch mit before (Automerge) diffed wie ein Push
+            if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+              changed=$(git diff-tree --no-commit-id --name-only -r "$GITHUB_SHA")
+            else
+              changed=$(git diff --name-only "$BEFORE" "$GITHUB_SHA")
+            fi
+            echo "$changed"
+            # App-eigene Pfade aller Apps aus der "gemeinsam"-Prüfung herausnehmen
+            own=$(jq -r '.apps[].paths[]' scripts/miniapps.json | sed 's/\./\\./g' | paste -sd'|')
+            if echo "$changed" | grep -Ev "^(${own})" | grep -Eq "$SHARED" \
+               || echo "$changed" | grep -qx 'scripts/miniapps.json'; then
+              selected="$all_ids"
+            else
+              for id in $all_ids; do
+                prefixes=$(jq -r --arg id "$id" '.apps[] | select(.id==$id) | .paths[]' scripts/miniapps.json | sed 's/\./\\./g' | paste -sd'|')
+                if echo "$changed" | grep -Eq "^(${prefixes}|solo-icons/${id}/)"; then
+                  selected="$selected $id"
+                fi
+              done
+            fi
+          fi
+          ids=$(echo "$selected" | tr ' ' '\n' | sed '/^$/d' | sort -u | paste -sd' ')
+          echo "Deploy: ${ids:-keine}"
+          matrix=$(for id in $ids; do jq -c --arg id "$id" '.apps[] | select(.id==$id) | {id, site, target}' scripts/miniapps.json; done | jq -sc '{include: .}')
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          if [ -n "$ids" ]; then echo "any=true" >> "$GITHUB_OUTPUT"; else echo "any=false" >> "$GITHUB_OUTPUT"; fi
+
+  deploy:
+    needs: detect
+    if: needs.detect.outputs.any == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix: ${{ fromJSON(needs.detect.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.3.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Firebase config schreiben (Secret, falls gesetzt)
+        env:
+          FIREBASE_CONFIG: ${{ secrets.FIREBASE_CONFIG }}
+        run: |
+          if [ -n "$FIREBASE_CONFIG" ]; then
+            printf '%s\n' "$FIREBASE_CONFIG" > src/client/lib/firebase.config.js
+          fi
+
+      - name: Build ${{ matrix.id }}
+        run: pnpm run build:miniapp ${{ matrix.id }}
+        env:
+          VITE_RECAPTCHA_SITE_KEY: ${{ vars.VITE_RECAPTCHA_SITE_KEY || secrets.VITE_RECAPTCHA_SITE_KEY }}
+
+      - name: Deploy ${{ matrix.id }} (${{ matrix.site }})
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_FITNESS_AOS || secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: fitness-aos
+          target: ${{ matrix.target }}
+          channelId: live
