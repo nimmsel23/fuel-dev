@@ -1,7 +1,7 @@
 import { normalizeComponents } from "./mealComponents.js";
 import { knownMicros } from "./knownMicros.js";
 
-const DETAIL_KEYS = ["grams", "micros", "micros_meta", "components", "source", "source_url", "barcode", "catalog_id"];
+const DETAIL_KEYS = ["grams", "micros", "micros_meta", "components", "source", "source_url", "barcode", "catalog_id", "estimated_fields"];
 export function mealDetails(meal) {
   return Object.fromEntries(DETAIL_KEYS.filter(k => meal[k] !== undefined).map(k => [k, meal[k]]));
 }
