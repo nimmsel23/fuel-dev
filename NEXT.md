@@ -2,6 +2,14 @@
 
 Aktive Arbeitsliste (max. 5 Punkte).
 
+## 2026-11-04
+
+- [ ] Docs in `fuel-dev` (`CLAUDE.md`, Code-Struktur, Quick Start, `deploy.sh`-Beschreibung) nennen noch `src/server/`, `server.mjs` und `frontend/`. Sie müssen auf die Repos `fuel-backend` und `fuel-frontend` umgeschrieben werden. Nur `AGENTS.md` ist nachgezogen.
+- [ ] `backend/api/main.py` mit dem neuen Frontend-Pfad (`../fuel-frontend/dist` / `FUEL_FRONTEND_DIR`) einmal real starten. Bisher nur Syntax geprüft.
+- [ ] Mit dem Release-PR sind `a471644` und die geänderte `package.json` nach `master` gegangen. Prüfen, ob alle vier Fuel-Mini-Apps (`vos-fuel-*`) per CI korrekt neu deployt wurden. Das widerspricht der Regel „Mini-Apps kein CI-Deploy" in `CLAUDE.md`, die bereinigt werden muss.
+- [ ] Pre-Push-Hooks in `relax-app` und `plan-app` scheiterten lokal an `Failed to get Firebase project fitness-aos`. Die Pushes liefen mit `--no-verify`. Die lokale Firebase-Anmeldung prüfen.
+- [ ] Die beiseitegelegten alten `node_modules` (`ff-nm-old1`, `ff-nm-old2` im Claude-Scratchpad unter `/tmp`) können vom User gelöscht werden.
+
 ## 2026-10-29
 
 - [ ] `skipPush`-Fix im Prod verifizieren: nach dem nächsten vollen Stunden-Sync `journalctl -u fuel.service --since "-10min" | grep -oE 'direction=push uid=\S+ target=\S+' | sort | uniq -c | sort -rn | head` — pro Tag darf kein Mehrfach-Push mehr auftauchen.
@@ -87,3 +95,8 @@ Aktive Arbeitsliste (max. 5 Punkte).
 *   Die `user_systemctl`-Hilfsfunktion setzt eine aktive `systemd --user`-Session des Zielbenutzers voraus. Scheitert diese (z.B. bei fehlender Login-Session), könnten Service-Restarts fehlschlagen, ohne dass die Ursache klar wird.
 *   Angesichts der erwähnten 1,5 GB freien RAM könnte der `pnpm install --frozen-lockfile --prod`-Schritt bei jedem Staging-Deploy auf einem ressourcenbeschränkten Server zu Performance-Problemen oder OOM-Fehlern führen, was nicht explizit geprüft wurde.
 *   Das `pnpm install --frozen-lockfile` setzt voraus, dass `pnpm-lock.yaml` immer korrekt in den Stage-Ordner synchronisiert wird. Dies ist nicht explizit verifiziert, obwohl `node_modules` vom rsync ausgenommen ist.
+
+**Gemini-Review (potenzielle blinde Flecken, 2026-11-04):**
+*   **Ungeprüfte Backend-Frontend-Integration:** Die funktionale Integration des ausgelagerten `fuel-backend` mit dem `fuel-frontend/dist` wurde nur syntaktisch, nicht aber zur Laufzeit verifiziert.
+*   **Unbestätigte Mini-App-Deployments:** Die Aussage, dass die Änderungen "voraussichtlich alle vier Mini-Apps" deployen, ist eine Annahme, deren tatsächlicher Erfolg nicht in der Session geprüft wurde.
+*   **Fehlender Laufzeittest für Backend-Ressourcen:** Es wurde nicht explizit getestet, ob das `fuel-backend` seine externen Ressourcen (`Katalog`, `dist`, `.env`) in der neuen Umgebung korrekt auflösen und nutzen kann.
