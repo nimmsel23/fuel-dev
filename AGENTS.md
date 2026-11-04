@@ -9,6 +9,21 @@
 - Ein Branch-Push auf `dev` oder `master` aktualisiert den Submodule-Gitlink im Meta-Repo nicht automatisch. Für einen neuen Shell-Quellstand muss der Pointer in `~/vitalos` aktualisiert werden.
 - `main` ist für diesen Ablauf nicht erforderlich. Branch-Namen und Ziele immer anhand des aktiven Workflows prüfen.
 
+## Ausgelagerte Teile (Stand 2026-11-04)
+
+Aus diesem Repo sind zwei Bereiche in eigene Repos gewandert. Dort arbeiten, nicht hier neu anlegen:
+
+| Was | Neuer Ort | Remote (privat) | Hinweis |
+|---|---|---|---|
+| Node-Backend (Fastify, Firestore-Sync, Push): ehemals `server.mjs`, `src/server/`, `scripts/{sync-daemon,firestore-sync,coach-task,backfill-micro-keys,test-push-local,migrate-data}.mjs`, Server-Tests | `~/dev/fuel-backend` | `nimmsel23/fuel-backend` | Verlauf von `src/server` erhalten (git subtree split). Layout wie im Deploy-Ziel (`server.mjs`, `src/server/`, `scripts/`). `src/shared` ist dort ein Symlink auf `../fuel-dev/src/shared`; Katalog/dist/`.env` kommen aus diesem Repo (oder `FUEL_ROOT`). |
+| Alter Frontend-Zweig `frontend/` (pausierter Refactor, `fuel-centre` 4.0) | `~/dev/fuel-frontend` | `nimmsel23/fuel-frontend` | Mit Verlauf herausgelöst, Server-Code (`src/server`) und Server-Deps entfernt. Das Root-Frontend dieses Repos (`src/client`) ist weiter. |
+
+Folgen:
+- Die Server-Dependencies (`fastify`, `@fastify/*`, `firebase-admin`, `web-push`, `better-sqlite3`, `pino`, `yaml`) stehen nicht mehr in der `package.json` dieses Repos (und damit nicht in den Lockfiles von `~/vitalos`), nur noch in `fuel-backend/package.json` und `deploy/runtime/package.json` (Deploy-Manifest).
+- `deploy.sh` liest das Backend fürs Staging aus `$FUEL_BACKEND_DIR` (Standard `~/dev/fuel-backend`, muss neben diesem Repo ausgecheckt sein); Prod kopiert weiter aus dem flachen Staging-Stand `~/.local/fuel`.
+- `package.json`-Skripte `start`/`dev`/`cloud:*`, `scripts/dev-runner.mjs` und `bin/fuelctl` zeigen auf `../fuel-backend`. `backend/api/main.py` (Python) liest das Frontend-`dist` aus `../fuel-frontend/dist` oder `FUEL_FRONTEND_DIR`.
+- Neue Server-Änderungen (Routen, Services, Firestore-Admin) gehören nach `fuel-backend`, nicht hierher.
+
 ## Fuel-Mini-Apps: Release-Grenze
 
 - `vos-fuel-log`, `vos-fuel-supplements`, `vos-fuel-mikros` und `vos-fuel-protokoll` sind stabile Fallback-Apps. Sie gehören nicht zum automatischen `fuel-release`.
