@@ -73,7 +73,7 @@ RSYNC_RUNTIME=(
   --include '/dist/***' --include '/public/***'
   --include '/src/' --include '/src/shared/***'
   --include '/src/client/' --include '/src/client/lib/'
-  --include '/src/client/lib/mealDetails.js' --include '/src/client/lib/mealComponents.js'
+  --include '/src/client/lib/mealDetails.js' --include '/src/client/lib/mealComponents.js' --include '/src/client/lib/knownMicros.js'
   --include '/fuel/constants/***'
   --include '/fuel/' --include '/fuel/**/' --include '/fuel/**.py'
   --include '/bin/' --include '/bin/gemini-estimate' --include '/bin/gemini-compose' --include '/bin/gemini-micros'
