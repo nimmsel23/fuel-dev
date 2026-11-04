@@ -1,3 +1,15 @@
+# Vibe als zweite Meinung bei der Makro-Prüfung, Prüfergebnis länger sichtbar (2026-11-04)
+
+Auslöser: Beim Loggen von „4 Semmeln, 20dag Wiener" schlug das Speichern in den Catalog fehl, danach wollte der User neben Haiku auch Mistral Vibe als Prüfer einsetzen. Der User hatte außerdem nur gesehen, dass Haiku zweifelt, nicht warum — die Begründung stand nur in der Notification, die nach Sekunden verschwand. Commit `9a08add` auf `dev` gepusht.
+
+- **`fuel/vibe_cli.py` (neu)**: headless-Client für das Mistral-Vibe-CLI (`vibe -p <prompt>`, `stdin=DEVNULL`, Timeout, Rückgabe `{ok, text, error}`), analog zu `claude_cli.py`. Ist `vibe` nicht installiert, wird der Prüfer übersprungen.
+- **`fuel/gemini.py`**: neue `_vibe_verdict()` (gleicher `VERIFY_PROMPT` und gleiche Rückgabeform wie `_haiku_verdict`). `verify_cli()` befragt Haiku und Vibe; der Titel nennt, wer zweifelt („Fuel: Haiku + Vibe zweifelt"), der Text zeigt je Zweifler Makros und Begründung, bei „ok" welche Prüfer geprüft haben.
+- **Sichtbarkeit (`fuel/gemini.py`)**: der volle Prüftext wird zusätzlich nach `~/.cache/fuel/last-verify.txt` geschrieben (jeweils nur der letzte Check). Die Notification bleibt bei Zweifel 60 s, sonst 20 s. Bei Zweifel ruft `verify_cli` zusätzlich `pypr show fuelcheck` auf (pyprland-Scratchpad, schlägt still fehl, solange es nicht geladen ist).
+- **Test**: Lauf mit absichtlich falschen Makros (300 kcal für „4 Semmeln, 20dag Wiener"): Haiku 1150 kcal, Vibe 1150 kcal, beide zweifeln. Der echte Eintrag lag bei 1248 kcal.
+- **Catalog-Symlink (Laufzeitdaten)**: `~/.aos/fuel/nutrition/catalog.json` zeigte auf den alten Pfad `~/fuel-dev/catalogs/…` und war nach dem Umzug nach `~/dev/fuel-dev` tot (`FileNotFoundError` beim `--save-catalog`). Symlink auf `~/dev/fuel-dev/catalogs/nutrition/catalog.json` umgebogen, Catalog wieder lesbar (48 Items). Die Mahlzeit wurde danach erneut mit `--save-catalog` geloggt.
+
+---
+
 # Backend- und Frontend-Auslagerung aus fuel-dev, Release nach master (2026-11-04)
 
 Auslöser: Dependabot-Check. Die Server-Abhängigkeiten (fastify, firebase-admin, better-sqlite3, web-push u. a.) zogen über das vitalos-Lockfile Sicherheitsmeldungen in die Shell. Deshalb wurden Node-Backend und Vite-Frontend aus `fuel-dev` in eigene Repos ausgelagert. Danach lief die Release-Kette `dev → master` (PR #14) und `vos-release`. Das Meta-Repo `~/vitalos` wurde im Zuge dessen gepusht.
