@@ -6,11 +6,15 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-try {
-  // Muss vor dem firestore-admin-Import laufen (FUEL_CLOUD_UID wird beim Modul-Load gelesen).
-  process.loadEnvFile(path.join(__dirname, "..", ".env"));
-} catch {
-  // .env optional
+// Muss vor dem firestore-admin-Import laufen (FUEL_CLOUD_UID wird beim Modul-Load gelesen).
+// Deploy-Layout: .env eine Ebene über scripts/. Dev-Layout (node-backend/scripts): zwei Ebenen.
+for (const envPath of [path.join(__dirname, "..", ".env"), path.join(__dirname, "..", "..", ".env")]) {
+  try {
+    process.loadEnvFile(envPath);
+    break;
+  } catch {
+    // .env optional
+  }
 }
 
 const { startFirestorePullScheduler, getDb } = await import("../src/server/lib/firestore-admin.mjs");

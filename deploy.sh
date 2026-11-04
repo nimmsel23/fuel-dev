@@ -67,26 +67,40 @@ RSYNC_RUNTIME=(
   --filter 'P /node_modules/***' --filter 'P /.venv/***'
   --filter 'P /.env*' --filter 'P /data/***' --filter 'P /.git/***'
   --filter 'P /catalogs/***'
+  --filter 'P /server.mjs' --filter 'P /src/server/***' --filter 'P /scripts/sync-daemon.mjs'
   --exclude 'node_modules' --exclude '.venv' --exclude '__pycache__'
   --exclude '*.pyc' --exclude 'tests' --exclude '.git'
   --include '/dist/***' --include '/public/***'
-  --include '/server.mjs'
-  --include '/src/' --include '/src/server/***' --include '/src/shared/***'
+  --include '/src/' --include '/src/shared/***'
   --include '/src/client/' --include '/src/client/lib/'
   --include '/src/client/lib/mealDetails.js' --include '/src/client/lib/mealComponents.js'
   --include '/fuel/constants/***'
   --include '/fuel/' --include '/fuel/**/' --include '/fuel/**.py'
   --include '/bin/' --include '/bin/gemini-estimate' --include '/bin/gemini-compose' --include '/bin/gemini-micros'
-  --include '/scripts/' --include '/scripts/sync-daemon.mjs'
+  --include '/scripts/'
   --include '/deploy/' --include '/deploy/runtime/***'
   --include '/pyproject.toml' --include '/README.md'
   --exclude '*'
 )
 
+# Node-Backend liegt im Repo unter node-backend/, im Deploy-Ziel aber im alten
+# flachen Layout (server.mjs, src/server/, scripts/sync-daemon.mjs).
+RSYNC_BACKEND_OPTS=(-aL --exclude '*.bak*' --exclude '*.map' --exclude node_modules --exclude __pycache__)
+
+sync_backend() {
+  local dest="$1" dry="${2:-}"
+  shift 2 || shift $#
+  "$@" rsync "${RSYNC_BACKEND_OPTS[@]}" ${dry:+-n -i} --delete "$SOURCE/node-backend/src/server/" "$dest/src/server/"
+  "$@" rsync "${RSYNC_BACKEND_OPTS[@]}" ${dry:+-n -i} "$SOURCE/node-backend/server.mjs" "$dest/server.mjs"
+  "$@" rsync "${RSYNC_BACKEND_OPTS[@]}" ${dry:+-n -i} "$SOURCE/node-backend/scripts/sync-daemon.mjs" "$dest/scripts/sync-daemon.mjs"
+}
+
 sync_runtime() {
   local dest="$1"
   shift
   "$@" rsync -aL --delete --delete-excluded "${RSYNC_RUNTIME[@]}" "$SOURCE/" "$dest/"
+  "$@" mkdir -p "$dest/src/server" "$dest/scripts"
+  sync_backend "$dest" "" "$@"
   # Separate locked server dependencies: React, Vite and frontend SDKs are
   # already bundled in dist and never get installed into the runtime.
   cp "$SOURCE/deploy/runtime/"{package.json,pnpm-lock.yaml,pnpm-workspace.yaml} "$dest/"
@@ -299,6 +313,7 @@ if $DRY_RUN; then
   dest="$STAGE"
   [[ "$TARGET" != prod ]] || dest="$NODE_DEST"
   rsync -ani --delete --delete-excluded "${RSYNC_RUNTIME[@]}" "$SOURCE/" "$dest/"
+  sync_backend "$dest" dry
   exit 0
 fi
 

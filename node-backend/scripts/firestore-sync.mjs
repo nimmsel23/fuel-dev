@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = resolve(__dirname, "..");
+const ROOT = resolve(__dirname, "..", "..");
 // AlphaOS-Konvention: persistente Daten gehören nach ~/.aos/fuel/, nicht ins
 // Dev-Repo. War vorher ein eigener repo-lokaler data/catalogs/-Baum (Duplikat
 // der ~/.aos/fuel/-Daten, teils nur per Hardlink zufällig synchron).

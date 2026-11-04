@@ -6,10 +6,15 @@ import { fileURLToPath } from "url";
 // undefined, egal ob dev oder prod. Muss vor dem app.mjs-Import laufen,
 // da firestore-admin.mjs process.env.FUEL_CLOUD_UID beim Modul-Load liest.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-try {
-  process.loadEnvFile(path.join(__dirname, ".env"));
-} catch {
-  // .env optional (z.B. CI) — fehlende Datei ist kein Fehler
+// Deploy-Layout (flach): .env neben server.mjs. Dev-Layout: server.mjs liegt
+// in node-backend/, die .env im Repo-Root darüber.
+for (const envPath of [path.join(__dirname, ".env"), path.join(__dirname, "..", ".env")]) {
+  try {
+    process.loadEnvFile(envPath);
+    break;
+  } catch {
+    // .env optional (z.B. CI) — fehlende Datei ist kein Fehler
+  }
 }
 
 const { startServer } = await import("./src/server/app.mjs");

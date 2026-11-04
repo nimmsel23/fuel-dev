@@ -5,7 +5,10 @@ import { fileURLToPath } from "url";
 import { getClientInfo } from "../lib/client-manager.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.join(__dirname, "../../..");
+// Deploy-Layout (flach): src/server/config -> drei Ebenen bis zum App-Root.
+// Dev-Layout: der Code liegt in node-backend/, Katalog/dist/public im Repo-Root darüber.
+const BACKEND_ROOT = path.join(__dirname, "../../..");
+const ROOT = path.basename(BACKEND_ROOT) === "node-backend" ? path.dirname(BACKEND_ROOT) : BACKEND_ROOT;
 
 export const GLOBAL_DATA_DIR = process.env.AOS_FUEL_DATA_DIR
   ? path.resolve(process.env.AOS_FUEL_DATA_DIR)
