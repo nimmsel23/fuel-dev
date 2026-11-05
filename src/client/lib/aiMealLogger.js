@@ -1,3 +1,4 @@
+import { assertLegacyAiAvailable } from "./aiAvailability.js";
 import { OMEGA3_RULES } from "../../shared/config/omega3.mjs";
 import { postJson } from "@api";
 import { vertexAI } from "./firebase.js";
@@ -11,7 +12,7 @@ export { findCatalogMatch } from "./mealCatalogMatch.js";
 
 export const isCloud = () =>
   typeof window !== "undefined" &&
-  (window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com"));
+  (import.meta.env?.VITE_VOS_PRODUCT_BUILD === "1" || window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com"));
 
 // "3x Stiegl Hell" → { qty: 3, rest: "Stiegl Hell" }. Ohne Präfix qty=1.
 export function parseQuantityPrefix(text) {
@@ -25,6 +26,7 @@ export { amountToGrams, normalizeComponents, sumYieldG } from "./mealComponents.
 
 // Gemeinsames Response-Schema für Makro/Mikro-Analyse (AI-Logger + Re-Analyse).
 export async function analyzeMealText(promptText) {
+  assertLegacyAiAvailable();
   const model = getGenerativeModel(vertexAI, {
     model: "gemini-2.5-flash",
     generationConfig: {

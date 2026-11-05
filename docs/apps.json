@@ -1,0 +1,75 @@
+{
+  "repo": "fuel-dev",
+  "apps": [
+    {
+      "id": "fuelos",
+      "kind": "main",
+      "name": "VitalOS Fuel",
+      "short": "Fuel",
+      "description": "",
+      "accent": "#fb923c",
+      "site": "fuel-os",
+      "url": "https://fuel-os.web.app",
+      "tab": null
+    },
+    {
+      "id": "client",
+      "kind": "main",
+      "name": "VitalOS Fuel",
+      "short": "Fuel",
+      "description": "",
+      "accent": "#fb923c",
+      "site": "fuel-vos",
+      "url": "https://fuel-vos.web.app",
+      "tab": null
+    },
+    {
+      "id": "log",
+      "kind": "solo",
+      "name": "VitalOS Fuel Log",
+      "short": "Fuel Log",
+      "description": "Mahlzeiten loggen, Tagessumme und Makros — der Log-Tab von Fuel als eigene App",
+      "accent": "#fb923c",
+      "site": "vos-fuel-log",
+      "url": "https://vos-fuel-log.web.app",
+      "tab": null,
+      "planned": false
+    },
+    {
+      "id": "supplements",
+      "kind": "solo",
+      "name": "VitalOS Supplements",
+      "short": "Supplements",
+      "description": "Deine Supplement-Routine: Einnahmen, Wochenplan und persönlicher Katalog",
+      "accent": "#a3e635",
+      "site": "vos-fuel-supplements",
+      "url": "https://vos-fuel-supplements.web.app",
+      "tab": null,
+      "planned": false
+    },
+    {
+      "id": "micros",
+      "kind": "solo",
+      "name": "VitalOS Fuel Mikros",
+      "short": "Mikros",
+      "description": "Mikronährstoffe als Wochenheatmap gegen die DACH-Referenzwerte — der Mikros-Tab von Fuel als eigene App",
+      "accent": "#f472b6",
+      "site": "vos-fuel-mikros",
+      "url": "https://vos-fuel-mikros.web.app",
+      "tab": null,
+      "planned": false
+    },
+    {
+      "id": "report",
+      "kind": "solo",
+      "name": "VitalOS Fuel Protokoll",
+      "short": "Protokoll",
+      "description": "Abgabefertiges 7-/14-Tage-Ernährungsprotokoll mit Druck/PDF — der Protokoll-Tab von Fuel als eigene App",
+      "accent": "#38bdf8",
+      "site": "vos-fuel-protokoll",
+      "url": "https://vos-fuel-protokoll.web.app",
+      "tab": null,
+      "planned": false
+    }
+  ]
+}
