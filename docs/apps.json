@@ -32,7 +32,8 @@
       "accent": "#fb923c",
       "site": "vos-fuel-log",
       "url": "https://vos-fuel-log.web.app",
-      "tab": null
+      "tab": null,
+      "planned": false
     },
     {
       "id": "supplements",
@@ -43,7 +44,8 @@
       "accent": "#a3e635",
       "site": "vos-fuel-supplements",
       "url": "https://vos-fuel-supplements.web.app",
-      "tab": null
+      "tab": null,
+      "planned": false
     },
     {
       "id": "micros",
@@ -54,7 +56,8 @@
       "accent": "#f472b6",
       "site": "vos-fuel-mikros",
       "url": "https://vos-fuel-mikros.web.app",
-      "tab": null
+      "tab": null,
+      "planned": false
     },
     {
       "id": "report",
@@ -65,7 +68,8 @@
       "accent": "#38bdf8",
       "site": "vos-fuel-protokoll",
       "url": "https://vos-fuel-protokoll.web.app",
-      "tab": null
+      "tab": null,
+      "planned": false
     }
   ]
 }
