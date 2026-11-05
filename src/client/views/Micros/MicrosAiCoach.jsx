@@ -1,3 +1,4 @@
+import { assertLegacyAiAvailable } from "../../lib/aiAvailability.js";
 import React, { useState, useEffect } from "react";
 import { X, Sparkles, Loader2, RotateCcw } from "lucide-react";
 import ReactMarkdown from "react-markdown";
@@ -30,6 +31,7 @@ export default function MicrosAiCoach({ weeks, results, onClose }) {
     setLoading(true);
     setError(null);
     try {
+      assertLegacyAiAvailable();
       // 1. Format the data
       let dataText = "Nutrition Data (Weekly Averages vs DACH %):\n\n";
       weeks.forEach((w, wi) => {

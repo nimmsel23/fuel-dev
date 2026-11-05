@@ -1,3 +1,4 @@
+import { assertLegacyAiAvailable } from "../lib/aiAvailability.js";
 import { useState } from "react";
 import { Sparkles, RotateCcw } from "lucide-react";
 import { postJson } from "@api";
@@ -19,6 +20,7 @@ export default function GeminiCatalogModal({ onClose, onSaved }) {
     setError("");
     setPreview(null);
     try {
+      assertLegacyAiAvailable();
       const cloud = import.meta.env.VITE_APP_MODE === "client";
       let estimatedItem;
 
