@@ -1,3 +1,4 @@
+import { assertLegacyAiAvailable } from "../../lib/aiAvailability.js";
 import { OMEGA3_RULES, normalizeOmega3, OMEGA3_KEYS } from "../../../shared/config/omega3.mjs";
 import React, { useState } from "react";
 import { X, Wand2, Loader2, CheckCircle2, RotateCcw } from "lucide-react";
@@ -41,6 +42,7 @@ export default function MicrosEstimator({ missingMeals, onClose }) {
       const mealName = mealsToProcess[i];
 
       try {
+        assertLegacyAiAvailable();
         let estimatedMicros;
         if (cloud && vertexAI) {
           const model = getGenerativeModel(vertexAI, {

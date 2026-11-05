@@ -1,3 +1,4 @@
+import { assertLegacyAiAvailable } from "./aiAvailability.js";
 import { OMEGA3_RULES } from "../../shared/config/omega3.mjs";
 import { scanToMeal } from "./mealDetails.js";
 import { postJson } from "@api";
@@ -51,6 +52,7 @@ export async function compressToBase64(file, maxSize = 1280, quality = 0.82) {
 // Wirft bei Offline/Analysefehler — Aufrufer zeigen die Meldung und bieten
 // einen Retry auf derselben Datei an.
 export async function analyzeMealImage(file, { scanType = "food" } = {}) {
+  assertLegacyAiAvailable();
   if (!file) throw new Error("Kein Bild übergeben.");
   if (!navigator.onLine) {
     throw new Error("Offline: Der Scan braucht eine Verbindung. Das Foto bleibt ausgewählt und kann später erneut versucht werden.");

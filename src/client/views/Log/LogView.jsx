@@ -1,3 +1,4 @@
+import { assertLegacyAiAvailable } from "../../lib/aiAvailability.js";
 import { normalizeMealMacros, mealMacrosAreValid } from "../../lib/mealMacros.js";
 import { mealDetails, scaleMeal, rebaseMealPortion } from "../../lib/mealDetails.js";
 import { useEffect, useRef, useState } from "react";
@@ -33,6 +34,7 @@ const MICROS_DRILLDOWN_KEY = "fuel:micros-entry-focus";
 // Vergleicht Journal-Freitext gegen die bereits geloggten Mahlzeiten des Tages
 // und liefert nur eindeutig erwähnte, aber nicht geloggte Ernährungs-Infos zurück.
 async function checkJournalAgainstLog(journalText, meals) {
+  assertLegacyAiAvailable();
   const model = getGenerativeModel(vertexAI, {
     model: "gemini-2.5-flash",
     generationConfig: {

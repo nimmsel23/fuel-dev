@@ -1,3 +1,4 @@
+import { assertLegacyAiAvailable } from "./aiAvailability.js";
 // Vertex/Gemini-Aufrufe der Küche (Bon, Prospekt, Freitext, Rezepte, Einkaufsempfehlungen).
 // Muster wie lib/visionScan.js / lib/aiMealLogger.js: gemini-2.5-flash, JSON-Schema, withAiRetry. Wird nur bei
 // Bedarf dynamisch importiert, damit der Chunk der Küche klein bleibt.
@@ -52,6 +53,7 @@ function requireOnline() {
 }
 
 async function generateJson(schemaKey, parts) {
+  assertLegacyAiAvailable();
   requireOnline();
   const model = getGenerativeModel(vertexAI, {
     model: "gemini-2.5-flash",
