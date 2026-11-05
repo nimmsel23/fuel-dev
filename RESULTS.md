@@ -1,3 +1,14 @@
+# CLAUDE.md: Backend-Abschnitte nach fuel-backend ausgelagert, dev gepusht (2026-11-05)
+
+Folgearbeit zur Backend-/Frontend-Auslagerung vom 2026-11-04: Die Server-Doku sollte nicht mehr in `fuel-dev/CLAUDE.md` stehen, sondern im Repo, in dem der Code jetzt liegt.
+
+- **`CLAUDE.md` (`460d3b1`)**: Hinweisblock „Node-Backend ausgelagert" unter dem Titel. Die Abschnitte Backend/SQLite/Micros und Firestore-Sync sind durch Kurzverweise auf `~/dev/fuel-backend` ersetzt.
+- **`~/dev/fuel-backend/CLAUDE.md` (`75baef7`, neu)**: übernimmt die ausgelagerten Server-, SQLite-, Micros- und Sync-Engine-Beschreibungen.
+- **Push**: `dev` nach `origin/dev` (`1159aba..84f8cfd`, 4 Commits, darunter `460d3b1`; die übrigen sind `84f8cfd` AI-Hinweis in Produkt-Builds und zwei Portal-Docs-Commits). Pre-Push-Hook ohne Fehlermeldung; ob das Staging-Deploy lief, wurde nicht geprüft.
+- GitHub meldet 90 Dependabot-Alerts (3 kritische) auf dem Default-Branch; nicht angesehen.
+
+---
+
 # Vibe als zweite Meinung bei der Makro-Prüfung, Prüfergebnis länger sichtbar (2026-11-04)
 
 Auslöser: Beim Loggen von „4 Semmeln, 20dag Wiener" schlug das Speichern in den Catalog fehl, danach wollte der User neben Haiku auch Mistral Vibe als Prüfer einsetzen. Der User hatte außerdem nur gesehen, dass Haiku zweifelt, nicht warum — die Begründung stand nur in der Notification, die nach Sekunden verschwand. Commit `9a08add` auf `dev` gepusht.

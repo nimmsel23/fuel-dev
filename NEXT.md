@@ -2,6 +2,12 @@
 
 Aktive Arbeitsliste (max. 5 Punkte).
 
+## 2026-11-05
+
+- [ ] `CLAUDE.md` in `fuel-dev` ist nur teilweise bereinigt: Backend- und Sync-Abschnitte sind ausgelagert, die Code-Struktur-Übersicht, Quick Start und die `deploy.sh`-Beschreibung nennen aber noch `src/server/`, `server.mjs` und `frontend/`.
+- [ ] 90 Dependabot-Alerts (3 kritische) auf dem Default-Branch `master`; erst ansehen, dann per `vos-release-pr fuel` nach `master`, da die Zahl erst dort sinkt.
+- [ ] Prüfen, ob der `dev`-Push vom 2026-11-05 das Staging-Deploy (`~/.local/fuel`) erfolgreich gespiegelt hat.
+
 ## 2026-11-04 (Vibe-Prüfer)
 
 - [ ] Das pyprland-Scratchpad `fuelcheck` (von `verify_cli` per `pypr show` gerufen) greift erst nach `pypr reload` durch den User; bis dahin zeigt nur die Notification das Ergebnis.
@@ -110,3 +116,8 @@ Aktive Arbeitsliste (max. 5 Punkte).
 *   **Vibe JSON-Format-Annahme:** Es wird angenommen, dass Vibe (Mistral) dasselbe JSON-Ausgabeformat wie Claude (Haiku) liefert, da `claude_cli._extract_json` für beide verwendet wird. Dies ist eine ungeprüfte Annahme, die zu stillen Fehlern führen kann, falls die Formate abweichen.
 *   **Unvollständige Testabdeckung:** Nur der "Zweifel"-Pfad der `verify_cli`-Logik wurde getestet. Die Pfade "Check ok" (kürzere Notification, kein Scratchpad) und "keine CLI erreichbar" (nur OFF-Vergleich, kein Scratchpad) wurden nicht verifiziert.
 *   **Stille Fehler bei Pyprland-Scratchpad:** Das Aufrufen des `pyprland`-Scratchpads (`pypr show fuelcheck`) unterdrückt alle Fehler (`check=False`, `DEVNULL`). Wenn `pypr` nicht läuft oder das Scratchpad falsch konfiguriert ist, erhält der Benutzer keine Rückmeldung über das Scheitern des Aufrufs.
+
+**Gemini-Review (potenzielle blinde Flecken, 2026-11-05):**
+*   **Ungeprüfte Annahme/Behauptung:** Das Staging-Deploy wurde nach dem Push nicht verifiziert, obwohl die Doku-Änderungen die Realität abbilden sollen.
+*   **Nur Teil des Problems angefasst:** Die neu ausgelagerten Backend-`CLAUDE.md`-Dateien enthalten noch Verweise auf alte Pfade im ursprünglichen Repo, was die Doku inkonsistent macht.
+*   **Übersehener Edge-Case/Ungeprüfte Annahme (Sicherheit):** Die 90 Dependabot-Alerts (3 kritische) auf dem Default-Branch wurden nicht näher untersucht, obwohl der gepushte Code früher oder später in diesen Branch gemergt wird.
