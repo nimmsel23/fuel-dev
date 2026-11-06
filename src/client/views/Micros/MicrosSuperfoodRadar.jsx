@@ -316,6 +316,7 @@ export default function MicrosSuperfoodRadar({ results }) {
               <button
                 key={n.key}
                 onClick={() => setSelectedNutrient(n.key)}
+                aria-pressed={isSelected}
                 className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium transition-all ${
                   isSelected
                     ? "bg-violet-600 text-white ring-2 ring-violet-400/50 shadow-lg scale-[1.02]"

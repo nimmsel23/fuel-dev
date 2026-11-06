@@ -90,6 +90,7 @@ export default function GoalsSection({
         </div>
         <button
           onClick={() => setShowAuto(v => !v)}
+          aria-pressed={showAuto}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all ${showAuto ? "border-orange-400/50 text-orange-300 bg-orange-400/10" : "border-white/10 text-slate-400 hover:text-slate-200"}`}
         >
           <Sparkles size={12} /> Auto
