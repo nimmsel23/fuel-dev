@@ -23,6 +23,7 @@ import { Camera, RotateCcw } from "lucide-react";
 import { sumMetric, sumCompleteMetric, formatMetric } from "../../../shared/utils/utils.js";
 import { consumeNotificationIntent } from "../../lib/notification-intents.js";
 import { missingMealMacros } from "../../lib/mealMacros.js";
+import { buildMealSavePlan } from "../../lib/mealSavePlan.js";
 
 const LOG_VIEW_MODES = [
   { value: "minimal", label: "Liste", icon: AlignJustify },
@@ -112,16 +113,6 @@ function hhmmFromISO(iso) {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return nowHHMM();
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-}
-
-// date (YYYY-MM-DD) + HH:MM (lokal) → ISO-Timestamp, wie ihn der Server
-// erwartet (logged_at/time). Ohne "Z"-Suffix parst der Date-Constructor
-// YYYY-MM-DDTHH:MM als lokale Zeit, toISOString() normalisiert auf UTC —
-// exakt dasselbe Format wie das bisherige new Date().toISOString().
-function toLoggedAt(date, hhmm) {
-  if (!date || !hhmm) return new Date().toISOString();
-  const d = new Date(`${date}T${hhmm}:00`);
-  return Number.isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
 }
 
 function Field({ label, children }) {
@@ -275,22 +266,8 @@ export default function LogView({ date, nutrition, notes, mode }) {
     if (meal) loadForEdit(meal);
   }, [date, nutrition, meals, qc]);
 
-  // Speicher-Plan: Request-Body UND der optimistische Befehl aus denselben Werten (inkl. vorab erzeugter ID),
-  // damit der sofort angezeigte Eintrag exakt dem entspricht, was später in die Cloud geschrieben wird.
   function buildSavePlan() {
-    const fields = {
-      ...mealDetails(form), type: form.type, description: form.description, notes: form.notes,
-      ...normalizeMealMacros(form),
-      grams: Number(form.grams) || null,
-    };
-    if (isEditing) {
-      const body = { date, meal_id: form.id, meal: { ...fields, time: toLoggedAt(moveDate || date, form.time) } };
-      if (moveDate && moveDate !== date) body.new_date = moveDate;
-      // Verschieben auf einen anderen Tag bleibt ohne optimistische Anzeige (zwei Tage betroffen) — der Refetch zeigt es.
-      return { edit: true, body, optimistic: body.new_date ? null : { meal_id: form.id, meal: { ...body.meal, logged_at: body.meal.time } } };
-    }
-    const meal = { ...fields, id: crypto.randomUUID(), time: toLoggedAt(date, form.time) };
-    return { edit: false, body: { date, meal }, optimistic: { meal: { ...meal, logged_at: meal.time } } };
+    return buildMealSavePlan({ form, date, moveDate });
   }
 
   const saveMeal = useMutation({
@@ -384,6 +361,7 @@ export default function LogView({ date, nutrition, notes, mode }) {
       {LOG_VIEW_MODES.map(({ value, label, icon: Icon }) => (
         <button key={value}
           onClick={() => setSetting("log_view_mode", value)}
+          aria-pressed={log_view_mode === value}
           className={twMerge(
             "flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition",
             log_view_mode === value ? "bg-orange-400 text-slate-950" : "text-slate-500 hover:text-slate-200"
@@ -423,6 +401,7 @@ export default function LogView({ date, nutrition, notes, mode }) {
                   onClick={() => setScannerOpen(true)}
                   className="bg-slate-800 text-sky-400 rounded-full px-5 flex items-center justify-center hover:bg-slate-700 transition-colors shadow-lg active:scale-[0.98] border border-white/10"
                   title="Foto / Barcode scannen"
+                  aria-label="Foto / Barcode scannen"
                 >
                   <Camera className="h-5 w-5" />
                 </button>
@@ -764,13 +743,15 @@ export default function LogView({ date, nutrition, notes, mode }) {
                     onClick={() => acceptJournalSuggestion.mutate(item)}
                     disabled={acceptJournalSuggestion.isPending}
                     title="Übernehmen"
-                    className="rounded-lg border border-emerald-400/30 bg-emerald-400/10 p-2 text-emerald-300 hover:bg-emerald-400/20 transition">
+                    aria-label={`Vorschlag übernehmen: ${item.name}`}
+                    className="rounded-lg border border-emerald-400/30 bg-emerald-400/10 p-2 text-emerald-300 hover:bg-emerald-400/20 transition relative after:absolute after:-inset-2.5 after:content-['']">
                     <Check className="h-3.5 w-3.5" />
                   </button>
                   <button
                     onClick={() => setJournalSuggestions((prev) => prev.filter((s) => s !== item))}
                     title="Verwerfen"
-                    className="rounded-lg border border-white/10 bg-white/5 p-2 text-slate-400 hover:text-red-400 hover:bg-red-400/10 transition">
+                    aria-label={`Vorschlag verwerfen: ${item.name}`}
+                    className="rounded-lg border border-white/10 bg-white/5 p-2 text-slate-400 hover:text-red-400 hover:bg-red-400/10 transition relative after:absolute after:-inset-2.5 after:content-['']">
                     <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
