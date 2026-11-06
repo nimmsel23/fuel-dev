@@ -24,6 +24,7 @@ import { sumMetric, sumCompleteMetric, formatMetric } from "../../../shared/util
 import { consumeNotificationIntent } from "../../lib/notification-intents.js";
 import { missingMealMacros } from "../../lib/mealMacros.js";
 import { buildMealSavePlan } from "../../lib/mealSavePlan.js";
+import { nowHHMM, emptyForm, hhmmFromISO } from "../../lib/mealForm.js";
 
 const LOG_VIEW_MODES = [
   { value: "minimal", label: "Liste", icon: AlignJustify },
@@ -98,23 +99,6 @@ const inputCls = "w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4
 // tatsächlich gegessen wurde (bricht die Fastenfenster-Erkennung, wenn
 // nachträglich geloggt wird) — dieses Feld macht die echte Essenszeit
 // editierbar, mit "jetzt" nur als Default, nicht als Zwang.
-function nowHHMM() {
-  const d = new Date();
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-}
-
-function emptyForm() {
-  return { id: null, type: "breakfast", description: "", notes: "", kcal: "", protein: "", carbs: "", fat: "", grams: "", time: nowHHMM() };
-}
-
-// HH:MM (lokal) aus einem gespeicherten ISO-Timestamp, für den Edit-Modus.
-function hhmmFromISO(iso) {
-  if (!iso) return nowHHMM();
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return nowHHMM();
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-}
-
 function Field({ label, children }) {
   return (
     <label className="grid gap-2 text-sm text-slate-300">
