@@ -1,6 +1,6 @@
-/* Fuel embedded in fitness-dev — kein @tailwind base (kommt vom Host) */
-@tailwind components;
-@tailwind utilities;
+/* Fuel embedded in fitness-dev — kein @tailwind base (kommt vom Host);
+   seit Tailwind 4 auch keine @tailwind-Direktiven mehr: Utilities kommen komplett
+   vom Host-Build (Shell-Root @import "tailwindcss" mit fuel-app/src im Content). */
 
 [data-fuel-embedded] {
   color-scheme: dark;
