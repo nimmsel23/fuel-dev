@@ -23,6 +23,7 @@ import { Camera, RotateCcw } from "lucide-react";
 import { sumMetric, sumCompleteMetric, formatMetric } from "../../../shared/utils/utils.js";
 import { consumeNotificationIntent } from "../../lib/notification-intents.js";
 import { missingMealMacros } from "../../lib/mealMacros.js";
+import { buildMealSavePlan } from "../../lib/mealSavePlan.js";
 
 const LOG_VIEW_MODES = [
   { value: "minimal", label: "Liste", icon: AlignJustify },
@@ -112,16 +113,6 @@ function hhmmFromISO(iso) {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return nowHHMM();
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-}
-
-// date (YYYY-MM-DD) + HH:MM (lokal) → ISO-Timestamp, wie ihn der Server
-// erwartet (logged_at/time). Ohne "Z"-Suffix parst der Date-Constructor
-// YYYY-MM-DDTHH:MM als lokale Zeit, toISOString() normalisiert auf UTC —
-// exakt dasselbe Format wie das bisherige new Date().toISOString().
-function toLoggedAt(date, hhmm) {
-  if (!date || !hhmm) return new Date().toISOString();
-  const d = new Date(`${date}T${hhmm}:00`);
-  return Number.isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
 }
 
 function Field({ label, children }) {
@@ -275,22 +266,8 @@ export default function LogView({ date, nutrition, notes, mode }) {
     if (meal) loadForEdit(meal);
   }, [date, nutrition, meals, qc]);
 
-  // Speicher-Plan: Request-Body UND der optimistische Befehl aus denselben Werten (inkl. vorab erzeugter ID),
-  // damit der sofort angezeigte Eintrag exakt dem entspricht, was später in die Cloud geschrieben wird.
   function buildSavePlan() {
-    const fields = {
-      ...mealDetails(form), type: form.type, description: form.description, notes: form.notes,
-      ...normalizeMealMacros(form),
-      grams: Number(form.grams) || null,
-    };
-    if (isEditing) {
-      const body = { date, meal_id: form.id, meal: { ...fields, time: toLoggedAt(moveDate || date, form.time) } };
-      if (moveDate && moveDate !== date) body.new_date = moveDate;
-      // Verschieben auf einen anderen Tag bleibt ohne optimistische Anzeige (zwei Tage betroffen) — der Refetch zeigt es.
-      return { edit: true, body, optimistic: body.new_date ? null : { meal_id: form.id, meal: { ...body.meal, logged_at: body.meal.time } } };
-    }
-    const meal = { ...fields, id: crypto.randomUUID(), time: toLoggedAt(date, form.time) };
-    return { edit: false, body: { date, meal }, optimistic: { meal: { ...meal, logged_at: meal.time } } };
+    return buildMealSavePlan({ form, date, moveDate });
   }
 
   const saveMeal = useMutation({
