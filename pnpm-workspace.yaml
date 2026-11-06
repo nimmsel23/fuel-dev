@@ -42,3 +42,6 @@ minimumReleaseAgeExclude:
   - source-map-js@1.2.2
   - proxy-addr@2.0.8
   - vite@6.4.4
+
+overrides:
+  '@grpc/grpc-js@<1.13.6': '^1.14.6'
