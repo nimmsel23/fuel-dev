@@ -141,3 +141,6 @@ werden aber im Cloud-Frontend nie geladen.
 - [x] Vollständige Fachliste der Master-MOC (11 A-Lizenz- und 4 B-Lizenz-Fächer) anzeigen; die sechs vorhandenen Vertiefungskarten ausdrücklich als thematische Einstiege kennzeichnen.
 - [x] Die 7-Tage-Pflichtaufgabe mit konkreter Tagesgliederung und Links zu Log und druckfertigem Report im Modul verknüpfen; vierteiligen Lerncheck und lokale Fortschrittsmarkierung ergänzen.
 - [x] Fastentimer mit optionalem persönlichem Zeit-Ziel, Sekundenanzeige, Ende/Verwerfen und lokalem Sitzungsverlauf ergänzen; Konto-Trennung und fehlende Mahlzeit-/Cloud-Schreibvorgänge dokumentieren.
+
+## 2026-11-07 — P1: iOS-Login-Problem Fuel Mini Apps (Quelle: Home-TODO 00:44 CET, Daniel via Bot)
+- [ ] Diagnose: Fuel Mini Apps schlagen beim Login auf iOS fehl, Fitness Mini Apps zeigen das Problem nicht — Login-Pfad/Auth-Konfig/Universal-Links der beiden differenzieren, Befund im AL-Lauf dokumentieren, Fix-Vorschlag folgen lassen.
