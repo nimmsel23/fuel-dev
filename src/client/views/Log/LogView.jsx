@@ -1,4 +1,3 @@
-import { assertLegacyAiAvailable } from "../../lib/aiAvailability.js";
 import { normalizeMealMacros, mealMacrosAreValid } from "../../lib/mealMacros.js";
 import { mealDetails, scaleMeal, rebaseMealPortion } from "../../lib/mealDetails.js";
 import { useEffect, useRef, useState } from "react";
@@ -8,9 +7,6 @@ import { twMerge } from "tailwind-merge";
 import { postJson, patchJson } from "@api";
 import { patchNutritionDay, reloadNutritionDay } from "../../lib/optimisticMeal.js";
 import { syncPotAfterMealChange } from "../../hooks/usePots.js";
-import { vertexAI } from "../../lib/firebase.js";
-import { getGenerativeModel, SchemaType } from "firebase/ai";
-import { withAiRetry } from "../../lib/aiRetry.js";
 import { useAiMealLogger } from "../../hooks/useAiMealLogger.js";
 import { useSettings } from "../../store.js";
 import FoodSearch from "../../components/FoodSearch.jsx";
@@ -25,6 +21,7 @@ import { consumeNotificationIntent } from "../../lib/notification-intents.js";
 import { missingMealMacros } from "../../lib/mealMacros.js";
 import { buildMealSavePlan } from "../../lib/mealSavePlan.js";
 import { nowHHMM, emptyForm, hhmmFromISO } from "../../lib/mealForm.js";
+import { checkJournalAgainstLog } from "../../lib/journalCheckAi.js";
 
 const LOG_VIEW_MODES = [
   { value: "minimal", label: "Liste", icon: AlignJustify },
@@ -32,56 +29,6 @@ const LOG_VIEW_MODES = [
   { value: "timeline", label: "Timeline", icon: GitCommitVertical },
 ];
 const MICROS_DRILLDOWN_KEY = "fuel:micros-entry-focus";
-
-// Vergleicht Journal-Freitext gegen die bereits geloggten Mahlzeiten des Tages
-// und liefert nur eindeutig erwähnte, aber nicht geloggte Ernährungs-Infos zurück.
-async function checkJournalAgainstLog(journalText, meals) {
-  assertLegacyAiAvailable();
-  const model = getGenerativeModel(vertexAI, {
-    model: "gemini-2.5-flash",
-    generationConfig: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: SchemaType.OBJECT,
-        properties: {
-          missing: {
-            type: SchemaType.ARRAY,
-            items: {
-              type: SchemaType.OBJECT,
-              properties: {
-                name: { type: SchemaType.STRING },
-                kcal: { type: SchemaType.NUMBER },
-                protein: { type: SchemaType.NUMBER },
-                carbs: { type: SchemaType.NUMBER },
-                fat: { type: SchemaType.NUMBER },
-              }
-            }
-          }
-        }
-      }
-    }
-  });
-
-  const loggedList = meals.length
-    ? meals.map((m) => `- ${m.description}`).join("\n")
-    : "(nichts geloggt)";
-
-  const prompt = `Hier ist ein Freitext-Tagebucheintrag und die Liste der für heute bereits geloggten Mahlzeiten.
-Prüfe, ob im Tagebuch Essen, Getränke oder Supplemente erwähnt werden, die NICHT in der Log-Liste stehen.
-Gib nur eindeutig erwähnte, konkrete Ernährungs-Infos zurück, keine Vermutungen. Schätze für jeden fehlenden Punkt die Makros.
-
-Tagebuch:
-"""
-${journalText}
-"""
-
-Bereits geloggt:
-${loggedList}`;
-
-  const result = await withAiRetry(() => model.generateContent(prompt));
-  const parsed = JSON.parse(result.response.text());
-  return parsed?.missing || [];
-}
 
 const MEAL_TYPES = [
   { value: "breakfast", label: "Frühstück" },
