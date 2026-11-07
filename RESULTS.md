@@ -525,3 +525,10 @@ Die vendorte Mini-App-Shell mit der aktuellen VitalOS-Quelle synchronisiert. Ein
 ## 2026-10-31 — Dependabot
 
 Enabled Dependabot alerts and security updates. Configured weekly GitHub Actions and npm/pnpm updates plus Python dependency updates; version updates target `dev`. Minor/patch updates are grouped; vendored mini-app-shell copies stay maintained at their source. Validated YAML, repository manifest paths and update targets.
+
+
+## 2026-11-07 — Gemini CI-Agent aktiviert
+
+- Agent-Workflow und lokale Trigger für `fuel-dev` auf `dev` eingerichtet; `GEMINI_API_KEY` als Actions-Secret gesetzt.
+- `Check`/Preview und Agent-Run [42405225362](https://github.com/nimmsel23/fuel-dev/actions/runs/42405225362) waren auf Commit `a980265b` grün. Dieser Lauf war ein No-op auf einem erfolgreichen Check; ein roter Code-Fehler wurde noch nicht absichtlich simuliert.
+- Pushes und PR-Merges verwenden die eng berechtigte `GITHUB_TOKEN`-Workflow-Berechtigung; kein separates `SYNC_TOKEN` erforderlich.
