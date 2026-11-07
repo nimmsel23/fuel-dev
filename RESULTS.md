@@ -1,3 +1,9 @@
+## 2026-11-07 — Gemini CI-Agent installiert
+
+- CI-Agent fuer Check-Fehler, Dependabot-PRs und Merge-Konflikte ergänzt; Tailwind-/Paket-Upgrades bleiben erhalten.
+- Quellreparaturen werden auf den betroffenen Branch geschrieben; Zielbranch-Reparaturen erhalten einen PR und werden erst nach gruenem Check gemergt.
+- Gemini-API und `SYNC_TOKEN` muessen als Actions-Secrets vorhanden sein. Nachweis: erster erfolgreicher automatischer Reparatur- und Deploy-Lauf steht aus.
+
 # CLAUDE.md: Backend-Abschnitte nach fuel-backend ausgelagert, dev gepusht (2026-11-05)
 
 Folgearbeit zur Backend-/Frontend-Auslagerung vom 2026-11-04: Die Server-Doku sollte nicht mehr in `fuel-dev/CLAUDE.md` stehen, sondern im Repo, in dem der Code jetzt liegt.
