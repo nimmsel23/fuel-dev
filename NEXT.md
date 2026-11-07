@@ -125,3 +125,9 @@ Aktive Arbeitsliste (max. 5 Punkte).
 *   **Ungeprüfte Annahme/Behauptung:** Das Staging-Deploy wurde nach dem Push nicht verifiziert, obwohl die Doku-Änderungen die Realität abbilden sollen.
 *   **Nur Teil des Problems angefasst:** Die neu ausgelagerten Backend-`CLAUDE.md`-Dateien enthalten noch Verweise auf alte Pfade im ursprünglichen Repo, was die Doku inkonsistent macht.
 *   **Übersehener Edge-Case/Ungeprüfte Annahme (Sicherheit):** Die 90 Dependabot-Alerts (3 kritische) auf dem Default-Branch wurden nicht näher untersucht, obwohl der gepushte Code früher oder später in diesen Branch gemergt wird.
+
+
+## Gemini CI-Agent — verbleibende Betriebsprüfung
+
+- [ ] Einen echten roten, code-behebbaren CI-Lauf beobachten und bestätigen, dass Reparatur-Commit, grüner Check und vorgesehener Promote/Deploy enden.
+- [ ] Fehler außerhalb des Codes (fehlende Deploy-Credentials, externe Dienste, Runner-Ausfälle) separat als Diagnose melden; keine ungeprüften Änderungen an Secrets oder Deploy-Konfiguration.
