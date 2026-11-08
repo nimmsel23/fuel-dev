@@ -1,6 +1,6 @@
 import { normalizeMealMacros, mealMacrosAreValid } from "../../lib/mealMacros.js";
 import { mealDetails, scaleMeal, rebaseMealPortion } from "../../lib/mealDetails.js";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useReducer, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { NotebookPen, UtensilsCrossed, Pencil, Sparkles, AlertTriangle, RefreshCw, Check, X, ScanSearch, Clock, AlignJustify, LayoutGrid, GitCommitVertical } from "lucide-react";
 import { twMerge } from "tailwind-merge";
@@ -22,6 +22,22 @@ import { missingMealMacros } from "../../lib/mealMacros.js";
 import { buildMealSavePlan } from "../../lib/mealSavePlan.js";
 import { nowHHMM, emptyForm, hhmmFromISO } from "../../lib/mealForm.js";
 import { checkJournalAgainstLog } from "../../lib/journalCheckAi.js";
+import { canSaveNote, createNoteEditor, noteSavePayload, reduceNoteEditor } from "../../lib/noteEditor.js";
+
+const NOTE_DRAFTS_KEY = "fuel:note-drafts:v1";
+
+function readNoteDrafts() {
+  try {
+    const parsed = JSON.parse(sessionStorage.getItem(NOTE_DRAFTS_KEY) || "{}");
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeNoteDrafts(drafts) {
+  try { sessionStorage.setItem(NOTE_DRAFTS_KEY, JSON.stringify(drafts || {})); } catch { /* Entwurf bleibt im Speicher dieser Ansicht. */ }
+}
 
 const LOG_VIEW_MODES = [
   { value: "minimal", label: "Liste", icon: AlignJustify },
@@ -57,11 +73,14 @@ function Field({ label, children }) {
 
 // `mode` (optional): erzwingt eine Ansicht (Tab-Pills "Log-Dashboard"/"Timeline")
 // und blendet den Ansichten-Umschalter aus; ohne Prop gilt die gespeicherte Einstellung.
-export default function LogView({ date, nutrition, notes, mode }) {
+export default function LogView({ date, nutrition, notes, journal, mode }) {
   const qc = useQueryClient();
   const { kcal_goal, protein_goal, carb_ratio, log_view_mode: stored_view_mode, setSetting } = useSettings();
   const log_view_mode = mode || stored_view_mode;
-  const [text, setText] = useState(notes || "");
+  const notesSource = notes ?? journal;
+  const [editor, dispatchNotes] = useReducer(reduceNoteEditor, date, (initialDate) => createNoteEditor(initialDate, readNoteDrafts()));
+  const text = editor.text;
+  const notesReady = editor.loadedDate === date && editor.textDate === date;
   const [loading, setLoading] = useState(false);
   
   // Food Form State
@@ -93,9 +112,22 @@ export default function LogView({ date, nutrition, notes, mode }) {
   } = useAiMealLogger(date);
 
   useEffect(() => {
+    dispatchNotes({ type: "date", date, drafts: readNoteDrafts() });
+  }, [date]);
+
+  useEffect(() => {
+    writeNoteDrafts(editor.drafts);
+  }, [editor.drafts]);
+
+  useEffect(() => {
+    if (typeof notesSource !== "string") return;
+    dispatchNotes({ type: "notes", date, content: notesSource });
+  }, [date, notesSource]);
+
+  useEffect(() => {
     const applyIntent = (payload) => {
       if (!payload || payload.intent !== "journal.quick-entry") return;
-      if (payload.draft) setText((current) => current ? `${current}\n${payload.draft}` : payload.draft);
+      if (payload.draft) dispatchNotes({ type: "intent", draft: payload.draft });
       requestAnimationFrame(() => notesRef.current?.focus());
     };
 
@@ -105,14 +137,19 @@ export default function LogView({ date, nutrition, notes, mode }) {
     return () => window.removeEventListener("fuel-notification-intent", onIntent);
   }, []);
 
-  const handleNotesSave = async (e) => {
-    e.preventDefault();
+  const handleNotesSave = async (event) => {
+    event?.preventDefault();
+    const payload = noteSavePayload(editor);
+    if (!payload) return;
+    const token = (editor.saveToken || 0) + 1;
+    dispatchNotes({ type: "save" });
     setLoading(true);
     try {
-      await postJson("/nutrition/notes", { date, content: text });
-      qc.invalidateQueries({ queryKey: ["notes", date] });
+      await postJson("/nutrition/notes", payload);
+      dispatchNotes({ type: "saved", date: payload.date, content: payload.content, token });
+      qc.invalidateQueries({ queryKey: ["notes", payload.date] });
     } catch (err) {
-      console.error("Notes save error:", err);
+      dispatchNotes({ type: "save-error", date: payload.date, token, message: err.message || "Die Notiz konnte nicht gespeichert werden." });
     } finally {
       setLoading(false);
     }
@@ -616,8 +653,26 @@ export default function LogView({ date, nutrition, notes, mode }) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
           </div>
-          <h2 className="text-xl font-bold text-white tracking-wide">Notizen</h2>
+          <div>
+            <h2 className="text-xl font-bold text-white tracking-wide">Notizen</h2>
+            <p className="text-xs text-slate-500">Tagesnotiz für dieses Datum. Dieselbe Notiz zeigt das Dashboard und liest das Journal.</p>
+          </div>
         </div>
+        {editor.status === "error" && (
+          <div role="alert" className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">
+            <span>{editor.error}</span>
+            <button type="button" onClick={handleNotesSave} className="rounded-full bg-red-500/20 px-3 py-1.5 text-xs font-semibold text-red-100">Erneut versuchen</button>
+          </div>
+        )}
+        {editor.dirty && notesReady && (
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-400/20 bg-amber-400/10 p-3 text-sm text-amber-100">
+            <span>Ungespeicherte Änderungen für diesen Tag.</span>
+            <button type="button" onClick={() => dispatchNotes({ type: "discard" })} className="rounded-full border border-white/10 px-3 py-1.5 text-xs font-semibold text-slate-200">Verwerfen</button>
+          </div>
+        )}
+        {Object.keys(editor.drafts || {}).some((key) => key !== date && !key.startsWith("pending:")) && (
+          <p className="mb-3 text-xs text-slate-400">Für einen anderen Tag liegt noch eine ungespeicherte Notiz auf diesem Gerät. Sie erscheint wieder, wenn du diesen Tag öffnest.</p>
+        )}
         <textarea
           ref={notesRef}
           id="journal-notes"
@@ -625,20 +680,21 @@ export default function LogView({ date, nutrition, notes, mode }) {
             "w-full rounded-2xl border border-white/10 bg-slate-950/70 p-4 text-slate-100 placeholder-slate-500 focus:ring-2 focus:ring-sky-400/50 outline-none transition-all",
             log_view_mode === "minimal" ? "min-h-[500px]" : "min-h-[160px]"
           )}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Was hat dich heute bewegt? Training, Schlaf, Befinden..."
+          value={notesReady || editor.dirty ? text : ""}
+          onChange={(e) => dispatchNotes({ type: "edit", text: e.target.value })}
+          disabled={!notesReady || editor.status === "saving"}
+          placeholder={notesReady ? "Was hat dich heute bewegt? Training, Schlaf, Befinden..." : "Notiz wird geladen …"}
         />
 
-        <button disabled={loading} className="mt-4 w-full rounded-full bg-sky-300 py-4 font-bold text-slate-950 disabled:opacity-60 hover:bg-sky-200 transition-colors shadow-lg active:scale-[0.98]">
-          {loading ? "Speichere..." : "Notizen speichern"}
+        <button disabled={!canSaveNote(editor) || (!editor.dirty && editor.status !== "error") || editor.status === "saving"} className="mt-4 w-full rounded-full bg-sky-300 py-4 font-bold text-slate-950 disabled:opacity-60 hover:bg-sky-200 transition-colors shadow-lg active:scale-[0.98]">
+          {editor.status === "saving" || loading ? "Speichere..." : "Notizen speichern"}
         </button>
 
         {cloud && (
           <button
             type="button"
             onClick={handleJournalCheck}
-            disabled={journalCheckLoading || !text.trim()}
+            disabled={journalCheckLoading || !notesReady || !text.trim()}
             className="mt-2 w-full flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 py-3 text-sm font-semibold text-slate-300 hover:bg-white/10 disabled:opacity-50 transition-colors"
           >
             <ScanSearch className="h-4 w-4" />

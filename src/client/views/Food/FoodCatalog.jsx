@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { twMerge } from "tailwind-merge";
 import { Play, Trash2, Pencil, UtensilsCrossed, Pill, BookmarkPlus, BookmarkCheck, X } from "lucide-react";
 import { fetchJson, postJson, deleteJson } from "@api";
+import { mealFromCatalogItem } from "../../lib/catalogMeal.js";
+import { todayISO } from "../../../shared/utils/validation.mjs";
 import CatalogItemEditor from "./CatalogItemEditor.jsx";
 
 const MEAL_TYPES = [
@@ -26,7 +28,7 @@ function isoDay(ts) {
 function formatLastUsed(ts) {
   const day = isoDay(ts);
   if (!day) return null;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayISO();
   if (day === today) return "heute genutzt";
   const then = new Date(`${day}T12:00:00`);
   const now = new Date(`${today}T12:00:00`);
@@ -79,23 +81,6 @@ export default function FoodCatalog({ activeDate, showHistory = true }) {
     return catalogGrams[item.id] ?? item.yield_g ?? "";
   }
 
-  // Skaliert die gespeicherten Makros (die für item.yield_g gelten) linear auf
-  // die aktuell gewählte Grammzahl — Makros pro 100g werden hier, beim Client,
-  // aus den absoluten Katalog-Werten abgeleitet statt im Kopf umgerechnet.
-  function scaledMacros(item) {
-    const grams = Number(gramsFor(item)) || 0;
-    if (!item.yield_g || !grams) {
-      return { kcal: item.kcal, protein: item.protein, carbs: item.carbs, fat: item.fat };
-    }
-    const factor = grams / item.yield_g;
-    return {
-      kcal: Math.round(item.kcal * factor),
-      protein: Math.round(item.protein * factor * 10) / 10,
-      carbs: Math.round(item.carbs * factor * 10) / 10,
-      fat: Math.round(item.fat * factor * 10) / 10,
-    };
-  }
-
   const { data: catalogData } = useQuery({
     queryKey: ["nutrition-catalog"],
     queryFn: () => fetchJson("/nutrition/catalog"),
@@ -146,7 +131,8 @@ export default function FoodCatalog({ activeDate, showHistory = true }) {
       meal: {
         type: meal.type, description: meal.description, notes: meal.notes || "",
         kcal: meal.kcal, protein: meal.protein, carbs: meal.carbs, fat: meal.fat,
-        catalog_id: meal.catalog_id || null,
+        grams: meal.grams ?? null,
+        catalog_id: meal.catalog_id || meal.catalog_item_id || null,
       },
     }),
     onSuccess: () => {
@@ -233,7 +219,8 @@ export default function FoodCatalog({ activeDate, showHistory = true }) {
 
   function CatalogCard({ item, compact = false }) {
     const lastUsedLabel = formatLastUsed(item.last_used_at);
-    const macros = scaledMacros(item);
+    const addonIds = catalogAddonSelection[item.id] || item.default_addon_ids || [];
+    const macros = mealFromCatalogItem(item, { addonIds, grams: Number(gramsFor(item)) || item.yield_g || null });
 
     return (
       <div key={item.id} className="group relative rounded-2xl border border-white/5 bg-slate-950/60 p-4 transition-all hover:border-orange-400/30 hover:bg-orange-400/5">
@@ -292,10 +279,10 @@ export default function FoodCatalog({ activeDate, showHistory = true }) {
         ) : null}
 
         <div className="mt-3 flex gap-4 text-sm font-medium text-slate-400">
-          <span className="text-orange-300">{macros.kcal} kcal</span>
-          <span>P {macros.protein}g</span>
-          <span>C {macros.carbs}g</span>
-          <span>F {macros.fat}g</span>
+          <span className="text-orange-300">{macros.kcal == null ? "— kcal" : `${macros.kcal} kcal`}</span>
+          <span>P {macros.protein == null ? "—" : `${macros.protein}g`}</span>
+          <span>C {macros.carbs == null ? "—" : `${macros.carbs}g`}</span>
+          <span>F {macros.fat == null ? "—" : `${macros.fat}g`}</span>
         </div>
 
         {item.notes && <div className="mt-2 text-xs italic text-slate-500">{item.notes}</div>}
@@ -328,9 +315,8 @@ export default function FoodCatalog({ activeDate, showHistory = true }) {
           <button type="button"
             onClick={() => logCatalogItem.mutate({
               item,
-              addonIds: catalogAddonSelection[item.id] || item.default_addon_ids || [],
+              addonIds,
               grams: Number(gramsFor(item)) || item.yield_g || null,
-              macros,
             })}
             disabled={logCatalogItem.isPending}
             className={twMerge(
@@ -354,24 +340,13 @@ export default function FoodCatalog({ activeDate, showHistory = true }) {
   }
 
   const logCatalogItem = useMutation({
-    mutationFn: async ({ item, addonIds = [], grams, macros }) => {
-      // 1. Meal loggen
-      if (item.yield_g && grams && grams !== item.yield_g) {
-        await postJson("/nutrition/log", {
-          date: activeDate,
-          meal: {
-            type: item.meal_type || item.type || "meal",
-            description: item.name || item.description,
-            notes: item.notes || "",
-            grams, catalog_item_id: item.id,
-            ...macros,
-          },
-        });
-      } else {
-        await postJson("/nutrition/log", {
-          date: activeDate, catalog_item_id: item.id, catalog_addon_ids: addonIds,
-        });
-      }
+    mutationFn: async ({ item, addonIds = [], grams }) => {
+      // 1. Meal loggen. Makros inkl. Add-ons stehen schon im Body, damit der
+      // lokale Server und die Cloud dieselbe Portion schreiben.
+      await postJson("/nutrition/log", {
+        date: activeDate,
+        meal: mealFromCatalogItem(item, { addonIds, grams }),
+      });
 
       // 2. Verknüpfte Supplemente automatisch mitloggen
       const linkedIds = item.linked_supplement_ids || [];

@@ -2,9 +2,33 @@ export function isISODate(s) {
   return typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s);
 }
 
+export function formatLocalDate(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
 export function todayISO() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return formatLocalDate(new Date());
+}
+
+// Mittag, damit Sommerzeit und toISOString die Kalendertage nicht verschieben.
+export function parseLocalNoon(iso) {
+  if (!isISODate(iso)) return new Date(NaN);
+  const [year, month, day] = iso.split("-").map(Number);
+  return new Date(year, month - 1, day, 12, 0, 0, 0);
+}
+
+export function shiftLocalISO(iso, days) {
+  const date = parseLocalNoon(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  date.setDate(date.getDate() + days);
+  return formatLocalDate(date);
+}
+
+// count Tage, ältester zuerst, letzter Eintrag ist anchorISO.
+export function datesEndingAt(anchorISO, count) {
+  const dates = [];
+  for (let i = count - 1; i >= 0; i -= 1) dates.push(shiftLocalISO(anchorISO, -i));
+  return dates;
 }
 
 export function sanitizeMetric(value) {

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Flame } from "lucide-react";
-import { fetchJson } from "../lib/api.js";
+import { fetchJson } from "@api";
 
 const LABELS = {
   if: "Intervallfasten-Fenster",

@@ -24,6 +24,7 @@ import { sumCompleteMetric, formatMetric } from "../shared/utils/utils.js";
 import { watchAuth, signIn, signOut, getUid } from "./lib/db.firestore.js";
 import { fetchJson } from "@api";
 import { captureNotificationIntentFromLocation } from "./lib/notification-intents.js";
+import { todayISO } from "../shared/utils/validation.mjs";
 
 // Frontdoor = wählbarer Schnelleinstieg (Tap Board / Shutter / Tagesfaden /
 // Klassisch), siehe views/Frontdoor/.
@@ -36,7 +37,7 @@ const qc = createFuelQueryClient();
 const SOLO = import.meta.env.VITE_SOLO || "";
 
 function localToday() {
-  return new Date().toISOString().slice(0, 10);
+  return todayISO();
 }
 
 function parseHashState() {

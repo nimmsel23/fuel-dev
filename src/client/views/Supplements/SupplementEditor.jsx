@@ -3,6 +3,7 @@ import { X, Save, Trash2 } from "lucide-react";
 import { postJson, deleteJson } from "@api";
 import { Modal } from "../../components/ui.jsx";
 import { DACH } from "../../../shared/config/dach.mjs";
+import { todayISO } from "../../../shared/utils/validation.mjs";
 import { BOTANICALS } from "../../../shared/config/botanicals.mjs";
 
 const WEEKDAYS = [
@@ -31,7 +32,7 @@ export default function SupplementEditor({ item, onClose, onSaved }) {
   const [scheduleType, setScheduleType] = useState(item ? (item.schedule?.type || "none") : "daily");
   const [days, setDays] = useState(item?.schedule?.days || []);
   const [intervalDays, setIntervalDays] = useState(item?.schedule?.interval_days ?? 2);
-  const [startDate, setStartDate] = useState(item?.schedule?.start_date || new Date().toISOString().slice(0, 10));
+  const [startDate, setStartDate] = useState(item?.schedule?.start_date || todayISO());
   const [reminderEnabled, setReminderEnabled] = useState(Boolean(item?.reminder?.enabled));
   const [reminderTime, setReminderTime] = useState(item?.reminder?.time || "08:00");
   const [saving, setSaving] = useState(false);

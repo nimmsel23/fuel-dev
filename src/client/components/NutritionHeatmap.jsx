@@ -21,13 +21,13 @@ function getKcalLevel(kcal, goal) {
 // Kombination aus wenig Einträgen UND niedriger Summe ist ein echtes Signal
 // für "wahrscheinlich vergessen weiterzuloggen" (30-Tage-Auswertung
 // 2026-07-30: Tage mit <3 Einträgen lagen im Schnitt bei 746 statt 2022 kcal).
-function looksIncomplete(meals, kcal, goal) {
-  if (!goal) return false;
+function looksIncomplete(meals, kcal, goal, pattern) {
+  if (!goal || pattern === "omad") return false;
   return meals.length > 0 && meals.length < 3 && kcal < goal * 0.5;
 }
 
 export default function NutritionHeatmap({ selectedDate, onSelectDate }) {
-  const { kcal_goal } = useSettings();
+  const { kcal_goal, eating_pattern } = useSettings();
   const today  = localISO(new Date());
   const dates  = weekDates(selectedDate);
   const { data: logsMap = {} } = useWeekLogs(selectedDate);
@@ -75,7 +75,7 @@ export default function NutritionHeatmap({ selectedDate, onSelectDate }) {
         const meals    = logsMap[dk] || [];
         const kcal     = meals.reduce((s, m) => s + (Number(m.kcal) || 0), 0);
         const level    = getKcalLevel(kcal, kcal_goal);
-        const incomplete = looksIncomplete(meals, kcal, kcal_goal);
+        const incomplete = looksIncomplete(meals, kcal, kcal_goal, eating_pattern);
         const isToday    = dk === today;
         const isSelected = dk === selectedDate;
         return (

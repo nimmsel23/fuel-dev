@@ -53,7 +53,7 @@ export const TAB_CONFIG = [
     label: "Log",
     Icon: NotebookPen,
     View: LogView,
-    getProps: (ctx) => ({ date: ctx.activeDate, nutrition: ctx.nutrition, journal: ctx.journal || "" }),
+    getProps: (ctx) => ({ date: ctx.activeDate, nutrition: ctx.nutrition, notes: ctx.journal }),
   }] : []),
   ...(!SOLO ? [{
     // Log-Ansichten als eigene Tab-Pills (gleiche LogView, erzwungener Modus).
@@ -61,13 +61,13 @@ export const TAB_CONFIG = [
     label: "Log-Dashboard",
     Icon: LayoutGrid,
     View: LogView,
-    getProps: (ctx) => ({ date: ctx.activeDate, nutrition: ctx.nutrition, journal: ctx.journal || "", mode: "dashboard" }),
+    getProps: (ctx) => ({ date: ctx.activeDate, nutrition: ctx.nutrition, notes: ctx.journal, mode: "dashboard" }),
   }, {
     key: "log-timeline",
     label: "Timeline",
     Icon: GitCommitVertical,
     View: LogView,
-    getProps: (ctx) => ({ date: ctx.activeDate, nutrition: ctx.nutrition, journal: ctx.journal || "", mode: "timeline" }),
+    getProps: (ctx) => ({ date: ctx.activeDate, nutrition: ctx.nutrition, notes: ctx.journal, mode: "timeline" }),
   }] : []),
   ...((!SOLO || SOLO === "food") ? [{
     key: "food",

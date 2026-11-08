@@ -4,6 +4,7 @@ import { scaleKnownMicros } from "../../knownMicros.js";
 import { OMEGA3_KEYS, normalizeOmega3 } from "../../../../shared/config/omega3.mjs";
 import { computeFastingWindows } from "../../../../shared/utils/fasting.mjs";
 import { projectCloudLog, outboxEntries, projectCloudCatalog, hasPendingFor } from "../../cloudOutbox.js";
+import { componentSnapshot, microSnapshot } from "../../catalogMeal.js";
 /**
  * Firestore Nutrition — Katalog, Tages-Logs, History, Wochen-Mikros
  *
@@ -25,7 +26,7 @@ import {
 import { getDoc, setDoc, getDocs, writeBatch } from "./offline.js";
 import { db } from "../../firebase.js";
 import { getUid } from "./core.js";
-import { MICRO_KEYS, zeroMicros, todayISO, getWeekDates, dateToISOWeek } from "./utils.js";
+import { MICRO_KEYS, zeroMicros, todayISO, getWeekDates, dateToISOWeek, shiftLocalISO } from "./utils.js";
 import { mutateCloudLog } from "../../cloudMutations.js";
 import { getSupplementLog, getSupplementsCatalog } from "./supplements.js";
 import { DACH, getStatus } from "../../../../shared/config/dach.mjs";
@@ -96,10 +97,10 @@ export async function getNutritionLogsInRange(dates) {
 }
 
 function mealComponentTrace(meal, catalog) {
-  const logged = Array.isArray(meal.components) && meal.components.length > 0;
+  const logged = componentSnapshot(meal);
   const catalogId = meal.catalog_item_id || meal.catalog_id;
   const catalogMeal = catalogId ? catalog.find((item) => item.id === catalogId) : null;
-  if (logged) return { components: meal.components, components_source: "meal_snapshot" };
+  if (logged) return { components: logged, components_source: "meal_snapshot" };
   if (catalogMeal?.components?.length) {
     return { components: catalogMeal.components, components_source: "catalog_current" };
   }
@@ -125,7 +126,7 @@ export async function getMealsHistory(limitCount = 30) {
     // Fallback: alle Logs laden, ungeordnet
     const snap = await getDocs(collection(db, "nutrition", getUid(), "logs"));
     return snap.docs
-      .map(d => ({ date: d.id, ...d.data() }))
+      .map(d => applyMealTombstones({ date: d.id, ...d.data() }))
       .filter(log => (log.meals || []).length > 0)
       .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
   }
@@ -147,7 +148,8 @@ export async function searchNutritionCatalog(q, limit = 20) {
 // cached sie in-place auf `meal.micros` — Pendant zu
 // server/services/nutrition-micros.mjs#resolveMealMicros für den Cloud-Channel.
 function resolveMealMicros(meal, catalog, microsMap) {
-  if (meal.micros) return (meal.micros = normalizeOmega3(meal.micros));
+  const snapped = microSnapshot(meal);
+  if (snapped) return (meal.micros = normalizeOmega3(snapped));
 
   const catalogEntry = catalog.find((i) => (meal.catalog_id && i.id === meal.catalog_id) || i.name === meal.description);
   const lookupName = catalogEntry?.name || meal.description;
@@ -372,13 +374,9 @@ export async function getWeeklyMicros(year, week) {
 export async function getFastingWindows(days = 14) {
 
   // Build array of last `days + 1` dates (oldest first)
+  const today = todayISO();
   const dates = [];
-  const today = new Date(todayISO());
-  for (let i = days; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i);
-    dates.push(d.toISOString().split("T")[0]);
-  }
+  for (let i = days; i >= 0; i--) dates.push(shiftLocalISO(today, -i));
 
   const logsMap = await getNutritionLogsInRange(dates);
   const dayLogs = dates.map((date) => ({

@@ -39,6 +39,9 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      - name: Unit tests
+        run: pnpm run test:unit
+
       - name: Build Fuel (Cloud)
         run: pnpm run build:cloud
         env:
