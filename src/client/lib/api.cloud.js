@@ -1,6 +1,7 @@
 // Cloud channel — Firestore only. No Fastify/local fetch for data.
 import * as firestore from "./db.firestore.js";
 import { submitCloudLog } from "./cloudOutbox.js";
+import { mealFromCatalogItem } from "./catalogMeal.js";
 
 async function searchOFF(query, limit) {
   const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=${limit}`;
@@ -109,11 +110,11 @@ export async function postJson(path, body) {
 
   if (normPath === "/nutrition/log") {
     let meal = body.meal;
-    if (body.catalog_item_id) {
+    if (!meal && body.catalog_item_id) {
       const item = (await firestore.getNutritionCatalog()).find(i => i.id === body.catalog_item_id);
       if (!item) throw new Error("Katalogeintrag nicht gefunden.");
-      meal = { ...item, id: undefined, description: item.name || item.description,
-        type: item.meal_type || "meal", catalog_id: item.id };
+      const addonIds = Array.isArray(body.catalog_addon_ids) ? body.catalog_addon_ids : (item.default_addon_ids || []);
+      meal = mealFromCatalogItem(item, { addonIds, grams: body.grams });
     }
     const prepared = meal ? { ...meal,
       id: meal.id || crypto.randomUUID(),

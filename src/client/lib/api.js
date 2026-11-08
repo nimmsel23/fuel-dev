@@ -1,4 +1,5 @@
 import * as firestore from "./db.firestore.js";
+import { mealFromCatalogItem } from "./catalogMeal.js";
 import {
   doc,
 } from "firebase/firestore";
@@ -186,24 +187,6 @@ export async function postJson(path, body) {
       }
       if (body.delete_meal_id) {
         existing.meals = (existing.meals || []).filter((m) => m.id !== body.delete_meal_id);
-      } else if (body.catalog_item_id) {
-        const catalog = await firestore.getNutritionCatalog();
-        const item = catalog.find((i) => i.id === body.catalog_item_id);
-        if (item) {
-          const meal = {
-            id: `meal_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
-            type: item.meal_type || item.type || "meal",
-            description: item.name || item.description,
-            notes: item.notes || "",
-            kcal: item.kcal || 0,
-            protein: item.protein || 0,
-            carbs: item.carbs || 0,
-            fat: item.fat || 0,
-            catalog_id: item.id,
-            logged_at: new Date().toISOString(),
-          };
-          existing.meals = [...(existing.meals || []), meal];
-        }
       } else if (body.meal) {
         const meal = {
           ...body.meal,
@@ -211,6 +194,18 @@ export async function postJson(path, body) {
           logged_at: body.meal.logged_at || new Date().toISOString(),
         };
         existing.meals = [...(existing.meals || []), meal];
+      } else if (body.catalog_item_id) {
+        const catalog = await firestore.getNutritionCatalog();
+        const item = catalog.find((i) => i.id === body.catalog_item_id);
+        if (item) {
+          const addonIds = Array.isArray(body.catalog_addon_ids) ? body.catalog_addon_ids : (item.default_addon_ids || []);
+          const meal = {
+            ...mealFromCatalogItem(item, { addonIds, grams: body.grams }),
+            id: `meal_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+            logged_at: new Date().toISOString(),
+          };
+          existing.meals = [...(existing.meals || []), meal];
+        }
       }
       await firestore.saveNutritionLog(body.date, existing);
       return { ok: true };

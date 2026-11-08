@@ -18,7 +18,7 @@ import { getDoc, setDoc, getDocs } from "./offline.js";
 import { mutateCloudLog, mutateCloudCatalog } from "../../cloudMutations.js";
 import { db } from "../../firebase.js";
 import { getUid, serverTimestamp } from "./core.js";
-import { todayISO } from "./utils.js";
+import { todayISO, shiftLocalISO } from "./utils.js";
 import { invalidateWeekMicroCache } from "./nutrition.js";
 
 export async function getSupplementsCatalog() {
@@ -75,12 +75,7 @@ export async function getSupplementsHistory(limitCount = 30) {
 }
 
 export async function getSupplementStats(anchorDate, days = 30) {
-  const anchor = new Date(anchorDate);
-  const dates = Array.from({ length: days }, (_, i) => {
-    const d = new Date(anchor);
-    d.setDate(d.getDate() - i);
-    return d.toISOString().slice(0, 10);
-  });
+  const dates = Array.from({ length: days }, (_, i) => shiftLocalISO(anchorDate, -i));
 
   const snap = await getDocs(query(collection(db, "supplements", getUid(), "logs"), orderBy(documentId(), "desc"), startAt(dates[0]), endAt(dates[dates.length - 1])));
   const logsMap = {};

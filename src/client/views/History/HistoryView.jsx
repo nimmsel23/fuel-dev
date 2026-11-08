@@ -4,53 +4,10 @@ import { History, Calendar, ChevronRight, ChevronDown, ChevronUp, Pencil, Trash2
 import { fetchJson, postJson } from "@api";
 import { syncPotAfterMealChange } from "../../hooks/usePots.js";
 import { sumCompleteMetric, formatMetric, formatMealMetric } from "../../../shared/utils/utils.js";
+import { buildWeekGroups, historyToday } from "./historyWeeks.mjs";
 
 const DAY_SHORT = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
 const MON_SHORT = ["Jan", "Feb", "Mar", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
-
-function localToday() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function buildWeekGroups(today, history) {
-  const daysByDate = Object.fromEntries((history || []).map((day) => [day.date, day]));
-  const dates = Object.keys(daysByDate).filter((date) => date <= today).sort().reverse();
-  if (dates.length === 0) return [];
-
-  const todayObj = new Date(`${today}T12:00:00`);
-  const dow0 = todayObj.getDay();
-  const thisMonday = new Date(todayObj);
-  thisMonday.setDate(todayObj.getDate() - (dow0 === 0 ? 6 : dow0 - 1));
-  thisMonday.setHours(0, 0, 0, 0);
-
-  const oldest = dates[dates.length - 1];
-  const days = Math.max(0, Math.round((todayObj - new Date(`${oldest}T12:00:00`)) / 86400000));
-  const weekCount = Math.max(8, Math.ceil(days / 7) + 1);
-
-  return Array.from({ length: weekCount }, (_, w) => {
-    const monday = new Date(thisMonday);
-    monday.setDate(thisMonday.getDate() - w * 7);
-
-    const allDays = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(monday);
-      d.setDate(monday.getDate() + i);
-      return d.toISOString().slice(0, 10);
-    }).filter((d) => d <= today).reverse();
-
-    const visibleDays = allDays.filter((d) => daysByDate[d]);
-    if (visibleDays.length === 0) return null;
-
-    const jan4 = new Date(monday.getFullYear(), 0, 4);
-    const kw = Math.max(1, Math.floor(((monday - jan4) / 86400000 + jan4.getDay() + 1) / 7));
-    const label = w === 0 ? "Diese Woche" : w === 1 ? "Letzte Woche" : `KW ${kw} · ${monday.getFullYear()}`;
-
-    return {
-      label,
-      visibleDays,
-      entries: visibleDays.map((date) => daysByDate[date]).filter(Boolean),
-    };
-  }).filter(Boolean);
-}
 
 export default function HistoryView({ setActiveDate, setActiveTab }) {
   const qc = useQueryClient();
@@ -67,6 +24,7 @@ export default function HistoryView({ setActiveDate, setActiveTab }) {
     onSuccess: (_, { date, mealId, potId }) => {
       // Topf-Mahlzeit gelöscht → Tageseintrag im Topf freigeben.
       if (potId) syncPotAfterMealChange(qc, { potId, date, mealId });
+      qc.invalidateQueries({ queryKey: ["nutrition", date] });
       qc.invalidateQueries({ queryKey: ["nutrition-history"] });
       qc.invalidateQueries({ queryKey: ["week-logs"] });
     },
@@ -80,7 +38,7 @@ export default function HistoryView({ setActiveDate, setActiveTab }) {
   };
 
   const history = data?.history || [];
-  const today = localToday();
+  const today = historyToday();
   const weekGroups = buildWeekGroups(today, history);
 
   const toggleWeek = (label) => {
@@ -204,9 +162,9 @@ export default function HistoryView({ setActiveDate, setActiveTab }) {
                                   <button
                                     onClick={() => {
                                       setActiveDate(day.date);
-                                      setActiveTab("food");
+                                      setActiveTab("log");
                                     }}
-                                    title="Diesen Tag öffnen"
+                                    title="Diesen Tag im Log öffnen"
                                     className="rounded-xl border border-white/10 bg-white/5 p-2.5 text-slate-400 transition hover:bg-orange-400 hover:text-slate-950"
                                   >
                                     <ChevronRight className="h-4 w-4" />
@@ -242,9 +200,13 @@ export default function HistoryView({ setActiveDate, setActiveTab }) {
                                         <div className="flex shrink-0 gap-2">
                                           <button
                                             onClick={() => {
+                                              try {
+                                                sessionStorage.setItem("fuel:micros-entry-focus", JSON.stringify({ kind: "meal", date: day.date, entryId: meal.id }));
+                                              } catch { /* Der Log-Tab öffnet den Tag auch ohne Fokus auf diese Mahlzeit. */ }
                                               setActiveDate(day.date);
-                                              setActiveTab("food");
+                                              setActiveTab("log");
                                             }}
+                                            title="Im Log bearbeiten"
                                             className="rounded-lg p-2 text-slate-500 transition hover:bg-white/10 hover:text-orange-300"
                                           >
                                             <Pencil className="h-4 w-4" />

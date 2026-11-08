@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Check, Clock3, Play, RotateCcw, Square, Timer } from "lucide-react";
 import { getUidOrNull } from "../lib/db.firestore.js";
+import FastingWindowBadge from "../components/FastingWindowBadge.jsx";
 
 const GOALS = [12, 14, 16, 18, 20];
 const STORE_BASE = "fuel-fasting-timer-v1";
@@ -76,6 +77,8 @@ export default function FastingTimerView() {
         <div className="flex items-center gap-2 text-sm font-semibold text-amber-300"><Timer size={17} /> Fuel · Fasten</div>
         <h1 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">Dein Fastentimer</h1>
         <p className="mt-2 max-w-lg text-sm text-base-content/70">Eine persönliche Zeitmessung. Sie bewertet nicht, ob eine Dauer für dich geeignet ist.</p>
+        <div className="mt-4"><FastingWindowBadge /></div>
+        <p className="mt-2 max-w-lg text-xs text-base-content/50">Ein erkanntes Essensfenster kommt aus den Uhrzeiten im Log und läuft getrennt von diesem Timer.</p>
       </header>
 
       <section className="rounded-3xl border border-base-300 bg-base-100 p-5 sm:p-7" aria-live="polite">

@@ -57,11 +57,17 @@ function Field({ label, children }) {
 
 // `mode` (optional): erzwingt eine Ansicht (Tab-Pills "Log-Dashboard"/"Timeline")
 // und blendet den Ansichten-Umschalter aus; ohne Prop gilt die gespeicherte Einstellung.
-export default function LogView({ date, nutrition, notes, mode }) {
+export default function LogView({ date, nutrition, notes, journal, mode }) {
   const qc = useQueryClient();
   const { kcal_goal, protein_goal, carb_ratio, log_view_mode: stored_view_mode, setSetting } = useSettings();
   const log_view_mode = mode || stored_view_mode;
-  const [text, setText] = useState(notes || "");
+  const notesSource = notes ?? journal;
+  const [text, setText] = useState(typeof notesSource === "string" ? notesSource : "");
+  const notesEdited = useRef(false);
+  const notesDate = useRef(date);
+  const pendingDraft = useRef("");
+  const notesSourceRef = useRef(notesSource);
+  notesSourceRef.current = notesSource;
   const [loading, setLoading] = useState(false);
   
   // Food Form State
@@ -95,7 +101,18 @@ export default function LogView({ date, nutrition, notes, mode }) {
   useEffect(() => {
     const applyIntent = (payload) => {
       if (!payload || payload.intent !== "journal.quick-entry") return;
-      if (payload.draft) setText((current) => current ? `${current}\n${payload.draft}` : payload.draft);
+      if (payload.draft) {
+        if (typeof notesSourceRef.current === "string") {
+          notesEdited.current = true;
+          const draft = payload.draft;
+          setText((current) => {
+            const base = current || notesSourceRef.current;
+            return base ? `${base}\n${draft}` : draft;
+          });
+        } else {
+          pendingDraft.current = payload.draft;
+        }
+      }
       requestAnimationFrame(() => notesRef.current?.focus());
     };
 
@@ -104,6 +121,18 @@ export default function LogView({ date, nutrition, notes, mode }) {
     window.addEventListener("fuel-notification-intent", onIntent);
     return () => window.removeEventListener("fuel-notification-intent", onIntent);
   }, []);
+
+  useEffect(() => {
+    if (notesDate.current !== date) {
+      notesDate.current = date;
+      notesEdited.current = false;
+    }
+    if (notesEdited.current || typeof notesSource !== "string") return;
+    const draft = pendingDraft.current;
+    if (draft) pendingDraft.current = "";
+    setText(draft ? (notesSource ? `${notesSource}\n${draft}` : draft) : notesSource);
+    if (draft) notesEdited.current = true;
+  }, [date, notesSource]);
 
   const handleNotesSave = async (e) => {
     e.preventDefault();
@@ -616,7 +645,10 @@ export default function LogView({ date, nutrition, notes, mode }) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
           </div>
-          <h2 className="text-xl font-bold text-white tracking-wide">Notizen</h2>
+          <div>
+            <h2 className="text-xl font-bold text-white tracking-wide">Notizen</h2>
+            <p className="text-xs text-slate-500">Tagesnotiz für dieses Datum. Dieselbe Notiz zeigt das Dashboard und liest das Journal.</p>
+          </div>
         </div>
         <textarea
           ref={notesRef}
@@ -626,7 +658,7 @@ export default function LogView({ date, nutrition, notes, mode }) {
             log_view_mode === "minimal" ? "min-h-[500px]" : "min-h-[160px]"
           )}
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => { notesEdited.current = true; setText(e.target.value); }}
           placeholder="Was hat dich heute bewegt? Training, Schlaf, Befinden..."
         />
 

@@ -14,7 +14,7 @@ export default function ScannerModal({ onClose, onResult, date, initialFile = nu
   const [notice, setNotice] = useState("");
   const [online, setOnline] = useState(navigator.onLine);
   const queue = useScanQueue();
-  const { data: catalog } = useQuery({ queryKey: ["nutrition-catalog"], queryFn: () => fetchJson("nutrition/catalog") });
+  const { data: catalog } = useQuery({ queryKey: ["nutrition-catalog"], queryFn: () => fetchJson("/nutrition/catalog") });
   const catalogHits = catalogName.trim().length >= 2
     ? (catalog?.items || []).filter(i => String(i.name || i.description || "").toLocaleLowerCase().includes(catalogName.trim().toLocaleLowerCase())).slice(0, 5) : [];
   useEffect(() => {

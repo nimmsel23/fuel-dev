@@ -25,7 +25,7 @@ import {
 import { getDoc, setDoc, getDocs, writeBatch } from "./offline.js";
 import { db } from "../../firebase.js";
 import { getUid } from "./core.js";
-import { MICRO_KEYS, zeroMicros, todayISO, getWeekDates, dateToISOWeek } from "./utils.js";
+import { MICRO_KEYS, zeroMicros, todayISO, getWeekDates, dateToISOWeek, shiftLocalISO } from "./utils.js";
 import { mutateCloudLog } from "../../cloudMutations.js";
 import { getSupplementLog, getSupplementsCatalog } from "./supplements.js";
 import { DACH, getStatus } from "../../../../shared/config/dach.mjs";
@@ -125,7 +125,7 @@ export async function getMealsHistory(limitCount = 30) {
     // Fallback: alle Logs laden, ungeordnet
     const snap = await getDocs(collection(db, "nutrition", getUid(), "logs"));
     return snap.docs
-      .map(d => ({ date: d.id, ...d.data() }))
+      .map(d => applyMealTombstones({ date: d.id, ...d.data() }))
       .filter(log => (log.meals || []).length > 0)
       .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
   }
@@ -372,13 +372,9 @@ export async function getWeeklyMicros(year, week) {
 export async function getFastingWindows(days = 14) {
 
   // Build array of last `days + 1` dates (oldest first)
+  const today = todayISO();
   const dates = [];
-  const today = new Date(todayISO());
-  for (let i = days; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i);
-    dates.push(d.toISOString().split("T")[0]);
-  }
+  for (let i = days; i >= 0; i--) dates.push(shiftLocalISO(today, -i));
 
   const logsMap = await getNutritionLogsInRange(dates);
   const dayLogs = dates.map((date) => ({

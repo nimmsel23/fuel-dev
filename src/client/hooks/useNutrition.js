@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchJson } from "@api";
 import * as firestore from "../lib/db.firestore.js";
+import { datesEndingAt } from "../../shared/utils/validation.mjs";
 
 const isCloud = () => window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com");
 
@@ -27,12 +28,7 @@ export function useMacroTrend(anchorDate, days = 10) {
   return useQuery({
     queryKey: ["macro-trend", anchorDate, days],
     queryFn: async () => {
-      const anchor = new Date(anchorDate);
-      const dates = Array.from({ length: days }, (_, i) => {
-        const d = new Date(anchor);
-        d.setDate(d.getDate() - (days - 1 - i));
-        return d.toISOString().slice(0, 10);
-      });
+      const dates = datesEndingAt(anchorDate, days);
 
       if (isCloud()) {
         const logs = await firestore.getNutritionLogsInRange(dates);
@@ -73,12 +69,7 @@ export function useMealStreak(anchorDate, days = 30) {
   return useQuery({
     queryKey: ["meal-streak", anchorDate, days],
     queryFn: async () => {
-      const anchor = new Date(anchorDate);
-      const dates = Array.from({ length: days }, (_, i) => {
-        const d = new Date(anchor);
-        d.setDate(d.getDate() - (days - 1 - i));
-        return d.toISOString().slice(0, 10);
-      });
+      const dates = datesEndingAt(anchorDate, days);
 
       let mealsByDate;
       if (isCloud()) {
@@ -122,12 +113,7 @@ export function useFirstMealTrend(anchorDate, days = 7) {
   return useQuery({
     queryKey: ["first-meal-trend", anchorDate, days],
     queryFn: async () => {
-      const anchor = new Date(anchorDate);
-      const dates = Array.from({ length: days }, (_, i) => {
-        const d = new Date(anchor);
-        d.setDate(d.getDate() - (days - 1 - i));
-        return d.toISOString().slice(0, 10);
-      });
+      const dates = datesEndingAt(anchorDate, days);
 
       let logs;
       if (isCloud()) {
