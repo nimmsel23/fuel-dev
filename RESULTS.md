@@ -1,3 +1,9 @@
+# 2026-11-08 — Fuel-Mini-Apps als gezielte Dev-Releases
+
+- Mini-App-Deploy läuft jetzt auch bei relevanten Änderungen auf `dev` direkt auf das jeweilige Firebase-Hosting-Target; Preview-Links gibt es für diese Apps nicht.
+- Der Pfadfilter rollt nur betroffene App-Tabs aus. `api.local.js` (nur lokaler Dev-Modus) und reine Änderungen an diesem Workflow lösen nicht fälschlich alle Mini-App-Deploys aus.
+- Für diese Veröffentlichung betreffen die bereits auf `dev` liegenden Quelländerungen Supplements und Micros; die vier Mini-Apps werden nicht pauschal neu deployed.
+
 ## 2026-11-07 — CI-Agent-Fix: gh pr list Feld korrigiert
 
 - Journal-Run 42416606547 scheiterte vor Gemini: GitHub CLI meldete `Unknown JSON field: baseRepository`; `gh pr list` beendete den Analyse-Step mit Exit 1. Kein Gemini-API-Key-Fehler.

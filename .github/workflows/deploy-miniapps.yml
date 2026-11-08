@@ -3,11 +3,12 @@
 # `pnpm run build:miniapp <id>` (VITE_SOLO=<id>, danach stamp-solo). Neue App = Eintrag in der Tabelle
 # (+ mini-app.json, Target, Icon, siehe _note); an diesem Workflow ändert sich nichts.
 #
-# Push auf master deployt nur die betroffenen Apps:
+# Push auf dev (früher Mini-App-Release ohne Preview) und master deployt nur die betroffenen Apps:
 #   - Dateien in den "paths" einer App                        -> diese App
 #   - solo-icons/<id>/                                        -> diese App
-#   - gemeinsamer Code (src/ ausser den App-paths, scripts/, vite.config.cjs, package.json, Lockfile,
-#     mini-app.json, firebase.json, miniapps.json, diese Datei) -> alle Apps
+#   - gemeinsamer App-Code (src/ ausser den App-paths, scripts/, vite.config.cjs, package.json,
+#     Lockfile, mini-app.json, firebase.json, miniapps.json) -> alle Apps
+#   - api.local.js ist nur lokaler Dev-Code und löst keinen Mini-App-Deploy aus
 # workflow_dispatch: alle oder eine App gezielt; mit `before` (so startet automerge.yml nach dem
 # Release-Merge) wie ein Push per Diff. Ein Merge mit GITHUB_TOKEN löst keinen push-Trigger aus.
 # Aufbau wie fitness-dev/deploy-miniapps.yml; Fuel baut aus nacktem Checkout (keine Nachbar-Repos).
@@ -27,6 +28,7 @@ name: Live Deploy (Fuel Mini-Apps je Tab)
         default: ''
   push:
     branches:
+      - dev
       - master
     paths:
       - 'src/**'
@@ -62,7 +64,7 @@ jobs:
           INPUT_BEFORE: ${{ inputs.before }}
         run: |
           set -euo pipefail
-          SHARED='^(src/|scripts/|vite\.config\.cjs$|package\.json$|pnpm-lock\.yaml$|mini-app\.json$|firebase\.json$|\.github/workflows/deploy-miniapps\.yml$)'
+          SHARED='^(src/|scripts/|vite\.config\.cjs$|package\.json$|pnpm-lock\.yaml$|mini-app\.json$|firebase\.json$)'
           all_ids=$(jq -r '.apps[].id' scripts/miniapps.json)
           selected=""
           if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] && [ -z "${INPUT_BEFORE:-}" ]; then
@@ -79,9 +81,9 @@ jobs:
               changed=$(git diff --name-only "$BEFORE" "$GITHUB_SHA")
             fi
             echo "$changed"
-            # App-eigene Pfade aller Apps aus der "gemeinsam"-Prüfung herausnehmen
+            # App-eigene Pfade und nur-lokale API-Datei aus der "gemeinsam"-Prüfung herausnehmen.
             own=$(jq -r '.apps[].paths[]' scripts/miniapps.json | sed 's/\./\\./g' | paste -sd'|')
-            if echo "$changed" | grep -Ev "^(${own})" | grep -Eq "$SHARED" \
+            if echo "$changed" | grep -Ev "^(${own}|src/client/lib/api\.local\.js$)" | grep -Eq "$SHARED" \
                || echo "$changed" | grep -qx 'scripts/miniapps.json'; then
               selected="$all_ids"
             else
