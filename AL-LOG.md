@@ -29,3 +29,23 @@ _Vom AL ausfüllen (knapp & belegbar, je 1–3 Zeilen, Commit-/PR-Referenzen sta
 - Erledigt: iOS-Login verglichen; Firebase Authorized Domains live 8/8 Fuel-Hosts vorhanden (CEO-Prüfung). Historischer iPad-Befund: Popup beendet sich, App bleibt abgemeldet (`RESULTS.md:83`); kein Error-Code/Repro.
 - Offen/Weiter: Fuel Firebase 11.10.0 / `@firebase/auth` 1.10.8 vs Fitness 13.1.0 / 1.13.8 ist ein möglicher Diagnosevergleich, keine bestätigte Ursache. Bei erneutem iPad-Repro Modus (Safari/PWA), Auth-State und Fehlercode festhalten.
 - Blocker: Kein aktueller iOS-Repro oder Console-Beleg; daher kein belastbarer Code-Fix und keine Änderung.
+
+## 2026-11-08 (Sonntag) — Abteilungsleiter-Lauf
+
+_Automatik (vos-al-log Vorlage 2026-11-08):_
+- Commits seit 2026-11-07: 7c25982 docs(agents): Org-Taskwarrior-Konvention v1 — globale Org-Task-DB (TASKRC ~/.local/state/vitalos-org/taskrc), Rolle=Tag, Abteilung/Repo=project, UUID-Regel (Owner-Weisung 2026-11-07)
+e9b0ce9 docs(todo): P1 iOS-Login-Problem Mini Apps (CEO-Triage Home-TODO 2026-11-07)
+- Offene PRs: (keine offenen PRs / gh nicht verfuegbar)
+- CI (letzte Läufe): completed	success	PR-AutoMerge (Dependabot -> dev)	PR-AutoMerge (Dependabot -> dev)	master	schedule	42425908839	8s	2026-11-07T23:35:03Z
+completed	success	Auto-Promote dev -> master (Check (Fuel))	Auto-Promote dev -> master (Check (Fuel))	master	schedule	42423206639	8s	2026-11-07T23:00:19Z
+completed	success	Live Deploy (Fuel master)	Live Deploy (Fuel master)	master	workflow_dispatch	42419402185	1m33s	2026-11-07T22:11:05Z
+- Arbeitsbaum: sauber
+
+_Vom AL ausfüllen (knapp & belegbar, je 1–3 Zeilen, Commit-/PR-Referenzen statt Erzählung):_
+- Erledigt:
+  - Aufgabe 2 (Settings a11y) geprüft: alle 14 Buttons in src/client/views/Settings/* haben sichtbaren Text (kein Icon-Button ohne Namen), Toggles mit aria-pressed (4828901), verstecktes File-Input mit aria-label — kein Fix erforderlich, Aufgabe im Guide abgehakt. Nur AL-LOG.md committet (kein Quellcode-Delta).
+- Offen/Weiter:
+  - Aufgabe 3 Dependabot-PRs bewerten (nächster Lauf). Hinweis: src/client/views/Settings/README.md enthält literale \n-Escapes im Inhalt (defekt, außerhalb Scope, unberührt).
+  - Guide-Referenzen product-dev/README.md, WOCHENPLAN.md, FRONTEND-REVIEWS.md existieren dort nicht mehr (nur legacy/README.md) — CTO prüfen.
+- Blocker:
+  - Keine.
