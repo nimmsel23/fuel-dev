@@ -5,6 +5,13 @@
 - Root-`index.html` und beide Vite-Konfigurationen unverändert gelassen (`base: "./"`); der App-Einstieg bleibt Vite-kompatibel.
 - Einordnung für die Org: dieses Muster ist der Pilot; Übertragung auf die übrigen Repos steht in `NEXT.md`.
 
+# 2026-11-08 — Fuel-iOS-Login: doppelten Popup-Request und Auth-Domain korrigieren
+
+- Vergleich mit `fitness-vos`: gleicher Popup-zuerst-/Redirect-Fallback-Flow; keine Sperre gegen parallele Anmeldeversuche.
+- Ursache im Supplements-Live-Bundle: `FIREBASE_CONFIG` setzte wieder `fitness-aos.firebaseapp.com`, obwohl die Mini-App unter `vos-fuel-supplements.web.app` läuft.
+- Mini-App-Deploy schreibt jetzt pro Target die passende `authDomain`; Fuel teilt einen laufenden Loginversuch und zeigt den Login-Status statt einen zweiten Popup-Request zu starten.
+- Reale iOS-Abnahme bleibt offen; nach dem Deploy die installierte PWA vollständig schließen und neu öffnen, dann einmal den Google-Login testen.
+
 # 2026-11-08 — Fuel-Mini-Apps als gezielte Dev-Releases
 
 - Mini-App-Deploy läuft jetzt auch bei relevanten Änderungen auf `dev` direkt auf das jeweilige Firebase-Hosting-Target; Preview-Links gibt es für diese Apps nicht.

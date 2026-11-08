@@ -64,6 +64,8 @@ export default function SoloShell() {
   const tab = TAB_CONFIG.find((t) => t.key === SOLO);
   const { activeDate, setActiveDate, setActiveTab } = useApp();
   const [authError, setAuthError] = React.useState("");
+  const [authBusy, setAuthBusy] = React.useState(false);
+  const authBusyRef = React.useRef(false);
   const [user, setUser] = React.useState(null);
   const [authReady, setAuthReady] = React.useState(false);
   const [needRefresh, setNeedRefresh] = React.useState(false);
@@ -88,6 +90,21 @@ export default function SoloShell() {
     const w = window.__swRegistration?.waiting;
     if (w) w.postMessage({ type: "SKIP_WAITING" });
     else window.location.reload();
+  };
+
+  const handleGoogleSignIn = async () => {
+    if (authBusyRef.current) return;
+    authBusyRef.current = true;
+    setAuthBusy(true);
+    setAuthError("");
+    try {
+      await signIn();
+    } catch (error) {
+      setAuthError(error.message);
+    } finally {
+      authBusyRef.current = false;
+      setAuthBusy(false);
+    }
   };
 
   if (frontdoorOpen && user) {
@@ -141,10 +158,12 @@ export default function SoloShell() {
               <div className="mx-auto mt-16 max-w-sm rounded-2xl border border-white/10 bg-white/5 p-6 text-center">
                 <p className="mb-4 text-sm text-slate-300">Mit deinem VitalOS-Konto anmelden, um {tab.label} zu nutzen.</p>
                 <button
-                  onClick={() => { setAuthError(""); signIn().catch(error => setAuthError(error.message)); }}
-                  className="rounded-full bg-orange-400 px-5 py-2 text-sm font-semibold text-slate-950 hover:bg-orange-300"
+                  onClick={handleGoogleSignIn}
+                  disabled={authBusy}
+                  aria-busy={authBusy}
+                  className="rounded-full bg-orange-400 px-5 py-2 text-sm font-semibold text-slate-950 hover:bg-orange-300 disabled:cursor-wait disabled:opacity-60"
                 >
-                  Mit Google anmelden
+                  {authBusy ? "Google-Login wird geöffnet …" : "Mit Google anmelden"}
                 </button>
                 {authError && <p role="alert" className="mt-3 text-sm text-rose-300">{authError}</p>}
               </div>

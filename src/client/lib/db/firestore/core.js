@@ -12,6 +12,8 @@ import { db, auth, googleProvider } from "../../firebase.js";
 
 export { serverTimestamp, db, auth, googleProvider };
 
+let signInAttempt = null;
+
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
 // Coach-Klientenliste (fitness-app ClientsPanel) liest nur fitness/{uid}/profile/metadata.
@@ -46,20 +48,26 @@ getRedirectResult(auth).catch((error) => {
   console.error("Redirect-Login Fehler:", error);
 });
 
-export async function signIn() {
-  try {
-    // Popup zuerst, auch auf iOS: Der Redirect-Flow über die fremde authDomain (fitness-aos.firebaseapp.com)
-    // verliert dort seit iOS 16.1 (Storage-Partitionierung) den Login-Status. Gleiches Vorgehen wie fitness-dev.
-    await signInWithPopup(auth, googleProvider);
-  } catch (error) {
-    // Popup vom Browser geblockt → Redirect nur noch als Notlösung.
-    if (error?.code === "auth/popup-blocked") {
-      await signInWithRedirect(auth, googleProvider);
-      return;
+export function signIn() {
+  // Ein zweiter Tap während des ersten Popup-/Redirect-Versuchs startet bei Firebase
+  // einen konkurrierenden Request und cancelt den ersten (auth/cancelled-popup-request).
+  if (signInAttempt) return signInAttempt;
+  signInAttempt = (async () => {
+    try {
+      // Popup zuerst, auch auf iOS. Der Mini-App-Build setzt authDomain auf dieselbe
+      // Hosting-Site, damit der Redirect-Fallback auf iOS seine Session nicht verliert.
+      await signInWithPopup(auth, googleProvider);
+    } catch (error) {
+      // Popup vom Browser geblockt → Redirect-Fallback.
+      if (error?.code === "auth/popup-blocked") {
+        await signInWithRedirect(auth, googleProvider);
+        return;
+      }
+      console.error("Login Fehler:", error);
+      throw error;
     }
-    console.error("Login Fehler:", error);
-    throw error;
-  }
+  })().finally(() => { signInAttempt = null; });
+  return signInAttempt;
 }
 
 export async function signOut() {
