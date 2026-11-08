@@ -203,6 +203,7 @@ WorkingDirectory=/opt/fuel
 Environment=PORT=7000
 Environment=HOST=0.0.0.0
 Environment=FUEL_STATIC_DIR=/opt/fuel/dist
+Environment=FUEL_SUPPLEMENTS_CATALOG_MODE=runtime
 Environment=PATH=/opt/fuel/.venv/bin:/usr/local/bin:/usr/bin:/bin
 ExecStart=/usr/bin/node server.mjs
 Restart=always
@@ -231,6 +232,7 @@ Environment=FUEL_BUILD_DIR=$STAGE/dist
 Environment=PATH=$STAGE/.venv/bin:/usr/local/bin:/usr/bin:/bin
 Environment=FUEL_ENABLE_FIRESTORE_SYNC=0
 Environment=FUEL_DISABLE_PUSH_SCHEDULER=1
+Environment=FUEL_SUPPLEMENTS_CATALOG_MODE=repo
 ExecStart=/usr/bin/node server.mjs
 Restart=always
 RestartSec=5

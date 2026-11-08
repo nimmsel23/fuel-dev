@@ -548,3 +548,10 @@ Enabled Dependabot alerts and security updates. Configured weekly GitHub Actions
 - Die erfassten Einnahmen zeigen Uhrzeiten; der Tagesbeitrags-Review ordnet Einträge chronologisch und zeigt die Uhrzeit in jeder Zeile. Bestandslogs ohne `time` bleiben ohne erfundene Uhrzeit.
 - Nicht gebaut/getestet; keine Cloud- oder Firebase-Daten verändert.
 
+## 2026-11-08 — Supplement-Katalog nach Login und Umgebung getrennt
+
+- Lokal authentifizierte API-Aufrufe senden das Firebase-ID-Token; Backend-Runtime- und Firestore-Scope werden dadurch dem verifizierten UID zugeordnet.
+- Ohne Login nutzt der lokale API-Kanal den versionierten Repo-Katalog. Staging setzt das explizit; `/opt` setzt Runtime-Scope und Port 7000 erzwingt ihn.
+- Ergänzender Backend-Push/Sync lädt Supplement-Kataloge ausschließlich aus dem UID-passenden Runtime-Pfad unter `~/.aos/fuel`; Repo-YAML bleibt Dev-/Staging-Daten.
+- Keine Firebase-/Firestore-Daten geändert; nicht gebaut oder getestet.
+

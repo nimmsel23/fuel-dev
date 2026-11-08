@@ -6,6 +6,7 @@
 
 Aktive Arbeitsliste (max. 5 Punkte).
 
+- [ ] Login- und No-Login-Katalogpfade auf Dev, Staging und `/opt` getrennt verifizieren; Firestore-Push nur mit der passenden Runtime-UID abnehmen.
 - [ ] Uhrzeit-Logging im Supplements-UI, lokalen Build und Cloud-Rundlauf verifizieren; bestaetigen, dass einzelne Einnahmen chronologisch im Tagesreview erscheinen.
 
 ## 2026-11-05
