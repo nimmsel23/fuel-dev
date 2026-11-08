@@ -1,3 +1,10 @@
+# 2026-11-08 — Fuel-README und GitHub Pages
+
+- README auf den aktuellen Repo-Zuschnitt aktualisiert: aktives Vite-Frontend von `fuel-backend`/`fuel-frontend` getrennt und veraltete Server-, API-, CLI- und Datenpfadbehauptungen entfernt.
+- GitHub Pages aktiviert: Quelle `dev /docs`, Site `https://nimmsel23.github.io/fuel-dev/`; `docs/README.md` ist der Kleinbuchstaben-`index.html`-Einstieg.
+- Root-`index.html` und beide Vite-Konfigurationen unverändert gelassen (`base: "./"`); der App-Einstieg bleibt Vite-kompatibel.
+- Einordnung für die Org: dieses Muster ist der Pilot; Übertragung auf die übrigen Repos steht in `NEXT.md`.
+
 # 2026-11-08 — Fuel-Mini-Apps als gezielte Dev-Releases
 
 - Mini-App-Deploy läuft jetzt auch bei relevanten Änderungen auf `dev` direkt auf das jeweilige Firebase-Hosting-Target; Preview-Links gibt es für diese Apps nicht.

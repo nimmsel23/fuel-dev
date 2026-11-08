@@ -6,6 +6,7 @@
 
 Aktive Arbeitsliste (max. 5 Punkte).
 
+- [ ] README-/GitHub-Pages-Muster auf die übrigen VitalOS-Repos übertragen: vorhandene Root-App-Einstiege und Vite-Konfiguration erhalten, Pages auf einen eigenen Dokumentationsordner richten.
 - [ ] Login- und No-Login-Katalogpfade auf Dev, Staging und `/opt` getrennt verifizieren; Firestore-Push nur mit der passenden Runtime-UID abnehmen.
 - [ ] Uhrzeit-Logging im Supplements-UI, lokalen Build und Cloud-Rundlauf verifizieren; bestaetigen, dass einzelne Einnahmen chronologisch im Tagesreview erscheinen.
 
