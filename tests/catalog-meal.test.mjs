@@ -37,3 +37,34 @@ test("a different gram weight scales the base meal and the add-ons", () => {
   assert.equal(meal.carbs, 20.5);
   assert.equal(meal.fat, 8);
 });
+
+test("unknown macros stay unknown and an explicit zero stays zero", () => {
+  const meal = mealFromCatalogItem({ ...item, kcal: null, fat: 0 }, { addonIds: ["cheese"] });
+  assert.equal(meal.kcal, null);
+  assert.equal(meal.fat, 6);
+  const plain = mealFromCatalogItem({ ...item, fat: 0, addons: [] });
+  assert.equal(plain.fat, 0);
+  assert.equal(plain.kcal, 400);
+});
+
+test("re-logging freezes ingredients and micronutrients at the chosen portion", () => {
+  const source = {
+    ...item,
+    components: [{ name: "Reis", amount_g: 200, grams: 200, kcal: 180, protein: null, qty_text: "200g" }],
+    micros: { calcium_mg: 0, iron_mg: 4 },
+  };
+  const meal = mealFromCatalogItem(source, { addonIds: ["cheese"], grams: 200 });
+  source.components[0].kcal = 999;
+  source.micros.iron_mg = 99;
+  source.kcal = 1;
+  assert.equal(meal.components_snapshot, true);
+  assert.equal(meal.micros_snapshot, true);
+  assert.equal(meal.components[0].kcal, 90);
+  assert.equal(meal.components[0].amount_g, 100);
+  assert.equal(meal.components[0].protein, null);
+  assert.equal(meal.components[0].qty_text, "200g");
+  assert.equal(meal.micros.calcium_mg, 0);
+  assert.equal(meal.micros.iron_mg, 2);
+  assert.equal(meal.addons[0].kcal, 40);
+  assert.equal(meal.kcal, 240);
+});

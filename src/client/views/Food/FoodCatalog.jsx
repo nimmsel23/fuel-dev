@@ -279,10 +279,10 @@ export default function FoodCatalog({ activeDate, showHistory = true }) {
         ) : null}
 
         <div className="mt-3 flex gap-4 text-sm font-medium text-slate-400">
-          <span className="text-orange-300">{macros.kcal} kcal</span>
-          <span>P {macros.protein}g</span>
-          <span>C {macros.carbs}g</span>
-          <span>F {macros.fat}g</span>
+          <span className="text-orange-300">{macros.kcal == null ? "— kcal" : `${macros.kcal} kcal`}</span>
+          <span>P {macros.protein == null ? "—" : `${macros.protein}g`}</span>
+          <span>C {macros.carbs == null ? "—" : `${macros.carbs}g`}</span>
+          <span>F {macros.fat == null ? "—" : `${macros.fat}g`}</span>
         </div>
 
         {item.notes && <div className="mt-2 text-xs italic text-slate-500">{item.notes}</div>}

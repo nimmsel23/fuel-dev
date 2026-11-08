@@ -4,6 +4,7 @@ import { scaleKnownMicros } from "../../knownMicros.js";
 import { OMEGA3_KEYS, normalizeOmega3 } from "../../../../shared/config/omega3.mjs";
 import { computeFastingWindows } from "../../../../shared/utils/fasting.mjs";
 import { projectCloudLog, outboxEntries, projectCloudCatalog, hasPendingFor } from "../../cloudOutbox.js";
+import { componentSnapshot, microSnapshot } from "../../catalogMeal.js";
 /**
  * Firestore Nutrition — Katalog, Tages-Logs, History, Wochen-Mikros
  *
@@ -96,10 +97,10 @@ export async function getNutritionLogsInRange(dates) {
 }
 
 function mealComponentTrace(meal, catalog) {
-  const logged = Array.isArray(meal.components) && meal.components.length > 0;
+  const logged = componentSnapshot(meal);
   const catalogId = meal.catalog_item_id || meal.catalog_id;
   const catalogMeal = catalogId ? catalog.find((item) => item.id === catalogId) : null;
-  if (logged) return { components: meal.components, components_source: "meal_snapshot" };
+  if (logged) return { components: logged, components_source: "meal_snapshot" };
   if (catalogMeal?.components?.length) {
     return { components: catalogMeal.components, components_source: "catalog_current" };
   }
@@ -147,7 +148,8 @@ export async function searchNutritionCatalog(q, limit = 20) {
 // cached sie in-place auf `meal.micros` — Pendant zu
 // server/services/nutrition-micros.mjs#resolveMealMicros für den Cloud-Channel.
 function resolveMealMicros(meal, catalog, microsMap) {
-  if (meal.micros) return (meal.micros = normalizeOmega3(meal.micros));
+  const snapped = microSnapshot(meal);
+  if (snapped) return (meal.micros = normalizeOmega3(snapped));
 
   const catalogEntry = catalog.find((i) => (meal.catalog_id && i.id === meal.catalog_id) || i.name === meal.description);
   const lookupName = catalogEntry?.name || meal.description;
