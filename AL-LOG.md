@@ -42,10 +42,6 @@ completed	success	Live Deploy (Fuel master)	Live Deploy (Fuel master)	master	wor
 - Arbeitsbaum: sauber
 
 _Vom AL ausfüllen (knapp & belegbar, je 1–3 Zeilen, Commit-/PR-Referenzen statt Erzählung):_
-- Erledigt:
-  - Aufgabe 2 (Settings a11y) geprüft: alle 14 Buttons in src/client/views/Settings/* haben sichtbaren Text (kein Icon-Button ohne Namen), Toggles mit aria-pressed (4828901), verstecktes File-Input mit aria-label — kein Fix erforderlich, Aufgabe im Guide abgehakt. Nur AL-LOG.md committet (kein Quellcode-Delta).
-- Offen/Weiter:
-  - Aufgabe 3 Dependabot-PRs bewerten (nächster Lauf). Hinweis: src/client/views/Settings/README.md enthält literale \n-Escapes im Inhalt (defekt, außerhalb Scope, unberührt).
-  - Guide-Referenzen product-dev/README.md, WOCHENPLAN.md, FRONTEND-REVIEWS.md existieren dort nicht mehr (nur legacy/README.md) — CTO prüfen.
-- Blocker:
-  - Keine.
+- Erledigt: Aufgabe 3 Dependabot-PRs ausgewertet (`gh pr list -R nimmsel23/fuel-dev`): 0 offene PRs; wöchentlicher Scan Mo 07:00 Wien auf dev (.github/dependabot.yml); Org-Task 6a0eeebc wacht über AutoMerge-Folge. Aufgabe 2 (Settings a11y, Commit 0f63fb5) bleibt gültig.
+- Offen/Weiter: Guide-Aufgaben 1–3 abgehakt. Nächste Priorität: P1 iOS-Login-Problem Fuel Mini Apps (Diagnose/Repro ausstehend, Home-TODO 2026-11-07).
+- Blocker: Keine.
