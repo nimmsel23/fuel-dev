@@ -20,7 +20,7 @@ export function useSupplementMutations(date) {
         supplement_id: values.supplement_id,
         name: values.name || item?.name || values.supplement_id,
         dose: values.dose, unit: values.unit,
-        time_of_day: values.time_of_day, notes: values.notes || "",
+        time_of_day: values.time_of_day, time: values.time || localIntakeTime(targetDate), notes: values.notes || "",
       } };
       const removed = qc.getQueryData(key)?.intakes?.find(item => item.id === values.delete_id);
       qc.setQueryData(key, current => ({ date: targetDate, ...applyIntakeCommand(current, command) }));
@@ -44,7 +44,8 @@ export function useSupplementMutations(date) {
       const item = qc.getQueryData(["supp-log", values.date || date])?.intakes?.find(item => item.id === values.id);
       return postJson("/supplements/log", { date: values.date || date, intake: item || {
         id: values.id, supplement_id: values.supplement_id, name: values.name || values.supplement_id,
-        dose: values.dose, unit: values.unit, time_of_day: values.time_of_day, notes: values.notes || "",
+        dose: values.dose, unit: values.unit, time_of_day: values.time_of_day,
+        time: values.time || localIntakeTime(values.date || date), notes: values.notes || "",
       } });
     },
   });
@@ -56,4 +57,10 @@ export function useSupplementMutations(date) {
     },
   });
   return { createIntake, deleteIntake };
+}
+
+function localIntakeTime(date) {
+  const now = new Date();
+  const hhmm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  return `${date}T${hhmm}:00`;
 }

@@ -25,7 +25,7 @@ export default function TodayStack({ date, intakes, focusIntakeId }) {
               <div>
                 <div className="font-semibold text-slate-100">{intake.name}</div>
                 <div className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-500">
-                  {formatMetric(intake.dose)} {intake.unit} · {intake.time_of_day}
+                  {intake.time ? `${intake.time.slice(11, 16)} Uhr · ` : ""}{formatMetric(intake.dose)} {intake.unit} · {intake.time_of_day}
                 </div>
                 <div className="mt-2 text-sm text-slate-400">{intake.notes || "Keine Notizen"}</div>
               </div>

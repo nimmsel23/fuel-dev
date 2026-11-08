@@ -542,3 +542,9 @@ Enabled Dependabot alerts and security updates. Configured weekly GitHub Actions
 - Agent-Workflow und lokale Trigger für `fuel-dev` auf `dev` eingerichtet; `GEMINI_API_KEY` als Actions-Secret gesetzt.
 - `Check`/Preview und Agent-Run [42405225362](https://github.com/nimmsel23/fuel-dev/actions/runs/42405225362) waren auf Commit `a980265b` grün. Dieser Lauf war ein No-op auf einem erfolgreichen Check; ein roter Code-Fehler wurde noch nicht absichtlich simuliert.
 - Pushes und PR-Merges verwenden die eng berechtigte `GITHUB_TOKEN`-Workflow-Berechtigung; kein separates `SYNC_TOKEN` erforderlich.
+## 2026-11-08 — Konkrete Uhrzeit pro Supplement-Einnahme
+
+- Supplement-Logs erhalten jetzt zusätzlich zu `time_of_day` (Planer-Kategorie) ein konkretes `time`-Feld. Manuelles Erfassen bietet eine Uhrzeitauswahl; Schnell-Log, Checkliste und Wochentracker erfassen den tatsächlichen lokalen Log-Zeitpunkt.
+- Die erfassten Einnahmen zeigen Uhrzeiten; der Tagesbeitrags-Review ordnet Einträge chronologisch und zeigt die Uhrzeit in jeder Zeile. Bestandslogs ohne `time` bleiben ohne erfundene Uhrzeit.
+- Nicht gebaut/getestet; keine Cloud- oder Firebase-Daten verändert.
+

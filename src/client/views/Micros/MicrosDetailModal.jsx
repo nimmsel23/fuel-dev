@@ -89,7 +89,7 @@ export default function MicrosDetailModal({ nutrient, week, weekData, onClose, o
   const activeDay = dayNutrientSummary(mealBreakdown[activeDate], key);
   const contributions = activeDay.contributions
     .map((entry) => ({ ...entry, date: activeDate }))
-    .sort((a, b) => (b.value ?? -1) - (a.value ?? -1));
+    .sort((a, b) => (a.time || "").localeCompare(b.time || "") || (a.name || "").localeCompare(b.name || ""));
   const activeDayTotal = activeDay.value;
   const selectedDayTotal = selectedEntry ? dayNutrientSummary(mealBreakdown[selectedEntry.date || activeDate], key).value : null;
   const selectedDayShare = selectedEntry?.value != null && selectedDayTotal > 0
@@ -218,7 +218,7 @@ export default function MicrosDetailModal({ nutrient, week, weekData, onClose, o
                       className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition ${isSelected ? "bg-cyan-400/10 ring-1 ring-cyan-300/40" : entry.date === activeDate ? "bg-violet-400/10 ring-1 ring-violet-400/30" : "bg-white/5 hover:bg-white/10"}`}>
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-sm text-slate-200">
-                          {entry.kind === "supplement" ? "💊 " : "🍽 "}{entry.name}
+                          {timeLabel(entry.time) ? `${timeLabel(entry.time)} ` : ""}{entry.kind === "supplement" ? "💊 " : "🍽 "}{entry.name}
                           <span className="ml-2 text-[10px] font-normal text-slate-500">{entry.date.slice(5).split("-").reverse().join(".")}</span>
                         </div>
                         {entry.micros_meta && (

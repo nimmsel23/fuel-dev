@@ -6,6 +6,8 @@
 
 Aktive Arbeitsliste (max. 5 Punkte).
 
+- [ ] Uhrzeit-Logging im Supplements-UI, lokalen Build und Cloud-Rundlauf verifizieren; bestaetigen, dass einzelne Einnahmen chronologisch im Tagesreview erscheinen.
+
 ## 2026-11-05
 
 - [ ] `CLAUDE.md` in `fuel-dev` ist nur teilweise bereinigt: Backend- und Sync-Abschnitte sind ausgelagert, die Code-Struktur-Übersicht, Quick Start und die `deploy.sh`-Beschreibung nennen aber noch `src/server/`, `server.mjs` und `frontend/`.

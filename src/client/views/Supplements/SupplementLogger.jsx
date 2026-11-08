@@ -13,6 +13,7 @@ const supplementSchema = z.object({
   dose: z.coerce.number().min(0),
   unit: z.string().min(1),
   time_of_day: z.string().min(1),
+  time: z.string().regex(/^\d{2}:\d{2}$/),
   notes: z.string().optional().default(""),
 });
 
@@ -27,6 +28,7 @@ export default function SupplementLogger({ date, catalog, intakes }) {
       dose: catalog[0]?.default_dose ?? 0,
       unit: catalog[0]?.unit || "mg",
       time_of_day: catalog[0]?.default_time_of_day || "any",
+      time: currentHHMM(),
       notes: "",
     },
   });
@@ -39,6 +41,7 @@ export default function SupplementLogger({ date, catalog, intakes }) {
       dose: selected?.default_dose ?? 0,
       unit: normalizeSupplementUnit(selected?.unit),
       time_of_day: selected?.default_time_of_day || "any",
+      time: currentHHMM(),
       notes: "",
     });
   }, [date, catalog, form]);
@@ -62,6 +65,7 @@ export default function SupplementLogger({ date, catalog, intakes }) {
           dose: selected?.default_dose ?? values.dose ?? 0,
           unit: normalizeSupplementUnit(selected?.unit || values.unit),
           time_of_day: selected?.default_time_of_day || values.time_of_day,
+          time: currentHHMM(),
           notes: "",
         });
       }
@@ -108,6 +112,9 @@ export default function SupplementLogger({ date, catalog, intakes }) {
             <option value="any">Any</option>
           </select>
         </Field>
+        <Field label="Einnahmezeit">
+          <Input type="time" {...form.register("time")} />
+        </Field>
         <Field label="Notizen">
           <Input placeholder="optional" {...form.register("notes")} />
         </Field>
@@ -127,4 +134,9 @@ export default function SupplementLogger({ date, catalog, intakes }) {
       </button>
     </form>
   );
+}
+
+function currentHHMM() {
+  const now = new Date();
+  return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 }
