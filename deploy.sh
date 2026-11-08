@@ -233,6 +233,7 @@ Environment=PATH=$STAGE/.venv/bin:/usr/local/bin:/usr/bin:/bin
 Environment=FUEL_ENABLE_FIRESTORE_SYNC=0
 Environment=FUEL_DISABLE_PUSH_SCHEDULER=1
 Environment=FUEL_SUPPLEMENTS_CATALOG_MODE=repo
+Environment=FUEL_SUPPLEMENTS_REPO_CATALOG_PATH=$DEV_SOURCE/catalogs/supplements/catalog.yaml
 ExecStart=/usr/bin/node server.mjs
 Restart=always
 RestartSec=5
