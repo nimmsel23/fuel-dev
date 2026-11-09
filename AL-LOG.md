@@ -45,3 +45,19 @@ _Vom AL ausfüllen (knapp & belegbar, je 1–3 Zeilen, Commit-/PR-Referenzen sta
 - Erledigt: Aufgabe 3 Dependabot-PRs ausgewertet (`gh pr list -R nimmsel23/fuel-dev`): 0 offene PRs; wöchentlicher Scan Mo 07:00 Wien auf dev (.github/dependabot.yml); Org-Task 6a0eeebc wacht über AutoMerge-Folge. Aufgabe 2 (Settings a11y, Commit 0f63fb5) bleibt gültig.
 - Offen/Weiter: Guide-Aufgaben 1–3 abgehakt. Nächste Priorität: P1 iOS-Login-Problem Fuel Mini Apps (Diagnose/Repro ausstehend, Home-TODO 2026-11-07).
 - Blocker: Keine.
+
+## 2026-11-09 (Montag) — Abteilungsleiter-Lauf
+
+_Automatik (vos-al-log Vorlage 2026-11-09):_
+- Commits seit 2026-11-07: 7c25982 docs(agents): Org-Taskwarrior-Konvention v1 — globale Org-Task-DB (TASKRC ~/.local/state/vitalos-org/taskrc), Rolle=Tag, Abteilung/Repo=project, UUID-Regel (Owner-Weisung 2026-11-07)
+e9b0ce9 docs(todo): P1 iOS-Login-Problem Mini Apps (CEO-Triage Home-TODO 2026-11-07)
+- Offene PRs: (keine offenen PRs / gh nicht verfuegbar)
+- CI (letzte Läufe): completed	success	Auto-Promote dev -> master (Check (Fuel))	Auto-Promote dev -> master (Check (Fuel))	master	schedule	42538224643	7s	2026-11-09T00:04:42Z
+completed	success	PR-AutoMerge (Dependabot -> dev)	PR-AutoMerge (Dependabot -> dev)	master	schedule	42531803443	7s	2026-11-08T22:45:23Z
+completed	success	Gemini CI Agent	Gemini CI Agent	master	workflow_run	42530968484	13s	2026-11-08T22:35:07Z
+- Arbeitsbaum: sauber
+
+_Vom AL ausfüllen (knapp & belegbar, je 1–3 Zeilen, Commit-/PR-Referenzen statt Erzählung):_
+- Erledigt: Org-Task 6a0eeebc Stabilitätswache — AutoMerge 2d grün (42551594703 09., 42531803443 08.); Auto-Promote success (42572514609, 42538224643). Mo-Dependabot-Scan: 0 neue/offene PRs (`gh pr list`); Annotate auf 6a0eeebc.
+- Offen/Weiter: 6a0eeebc bleibt pending bis Dependabot-PR-Merge-Beleg (letzte Dependabot #15/#16 closed 2026-11-05). P1 iOS: ca22778 bereits auf origin/dev; Repro-Abnahme offen.
+- Blocker: Kein Dependabot-PR im Mo-Lauf — Merge-Beleg nicht erzeugbar.

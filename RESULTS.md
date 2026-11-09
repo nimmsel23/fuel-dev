@@ -1,3 +1,9 @@
+# 2026-11-09 — AL: AutoMerge-Stabilitätswache (Org-Task 6a0eeebc)
+
+- Zwei grüne AutoMerge-Tage belegt (Runs 42551594703, 42531803443); Auto-Promote ebenfalls grün.
+- Mo-Dependabot-Scan ohne neue PRs — kein PR-Merge-Beleg; Task annotiert, bleibt pending.
+- Details: `AL-LOG.md` 2026-11-09.
+
 # 2026-11-08 — Fuel-README und GitHub Pages
 
 - README auf den aktuellen Repo-Zuschnitt aktualisiert: aktives Vite-Frontend von `fuel-backend`/`fuel-frontend` getrennt und veraltete Server-, API-, CLI- und Datenpfadbehauptungen entfernt.
