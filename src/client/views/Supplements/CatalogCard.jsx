@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Settings2, Sparkles, Plus, Repeat, Bell } from "lucide-react";
 import { Empty } from "../../components/ui.jsx";
-import { formatMetric } from "#shared/utils/utils.js";
+import { formatMetric } from "../../../shared/utils/utils.js";
 import SupplementEditor from "./SupplementEditor.jsx";
 
 import GeminiCatalogModal from "../../components/GeminiCatalogModal.jsx";

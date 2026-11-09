@@ -1,6 +1,6 @@
 import { CopyPlus, Pencil, Trash2 } from "lucide-react";
 import { twMerge } from "tailwind-merge";
-import { formatMealMetric } from "#shared/utils/utils.js";
+import { formatMealMetric } from "../../../../shared/utils/utils.js";
 
 const MEAL_LABEL_FALLBACK = (type) => type;
 

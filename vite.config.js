@@ -29,8 +29,6 @@ export default defineConfig(async () => {
     },
     resolve: {
       alias: {
-        // Shared SOT: ~/dev/backend/fuel/src/shared (kein Symlink — Node materialisiert die).
-        "#shared":  resolve(__dirname, "../backend/fuel/src/shared"),
         "@api":     resolve(__dirname, "src/client/lib/api.local.js"),
         "@firebase-config": resolve(__dirname, "src/client/lib/firebase.config.vitalos.js"),
         "@fuel":    resolve(__dirname, "src/client"),

@@ -1,6 +1,6 @@
 // Reine Logik der Küche (Vorrat, Einkauf, Aktionen) — bewusst ohne Firebase-/Vertex-Import, damit sie testbar ist.
 // Die KI-Aufrufe liegen in kitchenAi.js, die Firestore-Zugriffe in db/firestore/pantry.js.
-import { todayISO, isISODate } from "#shared/utils/validation.mjs";
+import { todayISO, isISODate } from "../../shared/utils/validation.mjs";
 
 export const CATEGORIES = [
   { key: "obst_gemuese", label: "Obst & Gemüse" },

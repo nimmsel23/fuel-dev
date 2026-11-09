@@ -1,4 +1,4 @@
-import { todayISO } from "#shared/utils/validation.mjs";
+import { todayISO } from "../../shared/utils/validation.mjs";
 
 const STORAGE_KEY = "fuel-notification-intent";
 

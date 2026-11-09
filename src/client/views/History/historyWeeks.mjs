@@ -1,4 +1,4 @@
-import { formatLocalDate, parseLocalNoon, todayISO } from "#shared/utils/validation.mjs";
+import { formatLocalDate, parseLocalNoon, todayISO } from "../../../shared/utils/validation.mjs";
 
 export function historyToday() {
   return todayISO();

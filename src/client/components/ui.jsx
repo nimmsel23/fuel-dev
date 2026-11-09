@@ -1,7 +1,7 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { X, Pencil, Trash2 } from "lucide-react";
 import { twMerge } from "tailwind-merge";
-import { formatMetric } from "#shared/utils/utils.js";
+import { formatMetric } from "../../shared/utils/utils.js";
 
 export const inputClassName = "rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-slate-100";
 

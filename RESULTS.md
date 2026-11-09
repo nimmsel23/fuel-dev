@@ -1,3 +1,8 @@
+## 2026-11-09 — shared relative Imports (Staging-fix)
+
+- `#shared`-Package-Imports entfernt (Runtime-package.json kennt die nicht).
+- Client wieder `../../shared/...`; Stubs lokal, echte Dateien im Staging aus Backend.
+
 ## 2026-11-09 — shared SOT im Backend, keine Ordner-Symlinks
 
 - `src/shared` nur noch Re-Export-Stubs; Vite `#shared` → `../backend/fuel/src/shared`.

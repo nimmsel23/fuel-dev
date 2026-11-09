@@ -4,7 +4,7 @@ import { addDays, addWeeks, format, parseISO, startOfWeek } from "date-fns";
 import { de } from "date-fns/locale";
 import { CalendarDays, Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { suppLogOptions } from "../../hooks/useSupplements.js";
-import { formatMetric, normalizeSupplementUnit } from "#shared/utils/utils.js";
+import { formatMetric, normalizeSupplementUnit } from "../../../shared/utils/utils.js";
 import { isDueToday } from "./utils.js";
 import { useSupplementMutations } from "./useSupplementMutations.js";
 

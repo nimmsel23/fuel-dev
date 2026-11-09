@@ -1,5 +1,5 @@
-import { MICRO_KEYS } from "#shared/config/dach.mjs";
-import { normalizeOmega3 } from "#shared/config/omega3.mjs";
+import { MICRO_KEYS } from "../../shared/config/dach.mjs";
+import { normalizeOmega3 } from "../../shared/config/omega3.mjs";
 
 // Absence is unknown, while an explicit numeric zero is a known value.
 export function knownMicros(raw) {

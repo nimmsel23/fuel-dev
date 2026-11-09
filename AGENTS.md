@@ -15,7 +15,7 @@ Aus diesem Repo sind zwei Bereiche in eigene Repos gewandert. Dort arbeiten, nic
 
 | Was | Neuer Ort | Remote (privat) | Hinweis |
 |---|---|---|---|
-| Node-Backend (Fastify, Firestore-Sync, Push): ehemals `server.mjs`, `src/server/`, `scripts/{sync-daemon,firestore-sync,coach-task,backfill-micro-keys,test-push-local,migrate-data}.mjs`, Server-Tests | `~/dev/backend/fuel` | Teil von `~/dev/backend` (ehem. `nimmsel23/fuel-backend`) | Verlauf von `src/server` erhalten (git subtree split). Layout wie im Deploy-Ziel (`server.mjs`, `src/server/`, `scripts/`). `src/shared` SOT liegt dort (echte Dateien). Frontend: Vite `#shared` + dünne Re-Export-Stubs unter `fuel-dev/src/shared` (kein Ordner-Symlink). Katalog/dist/`.env` aus diesem Repo (oder `FUEL_ROOT`). |
+| Node-Backend (Fastify, Firestore-Sync, Push): ehemals `server.mjs`, `src/server/`, `scripts/{sync-daemon,firestore-sync,coach-task,backfill-micro-keys,test-push-local,migrate-data}.mjs`, Server-Tests | `~/dev/backend/fuel` | Teil von `~/dev/backend` (ehem. `nimmsel23/fuel-backend`) | Verlauf von `src/server` erhalten (git subtree split). Layout wie im Deploy-Ziel (`server.mjs`, `src/server/`, `scripts/`). `src/shared` SOT liegt dort (echte Dateien). Frontend: relative Imports auf `src/shared/`-Stubs (Re-Export zur SOT, kein Ordner-Symlink). Katalog/dist/`.env` aus diesem Repo (oder `FUEL_ROOT`). |
 | Alter Frontend-Zweig `frontend/` (pausierter Refactor, `fuel-centre` 4.0) | `~/dev/fuel-frontend` | `nimmsel23/fuel-frontend` | Mit Verlauf herausgelöst, Server-Code (`src/server`) und Server-Deps entfernt. Das Root-Frontend dieses Repos (`src/client`) ist weiter. |
 
 Folgen:

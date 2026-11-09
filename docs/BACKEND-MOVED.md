@@ -9,9 +9,10 @@ Scripts/`fuelctl` zeigen auf `../backend/fuel`.
 
 ## Shared → `~/dev/backend/fuel/src/shared`
 
-Echte Dateien (kein Symlink). Frontend importiert via `#shared`
-(Vite-Alias + `package.json#imports` → dünne Re-Export-Stubs in
-`fuel-dev/src/shared`). `deploy.sh` synct Shared aus dem Backend.
+Echte Dateien (kein Ordner-Symlink). In diesem Repo liegen unter
+`src/shared/` nur **Re-Export-Stubs** auf die SOT — relative Imports
+(`../../shared/...`) bleiben stabil; Staging bekommt die echten Dateien
+via `deploy.sh`/`sync_backend`.
 
 ## Python → `~/dev/backend/fuel/backend`
 

@@ -4,7 +4,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Pill } from "lucide-react";
 import { Field, Input, inputClassName } from "../../components/ui.jsx";
-import { normalizeSupplementUnit } from "#shared/utils/utils.js";
+import { normalizeSupplementUnit } from "../../../shared/utils/utils.js";
 import { useSupplementMutations } from "./useSupplementMutations.js";
 
 const supplementSchema = z.object({

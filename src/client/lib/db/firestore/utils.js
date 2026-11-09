@@ -2,8 +2,8 @@
  * Firestore Utils — Datums-Helpers + Mikronährstoff-Konstanten
  */
 
-import { todayISO, formatLocalDate, shiftLocalISO, datesEndingAt } from "#shared/utils/validation.mjs";
-import { MICRO_KEYS } from "#shared/config/dach.mjs";
+import { todayISO, formatLocalDate, shiftLocalISO, datesEndingAt } from "../../../../shared/utils/validation.mjs";
+import { MICRO_KEYS } from "../../../../shared/config/dach.mjs";
 
 export { todayISO, formatLocalDate, shiftLocalISO, datesEndingAt, MICRO_KEYS };
 

@@ -16,7 +16,7 @@ import MealListDashboard, { StatTile } from "./components/MealListDashboard.jsx"
 import MealListTimeline from "./components/MealListTimeline.jsx";
 import { computeMacroGoals } from "../Settings/GoalsSection.jsx";
 import { Camera, RotateCcw } from "lucide-react";
-import { sumMetric, sumCompleteMetric, formatMetric } from "#shared/utils/utils.js";
+import { sumMetric, sumCompleteMetric, formatMetric } from "../../../shared/utils/utils.js";
 import { consumeNotificationIntent } from "../../lib/notification-intents.js";
 import { missingMealMacros } from "../../lib/mealMacros.js";
 import { buildMealSavePlan } from "../../lib/mealSavePlan.js";

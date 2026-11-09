@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Check, Bell } from "lucide-react";
 import { Empty } from "../../components/ui.jsx";
-import { formatMetric, normalizeSupplementUnit } from "#shared/utils/utils.js";
+import { formatMetric, normalizeSupplementUnit } from "../../../shared/utils/utils.js";
 import { isDueToday, TIME_LABELS } from "./utils.js";
 import { useSupplementMutations } from "./useSupplementMutations.js";
 import { messaging } from "../../lib/firebase.js";

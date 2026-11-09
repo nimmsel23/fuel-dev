@@ -1,5 +1,5 @@
 import { Flame } from "lucide-react";
-import { formatMetric, normalizeSupplementUnit } from "#shared/utils/utils.js";
+import { formatMetric, normalizeSupplementUnit } from "../../../shared/utils/utils.js";
 import { useSupplementMutations } from "./useSupplementMutations.js";
 
 const QUICK_LOG_LIMIT = 8;
