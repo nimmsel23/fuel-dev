@@ -388,10 +388,10 @@ Gemeinsam ist nur `src/client/` UI (Views, Hooks, Components) — kein Backend-C
 |---|---|
 | `fuel_cli/` (catalog, gemini, compose, log, http) | → `fuel_agent/` umbenennen |
 | `bin/gemini-*` Standalone-Scripts | → in `fuel_agent/gemini.py` integrieren |
-| Fastify `server.mjs` | → organisch schrumpfen während Python wächst |
+| Fastify in `~/dev/fuel-backend` (`server.mjs`) | → dort halten; Python wächst daneben, kein Doppel-Code hier |
 | `fuel_routes.yaml` | bleibt als SSOT für Endpoints |
 
-**Prinzip: kein Doppel-Code.** Jede Catalog-Logik, jede Gemini-Integration, jede Datei-Op gehört einmal in `fuel_agent/`. Der Fastify-Server proxied oder ruft `fuel_agent/` auf — er dupliziert keine Logik.
+**Prinzip: kein Doppel-Code.** Jede Catalog-Logik, jede Gemini-Integration, jede Datei-Op gehört einmal in `fuel_agent/` bzw. `fuel-backend`. Der Fastify-Server proxied oder ruft `fuel_agent/` auf — er dupliziert keine Logik.
 
 ### @api Alias-Split (bereits umgesetzt)
 
