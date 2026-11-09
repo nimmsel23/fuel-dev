@@ -1,3 +1,8 @@
+## 2026-11-09 — Python-backend/ bleibt (kein Subtree)
+
+- Poetry-`backend/` wurde nicht nach `~/dev/backend/fuel` (Node) extrahiert.
+- Wiederhergestellt nach Fehl-Aufräumversuch; siehe `docs/BACKEND-MOVED.md`.
+
 ## 2026-11-09 — Node-Backend-Pfad → ~/dev/backend/fuel
 
 - Scripts/Docs/Deploy zeigen auf `../backend/fuel` (nicht mehr Sibling `fuel-backend`).

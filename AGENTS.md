@@ -24,6 +24,11 @@ Folgen:
 - `package.json`-Skripte `start`/`dev`/`cloud:*`, `scripts/dev-runner.mjs` und `bin/fuelctl` zeigen auf `../backend/fuel`. `backend/api/main.py` (Python) liest das Frontend-`dist` aus `../fuel-frontend/dist` oder `FUEL_FRONTEND_DIR`.
 - Neue Server-Änderungen (Routen, Services, Firestore-Admin) gehören nach `~/dev/backend/fuel`, nicht hierher.
 
+
+## Python-`backend/` (Stand 2026-11-09)
+
+Das Poetry/Alembic-`backend/` in diesem Repo wurde **nicht** nach `~/dev/backend/fuel` (Node) extrahiert. Node-SOT = `backend/fuel`; Python-Backend bleibt hier, bis ein echter Subtree-Split existiert. Siehe `docs/BACKEND-MOVED.md`.
+
 ## Fuel-Mini-Apps: Release-Grenze
 
 - `vos-fuel-log`, `vos-fuel-supplements`, `vos-fuel-mikros` und `vos-fuel-protokoll` sind stabile Fallback-Apps. Sie gehören nicht zum automatischen `fuel-release`.
