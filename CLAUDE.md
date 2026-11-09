@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-> **Node-Backend ausgelagert (2026-11-04):** `server.mjs` und Server-Code liegen in `~/dev/fuel-backend` / `~/dev/fuel-frontend`. Dev-Scripts (`dev`/`start`) rufen `../fuel-backend/server.mjs` auf; Server-Doku in dessen `CLAUDE.md`. Dependencies dort pflegen, nicht hier.
+> **Node-Backend ausgelagert (2026-11-04):** `server.mjs` und Server-Code liegen in `~/dev/backend/fuel` / `~/dev/fuel-frontend`. Dev-Scripts (`dev`/`start`) rufen `../backend/fuel/server.mjs` auf; Server-Doku in dessen `CLAUDE.md`. Dependencies dort pflegen, nicht hier.
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -57,10 +57,10 @@ VITALTRAINING (Der eine Gott — The Ultimate Authority)
 Beide Channels teilen sich **dieselbe React-Codebase** in `src/client/` — Unterschied liegt nur im Build-Mode + Runtime-Detection via `isCloud()` in `src/client/lib/api.js`.
 
 **Ports:**
-- Dev: 9000 (`~/dev/fuel-backend/server.mjs` → `src/server/app.mjs`; Scripts hier rufen `../fuel-backend/server.mjs`)
+- Dev: 9000 (`server.mjs` → `src/server/app.mjs`)
 - Vite dev: 5173
 - local Prod: 7000 (static, `fuel.service`; Legacy-Unit `fuel-v2.service` am 2026-08-28 restlos entfernt)
-- v4 (Python/FastAPI, `backend/` hier + UI in `~/dev/fuel-frontend`): Standalone-Dev optional auf :4000; lokal eingebunden in VitalOS auf :8000 unter `/api/fuel/*`. `fuel-python.service` ist seit 2026-10-29 deaktiviert; Firebase bleibt der Produkt-Einstieg.
+- v4 (Python/FastAPI, `backend/`): Standalone-Dev optional auf :4000; lokal eingebunden in VitalOS auf :8000 unter `/api/fuel/*`. `fuel-python.service` ist seit 2026-10-29 deaktiviert; Firebase bleibt der Produkt-Einstieg.
 - cloud: `https://fuel-vos.web.app`
 
 **Data location (local):** `~/.aos/fuel/` (via `AOS_FUEL_DATA_DIR`)
@@ -73,7 +73,7 @@ Instanz; Cloud-Änderungen werden beim nächsten Push gemerged statt überschrie
 
 ### Firestore-Sync
 
-Die beiden Sync-Engines (`fuel-sync.service`, `scripts/sync-daemon.mjs`, `firestore-admin.mjs`) liegen in `~/dev/fuel-backend`; Beschreibung (Stand 2026-09-07) dort in `CLAUDE.md`.
+Die beiden Sync-Engines (`fuel-sync.service`, `scripts/sync-daemon.mjs`, `firestore-admin.mjs`) liegen in `~/dev/backend/fuel`; Beschreibung (Stand 2026-09-07) dort in `CLAUDE.md`.
 
 ## Quick Start
 
@@ -82,8 +82,8 @@ pnpm install
 pnpm run dev          # nodemon + vite dev (Port 9000 + 5173)
 pnpm run build:local  # Vite build → coach mode (für /opt/fuel)
 pnpm run build:cloud  # Vite build → client mode → dist-firebase/
-pnpm run prod         # node ../fuel-backend/server.mjs (PORT 7000 Prod / 9000 Default; Desktop-Prod aus /opt/fuel)
-pnpm start            # bare server: node ../fuel-backend/server.mjs Port 9000
+pnpm run prod         # node server.mjs auf 0.0.0.0:9000 (Desktop-Prod läuft aktuell ebenfalls über die Node-Schicht, aber auf :7000 aus /opt/fuel)
+pnpm start            # bare server port 9000
 pnpm run ui:dev       # Vite dev only (kein Backend)
 
 # Deploy
@@ -95,7 +95,7 @@ pnpm run deploy:preview # build:cloud + 24h-Preview-Channel + Telegram-Link (scr
 # Sync
 pnpm run cloud:push   # lokale Cloud-Payloads → Firestore
 pnpm run cloud:pull   # Firestore → lokale Dateien
-pnpm run cloud:watch  # ../fuel-backend/scripts/firestore-sync.mjs Watch-Modus
+pnpm run cloud:watch  # firestore-sync.mjs im Watch-Modus
 pnpm run catalog:sync -- <uid> # echter Catalog-Sync: nur fehlende oder neuere Items
 ```
 
@@ -107,7 +107,7 @@ pnpm run catalog:sync -- <uid> # echter Catalog-Sync: nur fehlende oder neuere I
 
 ### Backend / SQLite / Micros
 
-Fastify-Server, `nutrition.db` (better-sqlite3) und Micros/DACH liegen in `~/dev/fuel-backend` (`server.mjs` → `src/server/app.mjs`; Doku dort in `CLAUDE.md`). In diesem Repo gibt es kein `src/server/` mehr.
+Fastify-Server (`server.mjs` → `src/server/app.mjs`), `nutrition.db` (better-sqlite3) und Micros/DACH liegen in `~/dev/backend/fuel` (Doku dort in `CLAUDE.md`).
 
 ### Frontend
 
@@ -199,22 +199,22 @@ Deaktivieren falls nötig: `systemctl --user disable --now fuel-catalog-verify.t
 
 ### local channel (aktueller Desktop-Entry-Point: v3/Node)
 ```bash
-pnpm run dev          # nodemon + vite; watches src/ + ../fuel-backend
+pnpm run dev          # nodemon + vite, watches src/ + server.mjs
 pnpm run build:local  # Vite → ./opt-fuel target (VITE_APP_MODE=coach)
-pnpm run prod         # PORT=7000 HOST=0.0.0.0 → ../fuel-backend/server.mjs
+pnpm run prod         # PORT=7000 HOST=0.0.0.0 FUEL_STATIC_DIR=/opt/fuel
 pnpm run deploy:local # = ./deploy.sh — rsync → dependency install → systemctl restart
 ./deploy.sh          # Bash deploy script (siehe unten)
 fuelctl local deploy # Python-Wrapper, ruft deploy.sh
 ```
 
-**`deploy.sh`** macht aktuell zweistufig: `staging` synced dieses Repo plus Backend aus
-`$FUEL_BACKEND_DIR` (Standard `~/dev/fuel-backend`) nach `~/.local/fuel`; `prod`
-synced von dort nach `/opt/fuel` (optional Node). Der frühere Parallelbetrieb
-`fuel.service` + `fuel-python.service` (`backend/` + damals `frontend/`) ist seit
-2026-10-29 abgeschaltet — FastAPI-Router laufen in VitalOS auf :8000; das
-pausierte Vite-Frontend liegt in `~/dev/fuel-frontend`. `deploy.sh prod`
-deployed nur noch den optionalen Node-Server und deaktiviert eine vorhandene
-alte `fuel-python.service`-Unit.
+**`deploy.sh`** macht aktuell zweistufig: `staging` synced `~/fuel-dev` nach
+`~/.local/fuel`; `prod` synced von dort nach `/opt/fuel` und `/opt/fuel-python`.
+Beide Prod-Services sind aktiv und laufen parallel (verifiziert 2026-08-28):
+`fuel.service` (v3, Node, `/opt/fuel`, Port 7000) und `fuel-python.service`
+(v4, `backend/`+`frontend/`, Port 4000). Stand 2026-10-29 sind beide lokalen
+Prod-Units deaktiviert. Die FastAPI-Router laufen in VitalOS auf :8000;
+`deploy.sh prod` deployed nur noch den optionalen Node-Server und deaktiviert
+eine vorhandene alte `fuel-python.service`-Unit.
 
 **Environment Variables (local):**
 - `PORT` (default 9000)
@@ -228,7 +228,7 @@ alte `fuel-python.service`-Unit.
 ```bash
 pnpm run build:cloud  # VITE_APP_MODE=client → dist-firebase/
 pnpm run deploy:cloud # build:cloud + firebase deploy --only hosting:client
-pnpm run cloud:push   # Lokale Cloud-Payloads → Firestore (../fuel-backend/scripts/firestore-sync.mjs)
+pnpm run cloud:push   # Lokale Cloud-Payloads → Firestore (scripts/firestore-sync.mjs)
 pnpm run cloud:pull   # Firestore → lokale Dateien
 pnpm run catalog:sync -- <uid> # echter Catalog-Sync für nutrition/supplements
 pnpm run deploy:preview # 24h-Preview-Channel + Telegram-Link
@@ -268,32 +268,98 @@ Flow: auf `dev` entwickeln → `pnpm run deploy:preview` (24h-Link testen) → w
 ## Code Structure
 
 ```
-fuel-dev/                         ─── App-Frontend + Kataloge + Deploy (dieses Repo)
+fuel-dev/
+├── server.mjs                    Entrypoint → src/server/app.mjs
 ├── src/
 │   ├── client/                   ─── Frontend (React, Vite) ───────────────────
 │   │   ├── main.jsx              React entry, Tabs, Layout, Auth
 │   │   ├── store.js              Zustand: activeTab, activeDate
 │   │   ├── styles.css
-│   │   ├── views/                Dashboard, Log/Food, Micros, Calendar, …
+│   │   ├── views/
+│   │   │   ├── DashboardView.jsx  Makro-Summary, Trend-Charts
+│   │   │   ├── FoodView.jsx       Logging-Form, Food-Search, Katalog, Rezept-Builder
+│   │   │   ├── MicrosView.jsx     Wochenheatmap DACH
+│   │   │   ├── CalendarView.jsx   FullCalendar Monatsansicht
+│   │   │   ├── JournalView.jsx    Freitext-Notizen
+│   │   │   ├── SupplementsView.jsx
+│   │   │   └── SettingsView.jsx
 │   │   ├── components/
+│   │   │   ├── FoodSearch.jsx     Open Food Facts / Catalog-Suche
+│   │   │   ├── NutritionHeatmap.jsx Wochennavigation (Header)
+│   │   │   ├── GeminiCatalogModal.jsx
+│   │   │   └── ui.jsx             Shared MealRow etc.
 │   │   ├── hooks/
-│   │   └── lib/                  api.local.js / api.cloud.js, Firebase, Firestore
-│   └── shared/                   ─── Geteilt (client hier; Symlink in fuel-backend)
-│       ├── config/               constants.mjs, dach.mjs
+│   │   │   ├── useNutrition.js    useNutritionData / useMacroTrend / useJournal
+│   │   │   ├── useSupplements.js
+│   │   │   └── weekLogs.js
+│   │   └── lib/
+│   │       ├── api.js             ⭐ Cloud-Aware Abstraction (lokal→Fastify / cloud→Firestore)
+│   │       ├── firebase.js        Firebase Init + Auth
+│   │       ├── firebase.config.js Firebase Project: fitness-aos (Site: fuel-vos)
+│   │       └── db.firestore.js    Firestore Data Layer (Multi-User, per UID)
+│   ├── server/                   ─── Backend (Fastify, Node) ─────────────────
+│   │   ├── app.mjs               Fastify setup, Plugin-Registration
+│   │   ├── config/
+│   │   │   └── paths.mjs         Alle Server-Pfad-Konstanten
+│   │   ├── routes/
+│   │   │   ├── nutrition/
+│   │   │   │   ├── index.mjs     Plugin-Wrapper für alle Nutrition-Routes
+│   │   │   │   ├── log.mjs       GET+POST+PATCH /nutrition/log
+│   │   │   │   ├── catalog.mjs   GET+POST /nutrition/catalog
+│   │   │   │   ├── daily.mjs     GET /nutrition/search + /nutrition/daily/:date
+│   │   │   │   ├── weekly.mjs    GET /nutrition/weekly/:year/:week
+│   │   │   │   ├── journal.mjs   GET+POST /nutrition/journal
+│   │   │   │   ├── compose.mjs   POST /nutrition/compose + /nutrition/estimate
+│   │   │   │   ├── estimate.mjs  POST /nutrition/estimate (standalone)
+│   │   │   │   └── ai-log.mjs    POST /nutrition/ai-log (Gemini dispatcher)
+│   │   │   ├── supplements.mjs
+│   │   │   ├── supplement-estimate.mjs
+│   │   │   ├── fuel.mjs          legacy
+│   │   │   ├── health.mjs
+│   │   │   └── static.mjs
+│   │   ├── services/
+│   │   │   ├── nutrition-db.mjs  better-sqlite3: ingredients + meal_micros
+│   │   │   ├── nutrition-catalog.mjs Meal-Catalog (individuelle Files)
+│   │   │   ├── nutrition-micros.mjs  getMicrosForMeal / saveMicrosForMeal
+│   │   │   ├── nutrition-compose.mjs gemini-compose wrapper
+│   │   │   ├── nutrition-estimate.mjs gemini-estimate wrapper
+│   │   │   ├── nutrition-estimate-micros.mjs gemini-micros wrapper
+│   │   │   ├── nutrition-log.mjs
+│   │   │   ├── nutrition-journal.mjs
+│   │   │   ├── nutrition-search.mjs  Open Food Facts proxy
+│   │   │   ├── gemini.mjs        Gemini-SDK Wrapper
+│   │   │   ├── supplements-catalog.mjs
+│   │   │   ├── supplements-log.mjs
+│   │   │   └── wger-search.mjs
+│   │   └── lib/
+│   │       └── file-io.mjs
+│   └── shared/                  ─── Geteilter Code (client + server) ──────────
+│       ├── config/
+│       │   ├── constants.mjs    PORT, HOST
+│       │   └── dach.mjs         DACH Referenzwerte + getStatus()
 │       └── utils/
-├── catalogs/                     nutrition/meals + supplements/catalog.yaml
-├── public/                       Classic vanilla PWA (legacy)
-├── backend/                      Python/FastAPI (v4-Router; Dist aus fuel-frontend)
-├── bin/                          fuel, fuelctl, fuel-devctl, …
-├── deploy.sh                     staging → ~/.local/fuel; prod → /opt/fuel (+ Backend)
-├── scripts/                      dev-runner, stamp-solo, deploy-preview, …
+│           ├── ids.mjs
+│           ├── validation.mjs
+│           └── utils.js
+├── catalogs/
+│   ├── nutrition/
+│   │   └── meals/               {id}.json pro Gericht (lokal git-tracked)
+│   └── supplements/
+│       └── catalog.yaml
+├── public/                      Classic vanilla PWA (legacy)
+├── bin/
+│   └── fuel-food-search         CLI food search
+├── gemini-compose               Python script (Makro-Schätzung via wger)
+├── gemini-estimate              Python script (freie Beschreibung → Makros)
+├── gemini-micros                Python script (Mahlzeit → Mikronährstoffprofil)
+├── fuel                         Python/Typer CLI (Supplements)
+├── dist-firebase/               cloud channel Build → Firebase Hosting (git-ignored)
+├── deploy.sh                    local channel deploy → /opt/fuel
+├── scripts/
+│   ├── dev-runner.mjs           Dev-Runner (nodemon wrapper)
+│   └── firestore-sync.mjs       Lokale Kataloge ↔ Firestore sync
 └── vite.config.js
-
-Nachbar-Repos (nicht in diesem Tree):
-~/dev/fuel-backend/               server.mjs, src/server/, Sync-/Push-Scripts
-~/dev/fuel-frontend/              pausierter Vite-Zweig (ex-frontend/), Dist für Python
 ```
-Server-Routen/Services: siehe `~/dev/fuel-backend/CLAUDE.md` und `AGENTS.md` („Ausgelagerte Teile").
 
 ---
 
@@ -323,10 +389,10 @@ fuel log magnesium
 
 **DACH-Referenzwerte anpassen:** `src/config/dach.mjs`
 
-**Neuen Nutrition-Endpoint:** in `~/dev/fuel-backend` (nicht hier)
-1. Route in `src/server/routes/nutrition/` als eigenes Plugin
-2. In `src/server/routes/nutrition/index.mjs` registrieren
-3. Service in `src/server/services/`
+**Neuen Nutrition-Endpoint:**
+1. Route in `src/routes/nutrition/` als eigenes Plugin
+2. In `src/routes/nutrition/index.mjs` registrieren
+3. Service in `src/services/`
 
 ---
 
@@ -388,10 +454,10 @@ Gemeinsam ist nur `src/client/` UI (Views, Hooks, Components) — kein Backend-C
 |---|---|
 | `fuel_cli/` (catalog, gemini, compose, log, http) | → `fuel_agent/` umbenennen |
 | `bin/gemini-*` Standalone-Scripts | → in `fuel_agent/gemini.py` integrieren |
-| Fastify in `~/dev/fuel-backend` (`server.mjs`) | → dort halten; Python wächst daneben, kein Doppel-Code hier |
+| Fastify `server.mjs` | → organisch schrumpfen während Python wächst |
 | `fuel_routes.yaml` | bleibt als SSOT für Endpoints |
 
-**Prinzip: kein Doppel-Code.** Jede Catalog-Logik, jede Gemini-Integration, jede Datei-Op gehört einmal in `fuel_agent/` bzw. `fuel-backend`. Der Fastify-Server proxied oder ruft `fuel_agent/` auf — er dupliziert keine Logik.
+**Prinzip: kein Doppel-Code.** Jede Catalog-Logik, jede Gemini-Integration, jede Datei-Op gehört einmal in `fuel_agent/`. Der Fastify-Server proxied oder ruft `fuel_agent/` auf — er dupliziert keine Logik.
 
 ### @api Alias-Split (bereits umgesetzt)
 
@@ -511,3 +577,34 @@ Tab `kitchen` ("Küche", `cloudOnly`) mit Subtabs **Einkauf** und **Vorrat** (`v
 - **Aktionen:** Es gibt **keine** echte Datenquelle für Händler-Angebote — keine erfundenen Angebote. Aktionen entstehen nur aus selbst eingelesenen Prospekt-Fotos/Texten (ohne Gültigkeitsdatum 7 Tage), abgelaufene werden ausgeblendet. Rezepte/Empfehlungen können sich darauf beziehen.
 - **Daten:** `users/{uid}/fuel_pantry`, `fuel_receipts`, `fuel_shopping`, `fuel_deals`, `meta/kitchen` (deployte Rules reichen); `owner_uid` gestempelt, fremde Docs beim Lesen verworfen.
 - **Offen:** abgehakte Zettel-Posten landen nicht automatisch im Vorrat; echte Vertex-Qualität (Bon-Erkennung) und UI sind noch nicht im Browser geprüft.
+
+## Org-Taskwarrior (global) — gilt fuer alle Agenten der VitalOS-Org
+
+Verbindlich fuer alle Agenten (Vibe, Claude, Codex, Gemini) in Org-Kontexten
+(Owner-Weisung 2026-11-07):
+
+1. EINE globale Org-Task-DB — KEINE eigenen Rollen- oder Repo-DBs mehr:
+   `TASKRC=~/.local/state/vitalos-org/taskrc` (DB liegt daneben in `task/`).
+   Alte Repo-DBs sind archiviert unter `~/.local/state/vitalos-org/archive-repodb/`.
+2. Daniels private Taskwarrior-DB (`~/.task`, u. a. Hotlist `+hot`) bleibt
+   TABU fuer Schreibzugriffe — nur lesend (CEO-Runde: Task `status:pending +hot`).
+3. Rolle = Tag: Jeder Agent taggt seine eigenen Aufgaben mit seiner Rolle:
+   `+ceo`, `+cto`, `+al`, `+pm`, `+alpha`, `+betta` …
+4. Abteilung/Repo = project: `project:fitness-dev`, `project:journal-dev`,
+   `project:vitalos-prod`, `project:dotfiles`, `project:aos` …
+5. Prio-Encoder (in der Org-taskrc verankert):
+   - `+hit` und `+br` sind EIN Tier (Hits = Big Rocks, Koeffizient 8.0) —
+     hoechste Dringlichkeit, `+hit` = `+br`.
+   - `+lr` 2.0 (Little Rocks).
+   - `+hot` 1.0 — NUR Potential/Sichtbarkeit, wird NIE automatisch ausgefuehrt;
+     ob ein Potential jetzt anfaellt, entscheidet der Door War (Sonntagsrunde).
+   - `+s` -1.0 (Sand, Zeitverschwendungsroutine).
+   - `+go` ist KEINE Prioritaet und bewirkt nichts — Freigaben laufen ueber
+     die Rollen (CTO-Freigabeprozess), nicht ueber Urgency.
+6. Aufgaben IMMER per UUID anfassen (`task <uuid> modify|done|info`), NIE per
+   ID — IDs renummerieren sich nach jedem `done` (Fehltreffer-Gefahr).
+7. Guard: orgsh und die Runner verweigern den Lauf, wenn die Org-taskrc fehlt —
+   kein stiller Rueckfall auf die Privat-DB.
+8. Uebersicht/Rang: `TASKRC=~/.local/state/vitalos-org/taskrc \
+   ~/.org/venv/bin/python ~/aos/bin/aos door plan quadrants --json`
+   (Eisenhower-Sicht Q1–Q4).

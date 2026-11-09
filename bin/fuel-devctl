@@ -37,8 +37,8 @@ BACKEND_PORT = os.getenv("FUEL_BACKEND_PORT", os.getenv("FUEL_V4_PORT", "4000"))
 BACKEND_HEALTH_URL = f"http://127.0.0.1:{BACKEND_PORT}/health"
 BACKEND_DIR = DEV_DIR / "backend"
 BACKEND_UVICORN = BACKEND_DIR / ".venv" / "bin" / "uvicorn"
-BACKEND_LOGFILE = Path("/tmp/fuel-backend-dev.log")
-BACKEND_PIDFILE = Path("/tmp/fuel-backend-dev.pid")
+BACKEND_LOGFILE = Path("/tmp/backend/fuel-dev.log")
+BACKEND_PIDFILE = Path("/tmp/backend/fuel-dev.pid")
 BACKEND_HOST = os.getenv("FUEL_BACKEND_HOST", "127.0.0.1")
 POETRY = shutil.which("poetry")
 os.environ.setdefault("POETRY_VIRTUALENVS_IN_PROJECT", "true")

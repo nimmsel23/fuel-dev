@@ -47,5 +47,5 @@ process.on("SIGINT", () => {
   process.exit(0);
 });
 
-start("api", "node", ["../fuel-backend/server.mjs"]);
+start("api", "node", ["../backend/fuel/server.mjs"]);
 start("ui", "node_modules/.bin/vite", ["--host", "127.0.0.1", "--port", "9001", "--strictPort"]);
