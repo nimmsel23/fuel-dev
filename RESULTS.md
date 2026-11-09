@@ -1,3 +1,9 @@
+# 2026-11-09 — AL: CLAUDE.md auf fuel-backend/fuel-frontend nachgezogen
+
+- `CLAUDE.md`: Ports, Quick Start, Architecture, Code-Struktur, deploy.sh und Nutrition-Endpoint-Hinweise ohne lokales `src/server/`/`server.mjs`/`frontend/`; Verweise auf `~/dev/fuel-backend` und `~/dev/fuel-frontend`.
+- `NEXT.md`: CLAUDE-/Docs-Punkte 2026-11-05 und 2026-11-04 abgehakt; Dependabot-Alerts und iOS-Abnahme bleiben offen.
+- Details: `AL-LOG.md` 2026-11-09 (Nachmittag).
+
 # 2026-11-09 — AL: AutoMerge-Stabilitätswache (Org-Task 6a0eeebc)
 
 - Zwei grüne AutoMerge-Tage belegt (Runs 42551594703, 42531803443); Auto-Promote ebenfalls grün.
