@@ -3,12 +3,66 @@
 - Scripts/Docs/Deploy zeigen auf `../backend/fuel` (nicht mehr Sibling `fuel-backend`).
 - Live-SOT im gemeinsamen Backend-Repo; alter Checkout archiviert.
 
+# 2026-11-09 — AL: CLAUDE.md auf fuel-backend/fuel-frontend nachgezogen
+
+- `CLAUDE.md`: Ports, Quick Start, Architecture, Code-Struktur, deploy.sh und Nutrition-Endpoint-Hinweise ohne lokales `src/server/`/`server.mjs`/`frontend/`; Verweise auf `~/dev/backend/fuel` und `~/dev/fuel-frontend`.
+- `NEXT.md`: CLAUDE-/Docs-Punkte 2026-11-05 und 2026-11-04 abgehakt; Dependabot-Alerts und iOS-Abnahme bleiben offen.
+- Details: `AL-LOG.md` 2026-11-09 (Nachmittag).
+
+# 2026-11-09 — AL: AutoMerge-Stabilitätswache (Org-Task 6a0eeebc)
+
+- Zwei grüne AutoMerge-Tage belegt (Runs 42551594703, 42531803443); Auto-Promote ebenfalls grün.
+- Mo-Dependabot-Scan ohne neue PRs — kein PR-Merge-Beleg; Task annotiert, bleibt pending.
+- Details: `AL-LOG.md` 2026-11-09.
+
+# 2026-11-08 — Fuel-README und GitHub Pages
+
+- README auf den aktuellen Repo-Zuschnitt aktualisiert: aktives Vite-Frontend von `fuel-backend`/`fuel-frontend` getrennt und veraltete Server-, API-, CLI- und Datenpfadbehauptungen entfernt.
+- GitHub Pages aktiviert: Quelle `dev /docs`, Site `https://nimmsel23.github.io/fuel-dev/`; `docs/README.md` ist der Kleinbuchstaben-`index.html`-Einstieg.
+- Root-`index.html` und beide Vite-Konfigurationen unverändert gelassen (`base: "./"`); der App-Einstieg bleibt Vite-kompatibel.
+- Einordnung für die Org: dieses Muster ist der Pilot; Übertragung auf die übrigen Repos steht in `NEXT.md`.
+
+# 2026-11-08 — Fuel-iOS-Login: doppelten Popup-Request und Auth-Domain korrigieren
+
+- Vergleich mit `fitness-vos`: gleicher Popup-zuerst-/Redirect-Fallback-Flow; keine Sperre gegen parallele Anmeldeversuche.
+- Ursache im Supplements-Live-Bundle: `FIREBASE_CONFIG` setzte wieder `fitness-aos.firebaseapp.com`, obwohl die Mini-App unter `vos-fuel-supplements.web.app` läuft.
+- Mini-App-Deploy schreibt jetzt pro Target die passende `authDomain`; Fuel teilt einen laufenden Loginversuch und zeigt den Login-Status statt einen zweiten Popup-Request zu starten.
+- Reale iOS-Abnahme bleibt offen; nach dem Deploy die installierte PWA vollständig schließen und neu öffnen, dann einmal den Google-Login testen.
+
+# 2026-11-08 — Fuel-Mini-Apps als gezielte Dev-Releases
+
+- Mini-App-Deploy läuft jetzt auch bei relevanten Änderungen auf `dev` direkt auf das jeweilige Firebase-Hosting-Target; Preview-Links gibt es für diese Apps nicht.
+- Der Pfadfilter rollt nur betroffene App-Tabs aus. `api.local.js` (nur lokaler Dev-Modus) und reine Änderungen an diesem Workflow lösen nicht fälschlich alle Mini-App-Deploys aus.
+- Für diese Veröffentlichung betreffen die bereits auf `dev` liegenden Quelländerungen Supplements und Micros; die vier Mini-Apps werden nicht pauschal neu deployed.
+
+## 2026-11-07 — CI-Agent-Fix: gh pr list Feld korrigiert
+
+- Journal-Run 42416606547 scheiterte vor Gemini: GitHub CLI meldete `Unknown JSON field: baseRepository`; `gh pr list` beendete den Analyse-Step mit Exit 1. Kein Gemini-API-Key-Fehler.
+- `.github/ci-agent/repair.mjs` sucht PRs jetzt mit unterstützten JSON-Feldern und dem Head-Filter `nimmsel23:<branch>`. Fix auf `dev` in allen acht Modul-/Coach-Repos.
+- CI-Checks der Reparaturcommits grün; Modul-Promotion/Live-Deploy grün, Journals Live-Deploy war beim Eintrag noch in Arbeit. Ein echter roter Gemini-Reparaturlauf bleibt als Abnahme offen.
+
+## 2026-11-07 — GitHub-Pages-Doku vorbereitet
+
+- `docs/README.md` als Jekyll-Landingpage ergänzt. Die Datei ist auf `/index.html` geroutet; GitHub-Pages-Quelle `dev /docs` muss noch in den Repository-Einstellungen geprüft bzw. aktiviert werden.
+
+## 2026-11-07 — CI-Agent-Deploy-Routing und No-op-Ausgänge korrigiert
+
+- Reale Modul-Deploy-/Preview-Workflownamen ergänzt; grüne Deploy-Läufe lösen keine Merges aus. Ohne sichere Quellreparatur endet der Agent ohne Commit.
+- Tailwind-4- und Dependabot-Upgrades bleiben erhalten; Gemini schreibt keine Lockfiles um.
+- Actions-Secrets und ein echter Fehler→Reparatur→Check→Deploy-Rundlauf sind noch zu verifizieren.
+
+## 2026-11-07 — Gemini CI-Agent installiert
+
+- CI-Agent fuer Check-Fehler, Dependabot-PRs und Merge-Konflikte ergänzt; Tailwind-/Paket-Upgrades bleiben erhalten.
+- Quellreparaturen werden auf den betroffenen Branch geschrieben; Zielbranch-Reparaturen erhalten einen PR und werden erst nach gruenem Check gemergt.
+- Gemini-API und `SYNC_TOKEN` muessen als Actions-Secrets vorhanden sein. Nachweis: erster erfolgreicher automatischer Reparatur- und Deploy-Lauf steht aus.
+
 # CLAUDE.md: Backend-Abschnitte nach fuel-backend ausgelagert, dev gepusht (2026-11-05)
 
 Folgearbeit zur Backend-/Frontend-Auslagerung vom 2026-11-04: Die Server-Doku sollte nicht mehr in `fuel-dev/CLAUDE.md` stehen, sondern im Repo, in dem der Code jetzt liegt.
 
-- **`CLAUDE.md` (`460d3b1`)**: Hinweisblock „Node-Backend ausgelagert" unter dem Titel. Die Abschnitte Backend/SQLite/Micros und Firestore-Sync sind durch Kurzverweise auf `~/dev/fuel-backend` ersetzt.
-- **`~/dev/fuel-backend/CLAUDE.md` (`75baef7`, neu)**: übernimmt die ausgelagerten Server-, SQLite-, Micros- und Sync-Engine-Beschreibungen.
+- **`CLAUDE.md` (`460d3b1`)**: Hinweisblock „Node-Backend ausgelagert" unter dem Titel. Die Abschnitte Backend/SQLite/Micros und Firestore-Sync sind durch Kurzverweise auf `~/dev/backend/fuel` ersetzt.
+- **`~/dev/backend/fuel/CLAUDE.md` (`75baef7`, neu)**: übernimmt die ausgelagerten Server-, SQLite-, Micros- und Sync-Engine-Beschreibungen.
 - **Push**: `dev` nach `origin/dev` (`1159aba..84f8cfd`, 4 Commits, darunter `460d3b1`; die übrigen sind `84f8cfd` AI-Hinweis in Produkt-Builds und zwei Portal-Docs-Commits). Pre-Push-Hook ohne Fehlermeldung; ob das Staging-Deploy lief, wurde nicht geprüft.
 - GitHub meldet 90 Dependabot-Alerts (3 kritische) auf dem Default-Branch; nicht angesehen.
 
@@ -30,7 +84,7 @@ Auslöser: Beim Loggen von „4 Semmeln, 20dag Wiener" schlug das Speichern in d
 
 Auslöser: Dependabot-Check. Die Server-Abhängigkeiten (fastify, firebase-admin, better-sqlite3, web-push u. a.) zogen über das vitalos-Lockfile Sicherheitsmeldungen in die Shell. Deshalb wurden Node-Backend und Vite-Frontend aus `fuel-dev` in eigene Repos ausgelagert. Danach lief die Release-Kette `dev → master` (PR #14) und `vos-release`. Das Meta-Repo `~/vitalos` wurde im Zuge dessen gepusht.
 
-- **`~/dev/fuel-backend` (neu, privat `nimmsel23/fuel-backend`)**: `src/server/` per `git subtree split` mit 85 Commits Verlauf extrahiert (`server.mjs`, `src/server/`, `scripts/`, `tests/`, `package.json`). `src/shared` ist dort ein Symlink auf `../fuel-dev/src/shared`. Katalog, `dist` und `.env` findet es über das Nachbar-Repo oder `FUEL_ROOT`. Secret-Scan über Dateien und Verlauf ohne Treffer.
+- **`~/dev/backend/fuel` (neu, privat Teil von `~/dev/backend` (ehem. `nimmsel23/fuel-backend`))**: `src/server/` per `git subtree split` mit 85 Commits Verlauf extrahiert (`server.mjs`, `src/server/`, `scripts/`, `tests/`, `package.json`). `src/shared` ist dort ein Symlink auf `../fuel-dev/src/shared`. Katalog, `dist` und `.env` findet es über das Nachbar-Repo oder `FUEL_ROOT`. Secret-Scan über Dateien und Verlauf ohne Treffer.
 - **`~/dev/fuel-frontend` (neu, privat `nimmsel23/fuel-frontend`)**: `frontend/` mit 7 Commits Verlauf herausgelöst. Serverteile sowie `nodemon` und `yaml` entfernt, `workbox-window` ergänzt, `shamefullyHoist: true` in `pnpm-workspace.yaml`. Test-Build mit `vite build` in ein Scratch-Verzeichnis läuft durch.
 - **`fuel-dev` (`01eef6c`, `6c8f2c4`, `3ecfbca`, `f305c28`)**: Server-Dependencies aus `package.json` und `pnpm-lock.yaml` entfernt. `src/server/`, `server.mjs`, Backend-Scripts (`sync-daemon`, `firestore-sync`, `coach-task` u. a.) und `frontend/` per `git rm` entfernt. `deploy.sh`, `bin/fuelctl`, `scripts/dev-runner.mjs` und `tests/test_deploy_runtime.py` auf `fuel-backend` umgestellt. `backend/api/main.py` liest das Frontend-`dist` jetzt aus `../fuel-frontend/dist` oder `FUEL_FRONTEND_DIR` (nur Syntax geprüft, Pfad nicht gestartet).
 - **`deploy.sh` (`c14c628`)**: `knownMicros.js` in die rsync-Include-Liste aufgenommen. `mealDetails.js` importiert die Datei seit `08c56cc`. Ohne sie lief `fuel-preview` (:8700) nach dem dev-Push in eine Crash-Schleife (`ERR_MODULE_NOT_FOUND`), rund 5 Minuten down. Nach dem Re-Deploy `/health` 200.
@@ -518,3 +572,23 @@ Die vendorte Mini-App-Shell mit der aktuellen VitalOS-Quelle synchronisiert. Ein
 ## 2026-10-31 — Dependabot
 
 Enabled Dependabot alerts and security updates. Configured weekly GitHub Actions and npm/pnpm updates plus Python dependency updates; version updates target `dev`. Minor/patch updates are grouped; vendored mini-app-shell copies stay maintained at their source. Validated YAML, repository manifest paths and update targets.
+
+
+## 2026-11-07 — Gemini CI-Agent aktiviert
+
+- Agent-Workflow und lokale Trigger für `fuel-dev` auf `dev` eingerichtet; `GEMINI_API_KEY` als Actions-Secret gesetzt.
+- `Check`/Preview und Agent-Run [42405225362](https://github.com/nimmsel23/fuel-dev/actions/runs/42405225362) waren auf Commit `a980265b` grün. Dieser Lauf war ein No-op auf einem erfolgreichen Check; ein roter Code-Fehler wurde noch nicht absichtlich simuliert.
+- Pushes und PR-Merges verwenden die eng berechtigte `GITHUB_TOKEN`-Workflow-Berechtigung; kein separates `SYNC_TOKEN` erforderlich.
+## 2026-11-08 — Konkrete Uhrzeit pro Supplement-Einnahme
+
+- Supplement-Logs erhalten jetzt zusätzlich zu `time_of_day` (Planer-Kategorie) ein konkretes `time`-Feld. Manuelles Erfassen bietet eine Uhrzeitauswahl; Schnell-Log, Checkliste und Wochentracker erfassen den tatsächlichen lokalen Log-Zeitpunkt.
+- Die erfassten Einnahmen zeigen Uhrzeiten; der Tagesbeitrags-Review ordnet Einträge chronologisch und zeigt die Uhrzeit in jeder Zeile. Bestandslogs ohne `time` bleiben ohne erfundene Uhrzeit.
+- Nicht gebaut/getestet; keine Cloud- oder Firebase-Daten verändert.
+
+## 2026-11-08 — Supplement-Katalog nach Login und Umgebung getrennt
+
+- Lokal authentifizierte API-Aufrufe senden das Firebase-ID-Token; Backend-Runtime- und Firestore-Scope werden dadurch dem verifizierten UID zugeordnet.
+- Ohne Login nutzt der lokale API-Kanal den versionierten Repo-Katalog. Staging setzt Repo-Scope und den direkten Dev-Checkout-Pfad explizit; `/opt` setzt Runtime-Scope und Port 7000 erzwingt ihn.
+- Ergänzender Backend-Push/Sync lädt Supplement-Kataloge ausschließlich aus dem UID-passenden Runtime-Pfad unter `~/.aos/fuel`; Repo-YAML bleibt Dev-/Staging-Daten.
+- Keine Firebase-/Firestore-Daten geändert; nicht gebaut oder getestet.
+
