@@ -49,7 +49,7 @@ module.exports = defineConfig(async ({ mode }) => {
         "firebase/ai": resolvePackageEntry("firebase/ai"),
         "lucide-react": resolvePackageEntry("lucide-react"),
         "@tanstack/react-query": resolvePackageEntry("@tanstack/react-query"),
-        "../../../../backend/fuel/src/shared/utils/utils.js": resolve(__dirname, "backend/fuel/src/shared/utils/utils.js")
+        "../../../../backend/fuel/src/shared/utils/utils.js": resolve(__dirname, "src/shared/utils/utils.js")
       },
       dedupe: [
         "react",
@@ -101,7 +101,7 @@ module.exports = defineConfig(async ({ mode }) => {
         port: 9001,
       },
       proxy: {
-        "/nutrition": "http://127.0.0.1:9000",
+        "/nutrition": "http://127.00.1:9000",
         "/supplements": "http://127.0.0.1:9000",
         "/fuel": "http://127.0.0.1:9000",
         "/health": "http://127.0.0.1:9000",
