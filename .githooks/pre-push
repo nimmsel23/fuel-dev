@@ -12,8 +12,7 @@ cd "$(git rev-parse --show-toplevel)"
 # separate `while read`-Schleifen würden sich die Zeilen streitig machen.
 pushed_refs="$(cat)"
 
-# Reminder: der volle Release-Flow (fuel-dev dev -> vitalos/fuel-app master ->
-# vitalos-Pointer-Bump) läuft bereits automatisiert über
+# Reminder: der volle Release-Flow (fuel-dev dev -> Shell-Pin auf origin/master) läuft bereits automatisiert über
 # ~/vitalos/bin/fuel-release (bzw. vos-release fuel). Der kritische Moment ist
 # der Push von dev — direkt danach folgt sonst von Hand: Merge in
 # vitalos/fuel-app master, Push, Submodule-Pointer in vitalos bumpen. Deshalb

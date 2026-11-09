@@ -23,7 +23,7 @@ Doppel-Deploy-Logik reaktiviert.
 sudo). Schlägt der Staging-Deploy fehl, läuft der Push trotzdem weiter (dev-Push
 ist das Primärziel, Staging nur der Spiegel) — manuell nachziehen mit
 `npm run deploy:local`. Zusätzlich der Hinweis auf `~/vitalos/bin/fuel-release`
-für den vollen dev→master→vitalos-Flow.
+für den vollen dev→master + Shell-Pin-Flow.
 
 **Seit 2026-10-25 – Push auf `dev` im Detail:** Der Staging-Spiegel (`./deploy.sh`,
 kein Prod/sudo) läuft nur noch bei Backend-Änderungen (`fuel/`, `backend/`,
