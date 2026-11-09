@@ -49,6 +49,7 @@ module.exports = defineConfig(async ({ mode }) => {
         "firebase/ai": resolvePackageEntry("firebase/ai"),
         "lucide-react": resolvePackageEntry("lucide-react"),
         "@tanstack/react-query": resolvePackageEntry("@tanstack/react-query"),
+        "../../../../backend/fuel/src/shared/utils/utils.js": resolve(__dirname, "backend/fuel/src/shared/utils/utils.js")
       },
       dedupe: [
         "react",
