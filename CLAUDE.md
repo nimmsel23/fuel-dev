@@ -95,7 +95,7 @@ pnpm run deploy:preview # build:cloud + 24h-Preview-Channel + Telegram-Link (scr
 # Sync
 pnpm run cloud:push   # lokale Cloud-Payloads → Firestore
 pnpm run cloud:pull   # Firestore → lokale Dateien
-pnpm run cloud:watch  # firestore-sync.mjs im Watch-Modus
+pnpm run cloud:watch  # ../fuel-backend/scripts/firestore-sync.mjs Watch-Modus
 pnpm run catalog:sync -- <uid> # echter Catalog-Sync: nur fehlende oder neuere Items
 ```
 
