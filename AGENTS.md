@@ -3,8 +3,8 @@
 ## Repo- und Branch-Rollen
 
 - Dieses Repo ist die Entwicklungsquelle für die eigenständige Fuel-App. `dev` ist der Entwicklungsbranch; Qualifizierende Änderungen auf `dev` starten den CI-Preview-Deploy (siehe Pfadfilter in `preview-dev.yml`).
-- In diesem Repo deployed aktuell `master` die eigenständige Fuel-App live (`.github/workflows/deploy-master.yml`). `vitalos` bezeichnet die Produktionsumgebung, ist bei Fuel aber nicht der Name des Produktions-Branches.
-- Im Meta-Repo `~/vitalos` liegt dieses Repo als Submodule `fuel-app`. Der Checkout liefert Quellcode für die Fuel-Subapps der VitalOS-Shell; der Meta-Repo-Gitlink pinnt dafür einen konkreten Commit. `branch = vitalos` in `.gitmodules` steuert `git submodule update --remote`, verschiebt aber den gespeicherten Gitlink nicht automatisch.
+- In diesem Repo deployed aktuell `master` die eigenständige Fuel-App live (`.github/workflows/deploy-master.yml`). Produktionsbranch der Standalone-App und Shell-Pin-Quelle ist `master`.
+- Im Meta-Repo `~/vitalos` liegt dieses Repo als Submodule `fuel-app`. Der Checkout liefert Quellcode für die Fuel-Subapps der VitalOS-Shell; der Meta-Repo-Gitlink pinnt dafür einen konkreten Commit. `branch = master` in `.gitmodules` steuert `git submodule update --remote`, verschiebt aber den gespeicherten Gitlink nicht automatisch.
 - `~/vitalos` selbst ist die VitalOS-Shell. Ihr Produktionsbranch ist `master`; die Shell-CI deployed die Shell samt den dort gepinnten Submodule-Quellen.
 - Ein Branch-Push auf `dev` oder `master` aktualisiert den Submodule-Gitlink im Meta-Repo nicht automatisch. Für einen neuen Shell-Quellstand muss der Pointer in `~/vitalos` aktualisiert werden.
 - `main` ist für diesen Ablauf nicht erforderlich. Branch-Namen und Ziele immer anhand des aktiven Workflows prüfen.
@@ -41,21 +41,19 @@ Siehe `docs/BACKEND-MOVED.md`.
 <!-- release-weg:start -->
 ## Release-Weg und Branches (Fuel)
 
-Stand 2026-10-29. Ausführlich: `~/vitalos/docs/DEPLOYMENT.md` (GitHub: nimmsel23/vitalos, `docs/DEPLOYMENT.md`).
+Stand 2026-11-09. Ausführlich: `~/vitalos/docs/DEPLOYMENT.md`.
 
-**dev → master → vitalos**
+**dev → master** (+ Shell-Pin auf `origin/master`)
 
 | Branch | Rolle | Lokal |
 |---|---|---|
 | `dev` | Edits und Previews (Preview-Channel `dev`, PR-Channel je PR) | ja — dieser Klon steht fest auf `dev` |
-| `master` | **Standalone-Prod** (Hosting-Target `client` = fuel-vos.web.app (die Fuel-Mini-Apps `vos-fuel-*` laufen nie per CI, nur manuell)); deployt nur per CI (`Live Deploy (Fuel master)`) | nein, muss nicht existieren |
-| `vitalos` | Stand für die Shell (`~/vitalos/fuel-app`); darf hinter `master` liegen | nur als `-app`-Checkout im Meta-Repo |
+| `master` | **Standalone-Prod** (Hosting-Target `client` = fuel-vos.web.app (die Fuel-Mini-Apps `vos-fuel-*` laufen nie per CI, nur manuell)); deployt nur per CI (`Live Deploy (Fuel master)`) | nein, lokal nicht nötig |
+| `vitalos` | **Legacy** (darf remote noch existieren) — kein Pin-Ziel mehr | nicht für Shell nutzen |
 
-- Release (automatisch): `dev` committen und pushen ist ausdrücklich erwünscht, nichts bleibt liegen. Nach grünem `Check (Fuel)` promotet `.github/workflows/automerge.yml` `dev` per Fast-Forward nach `master` und startet den Live-Deploy per Dispatch (Vorlage und Logik: `~/vitalos-prod/docs/product-dev/ci-auto-promote/`). Kein PR nötig, kein Force-Push. Direkte Pushes auf `master` vermeiden (sie erzeugen Divergenz, der Workflow läuft dann rot): auch Hotfixes über `dev`; ist es doch passiert, `master` per normalem Push nach `dev` mergen.
-- Shell: `vos-release fuel` merged `origin/master` nach `vitalos` und bumpt den Pointer im Meta-Repo (deployt die Shell).
-  Vorher `vos-overview`.
-- `master` wird nie lokal ausgecheckt; `git fetch` genügt. Das Meta-Repo `vitalos` deployt nur noch die Shell.
-- Nicht auf `dev` im Hauptordner arbeiten, wenn ein Agent-/Feature-Branch nötig ist: Worktree
-  (`git worktree add .worktrees/<name> <branch>`).
-- Default-Branch des Repos ist `master`; die `.github/workflows/*.yml` auf `master` bestimmen das Live-Verhalten.
+- Release (automatisch): `dev` committen und pushen. Nach grünem Check promotet `automerge.yml` nach `master` und startet den Live-Deploy. Direkte Pushes auf `master` vermeiden; Hotfixes über `dev`.
+- Shell: `vos-release` / `vos-ship` pinnt `origin/master` (detached im `*-app`) und bumpt den Meta-Pointer → `deploy-shell.yml`. Vorher `vos-overview`.
+- `.gitmodules` im Meta-Repo: `branch = master`. Kein Auto-Vorspulen eines App-Branches `vitalos` mehr.
+- Parallel-Branches/Worktrees nur mit Owner-Ausnahme.
+- Default-Branch des Repos ist `master`; die Workflows auf `master` bestimmen das Live-Verhalten.
 <!-- release-weg:end -->

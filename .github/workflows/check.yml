@@ -1,7 +1,7 @@
 # Check für Fuel: Build auf jedem PR/dev-Push, ohne Deploy und ohne Firebase-Secrets.
 #
 # Gleicher Aufbau wie preview-dev.yml (Fuel baut standalone, kein vitalos-Meta-Repo),
-# aber ohne Pfadfilter und ohne Preview – jeder PR wird geprüft, bevor er nach vitalos
+# aber ohne Pfadfilter und ohne Preview – jeder PR wird geprüft, bevor er nach master
 # wandert (Muster aus fitness-dev/check.yml).
 
 name: Check (Fuel)
@@ -11,7 +11,7 @@ on:
   push:
     branches: [dev]
   pull_request:
-    branches: [vitalos, master, dev]
+    branches: [master, dev]
 
 concurrency:
   group: check-${{ github.ref }}
