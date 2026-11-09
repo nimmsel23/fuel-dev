@@ -69,7 +69,7 @@ importers:
         specifier: ^0.13.14
         version: 0.13.14(@firebase/app@0.13.2)
       '@firebase/util':
-        specifier: ^1.15.1
+        specifier: ^1.12.1
         version: 1.15.1
       '@firebase/webchannel-wrapper':
         specifier: ^1.0.3
