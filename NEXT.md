@@ -18,7 +18,7 @@ Aktive Arbeitsliste (max. 5 Punkte).
 
 ## 2026-11-05
 
-- [ ] `CLAUDE.md` in `fuel-dev` ist nur teilweise bereinigt: Backend- und Sync-Abschnitte sind ausgelagert, die Code-Struktur-Übersicht, Quick Start und die `deploy.sh`-Beschreibung nennen aber noch `src/server/`, `server.mjs` und `frontend/`.
+- [x] `CLAUDE.md` in `fuel-dev` bereinigt (2026-11-09 AL): Quick Start, Ports, Architecture, Code-Struktur, deploy.sh und Endpoint-Hinweise zeigen auf `~/dev/fuel-backend` / `~/dev/fuel-frontend` statt lokales `src/server/`/`server.mjs`/`frontend/`.
 - [ ] 90 Dependabot-Alerts (3 kritische) auf dem Default-Branch `master`; erst ansehen, dann per `vos-release-pr fuel` nach `master`, da die Zahl erst dort sinkt.
 - [ ] Prüfen, ob der `dev`-Push vom 2026-11-05 das Staging-Deploy (`~/.local/fuel`) erfolgreich gespiegelt hat.
 
