@@ -1,11 +1,11 @@
 import { assertLegacyAiAvailable } from "./aiAvailability.js";
-import { OMEGA3_RULES } from "../../shared/config/omega3.mjs";
+import { OMEGA3_RULES } from "#shared/config/omega3.mjs";
 import { scanToMeal } from "./mealDetails.js";
 import { postJson } from "@api";
 import { vertexAI } from "./firebase.js";
 import { getGenerativeModel, SchemaType } from "firebase/ai";
 import { withAiRetry } from "./aiRetry.js";
-import { MICRO_KEYS } from "../../shared/config/dach.mjs";
+import { MICRO_KEYS } from "#shared/config/dach.mjs";
 
 // Bild → Makros/Mikros. Herausgelöst aus Log/components/ScannerModal.jsx
 // (2026-09-23), damit der Shutter-Frontdoor dieselbe Pipeline nutzt, ohne den

@@ -1,7 +1,7 @@
 import { Pill } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { Empty } from "../../components/ui.jsx";
-import { formatMetric } from "../../../shared/utils/utils.js";
+import { formatMetric } from "#shared/utils/utils.js";
 import { useSupplementMutations } from "./useSupplementMutations.js";
 
 export default function TodayStack({ date, intakes, focusIntakeId }) {

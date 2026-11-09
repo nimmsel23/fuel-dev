@@ -4,7 +4,7 @@ import { twMerge } from "tailwind-merge";
 import { Play, Trash2, Pencil, UtensilsCrossed, Pill, BookmarkPlus, BookmarkCheck, X } from "lucide-react";
 import { fetchJson, postJson, deleteJson } from "@api";
 import { mealFromCatalogItem } from "../../lib/catalogMeal.js";
-import { todayISO } from "../../../shared/utils/validation.mjs";
+import { todayISO } from "#shared/utils/validation.mjs";
 import CatalogItemEditor from "./CatalogItemEditor.jsx";
 
 const MEAL_TYPES = [

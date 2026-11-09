@@ -1,4 +1,4 @@
-import { DACH } from "../../../shared/config/dach.mjs";
+import { DACH } from "#shared/config/dach.mjs";
 
 // Einzige Quelle ist shared/config/dach.mjs — hier nur noch UI-Form ableiten,
 // damit ein neuer Nährstoff (z.B. Bor) nicht mehr an mehreren Stellen

@@ -2,7 +2,7 @@ import { assertLegacyAiAvailable } from "../lib/aiAvailability.js";
 import { useState } from "react";
 import { Sparkles, RotateCcw } from "lucide-react";
 import { postJson } from "@api";
-import { formatMetric } from "../../shared/utils/utils.js";
+import { formatMetric } from "#shared/utils/utils.js";
 import { Modal } from "./ui.jsx";
 import { withAiRetry } from "../lib/aiRetry.js";
 import { vertexAI } from "../lib/firebase.js";

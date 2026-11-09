@@ -1,6 +1,6 @@
 import { CopyPlus, Pencil, Trash2 } from "lucide-react";
 import { twMerge } from "tailwind-merge";
-import { formatMealMetric } from "../../../../shared/utils/utils.js";
+import { formatMealMetric } from "#shared/utils/utils.js";
 
 // "Timeline" — Mahlzeiten hängen an einer Zeitachse statt an einer Liste,
 // mit "Jetzt"-Marker. Eine von drei wählbaren Log-Ansichten (siehe LogView).

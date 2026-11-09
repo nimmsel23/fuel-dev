@@ -20,11 +20,11 @@ import FrontdoorChooser from "./views/Frontdoor/FrontdoorChooser.jsx";
 import FrontdoorHost from "./views/Frontdoor/FrontdoorHost.jsx";
 import { getFrontdoor } from "./views/Frontdoor/frontdoors.js";
 import { useAppData } from "./hooks/useAppData.js";
-import { sumCompleteMetric, formatMetric } from "../shared/utils/utils.js";
+import { sumCompleteMetric, formatMetric } from "#shared/utils/utils.js";
 import { watchAuth, signIn, signOut, getUid } from "./lib/db.firestore.js";
 import { fetchJson } from "@api";
 import { captureNotificationIntentFromLocation } from "./lib/notification-intents.js";
-import { todayISO } from "../shared/utils/validation.mjs";
+import { todayISO } from "#shared/utils/validation.mjs";
 
 // Frontdoor = wählbarer Schnelleinstieg (Tap Board / Shutter / Tagesfaden /
 // Klassisch), siehe views/Frontdoor/.

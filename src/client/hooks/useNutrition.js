@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchJson } from "@api";
 import * as firestore from "../lib/db.firestore.js";
-import { datesEndingAt } from "../../shared/utils/validation.mjs";
+import { datesEndingAt } from "#shared/utils/validation.mjs";
 
 const isCloud = () => window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com");
 

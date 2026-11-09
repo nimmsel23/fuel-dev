@@ -1,6 +1,6 @@
 import { Activity, UtensilsCrossed, Waves } from "lucide-react";
 import { Card } from "../../components/ui.jsx";
-import { formatMetric } from "../../../shared/utils/utils.js";
+import { formatMetric } from "#shared/utils/utils.js";
 
 export default function StatsGrid({ mealsCount, totalProtein, waterMl }) {
   return (

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { datesEndingAt, shiftLocalISO, todayISO } from "../src/shared/utils/validation.mjs";
+import { datesEndingAt, shiftLocalISO, todayISO } from "../../backend/fuel/src/shared/utils/validation.mjs";
 import { dateToISOWeek, getWeekDates } from "../src/client/lib/db/firestore/utils.js";
 import { buildWeekGroups } from "../src/client/views/History/historyWeeks.mjs";
 

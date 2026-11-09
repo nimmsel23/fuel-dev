@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { nutrientCoverage } from '../src/shared/config/nutrient-coverage.mjs';
+import { nutrientCoverage } from '../../backend/fuel/src/shared/config/nutrient-coverage.mjs';
 
 test('coverage distinguishes explicit zeros, missing values and incomplete sums', () => {
   const baseline = { iron_mg: { avg_daily: 2, total_week: 14, percent_of_dach: 20, status: 'low' }, calcium_mg: { avg_daily: 0, total_week: 0, percent_of_dach: 0 } };

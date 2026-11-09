@@ -1,3 +1,8 @@
+## 2026-11-09 — shared SOT im Backend, keine Ordner-Symlinks
+
+- `src/shared` nur noch Re-Export-Stubs; Vite `#shared` → `../backend/fuel/src/shared`.
+- `deploy.sh` holt Shared aus dem Backend-Tree.
+
 ## 2026-11-09 — kein Backend-Symlink mehr
 
 - Symlink weg; `fuel-devctl` zeigt auf `~/dev/backend/fuel/backend`.

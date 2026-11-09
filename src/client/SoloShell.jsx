@@ -13,7 +13,7 @@ import { InstallPromptHandler } from "./components/InstallPromptHandler.jsx";
 import { useApp } from "./store.js";
 import { useNutritionData } from "./hooks/useNutrition.js";
 import { useAppData } from "./hooks/useAppData.js";
-import { sumCompleteMetric, formatMetric } from "../shared/utils/utils.js";
+import { sumCompleteMetric, formatMetric } from "#shared/utils/utils.js";
 import { captureNotificationIntentFromLocation } from "./lib/notification-intents.js";
 import { watchAuth, signIn, signOut } from "./lib/db.firestore.js";
 

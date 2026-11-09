@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Receipt, Sparkles, Loader2, X, AlertTriangle } from "lucide-react";
 import { twMerge } from "tailwind-merge";
-import { todayISO } from "../../../shared/utils/validation.mjs";
+import { todayISO } from "#shared/utils/validation.mjs";
 import { mergeIntoPantry, markShoppingBought, reviewToIncoming, normalizeName, findDuplicateReceipt, normDate } from "../../lib/kitchenLogic.js";
 import { useCommitPurchase, useReceipts } from "../../hooks/useKitchen.js";
 import { scanReceiptImage, parsePantryText } from "../../lib/kitchenAi.js";

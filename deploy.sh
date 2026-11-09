@@ -67,11 +67,11 @@ RSYNC_RUNTIME=(
   --filter 'P /node_modules/***' --filter 'P /.venv/***'
   --filter 'P /.env*' --filter 'P /data/***' --filter 'P /.git/***'
   --filter 'P /catalogs/***'
-  --filter 'P /server.mjs' --filter 'P /src/server/***' --filter 'P /scripts/sync-daemon.mjs'
+  --filter 'P /server.mjs' --filter 'P /src/server/***' --filter 'P /src/shared/***' --filter 'P /scripts/sync-daemon.mjs'
   --exclude 'node_modules' --exclude '.venv' --exclude '__pycache__'
   --exclude '*.pyc' --exclude 'tests' --exclude '.git'
   --include '/dist/***' --include '/public/***'
-  --include '/src/' --include '/src/shared/***'
+  --include '/src/'
   --include '/src/client/' --include '/src/client/lib/'
   --include '/src/client/lib/mealDetails.js' --include '/src/client/lib/mealComponents.js' --include '/src/client/lib/knownMicros.js'
   --include '/fuel/constants/***'
@@ -95,6 +95,9 @@ sync_backend() {
   if [[ "$SOURCE" == "$DEV_SOURCE" ]]; then root="$FUEL_BACKEND_DIR"; else root="$SOURCE"; fi
   [[ -f "$root/server.mjs" && -d "$root/src/server" ]] || die "Node-Backend nicht gefunden: $root (FUEL_BACKEND_DIR setzen oder ~/dev/backend/fuel auschecken)"
   "$@" rsync "${RSYNC_BACKEND_OPTS[@]}" ${dry:+-n -i} --delete "$root/src/server/" "$dest/src/server/"
+  [[ -d "$root/src/shared" ]] || die "shared fehlt: $root/src/shared (SOT unter backend/fuel, kein Symlink)"
+  "$@" mkdir -p "$dest/src/shared"
+  "$@" rsync "${RSYNC_BACKEND_OPTS[@]}" ${dry:+-n -i} --delete "$root/src/shared/" "$dest/src/shared/"
   "$@" rsync "${RSYNC_BACKEND_OPTS[@]}" ${dry:+-n -i} "$root/server.mjs" "$dest/server.mjs"
   "$@" rsync "${RSYNC_BACKEND_OPTS[@]}" ${dry:+-n -i} "$root/scripts/sync-daemon.mjs" "$dest/scripts/sync-daemon.mjs"
 }

@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { History, Calendar, ChevronRight, ChevronDown, ChevronUp, Pencil, Trash2 } from "lucide-react";
 import { fetchJson, postJson } from "@api";
 import { syncPotAfterMealChange } from "../../hooks/usePots.js";
-import { sumCompleteMetric, formatMetric, formatMealMetric } from "../../../shared/utils/utils.js";
+import { sumCompleteMetric, formatMetric, formatMealMetric } from "#shared/utils/utils.js";
 import { buildWeekGroups, historyToday } from "./historyWeeks.mjs";
 
 const DAY_SHORT = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];

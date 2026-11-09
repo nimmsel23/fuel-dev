@@ -1,8 +1,8 @@
 import { requireCompleteLog } from "../../logCompleteness.js";
-import { nutrientCoverage } from "../../../../shared/config/nutrient-coverage.mjs";
+import { nutrientCoverage } from "#shared/config/nutrient-coverage.mjs";
 import { scaleKnownMicros } from "../../knownMicros.js";
-import { OMEGA3_KEYS, normalizeOmega3 } from "../../../../shared/config/omega3.mjs";
-import { computeFastingWindows } from "../../../../shared/utils/fasting.mjs";
+import { OMEGA3_KEYS, normalizeOmega3 } from "#shared/config/omega3.mjs";
+import { computeFastingWindows } from "#shared/utils/fasting.mjs";
 import { projectCloudLog, outboxEntries, projectCloudCatalog, hasPendingFor } from "../../cloudOutbox.js";
 import { componentSnapshot, microSnapshot } from "../../catalogMeal.js";
 /**
@@ -29,7 +29,7 @@ import { getUid } from "./core.js";
 import { MICRO_KEYS, zeroMicros, todayISO, getWeekDates, dateToISOWeek, shiftLocalISO } from "./utils.js";
 import { mutateCloudLog } from "../../cloudMutations.js";
 import { getSupplementLog, getSupplementsCatalog } from "./supplements.js";
-import { DACH, getStatus } from "../../../../shared/config/dach.mjs";
+import { DACH, getStatus } from "#shared/config/dach.mjs";
 
 export async function getNutritionCatalog() {
   const ref = doc(db, "nutrition", getUid(), "meta", "catalog");

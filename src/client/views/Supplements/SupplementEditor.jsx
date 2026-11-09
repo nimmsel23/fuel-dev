@@ -2,9 +2,9 @@ import { useState } from "react";
 import { X, Save, Trash2 } from "lucide-react";
 import { postJson, deleteJson } from "@api";
 import { Modal } from "../../components/ui.jsx";
-import { DACH } from "../../../shared/config/dach.mjs";
-import { todayISO } from "../../../shared/utils/validation.mjs";
-import { BOTANICALS } from "../../../shared/config/botanicals.mjs";
+import { DACH } from "#shared/config/dach.mjs";
+import { todayISO } from "#shared/utils/validation.mjs";
+import { BOTANICALS } from "#shared/config/botanicals.mjs";
 
 const WEEKDAYS = [
   ["mon", "Mo"], ["tue", "Di"], ["wed", "Mi"], ["thu", "Do"],
