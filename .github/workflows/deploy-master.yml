@@ -58,7 +58,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: nimmsel23/fitness-backend
-          ref: ${{ env.NEIGHBOR_REF == 'master' && 'main' || 'dev' }}
+          # Shared liegt auf dev; main ist divergiert/ohne fuel/src/shared.
+          ref: dev
           path: backend
           token: ${{ secrets.SYNC_TOKEN }}
 
