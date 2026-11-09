@@ -27,7 +27,9 @@ Folgen:
 
 ## Python-`backend/` (Stand 2026-11-09)
 
-Das Poetry/Alembic-`backend/` in diesem Repo wurde **nicht** nach `~/dev/backend/fuel` (Node) extrahiert. Node-SOT = `backend/fuel`; Python-Backend bleibt hier, bis ein echter Subtree-Split existiert. Siehe `docs/BACKEND-MOVED.md`.
+SOT: `~/dev/backend/fuel/backend`. Hier nur Symlink `backend` → dorthin.
+Node bleibt `~/dev/backend/fuel`. Siehe `docs/BACKEND-MOVED.md`.
+
 
 ## Fuel-Mini-Apps: Release-Grenze
 

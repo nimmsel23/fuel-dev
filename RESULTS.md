@@ -1,3 +1,7 @@
+## 2026-11-09 — Python-backend → ~/dev/backend/fuel/backend
+
+- Poetry-Baum neben Node unter `backend/fuel/backend`; hier Symlink `backend`.
+
 ## 2026-11-09 — Python-backend/ bleibt (kein Subtree)
 
 - Poetry-`backend/` wurde nicht nach `~/dev/backend/fuel` (Node) extrahiert.

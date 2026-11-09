@@ -1,20 +1,16 @@
-# Backend: was ausgelagert ist — und was nicht
+# Backend-Auslagerung
 
 Stand: 2026-11-09.
 
-## Node → `~/dev/backend/fuel` (ausgelagert)
+## Node → `~/dev/backend/fuel`
 
-Fastify/`server.mjs`/Sync: war `~/dev/fuel-backend` (subtree aus diesem Repo),
-jetzt **`~/dev/backend/fuel`**. Scripts zeigen dorthin.  
-`node-backend/`-Rest im Parent darf weg (nur Leftover nach dem Split).
+Fastify/`server.mjs`/Sync: SOT **`~/dev/backend/fuel`**.
+Scripts/`fuelctl` zeigen dorthin.
 
-## Python `backend/` → **noch hier** (nicht sauber extrahiert)
+## Python → `~/dev/backend/fuel/backend`
 
-`fuel-dev/backend/` (Poetry, Alembic, FastAPI nutrition, …) wurde **nicht** in
-`backend/fuel` (Node) und nirgends sonst als Subtree-SOT abgelegt.
+Poetry/Alembic/FastAPI lag nested hier und war nie subtree-gesplittet.
+SOT jetzt: **`~/dev/backend/fuel/backend`**.
 
-Solange kein Split existiert: **dieses `backend/` behalten** — das ist die
-Python-Arbeitsquelle, keine „tote Doppelung“ vom Node-Server.
-
-Archiv-Spiegel:  
-`~/dev/_archive/2026-11-09-nested-backend-copies/fuel-dev-backend-python`
+In diesem Repo ist `backend` ein **Symlink** dorthin (`fuel-devctl` /
+`BACKEND_DIR` bleiben gültig).
