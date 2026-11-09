@@ -107,7 +107,7 @@ pnpm run catalog:sync -- <uid> # echter Catalog-Sync: nur fehlende oder neuere I
 
 ### Backend / SQLite / Micros
 
-Fastify-Server (`server.mjs` → `src/server/app.mjs`), `nutrition.db` (better-sqlite3) und Micros/DACH liegen in `~/dev/fuel-backend` (Doku dort in `CLAUDE.md`).
+Fastify-Server, `nutrition.db` (better-sqlite3) und Micros/DACH liegen in `~/dev/fuel-backend` (`server.mjs` → `src/server/app.mjs`; Doku dort in `CLAUDE.md`). In diesem Repo gibt es kein `src/server/` mehr.
 
 ### Frontend
 
