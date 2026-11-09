@@ -82,8 +82,8 @@ pnpm install
 pnpm run dev          # nodemon + vite dev (Port 9000 + 5173)
 pnpm run build:local  # Vite build → coach mode (für /opt/fuel)
 pnpm run build:cloud  # Vite build → client mode → dist-firebase/
-pnpm run prod         # node server.mjs auf 0.0.0.0:9000 (Desktop-Prod läuft aktuell ebenfalls über die Node-Schicht, aber auf :7000 aus /opt/fuel)
-pnpm start            # bare server port 9000
+pnpm run prod         # node ../fuel-backend/server.mjs (PORT 7000 Prod / 9000 Default; Desktop-Prod aus /opt/fuel)
+pnpm start            # bare server: node ../fuel-backend/server.mjs Port 9000
 pnpm run ui:dev       # Vite dev only (kein Backend)
 
 # Deploy
