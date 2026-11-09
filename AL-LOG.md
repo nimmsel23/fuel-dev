@@ -58,6 +58,6 @@ completed	success	Gemini CI Agent	Gemini CI Agent	master	workflow_run	4253096848
 - Arbeitsbaum: sauber
 
 _Vom AL ausfüllen (knapp & belegbar, je 1–3 Zeilen, Commit-/PR-Referenzen statt Erzählung):_
-- Erledigt: Org-Task 6a0eeebc Stabilitätswache — AutoMerge 2d grün (42551594703 09., 42531803443 08.); Auto-Promote success (42572514609, 42538224643). Mo-Dependabot-Scan: 0 neue/offene PRs (`gh pr list`); Annotate auf 6a0eeebc.
-- Offen/Weiter: 6a0eeebc bleibt pending bis Dependabot-PR-Merge-Beleg (letzte Dependabot #15/#16 closed 2026-11-05). P1 iOS: ca22778 bereits auf origin/dev; Repro-Abnahme offen.
-- Blocker: Kein Dependabot-PR im Mo-Lauf — Merge-Beleg nicht erzeugbar.
+- Erledigt: NEXT CLAUDE.md-Bereinigung (stale `server.mjs`/`src/server`/`frontend/` → `fuel-backend`/`fuel-frontend`); Vormittag 6a0eeebc bleibt (AutoMerge 42607813011/42551594703 success, 0 Dep-PRs).
+- Offen/Weiter: 6a0eeebc bis Dependabot-PR-Merge; P1 iOS-Abnahme ca22778; Dependabot-Alerts auf `master` (NEXT, 3 critical: proxy-addr/certifi/anyio).
+- Blocker: Kein Dependabot-PR → Merge-Beleg für 6a0eeebc weiter offen; iOS-Repro braucht Gerät.
