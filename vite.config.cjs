@@ -49,10 +49,6 @@ module.exports = defineConfig(async ({ mode }) => {
         "firebase/ai": resolvePackageEntry("firebase/ai"),
         "lucide-react": resolvePackageEntry("lucide-react"),
         "@tanstack/react-query": resolvePackageEntry("@tanstack/react-query"),
-<<<<<<< HEAD
-        "../../../../backend/fuel/src/shared/utils/utils.js": resolve(__dirname, "src/shared/utils/utils.js")
-=======
->>>>>>> b5bb644 (fix(ci): esbuild für vision-scan-Test; kaputten CI-Agent-Alias entfernen)
       },
       dedupe: [
         "react",
