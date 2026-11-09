@@ -1,6 +1,6 @@
 # Preview-Deploy für Fuel: dev-Push → 24h-Channel "dev", PR → eigener PR-Channel.
 #
-# Fuel braucht für Shared-Stubs das private fitness-backend (fuel/src/shared) als
+# Fuel braucht für Shared-Stubs das private backend-Repo (fuel/src/shared) als
 # Geschwister backend/ neben fuel-dev/ — analog lokal ~/dev/backend. Kein vitalos-Meta.
 # Telegram-Link kommt wie bei der lokalen Pipeline (scripts/deploy-preview.mjs).
 
@@ -38,10 +38,10 @@ jobs:
         with:
           path: fuel-dev
 
-      - name: Checkout fitness-backend (shared SOT)
+      - name: Checkout backend (shared SOT)
         uses: actions/checkout@v4
         with:
-          repository: nimmsel23/fitness-backend
+          repository: nimmsel23/backend
           ref: dev
           path: backend
           token: ${{ secrets.SYNC_TOKEN }}

@@ -11,7 +11,7 @@
 #   - api.local.js ist nur lokaler Dev-Code und löst keinen Mini-App-Deploy aus
 # workflow_dispatch: alle oder eine App gezielt; mit `before` (so startet automerge.yml nach dem
 # Release-Merge) wie ein Push per Diff. Ein Merge mit GITHUB_TOKEN löst keinen push-Trigger aus.
-# Aufbau wie fitness-dev/deploy-miniapps.yml; Shared-SOT aus fitness-backend als backend/.
+# Aufbau wie fitness-dev/deploy-miniapps.yml; Shared-SOT aus backend als backend/.
 
 name: Live Deploy (Fuel Mini-Apps je Tab)
 
@@ -116,10 +116,10 @@ jobs:
         with:
           path: fuel-dev
 
-      - name: Checkout fitness-backend (shared SOT)
+      - name: Checkout backend (shared SOT)
         uses: actions/checkout@v4
         with:
-          repository: nimmsel23/fitness-backend
+          repository: nimmsel23/backend
           ref: dev
           path: backend
           token: ${{ secrets.SYNC_TOKEN }}

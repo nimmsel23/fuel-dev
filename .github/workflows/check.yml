@@ -1,6 +1,6 @@
 # Check für Fuel: Build auf jedem PR/dev-Push, ohne Deploy und ohne Firebase-Secrets.
 #
-# Shared-SOT liegt in nimmsel23/fitness-backend (fuel/src/shared); die Stubs unter
+# Shared-SOT liegt in nimmsel23/backend (fuel/src/shared); die Stubs unter
 # src/shared/* re-exporten nach ../../../../backend/fuel/... — deshalb Checkout als
 # Geschwister fuel-dev/ + backend/ (wie lokal ~/dev/fuel-dev neben ~/dev/backend).
 
@@ -30,10 +30,10 @@ jobs:
         with:
           path: fuel-dev
 
-      - name: Checkout fitness-backend (shared SOT)
+      - name: Checkout backend (shared SOT)
         uses: actions/checkout@v4
         with:
-          repository: nimmsel23/fitness-backend
+          repository: nimmsel23/backend
           ref: dev
           path: backend
           token: ${{ secrets.SYNC_TOKEN }}

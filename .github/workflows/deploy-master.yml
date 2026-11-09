@@ -1,5 +1,5 @@
 # Standalone-Prod Fuel: Push auf master deployt live (nur CI) — aus dem eigenen
-# Repo + fitness-backend (Shared-Stubs unter src/shared → ../../../../backend/fuel/...).
+# Repo + backend (Shared-Stubs unter src/shared → ../../../../backend/fuel/...).
 # Kein vitalos-Meta, keine Fitness-KB, keine Nachbar-Repos (seit Standalone 2026-10).
 #
 # Auslöser: push auf master und workflow_dispatch (automerge.yml) -> baut und deployt live (nur master).
@@ -41,10 +41,10 @@ jobs:
           # Volle Historie: der Changelog (scripts/vos-changelog) liest bei workflow_dispatch `git log <parent>..HEAD`.
           fetch-depth: 0
 
-      - name: Checkout fitness-backend (shared SOT)
+      - name: Checkout backend (shared SOT)
         uses: actions/checkout@v4
         with:
-          repository: nimmsel23/fitness-backend
+          repository: nimmsel23/backend
           # Shared liegt auf dev; main ist divergiert/ohne fuel/src/shared.
           ref: dev
           path: backend
