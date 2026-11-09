@@ -57,10 +57,10 @@ VITALTRAINING (Der eine Gott — The Ultimate Authority)
 Beide Channels teilen sich **dieselbe React-Codebase** in `src/client/` — Unterschied liegt nur im Build-Mode + Runtime-Detection via `isCloud()` in `src/client/lib/api.js`.
 
 **Ports:**
-- Dev: 9000 (`server.mjs` → `src/server/app.mjs`)
+- Dev: 9000 (`~/dev/fuel-backend/server.mjs` → `src/server/app.mjs`; Scripts hier rufen `../fuel-backend/server.mjs`)
 - Vite dev: 5173
 - local Prod: 7000 (static, `fuel.service`; Legacy-Unit `fuel-v2.service` am 2026-08-28 restlos entfernt)
-- v4 (Python/FastAPI, `backend/`): Standalone-Dev optional auf :4000; lokal eingebunden in VitalOS auf :8000 unter `/api/fuel/*`. `fuel-python.service` ist seit 2026-10-29 deaktiviert; Firebase bleibt der Produkt-Einstieg.
+- v4 (Python/FastAPI, `backend/` hier + UI in `~/dev/fuel-frontend`): Standalone-Dev optional auf :4000; lokal eingebunden in VitalOS auf :8000 unter `/api/fuel/*`. `fuel-python.service` ist seit 2026-10-29 deaktiviert; Firebase bleibt der Produkt-Einstieg.
 - cloud: `https://fuel-vos.web.app`
 
 **Data location (local):** `~/.aos/fuel/` (via `AOS_FUEL_DATA_DIR`)
