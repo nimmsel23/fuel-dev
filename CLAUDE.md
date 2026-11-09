@@ -199,22 +199,22 @@ Deaktivieren falls nötig: `systemctl --user disable --now fuel-catalog-verify.t
 
 ### local channel (aktueller Desktop-Entry-Point: v3/Node)
 ```bash
-pnpm run dev          # nodemon + vite, watches src/ + server.mjs
+pnpm run dev          # nodemon + vite; watches src/ + ../fuel-backend
 pnpm run build:local  # Vite → ./opt-fuel target (VITE_APP_MODE=coach)
-pnpm run prod         # PORT=7000 HOST=0.0.0.0 FUEL_STATIC_DIR=/opt/fuel
+pnpm run prod         # PORT=7000 HOST=0.0.0.0 → ../fuel-backend/server.mjs
 pnpm run deploy:local # = ./deploy.sh — rsync → dependency install → systemctl restart
 ./deploy.sh          # Bash deploy script (siehe unten)
 fuelctl local deploy # Python-Wrapper, ruft deploy.sh
 ```
 
-**`deploy.sh`** macht aktuell zweistufig: `staging` synced `~/fuel-dev` nach
-`~/.local/fuel`; `prod` synced von dort nach `/opt/fuel` und `/opt/fuel-python`.
-Beide Prod-Services sind aktiv und laufen parallel (verifiziert 2026-08-28):
-`fuel.service` (v3, Node, `/opt/fuel`, Port 7000) und `fuel-python.service`
-(v4, `backend/`+`frontend/`, Port 4000). Stand 2026-10-29 sind beide lokalen
-Prod-Units deaktiviert. Die FastAPI-Router laufen in VitalOS auf :8000;
-`deploy.sh prod` deployed nur noch den optionalen Node-Server und deaktiviert
-eine vorhandene alte `fuel-python.service`-Unit.
+**`deploy.sh`** macht aktuell zweistufig: `staging` synced dieses Repo plus Backend aus
+`$FUEL_BACKEND_DIR` (Standard `~/dev/fuel-backend`) nach `~/.local/fuel`; `prod`
+synced von dort nach `/opt/fuel` (optional Node). Der frühere Parallelbetrieb
+`fuel.service` + `fuel-python.service` (`backend/` + damals `frontend/`) ist seit
+2026-10-29 abgeschaltet — FastAPI-Router laufen in VitalOS auf :8000; das
+pausierte Vite-Frontend liegt in `~/dev/fuel-frontend`. `deploy.sh prod`
+deployed nur noch den optionalen Node-Server und deaktiviert eine vorhandene
+alte `fuel-python.service`-Unit.
 
 **Environment Variables (local):**
 - `PORT` (default 9000)
