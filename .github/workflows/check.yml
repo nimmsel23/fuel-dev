@@ -1,8 +1,8 @@
 # Check für Fuel: Build auf jedem PR/dev-Push, ohne Deploy und ohne Firebase-Secrets.
 #
-# Gleicher Aufbau wie preview-dev.yml (Fuel baut standalone, kein vitalos-Meta-Repo),
-# aber ohne Pfadfilter und ohne Preview – jeder PR wird geprüft, bevor er nach master
-# wandert (Muster aus fitness-dev/check.yml).
+# Shared-SOT liegt in nimmsel23/fitness-backend (fuel/src/shared); die Stubs unter
+# src/shared/* re-exporten nach ../../../../backend/fuel/... — deshalb Checkout als
+# Geschwister fuel-dev/ + backend/ (wie lokal ~/dev/fuel-dev neben ~/dev/backend).
 
 name: Check (Fuel)
 
@@ -25,7 +25,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout fuel-dev
+        uses: actions/checkout@v4
+        with:
+          path: fuel-dev
+
+      - name: Checkout fitness-backend (shared SOT)
+        uses: actions/checkout@v4
+        with:
+          repository: nimmsel23/fitness-backend
+          ref: dev
+          path: backend
+          token: ${{ secrets.SYNC_TOKEN }}
 
       - uses: pnpm/action-setup@v4
         with:
@@ -35,14 +46,18 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+          cache-dependency-path: fuel-dev/pnpm-lock.yaml
 
       - name: Install
+        working-directory: fuel-dev
         run: pnpm install --frozen-lockfile
 
       - name: Unit tests
+        working-directory: fuel-dev
         run: pnpm run test:unit
 
       - name: Build Fuel (Cloud)
+        working-directory: fuel-dev
         run: pnpm run build:cloud
         env:
           VITE_RECAPTCHA_SITE_KEY: ${{ vars.VITE_RECAPTCHA_SITE_KEY || secrets.VITE_RECAPTCHA_SITE_KEY }}

@@ -11,7 +11,7 @@
 #   - api.local.js ist nur lokaler Dev-Code und löst keinen Mini-App-Deploy aus
 # workflow_dispatch: alle oder eine App gezielt; mit `before` (so startet automerge.yml nach dem
 # Release-Merge) wie ein Push per Diff. Ein Merge mit GITHUB_TOKEN löst keinen push-Trigger aus.
-# Aufbau wie fitness-dev/deploy-miniapps.yml; Fuel baut aus nacktem Checkout (keine Nachbar-Repos).
+# Aufbau wie fitness-dev/deploy-miniapps.yml; Shared-SOT aus fitness-backend als backend/.
 
 name: Live Deploy (Fuel Mini-Apps je Tab)
 
@@ -111,7 +111,18 @@ jobs:
       max-parallel: 4
       matrix: ${{ fromJSON(needs.detect.outputs.matrix) }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout fuel-dev
+        uses: actions/checkout@v4
+        with:
+          path: fuel-dev
+
+      - name: Checkout fitness-backend (shared SOT)
+        uses: actions/checkout@v4
+        with:
+          repository: nimmsel23/fitness-backend
+          ref: dev
+          path: backend
+          token: ${{ secrets.SYNC_TOKEN }}
 
       - uses: pnpm/action-setup@v4
         with:
@@ -121,11 +132,14 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+          cache-dependency-path: fuel-dev/pnpm-lock.yaml
 
       - name: Install
+        working-directory: fuel-dev
         run: pnpm install --frozen-lockfile
 
       - name: Firebase config schreiben (Secret, falls gesetzt)
+        working-directory: fuel-dev
         env:
           FIREBASE_CONFIG: ${{ secrets.FIREBASE_CONFIG }}
           FIREBASE_AUTH_DOMAIN: ${{ matrix.site }}.web.app
@@ -148,6 +162,7 @@ jobs:
           NODE
 
       - name: Build ${{ matrix.id }}
+        working-directory: fuel-dev
         run: pnpm run build:miniapp ${{ matrix.id }}
         env:
           VITE_RECAPTCHA_SITE_KEY: ${{ vars.VITE_RECAPTCHA_SITE_KEY || secrets.VITE_RECAPTCHA_SITE_KEY }}
@@ -155,6 +170,7 @@ jobs:
       - name: Deploy ${{ matrix.id }} (${{ matrix.site }})
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
+          entryPoint: fuel-dev
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_FITNESS_AOS || secrets.FIREBASE_SERVICE_ACCOUNT }}
           projectId: fitness-aos

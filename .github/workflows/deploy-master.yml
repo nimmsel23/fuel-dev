@@ -54,6 +54,14 @@ jobs:
             echo "$repo @ $(git -C "$repo" rev-parse --short HEAD)"
           done
 
+      - name: Checkout fitness-backend (shared SOT)
+        uses: actions/checkout@v4
+        with:
+          repository: nimmsel23/fitness-backend
+          ref: ${{ env.NEIGHBOR_REF == 'master' && 'main' || 'dev' }}
+          path: backend
+          token: ${{ secrets.SYNC_TOKEN }}
+
       - uses: pnpm/action-setup@v4
         with:
           version: 11.3.0

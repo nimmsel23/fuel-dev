@@ -1,8 +1,7 @@
 # Preview-Deploy für Fuel: dev-Push → 24h-Channel "dev", PR → eigener PR-Channel.
 #
-# Fuel ist eigenständig: keine Imports aus Nachbar-Repos (fitness/journal/habits/relax),
-# der Build läuft aus einem nackten Checkout dieses Repos — kein vitalos-Meta-Repo,
-# keine Submodule, keine privaten Fremd-Repos nötig.
+# Fuel braucht für Shared-Stubs das private fitness-backend (fuel/src/shared) als
+# Geschwister backend/ neben fuel-dev/ — analog lokal ~/dev/backend. Kein vitalos-Meta.
 # Telegram-Link kommt wie bei der lokalen Pipeline (scripts/deploy-preview.mjs).
 
 name: Preview (Fuel dev)
@@ -34,7 +33,18 @@ jobs:
       checks: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout fuel-dev
+        uses: actions/checkout@v4
+        with:
+          path: fuel-dev
+
+      - name: Checkout fitness-backend (shared SOT)
+        uses: actions/checkout@v4
+        with:
+          repository: nimmsel23/fitness-backend
+          ref: dev
+          path: backend
+          token: ${{ secrets.SYNC_TOKEN }}
 
       - uses: pnpm/action-setup@v4
         with:
@@ -44,11 +54,14 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+          cache-dependency-path: fuel-dev/pnpm-lock.yaml
 
       - name: Install
+        working-directory: fuel-dev
         run: pnpm install --frozen-lockfile
 
       - name: Build Fuel (Cloud)
+        working-directory: fuel-dev
         run: pnpm run build:cloud
         env:
           VITE_RECAPTCHA_SITE_KEY: ${{ vars.VITE_RECAPTCHA_SITE_KEY || secrets.VITE_RECAPTCHA_SITE_KEY }}
@@ -57,6 +70,7 @@ jobs:
         id: firebase_deploy
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
+          entryPoint: fuel-dev
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_FITNESS_AOS || secrets.FIREBASE_SERVICE_ACCOUNT }}
           projectId: fitness-aos
