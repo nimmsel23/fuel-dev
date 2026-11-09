@@ -29,7 +29,7 @@ Aktive Arbeitsliste (max. 5 Punkte).
 
 ## 2026-11-04
 
-- [ ] Docs in `fuel-dev` (`CLAUDE.md`, Code-Struktur, Quick Start, `deploy.sh`-Beschreibung) nennen noch `src/server/`, `server.mjs` und `frontend/`. Sie müssen auf die Repos `fuel-backend` und `fuel-frontend` umgeschrieben werden. Nur `AGENTS.md` ist nachgezogen.
+- [x] Docs in `fuel-dev` (`CLAUDE.md`, Code-Struktur, Quick Start, `deploy.sh`-Beschreibung) auf `fuel-backend`/`fuel-frontend` umgeschrieben (2026-11-09 AL; `AGENTS.md` war schon nachgezogen).
 - [ ] `backend/api/main.py` mit dem neuen Frontend-Pfad (`../fuel-frontend/dist` / `FUEL_FRONTEND_DIR`) einmal real starten. Bisher nur Syntax geprüft.
 - [ ] Mit dem Release-PR sind `a471644` und die geänderte `package.json` nach `master` gegangen. Prüfen, ob alle vier Fuel-Mini-Apps (`vos-fuel-*`) per CI korrekt neu deployt wurden. Das widerspricht der Regel „Mini-Apps kein CI-Deploy" in `CLAUDE.md`, die bereinigt werden muss.
 - [ ] Pre-Push-Hooks in `relax-app` und `plan-app` scheiterten lokal an `Failed to get Firebase project fitness-aos`. Die Pushes liefen mit `--no-verify`. Die lokale Firebase-Anmeldung prüfen.
