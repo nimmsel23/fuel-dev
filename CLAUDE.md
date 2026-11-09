@@ -228,7 +228,7 @@ alte `fuel-python.service`-Unit.
 ```bash
 pnpm run build:cloud  # VITE_APP_MODE=client → dist-firebase/
 pnpm run deploy:cloud # build:cloud + firebase deploy --only hosting:client
-pnpm run cloud:push   # Lokale Cloud-Payloads → Firestore (scripts/firestore-sync.mjs)
+pnpm run cloud:push   # Lokale Cloud-Payloads → Firestore (../fuel-backend/scripts/firestore-sync.mjs)
 pnpm run cloud:pull   # Firestore → lokale Dateien
 pnpm run catalog:sync -- <uid> # echter Catalog-Sync für nutrition/supplements
 pnpm run deploy:preview # 24h-Preview-Channel + Telegram-Link
