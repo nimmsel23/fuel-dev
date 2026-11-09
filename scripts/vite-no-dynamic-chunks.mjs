@@ -5,14 +5,14 @@
 // hängen an der index.html und bleiben immer konsistent.
 export function noDynamicChunks() {
   return {
-    name: "fuel-no-dynamic-chunks",
+    name: 'fuel-no-dynamic-chunks',
     generateBundle(_options, bundle) {
-      const dynamic = Object.values(bundle).filter((c) => c.type === "chunk" && c.isDynamicEntry);
+      const dynamic = Object.values(bundle).filter((c) => c.type === 'chunk' && c.isDynamicEntry)
       if (dynamic.length) {
         this.error(
-          `Dynamische Chunks sind verboten (lazy()/import() durch statische Imports ersetzen): ${dynamic.map((c) => `${c.name} (${(c.facadeModuleId || c.moduleIds?.[c.moduleIds.length - 1] || "?").replace(/^.*\/(?=[^/]+\/[^/]+$)/, "")})`).join(", ")}`,
-        );
+          `Dynamische Chunks sind verboten (lazy()/import() durch statische Imports ersetzen): ${dynamic.map((c) => `${c.name} (${(c.facadeModuleId || c.moduleIds?.[c.moduleIds.length - 1] || '?').replace(/^.*\/(?=[^/]+\/[^/]+$)/, '')})`).join(', ')}`,
+        )
       }
     },
-  };
+  }
 }

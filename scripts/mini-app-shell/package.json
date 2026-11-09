@@ -5,6 +5,10 @@
   "type": "module",
   "description": "Splash, Service Worker, Register-Snippet und Stamp-CLI für alle VitalOS-Mini-Apps (fitness, fuel, relax, ...)",
   "main": "index.mjs",
-  "bin": { "vos-mini-app": "cli.mjs" },
-  "scripts": { "test": "node --test test/" }
+  "bin": {
+    "vos-mini-app": "cli.mjs"
+  },
+  "scripts": {
+    "test": "node --test test/"
+  }
 }

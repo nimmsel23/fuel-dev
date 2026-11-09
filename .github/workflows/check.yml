@@ -56,6 +56,15 @@ jobs:
         working-directory: fuel-dev
         run: pnpm run test:unit
 
+      - name: Tooling (Biome format scripts/)
+        working-directory: fuel-dev
+        run: pnpm run tooling:biome
+
+      - name: Tooling (knip report)
+        working-directory: fuel-dev
+        continue-on-error: true
+        run: pnpm run tooling:knip
+
       - name: Build Fuel (Cloud)
         working-directory: fuel-dev
         run: pnpm run build:cloud

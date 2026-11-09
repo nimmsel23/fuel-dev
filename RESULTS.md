@@ -1,3 +1,9 @@
+## 2026-11-09 — Node Tooling (Biome/knip/engines/smoke)
+
+- `engines.node: >=22.13`, Scripts `tooling:biome|knip|check`.
+- Check.yml: Biome format auf `scripts/`; knip report (continue-on-error).
+- SSOT-Vorlagen: `~/vitalos/tooling/`.
+
 ## 2026-11-09 — Lockfile nach esbuild-Entfernung
 
 pnpm-lock.yaml an package.json angeglichen (CI frozen-lockfile rot).
