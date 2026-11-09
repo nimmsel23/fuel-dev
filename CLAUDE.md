@@ -323,10 +323,10 @@ fuel log magnesium
 
 **DACH-Referenzwerte anpassen:** `src/config/dach.mjs`
 
-**Neuen Nutrition-Endpoint:**
-1. Route in `src/routes/nutrition/` als eigenes Plugin
-2. In `src/routes/nutrition/index.mjs` registrieren
-3. Service in `src/services/`
+**Neuen Nutrition-Endpoint:** in `~/dev/fuel-backend` (nicht hier)
+1. Route in `src/server/routes/nutrition/` als eigenes Plugin
+2. In `src/server/routes/nutrition/index.mjs` registrieren
+3. Service in `src/server/services/`
 
 ---
 
