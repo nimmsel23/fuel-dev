@@ -21,14 +21,15 @@ Aus diesem Repo sind zwei Bereiche in eigene Repos gewandert. Dort arbeiten, nic
 Folgen:
 - Die Server-Dependencies (`fastify`, `@fastify/*`, `firebase-admin`, `web-push`, `better-sqlite3`, `pino`, `yaml`) stehen nicht mehr in der `package.json` dieses Repos (und damit nicht in den Lockfiles von `~/vitalos`), nur noch in `backend/fuel/package.json` und `deploy/runtime/package.json` (Deploy-Manifest).
 - `deploy.sh` liest das Backend fürs Staging aus `$FUEL_BACKEND_DIR` (Standard `~/dev/backend/fuel`, muss neben diesem Repo ausgecheckt sein); Prod kopiert weiter aus dem flachen Staging-Stand `~/.local/fuel`.
-- `package.json`-Skripte `start`/`dev`/`cloud:*`, `scripts/dev-runner.mjs` und `bin/fuelctl` zeigen auf `../backend/fuel`. `backend/api/main.py` (Python) liest das Frontend-`dist` aus `../fuel-frontend/dist` oder `FUEL_FRONTEND_DIR`.
+- `package.json`-Skripte `start`/`dev`/`cloud:*`, `scripts/dev-runner.mjs` und `bin/fuelctl` zeigen auf `../backend/fuel`. Python: `~/dev/backend/fuel/backend` (`fuel-devctl`); `api/main.py` liest Frontend-`dist` aus `../fuel-frontend/dist` oder `FUEL_FRONTEND_DIR`.
 - Neue Server-Änderungen (Routen, Services, Firestore-Admin) gehören nach `~/dev/backend/fuel`, nicht hierher.
 
 
 ## Python-`backend/` (Stand 2026-11-09)
 
-SOT: `~/dev/backend/fuel/backend`. Hier nur Symlink `backend` → dorthin.
-Node bleibt `~/dev/backend/fuel`. Siehe `docs/BACKEND-MOVED.md`.
+SOT: `~/dev/backend/fuel/backend`. Kein Symlink in diesem Repo.
+`fuel-devctl` → `FUEL_PYTHON_BACKEND_DIR` / Default `../backend/fuel/backend`.
+Siehe `docs/BACKEND-MOVED.md`.
 
 
 ## Fuel-Mini-Apps: Release-Grenze

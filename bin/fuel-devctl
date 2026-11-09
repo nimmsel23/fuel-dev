@@ -35,7 +35,9 @@ DEPLOY_SCRIPT = DEV_DIR / "deploy.sh"
 
 BACKEND_PORT = os.getenv("FUEL_BACKEND_PORT", os.getenv("FUEL_V4_PORT", "4000"))
 BACKEND_HEALTH_URL = f"http://127.0.0.1:{BACKEND_PORT}/health"
-BACKEND_DIR = DEV_DIR / "backend"
+# SOT: ~/dev/backend/fuel/backend (Poetry-Projekt). Parent auf sys.path → import backend.*
+BACKEND_DIR = Path(os.getenv("FUEL_PYTHON_BACKEND_DIR", DEV_DIR.parent / "backend" / "fuel" / "backend"))
+BACKEND_PARENT = BACKEND_DIR.parent
 BACKEND_UVICORN = BACKEND_DIR / ".venv" / "bin" / "uvicorn"
 BACKEND_LOGFILE = Path("/tmp/backend/fuel-dev.log")
 BACKEND_PIDFILE = Path("/tmp/backend/fuel-dev.pid")
@@ -92,6 +94,7 @@ def find_backend_pids() -> list[int]:
     """
     dev_dir_str = str(DEV_DIR)
     backend_dir_str = str(BACKEND_DIR)
+    backend_parent_str = str(BACKEND_PARENT)
     pids = []
     for proc in psutil.process_iter(["pid", "name", "cmdline", "cwd"]):
         try:
@@ -107,7 +110,12 @@ def find_backend_pids() -> list[int]:
             )
             if not looks_like_backend:
                 continue
-            if cwd.startswith(dev_dir_str) or dev_dir_str in cmdline or backend_dir_str in cmdline:
+            if (
+                cwd.startswith(dev_dir_str)
+                or cwd.startswith(backend_parent_str)
+                or backend_dir_str in cmdline
+                or backend_parent_str in cmdline
+            ):
                 pids.append(int(info["pid"]))
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess, KeyError, TypeError, ValueError):
             continue
@@ -181,10 +189,17 @@ def _start_backend():
         msg.warn(f"backend already running on port {BACKEND_PORT}")
         return
     if not backend_environment_ready():
-        msg.fail("Fuel Python environment is missing; run: POETRY_VIRTUALENVS_IN_PROJECT=true poetry -P backend install --only main --no-root")
+        msg.fail(
+            "Fuel Python environment is missing; run: "
+            f"POETRY_VIRTUALENVS_IN_PROJECT=true poetry -P {BACKEND_DIR} install --only main --no-root"
+        )
         return
 
-    migration = subprocess.run(poetry_run("python", "-m", "backend.migrate"), cwd=DEV_DIR)
+    migration = subprocess.run(
+        poetry_run("python", "-m", "backend.migrate"),
+        cwd=BACKEND_PARENT,
+        env={**os.environ, "PYTHONPATH": str(BACKEND_PARENT)},
+    )
     if migration.returncode != 0:
         msg.fail("backend migrations failed; backend was not started")
         return
@@ -198,7 +213,8 @@ def _start_backend():
         poetry_run("uvicorn", "backend.api.main:app", "--host", BACKEND_HOST, "--port", BACKEND_PORT),
         stdout=open(BACKEND_LOGFILE, "a"),
         stderr=subprocess.STDOUT,
-        cwd=DEV_DIR,
+        cwd=BACKEND_PARENT,
+        env={**os.environ, "PYTHONPATH": str(BACKEND_PARENT)},
         stdin=subprocess.DEVNULL,
         start_new_session=True,
     )

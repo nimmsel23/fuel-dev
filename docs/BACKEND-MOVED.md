@@ -5,12 +5,10 @@ Stand: 2026-11-09.
 ## Node → `~/dev/backend/fuel`
 
 Fastify/`server.mjs`/Sync: SOT **`~/dev/backend/fuel`**.
-Scripts/`fuelctl` zeigen dorthin.
+Scripts/`fuelctl` zeigen auf `../backend/fuel`.
 
 ## Python → `~/dev/backend/fuel/backend`
 
-Poetry/Alembic/FastAPI lag nested hier und war nie subtree-gesplittet.
-SOT jetzt: **`~/dev/backend/fuel/backend`**.
-
-In diesem Repo ist `backend` ein **Symlink** dorthin (`fuel-devctl` /
-`BACKEND_DIR` bleiben gültig).
+Kein Symlink mehr in diesem Repo. `fuel-devctl` setzt
+`BACKEND_DIR` auf `../backend/fuel/backend` (override:
+`FUEL_PYTHON_BACKEND_DIR`).

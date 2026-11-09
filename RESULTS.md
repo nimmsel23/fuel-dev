@@ -1,3 +1,7 @@
+## 2026-11-09 — kein Backend-Symlink mehr
+
+- Symlink weg; `fuel-devctl` zeigt auf `~/dev/backend/fuel/backend`.
+
 ## 2026-11-09 — Python-backend → ~/dev/backend/fuel/backend
 
 - Poetry-Baum neben Node unter `backend/fuel/backend`; hier Symlink `backend`.
