@@ -1,5 +1,7 @@
 # 2026-11-10
 
+- FullCalendar raus: tote Big-Calendar-View + @fullcalendar/* Deps (weder Header-Cal noch Supplements).
+
 - Vite 8: manualChunks as function + Firebase AI AgentPlatformBackend compat.
 
 - 2026-11-10: chore(deps) major stack align — React 19 / Vite 8.3.6 / plugin-react 6.2.1 / Firebase 13 (age-safe pins, pnpm-workspace overrides).

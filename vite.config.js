@@ -70,7 +70,6 @@ export default defineConfig(async () => {
             if (pkg === 'react' || pkg === 'react-dom' || pkg === 'scheduler') return 'vendor-react'
             if (pkg === '@tanstack/react-query') return 'vendor-query'
             if (pkg === 'firebase' || pkg.startsWith('@firebase/')) return 'vendor-firebase'
-            if (pkg.startsWith('@fullcalendar/')) return 'vendor-calendar'
             if (pkg === 'recharts' || pkg.startsWith('d3-') || pkg === 'victory-vendor' || pkg === 'internmap'
               || pkg === 'decimal.js-light' || pkg === 'es-toolkit') return 'vendor-charts'
             return undefined
