@@ -11,7 +11,7 @@ Aktive Arbeitsliste (max. 5 Punkte).
 
 ## 2026-11-09
 
-- [ ] Org-Task 6a0eeebc: warten auf Dependabot-PR-Merge-Beleg (Stabilität 2d grün bereits; Mo-Scan 0 PRs).
+- [ ] Org-Task 6a0eeebc: warten auf Dependabot-PR-Merge-Beleg (Stabilität weiter grün 10.11.; due 2026-11-17 / nächster Mo-Scan; 0 PRs).
 - [ ] iOS Mini-App Login: ca22778 auf origin/dev — reale iPad/PWA-Abnahme nach Deploy.
 - [ ] README-/GitHub-Pages-Muster auf die übrigen VitalOS-Repos übertragen: vorhandene Root-App-Einstiege und Vite-Konfiguration erhalten, Pages auf einen eigenen Dokumentationsordner richten.
 - [ ] Login- und No-Login-Katalogpfade auf Dev, Staging und `/opt` getrennt verifizieren; Firestore-Push nur mit der passenden Runtime-UID abnehmen.
