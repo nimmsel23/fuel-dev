@@ -6,6 +6,21 @@ function resolvePackageEntry(specifier) {
   return require.resolve(specifier, { paths: [__dirname] })
 }
 
+// Vite 8 / Rolldown appends a content-hash to the `__VITE_PRELOAD__` marker
+// (`__VITE_PRELOAD__50b3…`). Vite's import-analysis then replaces only the
+// 16-char marker, leaving `[]50b3…` — invalid JS (black screen, same as vos-6pack).
+// Preventive: Capacitor deps are present and will land lazy `import('./web')`.
+function fixRolldownPreloadMarker() {
+  return {
+    name: 'fix-rolldown-preload-marker',
+    renderChunk(code) {
+      if (!code.includes('__VITE_PRELOAD__')) return null
+      const next = code.replace(/__VITE_PRELOAD__[a-f\d]{8,}/g, '__VITE_PRELOAD__')
+      return next === code ? null : { code: next, map: null }
+    },
+  }
+}
+
 module.exports = defineConfig(async ({ mode }) => {
   const { vosChangelog } = await import('./scripts/vos-changelog/vos-changelog-vite.mjs')
   const { noDynamicChunks } = await import('./scripts/vite-no-dynamic-chunks.mjs')
@@ -94,6 +109,7 @@ module.exports = defineConfig(async ({ mode }) => {
           ]
         : []),
       react(),
+      fixRolldownPreloadMarker(),
       noDynamicChunks(),
     ],
     build: {

@@ -1,4 +1,10 @@
+## 2026-11-10 — Vite-8 Rolldown-Preload-Guard
+
+- `fixRolldownPreloadMarker` in `vite.config.js` + `vite.config.cjs` (analog 6pack/skills/relax).
+- Vorbeuge vor Capacitor-Lazy-Imports; Vite 8.3.6 bereits aktiv.
+
 ## 2026-11-10 — fuelctl/deploy: Fuel-API SOT = Coach :9150
+
 
 - `fuelctl status` prüft zuerst Coach `/api/fuel/health`, VitalOS :8000 nur Fallback.
 - `deploy.sh` Hinweis entsprechend; kein Extra-Host über VitalOS nötig.

@@ -13,6 +13,21 @@ function resolvePackageEntry(specifier) {
   return requireFromHere.resolve(specifier)
 }
 
+// Vite 8 / Rolldown appends a content-hash to the `__VITE_PRELOAD__` marker
+// (`__VITE_PRELOAD__50b3…`). Vite's import-analysis then replaces only the
+// 16-char marker, leaving `[]50b3…` — invalid JS (black screen, same as vos-6pack).
+// Preventive: Capacitor deps are present and will land lazy `import('./web')`.
+function fixRolldownPreloadMarker() {
+  return {
+    name: 'fix-rolldown-preload-marker',
+    renderChunk(code) {
+      if (!code.includes('__VITE_PRELOAD__')) return null
+      const next = code.replace(/__VITE_PRELOAD__[a-f\d]{8,}/g, '__VITE_PRELOAD__')
+      return next === code ? null : { code: next, map: null }
+    },
+  }
+}
+
 // Local channel (build:local → /opt/fuel via deploy.sh). Fuel ist eigenständig:
 // keine Imports aus Nachbar-Repos (fitness/journal/habits/relax), der Build läuft
 // aus einem nackten Checkout. deploy.sh baut vor dem rsync nach /opt/fuel.
@@ -56,7 +71,12 @@ export default defineConfig(async () => {
         'firebase/ai',
       ],
     },
-    plugins: [vosChangelog({ appId: 'fuel', appName: 'Fuel', accent: '#fb923c' }), react(), noDynamicChunks()],
+    plugins: [
+      vosChangelog({ appId: 'fuel', appName: 'Fuel', accent: '#fb923c' }),
+      react(),
+      fixRolldownPreloadMarker(),
+      noDynamicChunks(),
+    ],
     build: {
       outDir,
       emptyOutDir: true,
