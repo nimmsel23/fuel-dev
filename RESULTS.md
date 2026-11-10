@@ -1,3 +1,4 @@
+- 2026-11-10: chore(deps) — `motion-dom`/`motion-utils` Specifier an `framer-motion@14.10.1` angeglichen (Lockfile-Drift).
 ## 2026-11-10 — Vite-8 Rolldown-Preload-Guard
 
 - `fixRolldownPreloadMarker` in `vite.config.js` + `vite.config.cjs` (analog 6pack/skills/relax).
