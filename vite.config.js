@@ -66,13 +66,13 @@ export default defineConfig(async () => {
           manualChunks(id) {
             const m = id.match(/[\\/]node_modules[\\/](?:\.pnpm[\\/][^\\/]+[\\/]node_modules[\\/])?((?:@[^\\/]+[\\/])?[^\\/]+)/)
             if (!m) return undefined
-            const pkg = m[1].replace(/\\/g, '/')
-            if (pkg === 'react' || pkg === 'react-dom' || pkg === 'scheduler') return 'react'
-            if (pkg === 'lucide-react') return 'icons'
-            if (pkg === 'react-body-highlighter') return 'bodymap'
-            if (pkg === 'firebase' || pkg.startsWith('@firebase/')) return 'firebase'
+            const pkg = m[1].split('\\').join('/')
+            if (pkg === 'react' || pkg === 'react-dom' || pkg === 'scheduler') return 'vendor-react'
+            if (pkg === '@tanstack/react-query') return 'vendor-query'
+            if (pkg === 'firebase' || pkg.startsWith('@firebase/')) return 'vendor-firebase'
+            if (pkg.startsWith('@fullcalendar/')) return 'vendor-calendar'
             if (pkg === 'recharts' || pkg.startsWith('d3-') || pkg === 'victory-vendor' || pkg === 'internmap'
-              || pkg === 'decimal.js-light' || pkg === 'es-toolkit') return 'charts'
+              || pkg === 'decimal.js-light' || pkg === 'es-toolkit') return 'vendor-charts'
             return undefined
           },
         },
