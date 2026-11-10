@@ -39,9 +39,12 @@ export const auth = getAuth(app);
 setPersistence(auth, browserLocalPersistence).catch(() => {});
 export const googleProvider = new GoogleAuthProvider();
 
-// Vertex AI initialization
-import { getAI, VertexAIBackend } from "firebase/ai";
-export const vertexAI = getAI(app, { backend: new VertexAIBackend("us-central1") });
+// Vertex AI initialization (@firebase/ai >= 3: VertexAIBackend → AgentPlatformBackend)
+import * as firebaseAI from "firebase/ai";
+const AiBackend = Reflect.get(firebaseAI, "AgentPlatformBackend") ?? Reflect.get(firebaseAI, "VertexAIBackend");
+export const vertexAI = typeof AiBackend === "function"
+  ? firebaseAI.getAI(app, { backend: new AiBackend("us-central1") })
+  : null;
 
 // FCM Initialization
 import { getMessaging } from "firebase/messaging";

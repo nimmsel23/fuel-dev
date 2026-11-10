@@ -1,5 +1,5 @@
-const path = require("path")
-const fs = require("fs")
+const path = require('path')
+const fs = require('fs')
 
 // fuel-app importiert journal-app via @journal-Alias (siehe vite.config.cjs) —
 // Tailwind muss dessen Dateien mitscannen, sonst werden dort verwendete
@@ -8,28 +8,28 @@ const fs = require("fs")
 // Glob. Siblings liegen je nach Checkout-Kontext unter -dev (Home-Root) oder
 // -app (vitalos-Submodule) — hartkodierte Home-Pfade brechen in CI.
 function siblingGlob(devName, appName) {
-  const appPath = path.resolve(__dirname, "..", appName)
-  const dir = fs.existsSync(appPath) ? appPath : path.resolve(__dirname, "..", devName)
+  const appPath = path.resolve(__dirname, '..', appName)
+  const dir = fs.existsSync(appPath) ? appPath : path.resolve(__dirname, '..', devName)
   return `${dir}/src/**/*.{js,jsx}`
 }
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
-    "./index.html",
-    "./src/**/*.{js,jsx}",
-    siblingGlob("journal-dev", "journal-app"),
-    siblingGlob("habits-dev", "habit-app"),
+    './index.html',
+    './src/**/*.{js,jsx}',
+    siblingGlob('journal-dev', 'journal-app'),
+    siblingGlob('habits-dev', 'habit-app'),
   ],
   theme: {
     extend: {
       boxShadow: {
-        glow: "0 0 60px rgba(249, 115, 22, 0.16)",
+        glow: '0 0 60px rgba(249, 115, 22, 0.16)',
       },
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
+        sans: ['Inter', 'system-ui', 'sans-serif'],
       },
     },
   },
   plugins: [],
-};
+}
