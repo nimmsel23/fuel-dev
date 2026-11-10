@@ -61,3 +61,32 @@ _Vom AL ausfüllen (knapp & belegbar, je 1–3 Zeilen, Commit-/PR-Referenzen sta
 - Erledigt: NEXT CLAUDE.md-Bereinigung (stale `server.mjs`/`src/server`/`frontend/` → `fuel-backend`/`fuel-frontend`); Vormittag 6a0eeebc bleibt (AutoMerge 42607813011/42551594703 success, 0 Dep-PRs).
 - Offen/Weiter: 6a0eeebc bis Dependabot-PR-Merge; P1 iOS-Abnahme ca22778; Dependabot-Alerts auf `master` (NEXT, 3 critical: proxy-addr/certifi/anyio).
 - Blocker: Kein Dependabot-PR → Merge-Beleg für 6a0eeebc weiter offen; iOS-Repro braucht Gerät.
+
+## 2026-11-10 (Dienstag) — Abteilungsleiter-Lauf
+
+_Automatik (vos-al-log Vorlage 2026-11-10):_
+- Commits seit 2026-11-07: 396cac3 fix(vite): Rolldown manualChunks function form for Vite 8
+5e98b37 chore(deps): major upgrades to React 19 / Vite 8 / Firebase 13
+559f45f chore(deps): minor/patch upgrades (age-safe pins)
+66e030b chore(deps): minor/patch upgrades (ncu --target minor)
+8a66930 fix(ci): lockfile nach tooling/@firebase/util-Pin
+de3f299 chore(tooling): engines, Biome scripts-format, knip, smoke in Check
+823d5e8 chore(ci): Shared-SOT-Checkout von nimmsel23/backend (ex-fitness-backend)
+0f926df fix(ci): Live-Deploy ohne Fitness-KB/Nachbarn — Standalone braucht das nicht
+0d21cbf fix(ci): fitness-backend immer von dev (main ohne shared)
+1c13017 fix(ci): Fitness-KB aus nimmsel23/fitness vor build:kb-data mounten
+9c47c61 fix(ci): CI-Agent-Alias auf shared stub entfernen (Zirkel/ENOENT)
+162f5c2 fix(ci): esbuild für vision-scan-Test; kaputten CI-Agent-Alias entfernen
+0c3ec19 fix(ci): source repair [ci-agent]
+2597450 fix(ci): fitness-backend als backend/ für Shared-Stubs auschecken
+11d966e fix(ci): source repair [ci-agent]
+- Offene PRs: (keine offenen PRs / gh nicht verfuegbar)
+- CI (letzte Läufe): completed	success	Auto-Promote dev -> master (Check (Fuel))	Auto-Promote dev -> master (Check (Fuel))	master	schedule	42730175587	10s	2026-11-10T00:41:09Z
+completed	success	Gemini CI Agent	Gemini CI Agent	master	workflow_run	42725750128	12s	2026-11-10T00:06:40Z
+completed	success	Live Deploy (Fuel master)	Live Deploy (Fuel master)	master	workflow_dispatch	42725706097	50s	2026-11-10T00:06:19Z
+- Arbeitsbaum: sauber
+
+_Vom AL ausfüllen (knapp & belegbar, je 1–3 Zeilen, Commit-/PR-Referenzen statt Erzählung):_
+- Erledigt: Org-Task 6a0eeebc Stabilitätswache — AutoMerge 42710092638 success; Auto-Promote 42730175587/42725683203 success; Live Deploy 42725706097 success; Check(dev) 42725600462/42725089200 (Vite8/React19) success; Annotate gesetzt.
+- Offen/Weiter: 6a0eeebc bleibt pending — 0 offene Dep-PRs (`gh pr list`), letzte #15/#16 closed 2026-11-05 ohne Merge; nächster Mo-Scan. Daneben iOS-Abnahme ca22778; 8 open Dependabot-Alerts (4 high/4 medium).
+- Blocker: Kein Dependabot-PR → kein Merge-Beleg für 6a0eeebc; iOS-Repro braucht Gerät.
