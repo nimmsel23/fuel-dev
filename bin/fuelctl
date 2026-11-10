@@ -48,7 +48,10 @@ PORT = os.getenv("PORT", "9000")
 PROD_PORT = os.getenv("PROD_PORT") or _unit_port(PROD_SERVICE, "7000")
 HEALTH_URL = f"http://127.0.0.1:{PORT}/health"
 PROD_HEALTH_URL = f"http://127.0.0.1:{PROD_PORT}/health"
-FUEL_API_HEALTH_URL = "http://127.0.0.1:8000/api/fuel/health"
+# SOT: Fuel API in-process on coach-api; VitalOS :8000 remains fallback.
+COACH_FUEL_API_HEALTH_URL = "http://127.0.0.1:9150/api/fuel/health"
+VITALOS_FUEL_API_HEALTH_URL = "http://127.0.0.1:8000/api/fuel/health"
+FUEL_API_HEALTH_URL = COACH_FUEL_API_HEALTH_URL  # alias for older call sites
 PROD_COACH_HEALTH_URL = f"http://127.0.0.1:{PROD_PORT}/coach/health"
 
 WORKDIR = Path(__file__).resolve().parent.parent
@@ -112,10 +115,12 @@ def status():
         msg.good(f"Fuel prod v3 is running on :{PROD_PORT}")
     else:
         msg.warn(f"Fuel prod v3 is NOT responding on :{PROD_PORT}")
-    if check_url(FUEL_API_HEALTH_URL):
-        msg.good("Fuel API is served by VitalOS on :8000 (/api/fuel)")
+    if check_url(COACH_FUEL_API_HEALTH_URL):
+        msg.good("Fuel API is served by Coach on :9150 (/api/fuel)")
+    elif check_url(VITALOS_FUEL_API_HEALTH_URL):
+        msg.warn("Fuel API only via VitalOS :8000 — Coach :9150/api/fuel missing")
     else:
-        msg.warn("VitalOS Fuel API is NOT responding on :8000")
+        msg.warn("Fuel API NOT responding (Coach :9150 nor VitalOS :8000)")
 
     # 3. Catalogs
     msg.divider("Catalogs")

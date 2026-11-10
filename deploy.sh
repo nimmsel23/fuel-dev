@@ -406,8 +406,8 @@ fi
 
 msg "✅ Node deployed to $NODE_DEST."
 
-# The Fuel FastAPI routers are composed by ~/workspace/VitalOS on :8000.
-# Keep an old standalone unit from being resurrected by a legacy local deploy.
+# Fuel FastAPI SOT: coach-api :9150 in-process. VitalOS :8000 may still host a
+# workspace copy. Keep an old standalone unit from being resurrected.
 if sudo systemctl cat fuel-python.service >/dev/null 2>&1; then
   msg "🛑 Disabling retired fuel-python.service (:4000)"
   sudo systemctl disable --now fuel-python.service
@@ -426,5 +426,5 @@ if ! wait_for_http "http://127.0.0.1:7000/health" "Prod Node health" >/dev/null;
   die "❌ Prod Node healthcheck failed"
 fi
 
-msg "ℹ️ Fuel FastAPI is provided by VitalOS on :8000 (/api/fuel/*)."
+msg "ℹ️ Fuel FastAPI SOT: Coach :9150 (/api/fuel/*); VitalOS :8000 is workspace fallback."
 msg "✅ Fuel Node deployed to $NODE_DEST (:7000); no standalone Python service is installed."

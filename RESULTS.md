@@ -1,3 +1,8 @@
+## 2026-11-10 — fuelctl/deploy: Fuel-API SOT = Coach :9150
+
+- `fuelctl status` prüft zuerst Coach `/api/fuel/health`, VitalOS :8000 nur Fallback.
+- `deploy.sh` Hinweis entsprechend; kein Extra-Host über VitalOS nötig.
+
 # 2026-11-10
 
 - FullCalendar raus: tote Big-Calendar-View + @fullcalendar/* Deps (weder Header-Cal noch Supplements).
