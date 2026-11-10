@@ -1,5 +1,8 @@
 # AGENTS.md — Fuel Dev
 
+> **Python-Paket `fuel` (2026-11-10):** SOT `~/dev/coach-dev/backend/fuel/` (CLI+API). Kein `fuel/`-Package mehr in diesem Repo — siehe `docs/PYTHON-PACKAGE-MOVED.md`. `FUEL_REPO_DIR` default = dieses Checkout (catalogs/).
+
+
 ## Repo- und Branch-Rollen
 
 - Dieses Repo ist die Entwicklungsquelle für die eigenständige Fuel-App. `dev` ist der Entwicklungsbranch; Qualifizierende Änderungen auf `dev` starten den CI-Preview-Deploy (siehe Pfadfilter in `preview-dev.yml`).

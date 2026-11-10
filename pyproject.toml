@@ -3,39 +3,10 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "fuel"
+name = "fuel-dev"
 version = "0.1.0"
-description = "Fuel Centre — Nutrition-Tracking CLI (Catalog-first, Gemini-Fallback)"
+description = "Fuel Centre App Checkout — catalogs/frontend. Python package SOT: ~/dev/coach-dev/backend/fuel"
 requires-python = ">=3.11"
-dependencies = [
-  "typer>=0.9.0",
-  "loguru>=0.7.0",
-  "pydantic>=2.0.0",
-  "rich>=13.0.0",
-  "wasabi>=1.1.0",
-  "PyYAML>=6.0",
-  "watchdog>=3.0.0",
-]
+dependencies = []
 
-[project.optional-dependencies]
-cloud = ["firebase-admin>=6.0.0"]
-tui = ["textual>=0.47.0"]
-
-[project.scripts]
-fuel              = "fuel.dispatch:main"
-fuel-meal         = "fuel.meal:main"
-fuel-supplement   = "fuel.supplement:main"
-fuel-ingredient   = "fuel.ingredient:main"
-fuel-week         = "fuel.report:week_main"
-fuel-micro        = "fuel.report:micro_main"
-fuel-catalog-verify = "fuel.catalog_verify:main"
-
-[tool.setuptools]
-include-package-data = true
-
-[tool.setuptools.package-data]
-"fuel.constants" = ["nutrients.yaml", "omega3-rules.txt"]
-
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["fuel*"]
+# Python-CLI/API nicht hier installieren — siehe coach-dev/backend/fuel
