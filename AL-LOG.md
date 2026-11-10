@@ -87,6 +87,6 @@ completed	success	Live Deploy (Fuel master)	Live Deploy (Fuel master)	master	wor
 - Arbeitsbaum: sauber
 
 _Vom AL ausfüllen (knapp & belegbar, je 1–3 Zeilen, Commit-/PR-Referenzen statt Erzählung):_
-- Erledigt: Org-Task 6a0eeebc Stabilitätswache — AutoMerge 42710092638 success; Auto-Promote 42730175587/42725683203 success; Live Deploy 42725706097 success; Check(dev) 42725600462/42725089200 (Vite8/React19) success; Annotate gesetzt.
-- Offen/Weiter: 6a0eeebc bleibt pending — 0 offene Dep-PRs (`gh pr list`), letzte #15/#16 closed 2026-11-05 ohne Merge; nächster Mo-Scan. Daneben iOS-Abnahme ca22778; 8 open Dependabot-Alerts (4 high/4 medium).
+- Erledigt: Org-Task 6a0eeebc Stabilitätswache (14:40) — AutoMerge 42824160354 success; Auto-Promote 42777390161 success; Live Deploy 42763823198 success; Check(dev) 42763741419 success; Annotate + due→2026-11-17.
+- Offen/Weiter: 6a0eeebc pending — 0 Dep-PRs (`gh pr list`), letzte #15/#16 closed ohne Merge; nächster Mo-Scan 17.11. Daneben iOS-Abnahme ca22778; Alerts API 55 open (1 critical/24 high/22 medium/8 low, Schwerpunkt deploy/runtime).
 - Blocker: Kein Dependabot-PR → kein Merge-Beleg für 6a0eeebc; iOS-Repro braucht Gerät.
