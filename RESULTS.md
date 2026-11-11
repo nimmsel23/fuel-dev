@@ -1,3 +1,9 @@
+## 2026-11-11 — CI Simplicity: remove Gemini/Merge-Agent
+
+- Removed: gemini-ci-repair.yml
+- Spine bleibt: Check → automerge-pr (Dependabot) → automerge (dev→master) → Deploy.
+- Owner: complexity only in vitalos/prod (CI.md Kopf).
+
 - 2026-11-10: chore(deps) — `motion-dom`/`motion-utils` Specifier an `framer-motion@14.10.1` angeglichen (Lockfile-Drift).
 
 ## 2026-11-11 — AL 14:40: c545486f Teilergebnis Push
@@ -671,4 +677,3 @@ Enabled Dependabot alerts and security updates. Configured weekly GitHub Actions
 - Ohne Login nutzt der lokale API-Kanal den versionierten Repo-Katalog. Staging setzt Repo-Scope und den direkten Dev-Checkout-Pfad explizit; `/opt` setzt Runtime-Scope und Port 7000 erzwingt ihn.
 - Ergänzender Backend-Push/Sync lädt Supplement-Kataloge ausschließlich aus dem UID-passenden Runtime-Pfad unter `~/.aos/fuel`; Repo-YAML bleibt Dev-/Staging-Daten.
 - Keine Firebase-/Firestore-Daten geändert; nicht gebaut oder getestet.
-
