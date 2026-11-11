@@ -15,7 +15,7 @@ import { useNutritionData } from "./hooks/useNutrition.js";
 import { useAppData } from "./hooks/useAppData.js";
 import { sumCompleteMetric, formatMetric } from "../shared/utils/utils.js";
 import { captureNotificationIntentFromLocation } from "./lib/notification-intents.js";
-import { watchAuth, signIn, signOut } from "./lib/db.firestore.js";
+import { watchAuth, signIn, signOut, getRedirectFailure, redirectSettled } from "./lib/db.firestore.js";
 
 // Schlanke Shell der Fuel-Mini-Apps (VITE_SOLO=log|supplements|micros|report): genau ein Tab,
 // kein Frontdoor, keine Tab-Leiste, keine Heatmap. Läuft immer als Cloud-Build (Firestore),
@@ -77,6 +77,15 @@ export default function SoloShell() {
     if (intent?.date) setActiveDate(intent.date);
   }, [setActiveDate]);
   React.useEffect(() => watchAuth((u) => { qc.clear(); setUser(u); setAuthReady(true); }), [qc]);
+  React.useEffect(() => {
+    let live = true;
+    redirectSettled.then(() => {
+      if (!live) return;
+      const failure = getRedirectFailure();
+      if (failure) setAuthError(failure.message || "Google-Anmeldung fehlgeschlagen.");
+    });
+    return () => { live = false; };
+  }, []);
   React.useEffect(() => {
     const onUpdate = () => setNeedRefresh(true);
     window.addEventListener("sw-update-available", onUpdate);

@@ -102,8 +102,13 @@ function networkFirstNav(req, timeoutMs) {
         if (settled) return
         settled = true
         put(req, res)
-        // zuletzt gesehene App-Shell auch unter index.html ablegen → Offline-Rückfall ist immer der aktuellste Stand
-        if (res && res.ok) caches.open(CACHE).then((c) => c.put(INDEX, res.clone()))
+        // zuletzt gesehene App-Shell auch unter index.html ablegen → Offline-Rückfall ist immer der aktuellste Stand.
+        // /__/ ist der Firebase-Auth-Handler. Dessen HTML darf die Shell nicht ersetzen,
+        // sonst lädt nach dem Google-Redirect die Auth-Seite statt der App.
+        const navPath = rel(new URL(req.url).pathname)
+        if (res && res.ok && navPath !== '/__' && !navPath.startsWith('/__/')) {
+          caches.open(CACHE).then((c) => c.put(INDEX, res.clone()))
+        }
         resolve(res)
       })
       .catch(() => {
@@ -197,6 +202,11 @@ self.addEventListener('fetch', (e) => {
 
   if (url.origin !== self.location.origin) return
   const path = rel(url.pathname)
+
+  // Firebase reserviert /__/ (Auth-Handler, iframe, init.json). Der SW darf diese
+  // Requests nicht cachen und nicht mit der App-Shell beantworten: sonst verliert
+  // der Google-Redirect auf iOS die Session, sobald authDomain die Seiten-Domain ist.
+  if (path === '/__' || path.startsWith('/__/')) return
 
   if (req.mode === 'navigate') {
     e.respondWith(

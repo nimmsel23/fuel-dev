@@ -21,7 +21,7 @@ import FrontdoorHost from "./views/Frontdoor/FrontdoorHost.jsx";
 import { getFrontdoor } from "./views/Frontdoor/frontdoors.js";
 import { useAppData } from "./hooks/useAppData.js";
 import { sumCompleteMetric, formatMetric } from "../shared/utils/utils.js";
-import { watchAuth, signIn, signOut, getUid } from "./lib/db.firestore.js";
+import { watchAuth, signIn, signOut, getUid, getRedirectFailure, redirectSettled } from "./lib/db.firestore.js";
 import { fetchJson } from "@api";
 import { captureNotificationIntentFromLocation } from "./lib/notification-intents.js";
 import { todayISO } from "../shared/utils/validation.mjs";
@@ -71,6 +71,7 @@ if (typeof window !== "undefined") {
 function App() {
   const { activeTab, setActiveTab, activeDate, setActiveDate } = useApp();
   const [user, setUser] = React.useState(null);
+  const [loginError, setLoginError] = React.useState("");
   const [authReady, setAuthReady] = React.useState(false);
   const frontdoor = useSettings((s) => s.frontdoor);
   const frontdoorResolved = useApp((s) => s.frontdoorResolved);
@@ -127,6 +128,24 @@ function App() {
       }
     });
   }, []);
+  React.useEffect(() => {
+    let live = true;
+    redirectSettled.then(() => {
+      if (!live) return;
+      const failure = getRedirectFailure();
+      if (failure) setLoginError(failure.message || "Google-Anmeldung fehlgeschlagen.");
+    });
+    return () => { live = false; };
+  }, []);
+
+  const handleCloudSignIn = async () => {
+    setLoginError("");
+    try {
+      await signIn();
+    } catch (error) {
+      setLoginError(error?.message || "Anmeldung fehlgeschlagen.");
+    }
+  };
 
   // URL Hashing for Tab + Datum
   React.useEffect(() => {
@@ -250,7 +269,7 @@ function App() {
                       Logout ({user.displayName?.split(" ")[0]})
                     </button>
                   ) : (
-                    <button onClick={signIn} className="text-[10px] text-orange-400 hover:text-orange-300 font-bold uppercase tracking-widest">
+                    <button onClick={handleCloudSignIn} className="text-[10px] text-orange-400 hover:text-orange-300 font-bold uppercase tracking-widest">
                       Cloud Login
                     </button>
                   )
@@ -282,6 +301,7 @@ function App() {
                   </button>
                 )}
               </div>
+              {loginError && <p role="alert" className="mb-2 max-w-xl text-sm text-rose-300">{loginError}</p>}
               <h1 className="text-3xl font-semibold tracking-tight md:text-5xl">Fuel Control Deck</h1>
               <p className="mt-3 max-w-2xl text-sm text-slate-300 md:text-base">
                 Krankheit hat viele Väter, aber die Mutter ist immer die Ernährung. -Hippokrates

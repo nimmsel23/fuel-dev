@@ -8,7 +8,13 @@ import {
   signOut as fbSignOut,
 } from "firebase/auth";
 import { serverTimestamp, doc, getDoc, setDoc } from "firebase/firestore";
-import { db, auth, googleProvider } from "../../firebase.js";
+import { db, auth, authDomain, googleProvider } from "../../firebase.js";
+import {
+  chooseSignInMethod,
+  readBrowserSignInEnvironment,
+  sameSiteAuth,
+  shouldFallbackToRedirect,
+} from "../../authFlow.js";
 
 export { serverTimestamp, db, auth, googleProvider };
 
@@ -42,24 +48,46 @@ export function watchAuth(callback) {
   });
 }
 
-// Ergebnis eines vorangegangenen Redirect-Logins einsammeln; fängt vor allem Fehler ab
-// (onAuthStateChanged feuert ohnehin).
-getRedirectResult(auth).catch((error) => {
-  console.error("Redirect-Login Fehler:", error);
-});
+// Ergebnis eines vorangegangenen Redirect-Logins einsammeln. Persistence steht
+// schon (initializeAuth), sonst läuft dieser Aufruf gegen den falschen Speicher.
+let redirectFailure = null;
+export function getRedirectFailure() {
+  return redirectFailure;
+}
+export const redirectSettled = getRedirectResult(auth).then(
+  (result) => result,
+  (error) => {
+    redirectFailure = error;
+    console.error("Redirect-Login Fehler:", error);
+    return null;
+  },
+);
+
+const WEBVIEW_MESSAGE = "Google blockiert die Anmeldung in dieser eingebetteten iOS-Ansicht. Bitte die Seite in Safari öffnen.";
+const CROSS_SITE_MESSAGE = "Auf diesem iPhone klappt die Google-Anmeldung nur über die Firebase-Adresse der App. Bitte https://fuel-vos.web.app in Safari öffnen.";
 
 export function signIn() {
   // Ein zweiter Tap während des ersten Popup-/Redirect-Versuchs startet bei Firebase
   // einen konkurrierenden Request und cancelt den ersten (auth/cancelled-popup-request).
   if (signInAttempt) return signInAttempt;
   signInAttempt = (async () => {
+    const method = chooseSignInMethod(readBrowserSignInEnvironment());
+    if (method === "blocked-webview") {
+      throw Object.assign(new Error(WEBVIEW_MESSAGE), { code: "fuel/ios-webview" });
+    }
+    // Redirect auf eine fremde authDomain verliert auf iOS die Session (ITP).
+    // Auf Firebase-Hosting ist die Seiten-Domain die authDomain; lokal nicht.
+    if (method === "redirect" && !sameSiteAuth(location.hostname, authDomain)) {
+      throw Object.assign(new Error(CROSS_SITE_MESSAGE), { code: "fuel/ios-third-party-auth" });
+    }
     try {
-      // Popup zuerst, auch auf iOS. Der Mini-App-Build setzt authDomain auf dieselbe
-      // Hosting-Site, damit der Redirect-Fallback auf iOS seine Session nicht verliert.
+      if (method === "redirect") {
+        await signInWithRedirect(auth, googleProvider);
+        return;
+      }
       await signInWithPopup(auth, googleProvider);
     } catch (error) {
-      // Popup vom Browser geblockt → Redirect-Fallback.
-      if (error?.code === "auth/popup-blocked") {
+      if (method === "popup" && shouldFallbackToRedirect(error?.code)) {
         await signInWithRedirect(auth, googleProvider);
         return;
       }

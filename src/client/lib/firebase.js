@@ -1,11 +1,23 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, getFirestore } from "firebase/firestore";
-import { getAuth, GoogleAuthProvider, browserLocalPersistence, setPersistence } from "firebase/auth";
+import {
+  initializeAuth,
+  getAuth,
+  GoogleAuthProvider,
+  browserLocalPersistence,
+  indexedDBLocalPersistence,
+  browserPopupRedirectResolver,
+} from "firebase/auth";
 import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
 import { firebaseConfig } from "./firebase.config.js";
+import { resolveAuthDomain } from "./authFlow.js";
+
+const hostname = typeof location !== "undefined" ? location.hostname : "";
+export const authDomain = resolveAuthDomain(firebaseConfig.authDomain, hostname);
+const resolvedConfig = { ...firebaseConfig, authDomain };
 
 const alreadyInit = getApps().length > 0
-const app = alreadyInit ? getApp() : initializeApp(firebaseConfig);
+const app = alreadyInit ? getApp() : initializeApp(resolvedConfig);
 const isClientBuild = import.meta.env.VITE_APP_MODE === "client";
 
 // App Check: seit Juli 2026 von Google für Firebase AI Logic (Vertex AI) erzwungen —
@@ -33,10 +45,23 @@ export const db = alreadyInit
       }),
     });
 
-export const auth = getAuth(app);
-// Wie plan-app (dort läuft der Popup-Login auf iOS): Persistence früh festlegen. Vermutung: die
-// asynchrone Persistence-Init lässt signInWithPopup sein Fenster erst nach dem Klick-Tick öffnen.
-setPersistence(auth, browserLocalPersistence).catch(() => {});
+// Persistence muss feststehen, bevor getRedirectResult oder ein Klick läuft.
+// Ein nachgezogener Aufruf ist asynchron: auf iOS öffnet das Popup nach dem
+// Klick-Tick (Safari blockt es) oder der Redirect liest die Session aus dem
+// falschen Speicher und der Nutzer bleibt abgemeldet.
+function createAuth(firebaseApp) {
+  try {
+    return initializeAuth(firebaseApp, {
+      persistence: [browserLocalPersistence, indexedDBLocalPersistence],
+      popupRedirectResolver: browserPopupRedirectResolver,
+    });
+  } catch (error) {
+    if (error?.code === "auth/already-initialized") return getAuth(firebaseApp);
+    throw error;
+  }
+}
+
+export const auth = createAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
 // Vertex AI initialization (@firebase/ai >= 3: VertexAIBackend → AgentPlatformBackend)

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Sparkles, LogIn, LogOut } from "lucide-react";
-import { signIn, signOut, watchAuth } from "../../lib/db.firestore.js";
+import { signIn, signOut, watchAuth, getRedirectFailure, redirectSettled } from "../../lib/db.firestore.js";
 import { auth } from "../../lib/firebase.js";
 
 // bare=true: nur die interne Grid-Struktur, kein eigener Rahmen/Hintergrund
@@ -8,10 +8,29 @@ import { auth } from "../../lib/firebase.js";
 // zu einer zusammenfassen will, ohne die Komponenten selbst zu verschmelzen.
 export default function AccountCard({ sectionCls, bare = false }) {
   const [user, setUser] = useState(() => auth.currentUser);
+  const [loginError, setLoginError] = useState("");
 
   useEffect(() => {
     return watchAuth(setUser);
   }, []);
+  useEffect(() => {
+    let live = true;
+    redirectSettled.then(() => {
+      if (!live) return;
+      const failure = getRedirectFailure();
+      if (failure) setLoginError(failure.message || "Google-Anmeldung fehlgeschlagen.");
+    });
+    return () => { live = false; };
+  }, []);
+
+  const handleSignIn = async () => {
+    setLoginError("");
+    try {
+      await signIn();
+    } catch (error) {
+      setLoginError(error?.message || "Anmeldung fehlgeschlagen.");
+    }
+  };
 
   return (
     <section className={bare ? "grid gap-4" : sectionCls}>
@@ -38,10 +57,11 @@ export default function AccountCard({ sectionCls, bare = false }) {
       ) : (
         <div className="space-y-4">
           <p className="text-sm text-slate-400">Melde dich an, um deine Daten in der Cloud (Firestore) zu speichern und geräteübergreifend zu synchronisieren.</p>
-          <button onClick={signIn} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-sky-400 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-300">
+          <button onClick={handleSignIn} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-sky-400 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-300">
             <LogIn className="h-4 w-4" />
             Mit Google anmelden
           </button>
+          {loginError && <p role="alert" className="text-sm text-rose-300">{loginError}</p>}
         </div>
       )}
     </section>
