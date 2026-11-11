@@ -90,3 +90,32 @@ _Vom AL ausfüllen (knapp & belegbar, je 1–3 Zeilen, Commit-/PR-Referenzen sta
 - Erledigt: Org-Task 6a0eeebc Stabilitätswache (14:40) — AutoMerge 42824160354 success; Auto-Promote 42777390161 success; Live Deploy 42763823198 success; Check(dev) 42763741419 success; Annotate + due→2026-11-17.
 - Offen/Weiter: 6a0eeebc pending — 0 Dep-PRs (`gh pr list`), letzte #15/#16 closed ohne Merge; nächster Mo-Scan 17.11. Daneben iOS-Abnahme ca22778; Alerts API 55 open (1 critical/24 high/22 medium/8 low, Schwerpunkt deploy/runtime).
 - Blocker: Kein Dependabot-PR → kein Merge-Beleg für 6a0eeebc; iOS-Repro braucht Gerät.
+
+## 2026-11-11 (Mittwoch) — Abteilungsleiter-Lauf
+
+_Automatik (vos-al-log Vorlage 2026-11-11):_
+- Commits seit 2026-11-07: 6edcf1f docs(al): 2026-11-10 14:40 — 6a0eeebc Stabilitätswache, Alerts 55, due 17.11
+74df9e4 docs: auto-update NEXT.md
+5cf1019 chore(deps): align motion-* specs with framer-motion 14.10.1
+db9573b fix(build): prevent Vite 8 Rolldown preload-marker blackscreen
+e487ae6 docs: auto-update NEXT.md
+f157451 chore(fuel): point health/deploy at Coach Fuel API :9150
+de4ba5c chore(fuel): move Python package SOT to coach-dev/backend/fuel
+0a10130 chore(fuel): remove unused FullCalendar Big Calendar stub
+357f2a0 docs(al): 2026-11-10 Lauf — 6a0eeebc Stabilitätswache, Merge-Beleg weiter offen
+396cac3 fix(vite): Rolldown manualChunks function form for Vite 8
+5e98b37 chore(deps): major upgrades to React 19 / Vite 8 / Firebase 13
+559f45f chore(deps): minor/patch upgrades (age-safe pins)
+66e030b chore(deps): minor/patch upgrades (ncu --target minor)
+8a66930 fix(ci): lockfile nach tooling/@firebase/util-Pin
+de3f299 chore(tooling): engines, Biome scripts-format, knip, smoke in Check
+- Offene PRs: (keine offenen PRs / gh nicht verfuegbar)
+- CI (letzte Läufe): completed	success	PR-AutoMerge (Dependabot -> dev)	PR-AutoMerge (Dependabot -> dev)	master	schedule	42937028208	9s	2026-11-11T01:10:54Z
+completed	success	Gemini CI Agent	Gemini CI Agent	master	workflow_run	42933707091	11s	2026-11-11T00:44:25Z
+completed	success	Gemini CI Agent	Gemini CI Agent	master	workflow_run	42933690151	12s	2026-11-11T00:44:17Z
+- Arbeitsbaum: 1 uncommittete Pfade
+
+_Vom AL ausfüllen (knapp & belegbar, je 1–3 Zeilen, Commit-/PR-Referenzen statt Erzählung):_
+- Erledigt: Org-Task 6a0eeebc Stabilitätswache (02:40) — AutoMerge 42937028208 success; Live Deploy 42933573632 + Auto-Promote 42933573786 success (`a87a883` iOS-Login); Check(Fuel) 42933406817 success; Annotate, due bleibt 2026-11-17.
+- Offen/Weiter: 6a0eeebc pending — 0 Dep-PRs (`gh pr list`), letzte #15/#16 closed ohne Merge; nächster Mo-Scan 17.11. iOS-Abnahme ca22778 gegen Live `a87a883`; Alerts API 55 (1c/24h/22m/8l).
+- Blocker: Kein Dependabot-PR → kein Merge-Beleg für 6a0eeebc; iOS-Repro braucht Gerät.
