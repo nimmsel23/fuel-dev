@@ -2,6 +2,9 @@
 
 > **Python-Paket `fuel` (2026-11-10):** SOT `~/dev/coach-dev/backend/fuel/` (CLI+API). Kein `fuel/`-Package mehr in diesem Repo — siehe `docs/PYTHON-PACKAGE-MOVED.md`. `FUEL_REPO_DIR` default = dieses Checkout (catalogs/).
 
+**Simplicity (Owner 2026-11-11):** So simpel wie möglich. Ausnahme nur
+`vitalos/prod` — dieses `*-dev`-Repo nicht mit Prod-Komplexität aufblasen.
+Fleet-SOT: `.dotfiles/docs/CI.md` (Kopf).
 
 ## Repo- und Branch-Rollen
 
