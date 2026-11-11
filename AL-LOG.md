@@ -116,6 +116,6 @@ completed	success	Gemini CI Agent	Gemini CI Agent	master	workflow_run	4293369015
 - Arbeitsbaum: 1 uncommittete Pfade
 
 _Vom AL ausfüllen (knapp & belegbar, je 1–3 Zeilen, Commit-/PR-Referenzen statt Erzählung):_
-- Erledigt: Org-Task 6a0eeebc Stabilitätswache (02:40) — AutoMerge 42937028208 success; Live Deploy 42933573632 + Auto-Promote 42933573786 success (`a87a883` iOS-Login); Check(Fuel) 42933406817 success; Annotate, due bleibt 2026-11-17.
-- Offen/Weiter: 6a0eeebc pending — 0 Dep-PRs (`gh pr list`), letzte #15/#16 closed ohne Merge; nächster Mo-Scan 17.11. iOS-Abnahme ca22778 gegen Live `a87a883`; Alerts API 55 (1c/24h/22m/8l).
+- Erledigt: Org-Task c545486f (14:40) — rebase `a87a883`+5 AL-Docs → Tip `304f20b`; push `a87a883..304f20b` origin/dev; portal.mjs unberührt; Check(Fuel) 43031353430 success; task done.
+- Offen/Weiter: 6a0eeebc pending — 0 Dep-PRs; due 17.11.; iOS-Abnahme ca22778 gegen Live `a87a883`; Alerts 55 (1c/24h/22m/8l).
 - Blocker: Kein Dependabot-PR → kein Merge-Beleg für 6a0eeebc; iOS-Repro braucht Gerät.
