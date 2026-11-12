@@ -4,20 +4,9 @@ import {
   doc,
 } from "firebase/firestore";
 import { setDoc } from "./db/firestore/offline.js";
+import { isCloudRuntime } from "./cloudEnv.js";
 
-const isCloud = () => {
-  if (typeof window === "undefined") return false;
-  const host = window.location.hostname;
-  // Auf web.app oder firebaseapp.com sind wir definitiv in der Cloud
-  if (host.includes("web.app") || host.includes("firebaseapp.com")) return true;
-  // Falls wir lokal arbeiten (localhost / 127.0.0.1), sind wir NICHT in der Cloud
-  if (host === "localhost" || host === "127.0.0.1") return false;
-  // Falls wir über die Tailscale URL aufrufen, wollen wir NICHT in den Cloud Modus,
-  // sondern das lokale Backend nutzen
-  if (host.includes("ts.net")) return false;
-  // Standard lokal
-  return false;
-};
+const isCloud = isCloudRuntime;
 
 function normalizePath(path) {
   // Entferne /api Präfix falls vorhanden für das Matching

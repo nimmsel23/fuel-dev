@@ -1,3 +1,8 @@
+## 2026-11-12 — CI: Gemini + Merge-Agent wiederhergestellt
+
+- Restored: gemini-ci-repair.yml (Owner: volle Automatisierung, nicht Abräumen)
+- Simplicity = dünne neue Komplexität, nicht bestehende Auto-Schienen killen.
+
 ## 2026-11-11 — CI Simplicity: remove Gemini/Merge-Agent
 
 - Removed: gemini-ci-repair.yml

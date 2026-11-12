@@ -1,3 +1,4 @@
+import { isCloudRuntime } from "./cloudEnv.js";
 import { assertLegacyAiAvailable } from "./aiAvailability.js";
 import { OMEGA3_RULES } from "../../shared/config/omega3.mjs";
 import { postJson } from "@api";
@@ -10,9 +11,7 @@ import { findCatalogMatch } from "./mealCatalogMatch.js";
 import { catalogToMeal } from "./mealDetails.js";
 export { findCatalogMatch } from "./mealCatalogMatch.js";
 
-export const isCloud = () =>
-  typeof window !== "undefined" &&
-  (import.meta.env?.VITE_VOS_PRODUCT_BUILD === "1" || window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com"));
+export const isCloud = () => typeof window !== "undefined" && isCloudRuntime();
 
 // "3x Stiegl Hell" → { qty: 3, rest: "Stiegl Hell" }. Ohne Präfix qty=1.
 export function parseQuantityPrefix(text) {

@@ -3,6 +3,11 @@
 # Shared-SOT liegt in nimmsel23/backend (fuel/src/shared); die Stubs unter
 # src/shared/* re-exporten nach ../../../../backend/fuel/... — deshalb Checkout als
 # Geschwister fuel-dev/ + backend/ (wie lokal ~/dev/fuel-dev neben ~/dev/backend).
+#
+# Dependabot-PRs bekommen keine Actions-Secrets (CI.md S7) → SYNC_TOKEN fehlt und
+# der Backend-Checkout bricht. Für dependabot[bot] daher Secret-gated Schritte
+# skippen und nur Lockfile/Install prüfen; voller Check läuft nach Squash auf
+# dem Push/Dispatch gegen dev (Secret verfügbar). AutoMerge braucht job "check"=success.
 
 name: Check (Fuel)
 
@@ -31,6 +36,7 @@ jobs:
           path: fuel-dev
 
       - name: Checkout backend (shared SOT)
+        if: github.actor != 'dependabot[bot]'
         uses: actions/checkout@v4
         with:
           repository: nimmsel23/backend
@@ -49,24 +55,41 @@ jobs:
           cache-dependency-path: fuel-dev/pnpm-lock.yaml
 
       - name: Install
+        if: github.actor != 'dependabot[bot]'
         working-directory: fuel-dev
         run: pnpm install --frozen-lockfile
 
       - name: Unit tests
+        if: github.actor != 'dependabot[bot]'
         working-directory: fuel-dev
         run: pnpm run test:unit
 
       - name: Tooling (Biome format scripts/)
+        if: github.actor != 'dependabot[bot]'
         working-directory: fuel-dev
         run: pnpm run tooling:biome
 
       - name: Tooling (knip report)
+        if: github.actor != 'dependabot[bot]'
         working-directory: fuel-dev
         continue-on-error: true
         run: pnpm run tooling:knip
 
       - name: Build Fuel (Cloud)
+        if: github.actor != 'dependabot[bot]'
         working-directory: fuel-dev
         run: pnpm run build:cloud
         env:
           VITE_RECAPTCHA_SITE_KEY: ${{ vars.VITE_RECAPTCHA_SITE_KEY || secrets.VITE_RECAPTCHA_SITE_KEY }}
+
+      # Dependabot: keine Secrets → kein backend-Checkout; Lockfile/Install reicht.
+      # Nach Squash prüft der dev-Push/Dispatch den vollen Build mit SYNC_TOKEN.
+      - name: Dependabot — root lockfile
+        if: github.actor == 'dependabot[bot]'
+        working-directory: fuel-dev
+        run: pnpm install --frozen-lockfile
+
+      - name: Dependabot — functions lockfile
+        if: github.actor == 'dependabot[bot]'
+        working-directory: fuel-dev/functions
+        run: npm ci

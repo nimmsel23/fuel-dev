@@ -1,3 +1,4 @@
+import { isCloudRuntime } from "../../lib/cloudEnv.js";
 import { useState } from "react";
 import { Check, Bell } from "lucide-react";
 import { Empty } from "../../components/ui.jsx";
@@ -88,7 +89,7 @@ export default function DailyChecklist({ date, catalog, intakes }) {
     }
   }
 
-  const isCloudMode = import.meta.env.VITE_APP_MODE === "client" || window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com");
+  const isCloudMode = import.meta.env.VITE_APP_MODE === "client" || isCloudRuntime();
 
   return (
     <section className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur">

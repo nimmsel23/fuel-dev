@@ -11,6 +11,7 @@ import MicrosEstimator from "./Micros/MicrosEstimator.jsx";
 import MicrosDetailModal from "./Micros/MicrosDetailModal.jsx";
 import MicrosAiCoach from "./Micros/MicrosAiCoach.jsx";
 import { NUTRIENTS } from "./Micros/utils.js";
+import { AI_ENABLED } from "../lib/aiAvailability.js";
 
 const CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const cacheKey = (year, week) => `nutrition-weekly:coverage-v3:${year}:${week}`;
@@ -147,8 +148,8 @@ export default function MicrosView({ setActiveDate, setActiveTab }) {
         <div className="flex flex-col gap-4 border-b border-white/[0.07] p-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div><div className="text-xs font-semibold uppercase tracking-[0.14em] text-cyan-200/70">Verlauf & Details</div><h2 className="mt-1 text-xl font-semibold tracking-tight text-white">Deine Mikronährstoffe</h2><p className="mt-1 text-xs text-slate-500">Ø pro Tag im Vergleich zum Referenzwert · KW = Kalenderwoche</p></div>
           <div className="flex flex-wrap items-center gap-2">
-            <button type="button" onClick={() => setCoachOpen(true)} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-violet-300/20 bg-violet-400/[0.09] px-3.5 text-xs font-semibold text-violet-100 transition hover:border-violet-200/40 hover:bg-violet-400/[0.15] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"><Sparkles className="h-4 w-4 text-violet-200" />AI Coach</button>
-            {missingMeals.length > 0 && <button type="button" onClick={() => setEstimatorOpen(true)} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-cyan-300/20 bg-cyan-300/[0.08] px-3.5 text-xs font-semibold text-cyan-100 transition hover:bg-cyan-300/[0.14] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"><Wand2 className="h-4 w-4" />Lücken ergänzen <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[10px]">{missingMeals.length}</span></button>}
+            {AI_ENABLED && <button type="button" onClick={() => setCoachOpen(true)} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-violet-300/20 bg-violet-400/[0.09] px-3.5 text-xs font-semibold text-violet-100 transition hover:border-violet-200/40 hover:bg-violet-400/[0.15] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"><Sparkles className="h-4 w-4 text-violet-200" />AI Coach</button>}
+            {AI_ENABLED && missingMeals.length > 0 && <button type="button" onClick={() => setEstimatorOpen(true)} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-cyan-300/20 bg-cyan-300/[0.08] px-3.5 text-xs font-semibold text-cyan-100 transition hover:bg-cyan-300/[0.14] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"><Wand2 className="h-4 w-4" />Lücken ergänzen <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[10px]">{missingMeals.length}</span></button>}
           </div>
         </div>
         <div className="p-4 sm:p-6">
@@ -157,8 +158,8 @@ export default function MicrosView({ setActiveDate, setActiveTab }) {
           <div className="mt-5 border-t border-white/[0.06] pt-4"><MicrosLegend /><p className="mt-3 max-w-4xl text-[11px] leading-5 text-slate-500">Mikrowerte sind Näherungen aus erfassten Mahlzeiten und Supplements. Ein fehlender Eintrag kann wie 0 in den Wochenmittelwert eingehen; die Abdeckung daher immer im Detail prüfen. Referenzwerte sind Orientierungswerte für Erwachsene und keine Diagnose.</p></div>
         </div>
       </section>
-      {coachOpen && <MicrosAiCoach weeks={weeks} results={results} onClose={() => setCoachOpen(false)} />}
-      {estimatorOpen && <MicrosEstimator missingMeals={missingMeals} onClose={() => setEstimatorOpen(false)} />}
+      {AI_ENABLED && coachOpen && <MicrosAiCoach weeks={weeks} results={results} onClose={() => setCoachOpen(false)} />}
+      {AI_ENABLED && estimatorOpen && <MicrosEstimator missingMeals={missingMeals} onClose={() => setEstimatorOpen(false)} />}
       {detail && <MicrosDetailModal nutrient={detail.nutrient} week={detail.week} weekData={detail.weekData} onOpenEntry={setActiveTab ? openContribution : undefined} onClose={() => setDetail(null)} />}
     </main>
   );
