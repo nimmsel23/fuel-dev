@@ -70,8 +70,8 @@ self.addEventListener('push', (event) => {
 // - local (Fastify, /opt/fuel): /supplements/log + /push/snooze
 // - cloud (*.web.app): quickLogSupplement/snoozeSupplement. Die uid bestimmt
 //   nur das verifizierte Firebase-ID-Token. Die App schiebt es per
-//   FUEL_AUTH_TOKEN hierher (src/client/lib/swAuthBridge.js); der SW hat
-//   keinen eigenen Login-Speicher.
+//   FUEL_AUTH_TOKEN hierher (src/client/lib/swAuthBridge.js). Ohne Token oder
+//   bei 401 öffnet der SW die App auf #supplements/{datum}/{aktion}/{ids}.
 const IS_CLOUD = self.location.hostname.includes('web.app') || self.location.hostname.includes('firebaseapp.com')
 const CLOUD_FN_BASE = 'https://europe-west1-fitness-aos.cloudfunctions.net'
 const AUTH_DB = 'fuel-sw-auth'
@@ -205,15 +205,61 @@ function cloudHeaders(token) {
   }
 }
 
+function supplementActionUrl(action, items, dateStr) {
+  const ids = items
+    .map((item) => item && item.id)
+    .filter(Boolean)
+    .map((id) => encodeURIComponent(id))
+    .join(',')
+  const url = new URL(self.registration.scope)
+  url.hash = `supplements/${dateStr}/${action}/${ids}`
+  return url.href
+}
+
+async function openSupplementAction(action, items, dateStr) {
+  const url = supplementActionUrl(action, items, dateStr)
+  const supplementIds = items.map((item) => item && item.id).filter(Boolean)
+  const windowClients = await clients.matchAll({ type: 'window', includeUncontrolled: true })
+  for (const client of windowClients) {
+    if (!('focus' in client)) continue
+    await client.focus()
+    if ('navigate' in client) {
+      try {
+        await client.navigate(url)
+        return
+      } catch (error) {
+        console.error('[SW] navigate to supplement action failed', error)
+      }
+    }
+    client.postMessage({ type: 'FUEL_SUPPLEMENT_ACTION', action, date: dateStr, supplementIds })
+    return
+  }
+  if (clients.openWindow) return clients.openWindow(url)
+}
+
+function showAuthHandoff(action) {
+  const snooze = action === 'snooze'
+  return self.registration.showNotification(snooze ? 'Später nach Anmeldung' : 'Einnahme nach Anmeldung', {
+    body: snooze
+      ? 'Die App ist offen. Nach dem Login wird die Erinnerung verschoben.'
+      : 'Die App ist offen. Nach dem Login wird die Einnahme eingetragen.',
+    icon: '/favicon-192x192.png',
+    badge: '/favicon-192x192.png',
+    tag: 'fuel-supplements-auth',
+  })
+}
+
 async function logSupplementIntake(item, dateStr, uid, authToken) {
   if (IS_CLOUD) {
+    if (!authToken) return 401
     const response = await fetch(`${CLOUD_FN_BASE}/quickLogSupplement`, {
       method: 'POST',
       headers: cloudHeaders(authToken),
       body: JSON.stringify({ uid, date: dateStr, item }),
     })
+    if (response.status === 401) return 401
     if (!response.ok) throw new Error(`cloud log failed: ${response.status}`)
-    return
+    return 200
   }
   const response = await fetch(withBase('/supplements/log'), {
     method: 'POST',
@@ -230,6 +276,7 @@ async function logSupplementIntake(item, dateStr, uid, authToken) {
     }),
   })
   if (!response.ok) throw new Error(`log failed: ${response.status}`)
+  return 200
 }
 
 async function handleQuickYes(data) {
@@ -237,16 +284,19 @@ async function handleQuickYes(data) {
   const dateStr = data.date || new Date().toISOString().slice(0, 10)
   const authToken = IS_CLOUD ? await resolveCloudAuthToken() : null
   if (IS_CLOUD && !authToken) {
-    return self.registration.showNotification('Nicht geloggt', {
-      body: 'Bitte die App öffnen und angemeldet bleiben, dann die Einnahme erneut bestätigen.',
-      icon: '/favicon-192x192.png',
-      badge: '/favicon-192x192.png',
-      tag: 'fuel-supplements-ack',
-    })
+    await openSupplementAction('quick-yes', items, dateStr)
+    return showAuthHandoff('quick-yes')
   }
   const results = await Promise.allSettled(items.map((item) => logSupplementIntake(item, dateStr, data.uid, authToken)))
-  const failed = results.filter((r) => r.status === 'rejected').length
-  const names = items.map((i) => i.name).join(', ') || 'Supplements'
+  const needsLogin = items.filter(
+    (_item, index) => results[index].status === 'fulfilled' && results[index].value === 401,
+  )
+  if (needsLogin.length) {
+    await openSupplementAction('quick-yes', needsLogin, dateStr)
+    return showAuthHandoff('quick-yes')
+  }
+  const failed = results.filter((result) => result.status === 'rejected').length
+  const names = items.map((item) => item.name).join(', ') || 'Supplements'
   return self.registration.showNotification(failed > 0 ? 'Teilweise nicht geloggt' : 'Erledigt ✓', {
     body: failed > 0 ? `${names} — ${failed} fehlgeschlagen, bitte App öffnen.` : `${names} eingetragen.`,
     icon: '/favicon-192x192.png',
@@ -263,14 +313,19 @@ async function handleSnooze(data) {
     if (IS_CLOUD) {
       const authToken = await resolveCloudAuthToken()
       if (!authToken) {
-        console.error('[SW] Snooze skipped, no auth token')
+        await openSupplementAction('snooze', items, dateStr)
+        await showAuthHandoff('snooze')
         return
       }
-      await fetch(`${CLOUD_FN_BASE}/snoozeSupplement`, {
+      const response = await fetch(`${CLOUD_FN_BASE}/snoozeSupplement`, {
         method: 'POST',
         headers: cloudHeaders(authToken),
         body: JSON.stringify({ uid: data.uid, item_ids: itemIds, date: dateStr }),
       })
+      if (response.status === 401) {
+        await openSupplementAction('snooze', items, dateStr)
+        await showAuthHandoff('snooze')
+      }
       return
     }
     await fetch(withBase('/push/snooze'), {
