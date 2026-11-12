@@ -16,6 +16,7 @@ import { useAppData } from "./hooks/useAppData.js";
 import { sumCompleteMetric, formatMetric } from "../shared/utils/utils.js";
 import { captureNotificationIntentFromLocation } from "./lib/notification-intents.js";
 import { watchAuth, signIn, signOut, getRedirectFailure, redirectSettled } from "./lib/db.firestore.js";
+import { useSupplementAction } from "./lib/useSupplementAction.js";
 
 // Schlanke Shell der Fuel-Mini-Apps (VITE_SOLO=log|supplements|micros|report): genau ein Tab,
 // kein Frontdoor, keine Tab-Leiste, keine Heatmap. Läuft immer als Cloud-Build (Firestore),
@@ -82,6 +83,7 @@ export default function SoloShell() {
   const [authBusy, setAuthBusy] = React.useState(false);
   const authBusyRef = React.useRef(false);
   const [user, setUser] = React.useState(null);
+  useSupplementAction(user, setActiveDate);
   const [authReady, setAuthReady] = React.useState(false);
   const [needRefresh, setNeedRefresh] = React.useState(false);
   const [frontdoorOpen, setFrontdoorOpen] = React.useState(!!SOLO_FRONTDOOR);

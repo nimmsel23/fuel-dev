@@ -103,7 +103,9 @@ jobs:
 
   deploy:
     needs: detect
-    if: needs.detect.outputs.any == 'true'
+    # dependabot[bot] hat kein SYNC_TOKEN. Checkout backend, Build und Deploy
+    # bleiben aus. detect braucht das Backend nicht und läuft weiter.
+    if: needs.detect.outputs.any == 'true' && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -117,6 +119,7 @@ jobs:
           path: fuel-dev
 
       - name: Checkout backend (shared SOT)
+        if: github.actor != 'dependabot[bot]'
         uses: actions/checkout@v4
         with:
           repository: nimmsel23/backend

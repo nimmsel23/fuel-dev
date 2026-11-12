@@ -27,6 +27,7 @@ import { fetchJson } from "@api";
 import { captureNotificationIntentFromLocation } from "./lib/notification-intents.js";
 import { calendarDay } from "./lib/calendarDay.js";
 import { useFollowViennaToday } from "./hooks/useViennaToday.js";
+import { useSupplementAction } from "./lib/useSupplementAction.js";
 
 // Frontdoor = wählbarer Schnelleinstieg (Tap Board / Shutter / Tagesfaden /
 // Klassisch), siehe views/Frontdoor/.
@@ -86,6 +87,7 @@ function App() {
   const { activeTab, setActiveTab, activeDate, setActiveDate } = useApp();
   useFollowViennaToday();
   const [user, setUser] = React.useState(null);
+  useSupplementAction(user, setActiveDate);
   const [loginError, setLoginError] = React.useState("");
   const [authReady, setAuthReady] = React.useState(false);
   const frontdoor = useSettings((s) => s.frontdoor);

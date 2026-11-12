@@ -5,9 +5,11 @@
 # Geschwister fuel-dev/ + backend/ (wie lokal ~/dev/fuel-dev neben ~/dev/backend).
 #
 # Dependabot-PRs bekommen keine Actions-Secrets (CI.md S7) → SYNC_TOKEN fehlt und
-# der Backend-Checkout bricht. Für dependabot[bot] daher Secret-gated Schritte
-# skippen und nur Lockfile/Install prüfen; voller Check läuft nach Squash auf
-# dem Push/Dispatch gegen dev (Secret verfügbar). AutoMerge braucht job "check"=success.
+# der Checkout von nimmsel23/backend bricht. Für dependabot[bot] wird genau dieser
+# Checkout übersprungen. Unit-Tests und der Cloud-Build laufen weiter; die Stubs
+# unter src/shared zeigen auf ../backend/fuel/src/shared, deshalb legt der Lauf
+# den letzten in diesem Repo liegenden Shared-Stand daneben (7795f299). Der volle
+# Check gegen das private Backend bleibt der Push/Dispatch auf dev.
 
 name: Check (Fuel)
 
@@ -44,6 +46,28 @@ jobs:
           path: backend
           token: ${{ secrets.SYNC_TOKEN }}
 
+      # Dependabot hat kein SYNC_TOKEN. Ohne die Shared-Dateien scheitern Unit-Tests
+      # und der Cloud-Build an den Re-Exports. 7795f299 ist der letzte Commit, in dem
+      # src/shared noch Quelltext in diesem Repo war (Parent von 9b017ad).
+      - name: Shared-SOT für Dependabot (ohne privates Backend)
+        if: github.actor == 'dependabot[bot]'
+        working-directory: fuel-dev
+        run: |
+          set -euo pipefail
+          rev=7795f299a35d3ce97273f14ea9c1844a2fd2a9e2
+          if ! git fetch --depth=1 origin "$rev"; then
+            base="${GITHUB_BASE_REF:-dev}"
+            git fetch --depth=300 origin "$base"
+          fi
+          mkdir -p "$GITHUB_WORKSPACE/backend/fuel"
+          git archive "$rev" src/shared | tar -x -C "$GITHUB_WORKSPACE/backend/fuel"
+          dach="$GITHUB_WORKSPACE/backend/fuel/src/shared/config/dach.mjs"
+          test -s "$dach"
+          if grep -q 'export \* from' "$dach"; then
+            echo "::error::Shared-Snapshot $rev ist ein Re-Export, kein Quellstand"
+            exit 1
+          fi
+
       - uses: pnpm/action-setup@v4
         with:
           version: 11.3.0
@@ -55,39 +79,27 @@ jobs:
           cache-dependency-path: fuel-dev/pnpm-lock.yaml
 
       - name: Install
-        if: github.actor != 'dependabot[bot]'
         working-directory: fuel-dev
         run: pnpm install --frozen-lockfile
 
       - name: Unit tests
-        if: github.actor != 'dependabot[bot]'
         working-directory: fuel-dev
         run: pnpm run test:unit
 
       - name: Tooling (Biome format scripts/)
-        if: github.actor != 'dependabot[bot]'
         working-directory: fuel-dev
         run: pnpm run tooling:biome
 
       - name: Tooling (knip report)
-        if: github.actor != 'dependabot[bot]'
         working-directory: fuel-dev
         continue-on-error: true
         run: pnpm run tooling:knip
 
       - name: Build Fuel (Cloud)
-        if: github.actor != 'dependabot[bot]'
         working-directory: fuel-dev
         run: pnpm run build:cloud
         env:
           VITE_RECAPTCHA_SITE_KEY: ${{ vars.VITE_RECAPTCHA_SITE_KEY || secrets.VITE_RECAPTCHA_SITE_KEY }}
-
-      # Dependabot: keine Secrets → kein backend-Checkout; Lockfile/Install reicht.
-      # Nach Squash prüft der dev-Push/Dispatch den vollen Build mit SYNC_TOKEN.
-      - name: Dependabot — root lockfile
-        if: github.actor == 'dependabot[bot]'
-        working-directory: fuel-dev
-        run: pnpm install --frozen-lockfile
 
       - name: Dependabot — functions lockfile
         if: github.actor == 'dependabot[bot]'
