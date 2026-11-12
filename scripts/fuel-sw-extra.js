@@ -68,22 +68,200 @@ self.addEventListener('push', (event) => {
 // fokussieren. "quick-yes" loggt alle due_items direkt, "snooze" haelt sie
 // 30min zurueck. Zwei Backends je Origin:
 // - local (Fastify, /opt/fuel): /supplements/log + /push/snooze
-// - cloud (fuel-vos.web.app): keine eigene API hinter der Origin — ruft die
-//   quickLogSupplement/snoozeSupplement Cloud Functions direkt an
-//   (functions/index.js, Projekt fitness-aos, region europe-west1). Die uid
-//   kommt im Push-Payload selbst mit (meta.uid), kein Login-State im SW.
+// - cloud (*.web.app): quickLogSupplement/snoozeSupplement. Die uid bestimmt
+//   nur das verifizierte Firebase-ID-Token. Die App schiebt es per
+//   FUEL_AUTH_TOKEN hierher (src/client/lib/swAuthBridge.js). Ohne Token oder
+//   bei 401 öffnet der SW die App auf #supplements/{datum}/{aktion}/{ids}.
 const IS_CLOUD = self.location.hostname.includes('web.app') || self.location.hostname.includes('firebaseapp.com')
 const CLOUD_FN_BASE = 'https://europe-west1-fitness-aos.cloudfunctions.net'
+const AUTH_DB = 'fuel-sw-auth'
+const AUTH_KEY = 'idToken'
+let memoryIdToken = null
 
-async function logSupplementIntake(item, dateStr, uid) {
+function openAuthDb() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(AUTH_DB, 1)
+    request.onupgradeneeded = () => {
+      const db = request.result
+      if (!db.objectStoreNames.contains('kv')) db.createObjectStore('kv')
+    }
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+  })
+}
+
+function idbPut(key, value) {
+  return openAuthDb().then(
+    (db) =>
+      new Promise((resolve, reject) => {
+        const tx = db.transaction('kv', 'readwrite')
+        tx.objectStore('kv').put(value, key)
+        tx.oncomplete = () => {
+          db.close()
+          resolve()
+        }
+        tx.onerror = () => {
+          db.close()
+          reject(tx.error)
+        }
+      }),
+  )
+}
+
+function idbGet(key) {
+  return openAuthDb().then(
+    (db) =>
+      new Promise((resolve, reject) => {
+        const tx = db.transaction('kv', 'readonly')
+        const req = tx.objectStore('kv').get(key)
+        req.onsuccess = () => resolve(req.result ?? null)
+        req.onerror = () => {
+          db.close()
+          reject(req.error)
+        }
+        tx.oncomplete = () => db.close()
+      }),
+  )
+}
+
+async function persistIdToken(token) {
+  memoryIdToken = token || null
+  try {
+    await idbPut(AUTH_KEY, memoryIdToken)
+  } catch (error) {
+    console.error('[SW] auth token persist failed', error)
+  }
+}
+
+async function loadIdToken() {
+  if (memoryIdToken) return memoryIdToken
+  try {
+    memoryIdToken = (await idbGet(AUTH_KEY)) || null
+  } catch (error) {
+    console.error('[SW] auth token read failed', error)
+  }
+  return memoryIdToken
+}
+
+self.addEventListener('message', (event) => {
+  const data = event.data
+  if (!data || data.type !== 'FUEL_AUTH_TOKEN' || data.requestId) return
+  event.waitUntil(persistIdToken(data.token))
+})
+
+function requestTokenFromClients() {
+  return new Promise((resolve) => {
+    const requestId = `auth_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+    let pending = 0
+    let token = null
+    let settled = false
+    const finish = (state) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      self.removeEventListener('message', onMessage)
+      resolve({ state, token })
+    }
+    const timer = setTimeout(() => finish(token ? 'token' : 'timeout'), 1200)
+    function onMessage(event) {
+      const data = event.data || {}
+      if (data.type !== 'FUEL_AUTH_TOKEN' || data.requestId !== requestId) return
+      pending -= 1
+      if (data.token) token = data.token
+      if (pending <= 0) finish(token ? 'token' : 'logged-out')
+    }
+    self.addEventListener('message', onMessage)
+    self.clients
+      .matchAll({ type: 'window', includeUncontrolled: true })
+      .then((windowClients) => {
+        if (!windowClients.length) {
+          finish('none')
+          return
+        }
+        pending = windowClients.length
+        for (const client of windowClients) client.postMessage({ type: 'FUEL_AUTH_TOKEN_REQUEST', requestId })
+      })
+      .catch(() => finish('timeout'))
+  })
+}
+
+async function resolveCloudAuthToken() {
+  const result = await requestTokenFromClients()
+  if (result.state === 'token') {
+    await persistIdToken(result.token)
+    return result.token
+  }
+  if (result.state === 'logged-out') {
+    await persistIdToken(null)
+    return null
+  }
+  return loadIdToken()
+}
+
+function cloudHeaders(token) {
+  return {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`,
+  }
+}
+
+function supplementActionUrl(action, items, dateStr) {
+  const ids = items
+    .map((item) => item && item.id)
+    .filter(Boolean)
+    .map((id) => encodeURIComponent(id))
+    .join(',')
+  const url = new URL(self.registration.scope)
+  url.hash = `supplements/${dateStr}/${action}/${ids}`
+  return url.href
+}
+
+async function openSupplementAction(action, items, dateStr) {
+  const url = supplementActionUrl(action, items, dateStr)
+  const supplementIds = items.map((item) => item && item.id).filter(Boolean)
+  const windowClients = await clients.matchAll({ type: 'window', includeUncontrolled: true })
+  for (const client of windowClients) {
+    if (!('focus' in client)) continue
+    await client.focus()
+    if ('navigate' in client) {
+      try {
+        await client.navigate(url)
+        return url
+      } catch (error) {
+        console.error('[SW] navigate to supplement action failed', error)
+      }
+    }
+    client.postMessage({ type: 'FUEL_SUPPLEMENT_ACTION', action, date: dateStr, supplementIds })
+    return url
+  }
+  if (clients.openWindow) await clients.openWindow(url)
+  return url
+}
+
+function showAuthHandoff(action, url) {
+  const snooze = action === 'snooze'
+  return self.registration.showNotification(snooze ? 'Später nach Anmeldung' : 'Einnahme nach Anmeldung', {
+    body: snooze
+      ? 'Die App ist offen. Nach dem Login wird die Erinnerung verschoben.'
+      : 'Die App ist offen. Nach dem Login wird die Einnahme eingetragen.',
+    icon: '/favicon-192x192.png',
+    badge: '/favicon-192x192.png',
+    tag: 'fuel-supplements-auth',
+    data: { url },
+  })
+}
+
+async function logSupplementIntake(item, dateStr, uid, authToken) {
   if (IS_CLOUD) {
+    if (!authToken) return 401
     const response = await fetch(`${CLOUD_FN_BASE}/quickLogSupplement`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: cloudHeaders(authToken),
       body: JSON.stringify({ uid, date: dateStr, item }),
     })
+    if (response.status === 401) return 401
     if (!response.ok) throw new Error(`cloud log failed: ${response.status}`)
-    return
+    return 200
   }
   const response = await fetch(withBase('/supplements/log'), {
     method: 'POST',
@@ -100,14 +278,27 @@ async function logSupplementIntake(item, dateStr, uid) {
     }),
   })
   if (!response.ok) throw new Error(`log failed: ${response.status}`)
+  return 200
 }
 
 async function handleQuickYes(data) {
   const items = Array.isArray(data.due_items) ? data.due_items : []
   const dateStr = data.date || new Date().toISOString().slice(0, 10)
-  const results = await Promise.allSettled(items.map((item) => logSupplementIntake(item, dateStr, data.uid)))
-  const failed = results.filter((r) => r.status === 'rejected').length
-  const names = items.map((i) => i.name).join(', ') || 'Supplements'
+  const authToken = IS_CLOUD ? await resolveCloudAuthToken() : null
+  if (IS_CLOUD && !authToken) {
+    const url = await openSupplementAction('quick-yes', items, dateStr)
+    return showAuthHandoff('quick-yes', url)
+  }
+  const results = await Promise.allSettled(items.map((item) => logSupplementIntake(item, dateStr, data.uid, authToken)))
+  const needsLogin = items.filter(
+    (_item, index) => results[index].status === 'fulfilled' && results[index].value === 401,
+  )
+  if (needsLogin.length) {
+    const url = await openSupplementAction('quick-yes', needsLogin, dateStr)
+    return showAuthHandoff('quick-yes', url)
+  }
+  const failed = results.filter((result) => result.status === 'rejected').length
+  const names = items.map((item) => item.name).join(', ') || 'Supplements'
   return self.registration.showNotification(failed > 0 ? 'Teilweise nicht geloggt' : 'Erledigt ✓', {
     body: failed > 0 ? `${names} — ${failed} fehlgeschlagen, bitte App öffnen.` : `${names} eingetragen.`,
     icon: '/favicon-192x192.png',
@@ -122,11 +313,21 @@ async function handleSnooze(data) {
   const itemIds = items.map((i) => i.id)
   try {
     if (IS_CLOUD) {
-      await fetch(`${CLOUD_FN_BASE}/snoozeSupplement`, {
+      const authToken = await resolveCloudAuthToken()
+      if (!authToken) {
+        const url = await openSupplementAction('snooze', items, dateStr)
+        await showAuthHandoff('snooze', url)
+        return
+      }
+      const response = await fetch(`${CLOUD_FN_BASE}/snoozeSupplement`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: cloudHeaders(authToken),
         body: JSON.stringify({ uid: data.uid, item_ids: itemIds, date: dateStr }),
       })
+      if (response.status === 401) {
+        const url = await openSupplementAction('snooze', items, dateStr)
+        await showAuthHandoff('snooze', url)
+      }
       return
     }
     await fetch(withBase('/push/snooze'), {
@@ -158,7 +359,17 @@ self.addEventListener('notificationclick', (event) => {
 
   event.notification.close()
   const actionMatch = Array.isArray(data.actions) ? data.actions.find((entry) => entry.action === event.action) : null
-  const urlToOpen = actionMatch?.url || data.url || '/'
+  const urlToOpen = actionMatch?.url || data.url || (event.notification.tag === 'fuel-supplements-auth' ? '' : '/')
+  if (!urlToOpen) {
+    event.waitUntil(
+      clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+        const client = windowClients.find((entry) => 'focus' in entry)
+        if (client) return client.focus()
+        if (clients.openWindow) return clients.openWindow(self.registration.scope)
+      }),
+    )
+    return
+  }
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {

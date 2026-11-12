@@ -1,3 +1,5 @@
+import { startSwAuthBridge } from "./lib/swAuthBridge.js";
+
 // Service-Worker-Registrierung — ausgelagert aus index.html, damit sie
 // import.meta.env.DEV sehen kann (ein rohes <script> in index.html hat
 // keinen Zugriff auf Vite-Env).
@@ -23,6 +25,7 @@ if (import.meta.env.DEV) {
 } else if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("/sw.js").then((reg) => {
     window.__swRegistration = reg;
+    startSwAuthBridge();
     const notify = () => window.dispatchEvent(new CustomEvent("sw-update-available"));
     if (reg.waiting) notify();
     reg.addEventListener("updatefound", () => {

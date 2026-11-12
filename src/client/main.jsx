@@ -25,6 +25,7 @@ import { sumCompleteMetric, formatMetric } from "../shared/utils/utils.js";
 import { watchAuth, signIn, signOut, getUid, getRedirectFailure, redirectSettled } from "./lib/db.firestore.js";
 import { fetchJson } from "@api";
 import { captureNotificationIntentFromLocation } from "./lib/notification-intents.js";
+import { useSupplementAction } from "./lib/useSupplementAction.js";
 import { todayISO } from "../shared/utils/validation.mjs";
 
 // Frontdoor = wählbarer Schnelleinstieg (Tap Board / Shutter / Tagesfaden /
@@ -72,6 +73,7 @@ if (typeof window !== "undefined") {
 function App() {
   const { activeTab, setActiveTab, activeDate, setActiveDate } = useApp();
   const [user, setUser] = React.useState(null);
+  useSupplementAction(user, setActiveDate);
   const [loginError, setLoginError] = React.useState("");
   const [authReady, setAuthReady] = React.useState(false);
   const frontdoor = useSettings((s) => s.frontdoor);
