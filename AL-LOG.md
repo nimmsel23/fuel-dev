@@ -119,3 +119,34 @@ _Vom AL ausfüllen (knapp & belegbar, je 1–3 Zeilen, Commit-/PR-Referenzen sta
 - Erledigt: Org-Task c545486f (14:40) — rebase `a87a883`+5 AL-Docs → Tip `304f20b`; push `a87a883..304f20b` origin/dev; portal.mjs unberührt; Check(Fuel) 43031353430 success; task done.
 - Offen/Weiter: 6a0eeebc pending — 0 Dep-PRs; due 17.11.; iOS-Abnahme ca22778 gegen Live `a87a883`; Alerts 55 (1c/24h/22m/8l).
 - Blocker: Kein Dependabot-PR → kein Merge-Beleg für 6a0eeebc; iOS-Repro braucht Gerät.
+
+## 2026-11-12 (Donnerstag) — Abteilungsleiter-Lauf
+
+_Automatik (vos-al-log Vorlage 2026-11-12):_
+- Commits seit 2026-11-07: 04c8484 ci: restore Gemini repair + Merge-Agent (full automation)
+bcd5662 ci: drop Gemini repair and Merge-Agent (simplicity)
+a021bd9 docs(agents): simplicity default — exception only vitalos/prod
+d16638b docs(al): 2026-11-11 14:40 — c545486f Teilergebnis Push, Check 43031353430
+af9f6f7 docs: auto-update RESULTS.md
+304f20b docs(al): 2026-11-11 02:40 — 6a0eeebc Stabilitätswache, 0 Dep-PRs
+6064af3 docs: auto-update NEXT.md
+59811da docs: auto-update RESULTS.md
+1f94794 docs(al): 2026-11-10 14:40 — 6a0eeebc Stabilitätswache, Alerts 55, due 17.11
+e96bd3b docs: auto-update NEXT.md
+a87a883 fix(fuel): make iOS Google login same-origin and redirect
+5cf1019 chore(deps): align motion-* specs with framer-motion 14.10.1
+db9573b fix(build): prevent Vite 8 Rolldown preload-marker blackscreen
+e487ae6 docs: auto-update NEXT.md
+f157451 chore(fuel): point health/deploy at Coach Fuel API :9150
+- Offene PRs: 26	chore(deps): bump fast-xml-parser from 5.10.1 to 5.12.0 in /functions	dependabot/npm_and_yarn/functions/fast-xml-parser-5.12.0	OPEN	2026-11-11T18:30:45Z
+25	chore(deps): bump node-forge from 1.4.0 to 1.4.3 in /functions	dependabot/npm_and_yarn/functions/node-forge-1.4.3	OPEN	2026-11-11T18:30:44Z
+- CI (letzte Läufe): completed	success	Auto-Promote dev -> master (Check (Fuel))	Auto-Promote dev -> master (Check (Fuel))	master	workflow_dispatch	43134447347	12s	2026-11-12T01:25:46Z
+completed	success	Live Deploy (Fuel master)	Live Deploy (Fuel master)	master	workflow_dispatch	43133741959	56s	2026-11-12T01:19:40Z
+completed	skipped	PR-AutoMerge (Dependabot -> dev)	PR-AutoMerge (Dependabot -> dev)	master	workflow_run	43133714463	2s	2026-11-12T01:19:26Z
+- Arbeitsbaum: 4 uncommittete Pfade
+
+_Vom AL ausfüllen (knapp & belegbar, je 1–3 Zeilen, Commit-/PR-Referenzen statt Erzählung):_
+- Erledigt: Org 6a0eeebc Stabilitätswache — Dep-PRs #25/#26 Check rot (43078477552/43078482791): `SYNC_TOKEN` fehlt bei dependabot `pull_request` (Checkout `nimmsel23/backend`, CI.md S7); Push-Check dev 43133640151 success; AutoMerge schedule 43127639723 success (Squash blockiert); `[ci:alpha]` msgid `1a1cd6b58345a32d`.
+- Offen/Weiter: 6a0eeebc pending bis Merge-Beleg nach Alpha-Fix/grünem Check; iOS-Abnahme ca22778 gegen Live `a87a883`; Alerts 55.
+- Blocker: Dependabot-Check strukturell rot ohne Secrets → kein Squash; wartet auf Alpha (`[ci:alpha]`).
+AUTOMATION: Dep-PR Check-Log + SYNC_TOKEN/S7-Diagnose manuell — `vos-al-dep-pr-diagnose <repo>` (gh run view --log-failed + Secret-Fehlermuster) — ~10–15 min/Lauf.

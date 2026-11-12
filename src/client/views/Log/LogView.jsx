@@ -1,3 +1,4 @@
+import { isCloudRuntime } from "../../lib/cloudEnv.js";
 import { normalizeMealMacros, mealMacrosAreValid } from "../../lib/mealMacros.js";
 import { mealDetails, scaleMeal, rebaseMealPortion } from "../../lib/mealDetails.js";
 import { useEffect, useReducer, useRef, useState } from "react";
@@ -22,6 +23,7 @@ import { missingMealMacros } from "../../lib/mealMacros.js";
 import { buildMealSavePlan } from "../../lib/mealSavePlan.js";
 import { nowHHMM, emptyForm, hhmmFromISO } from "../../lib/mealForm.js";
 import { checkJournalAgainstLog } from "../../lib/journalCheckAi.js";
+import { AI_ENABLED } from "../../lib/aiAvailability.js";
 import { canSaveNote, createNoteEditor, noteSavePayload, reduceNoteEditor } from "../../lib/noteEditor.js";
 
 const NOTE_DRAFTS_KEY = "fuel:note-drafts:v1";
@@ -104,7 +106,7 @@ export default function LogView({ date, nutrition, notes, journal, mode }) {
   const validMacros = mealMacrosAreValid(form);
   const incompleteMacros = ["kcal", "protein", "carbs", "fat"].some((key) => form[key] === "" || form[key] == null || !Number.isFinite(Number(form[key])) || Number(form[key]) < 0);
   const meals = nutrition?.meals || [];
-  const cloud = window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com");
+  const cloud = isCloudRuntime();
 
   const {
     text: aiText, setText: setAiText, loading: aiLoading, error: aiError,
@@ -343,7 +345,26 @@ export default function LogView({ date, nutrition, notes, journal, mode }) {
 
   const loggingBlock = (
     <>
-      {/* AI Logger — Hybrid (Lokal & Vertex AI in Firebase) */}
+      {/* Store-Build: keine KI — Barcode (Open Food Facts) statt AI Logger */}
+      {!AI_ENABLED && (
+        <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur shadow-glow">
+          <h2 className="text-xl font-semibold mb-2 flex items-center gap-2">
+            <ScanSearch className="h-5 w-5 text-sky-300" />
+            Barcode scannen
+          </h2>
+          <p className="mb-4 text-sm text-slate-400">Produkt per Barcode nachschlagen, oder unten im Katalog suchen bzw. die Mahlzeit von Hand eintragen.</p>
+          <button
+            type="button"
+            onClick={() => setScannerOpen(true)}
+            className="flex w-full items-center justify-center gap-2 rounded-full bg-sky-300 py-3 font-bold text-slate-950 hover:bg-sky-200 transition-colors shadow-lg active:scale-[0.98]"
+          >
+            <Camera className="h-5 w-5" />
+            Barcode scannen
+          </button>
+        </div>
+      )}
+      {AI_ENABLED && (
+        <>
       <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur shadow-glow">
             <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-violet-300" />
@@ -392,6 +413,9 @@ export default function LogView({ date, nutrition, notes, journal, mode }) {
             </form>
           </div>
         
+        </>
+      )}
+
         {scannerOpen && (
           <ScannerModal
             key={date}
@@ -620,7 +644,7 @@ export default function LogView({ date, nutrition, notes, journal, mode }) {
     </div>
   );
 
-  const pendingAiBlock = cloud && pendingAiEntries.length > 0 && (
+  const pendingAiBlock = AI_ENABLED && cloud && pendingAiEntries.length > 0 && (
     <div className="rounded-3xl border border-amber-400/20 bg-amber-400/5 p-5 backdrop-blur">
       <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-amber-300">
         <AlertTriangle className="h-4 w-4" />
@@ -690,7 +714,7 @@ export default function LogView({ date, nutrition, notes, journal, mode }) {
           {editor.status === "saving" || loading ? "Speichere..." : "Notizen speichern"}
         </button>
 
-        {cloud && (
+        {AI_ENABLED && cloud && (
           <button
             type="button"
             onClick={handleJournalCheck}

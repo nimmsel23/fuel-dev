@@ -1,3 +1,4 @@
+import { isCloudRuntime } from "../../lib/cloudEnv.js";
 import { assertLegacyAiAvailable } from "../../lib/aiAvailability.js";
 import React, { useState, useEffect } from "react";
 import { X, Sparkles, Loader2, RotateCcw } from "lucide-react";
@@ -12,7 +13,7 @@ import { postJson } from "@api";
 // Lokal (Coach-Build) gibt's kein Vertex-SDK im Bundle — stattdessen ruft
 // /nutrition/ai-coach den bestehenden Gemini-API-Key aus ~/.env/fuel.env
 // auf (services/gemini.mjs), kein Vertex-Aufpreis für den Desktop-Betrieb.
-const isCloud = () => window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com");
+const isCloud = isCloudRuntime;
 
 export default function MicrosAiCoach({ weeks, results, onClose }) {
   const [analysis, setAnalysis] = useState("");

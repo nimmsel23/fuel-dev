@@ -1,10 +1,9 @@
+import { isCloudRuntime } from "../../lib/cloudEnv.js";
 import { useState, useEffect } from "react";
 import { Settings2 } from "lucide-react";
 import { fetchJson } from "@api";
 
-const isCloud = () =>
-  typeof window !== "undefined" &&
-  (window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com"));
+const isCloud = isCloudRuntime;
 
 // Nur lokal relevant (Fastify-Backend + Dateisystem) — im Cloud-Build gibt's
 // nichts Sinnvolles zu zeigen. Ein Firestore-Erreichbarkeits-Ping wurde

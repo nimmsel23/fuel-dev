@@ -7,9 +7,11 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchJson } from "@api";
 import { catalogToMeal } from "../../../lib/mealDetails.js";
 import { useScanQueue } from "../../../hooks/useScanQueue.js";
+import { AI_ENABLED } from "../../../lib/aiAvailability.js";
 
 export default function ScannerModal({ onClose, onResult, date, initialFile = null }) {
-  const [mode, setMode] = useState("food");
+  // Store-Build ohne KI: nur Barcode (Dekodierung lokal, Nachschlagen bei Open Food Facts ohne Nutzerdaten).
+  const [mode, setMode] = useState(AI_ENABLED ? "food" : "barcode");
   const [catalogName, setCatalogName] = useState("");
   const [notice, setNotice] = useState("");
   const [online, setOnline] = useState(navigator.onLine);
@@ -65,7 +67,7 @@ export default function ScannerModal({ onClose, onResult, date, initialFile = nu
   const processImage = async (file, queuedEntry = null) => {
     if (!file) return;
     const owner = queue.owner;
-    const scanType = queuedEntry?.scanType || mode;
+    const scanType = AI_ENABLED ? (queuedEntry?.scanType || mode) : "barcode";
     lastFileRef.current = file;
     queuedRef.current = queuedEntry;
     setNotice("");
@@ -108,11 +110,11 @@ export default function ScannerModal({ onClose, onResult, date, initialFile = nu
     <Modal
       open={true}
       onOpenChange={(open) => !open && onClose()}
-      title="Essen & Barcodes scannen"
-      description="Essen per KI schätzen oder ein Produkt anhand seines Barcodes nachschlagen."
+      title={AI_ENABLED ? "Essen & Barcodes scannen" : "Barcode scannen"}
+      description={AI_ENABLED ? "Essen per KI schätzen oder ein Produkt anhand seines Barcodes nachschlagen." : "Ein Produkt anhand seines Barcodes bei Open Food Facts nachschlagen."}
     >
       <div className="space-y-4">
-        <label className="block text-sm">Bekanntes Essen? Ohne KI aus dem Katalog übernehmen
+        <label className="block text-sm">{AI_ENABLED ? "Bekanntes Essen? Ohne KI aus dem Katalog übernehmen" : "Bekanntes Essen aus dem Katalog übernehmen"}
           <input value={catalogName} onChange={e => setCatalogName(e.target.value)} disabled={loading}
             placeholder="Name suchen" className="mt-1 w-full rounded-xl border border-white/20 bg-slate-900 p-3" />
         </label>
@@ -121,14 +123,14 @@ export default function ScannerModal({ onClose, onResult, date, initialFile = nu
           className="block w-full rounded-xl border border-sky-300/30 p-3 text-left text-sm text-sky-200">
           {item.name || item.description} · Katalogportion übernehmen
         </button>)}
-        {catalogName.trim().length >= 2 && !catalogHits.length && <p className="text-xs text-slate-400">Kein passender Katalogeintrag. Foto analysieren oder Barcode suchen.</p>}
-        <div className="flex flex-wrap gap-3">
+        {catalogName.trim().length >= 2 && !catalogHits.length && <p className="text-xs text-slate-400">{AI_ENABLED ? "Kein passender Katalogeintrag. Foto analysieren oder Barcode suchen." : "Kein passender Katalogeintrag. Barcode suchen oder die Mahlzeit von Hand eintragen."}</p>}
+        {AI_ENABLED && <div className="flex flex-wrap gap-3">
           {[['food', 'Essen'], ['label', 'Etikett / Beleg'], ['barcode', 'Barcode']].map(([key, label]) => <button type="button" key={key} disabled={loading} aria-pressed={mode === key}
             onClick={() => { setMode(key); setError(""); setNotice(""); lastFileRef.current = null; queuedRef.current = null; }}
             className={`rounded-xl border px-4 py-2 ${mode === key ? "border-sky-300 text-sky-200" : "border-white/10"}`}>{label}</button>)}
-        </div>
+        </div>}
         {mode === "label" && <p className="text-xs text-slate-400">Höhere Bildauflösung für kleine Schrift. Etikett flach, nah und scharf fotografieren; Portion anschließend prüfen.</p>}
-        <div className="rounded-xl border border-white/10 p-3 text-sm" aria-live="polite">
+        {AI_ENABLED && <div className="rounded-xl border border-white/10 p-3 text-sm" aria-live="polite">
           <p>{online ? "Online" : "Offline"} · {queue.entries.length} wartende Fotos auf diesem Gerät</p>
           {queue.error && <p className="text-red-300">{queue.error}</p>}
           {notice && <p className="mt-2 text-sky-200">{notice}</p>}
@@ -139,7 +141,7 @@ export default function ScannerModal({ onClose, onResult, date, initialFile = nu
               : <span className="text-xs text-slate-400">Zum Fortsetzen dieses Datum im Log wählen.</span>}
             <button type="button" disabled={loading} onClick={() => queue.remove(entry).catch(err => setError(err.message))} className="rounded-lg border border-white/20 px-2 py-1">Entfernen</button>
           </div>)}
-        </div>
+        </div>}
         {mode === "barcode" && <form onSubmit={e => { e.preventDefault(); findProduct(); }} className="grid gap-3">
           <label className="text-sm">EAN / UPC
             <input value={barcode} onChange={e => setBarcode(e.target.value)} inputMode="numeric" autoComplete="off" required
@@ -169,7 +171,7 @@ export default function ScannerModal({ onClose, onResult, date, initialFile = nu
         {loading ? (
           <div className="flex flex-col items-center justify-center py-12 text-slate-400 gap-4">
             <Loader2 className="h-8 w-8 animate-spin text-sky-400" />
-            <p>{mode === "barcode" ? "Barcode / Produkt wird gelesen …" : "Gemini analysiert das Bild …"}</p>
+            <p>{mode === "barcode" ? "Barcode / Produkt wird gelesen …" : "Bild wird analysiert …"}</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-4">

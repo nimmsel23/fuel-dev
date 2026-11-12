@@ -1,3 +1,4 @@
+import { isCloudRuntime } from "./lib/cloudEnv.js";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -76,7 +77,7 @@ function App() {
   const frontdoor = useSettings((s) => s.frontdoor);
   const frontdoorResolved = useApp((s) => s.frontdoorResolved);
   const [frontdoorOpen, setFrontdoorOpen] = React.useState(true);
-  const isCloud = window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com");
+  const isCloud = isCloudRuntime();
   const isClientBuild = import.meta.env.VITE_APP_MODE === "client";
   const isCloudFrontend = isCloud || isClientBuild;
 
@@ -155,7 +156,7 @@ function App() {
 
     const handleHashChange = () => {
       const { tab: hashTab, date } = parseHashState();
-      const isCloudNow = window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com") || import.meta.env.VITE_APP_MODE === "client";
+      const isCloudNow = isCloudRuntime() || import.meta.env.VITE_APP_MODE === "client";
       const tab = TAB_CONFIG.find((t) => t.key === hashTab);
       if (tab && !(tab.cloudHidden && isCloudNow) && !(tab.cloudOnly && !isCloudNow)) {
         setActiveTab(hashTab);

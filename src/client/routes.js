@@ -17,6 +17,10 @@ import SettingsView from "./views/SettingsView.jsx";
 import DevView from "./views/Dev/DevView.jsx";
 import FastingTimerView from "./views/FastingTimerView.jsx";
 import TrainingModuleView from "./views/TrainingModuleView.jsx";
+import { STORE_BUILD } from "./lib/cloudEnv.js";
+
+// Store-Build: durchgängig deutsche, verständliche Tab-Namen (Owner-/Dev-Builds behalten die bisherigen).
+const t = (store, owner) => (STORE_BUILD ? store : owner);
 
 const BUILD_IS_LOCAL = import.meta.env.VITE_APP_MODE !== "client" && import.meta.env.MODE !== "firebase";
 const BUILD_IS_SHELL = import.meta.env.MODE === "firebase";
@@ -30,18 +34,20 @@ const SOLO = import.meta.env.VITE_SOLO || "";
 export const TAB_CONFIG = [
   ...((!BUILD_IS_SHELL && !SOLO) ? [{
     key: "dashboard",
-    label: "Dashboard",
+    label: t("Übersicht", "Dashboard"),
     Icon: Flame,
     View: DashboardView,
     getProps: (ctx) => ({ nutrition: ctx.nutrition, sup: ctx.sup, journal: ctx.journal, macroTrend: ctx.macroTrend, setActiveTab: ctx.setActiveTab, activeDate: ctx.activeDate }),
   }] : []),
-  ...(!SOLO ? [{
+  // Lernmodul = Ausbildungsinhalt der Ernährungstrainer-Kurse (Coach/Owner), nicht im Store-Build.
+  ...((!SOLO && !STORE_BUILD) ? [{
     key: "training-module",
     label: "Modul",
     Icon: GraduationCap,
     View: TrainingModuleView,
     getProps: (ctx) => ({ setActiveTab: ctx.setActiveTab }),
-  }, {
+  }] : []),
+  ...(!SOLO ? [{
     key: "fasting",
     label: "Fasten",
     Icon: Timer,
@@ -58,23 +64,23 @@ export const TAB_CONFIG = [
   ...(!SOLO ? [{
     // Log-Ansichten als eigene Tab-Pills (gleiche LogView, erzwungener Modus).
     key: "log-dashboard",
-    label: "Log-Dashboard",
+    label: t("Tagesübersicht", "Log-Dashboard"),
     Icon: LayoutGrid,
     View: LogView,
     getProps: (ctx) => ({ date: ctx.activeDate, nutrition: ctx.nutrition, notes: ctx.journal, mode: "dashboard" }),
   }, {
     key: "log-timeline",
-    label: "Timeline",
+    label: t("Tagesverlauf", "Timeline"),
     Icon: GitCommitVertical,
     View: LogView,
     getProps: (ctx) => ({ date: ctx.activeDate, nutrition: ctx.nutrition, notes: ctx.journal, mode: "timeline" }),
   }] : []),
   ...((!SOLO || SOLO === "food") ? [{
     key: "food",
-    label: "Food",
+    label: t("Lebensmittel", "Food"),
     Icon: UtensilsCrossed,
     View: FoodView,
-    getProps: (ctx) => ({ activeDate: ctx.activeDate, setActiveDate: ctx.setActiveDate, nutrition: ctx.nutrition }),
+    getProps: (ctx) => ({ activeDate: ctx.activeDate, setActiveDate: ctx.setActiveDate, nutrition: ctx.nutrition, setActiveTab: ctx.setActiveTab }),
   }] : []),
   ...(!SOLO ? [{
     // Töpfe (2026-10-26): was man gekocht hat als Gericht anlegen und tagweise
@@ -107,7 +113,7 @@ export const TAB_CONFIG = [
     label: "Katalog",
     Icon: Library,
     View: CatalogView,
-    getProps: (ctx) => ({ activeDate: ctx.activeDate }),
+    getProps: (ctx) => ({ activeDate: ctx.activeDate, setActiveTab: ctx.setActiveTab }),
   }] : []),
   ...((!SOLO || SOLO === "history") ? [{
     key: "history",
@@ -121,28 +127,28 @@ export const TAB_CONFIG = [
     // Protokoll für die FFA-Pflichtaufgaben (Ernährungstrainer Task 1/19,
     // Fitnesstrainer-Zusatzaufgabe Task 147). Druck-/PDF-Ausgabe via window.print().
     key: "report",
-    label: "Protokoll",
+    label: t("Ernährungsprotokoll", "Protokoll"),
     Icon: FileText,
     View: NutritionReportView,
     getProps: () => ({}),
   }] : []),
   ...((!SOLO || SOLO === "supplements") ? [{
     key: "supplements",
-    label: "Supplements",
+    label: t("Nahrungsergänzung", "Supplements"),
     Icon: Pill,
     View: SupplementsView,
     getProps: (ctx) => ({ date: ctx.activeDate, sup: ctx.sup, catalog: ctx.suppCatalog || [], suppLog: ctx.suppLog, onDateChange: ctx.setActiveDate }),
   }] : []),
   ...((!SOLO || SOLO === "micros") ? [{
     key: "micros",
-    label: "Mikros",
+    label: t("Mikronährstoffe", "Mikros"),
     Icon: Microscope,
     View: MicrosView,
     getProps: (ctx) => ({ setActiveDate: ctx.setActiveDate, setActiveTab: SOLO ? undefined : ctx.setActiveTab }),
   }] : []),
   ...((!BUILD_IS_SHELL && !SOLO) ? [{
     key: "settings",
-    label: "Setup",
+    label: t("Einstellungen", "Setup"),
     Icon: Settings2,
     View: SettingsView,
     getProps: () => ({}),
