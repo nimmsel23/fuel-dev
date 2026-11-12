@@ -68,18 +68,148 @@ self.addEventListener('push', (event) => {
 // fokussieren. "quick-yes" loggt alle due_items direkt, "snooze" haelt sie
 // 30min zurueck. Zwei Backends je Origin:
 // - local (Fastify, /opt/fuel): /supplements/log + /push/snooze
-// - cloud (fuel-vos.web.app): keine eigene API hinter der Origin — ruft die
-//   quickLogSupplement/snoozeSupplement Cloud Functions direkt an
-//   (functions/index.js, Projekt fitness-aos, region europe-west1). Die uid
-//   kommt im Push-Payload selbst mit (meta.uid), kein Login-State im SW.
+// - cloud (*.web.app): quickLogSupplement/snoozeSupplement. Die uid bestimmt
+//   nur das verifizierte Firebase-ID-Token. Die App schiebt es per
+//   FUEL_AUTH_TOKEN hierher (src/client/lib/swAuthBridge.js); der SW hat
+//   keinen eigenen Login-Speicher.
 const IS_CLOUD = self.location.hostname.includes('web.app') || self.location.hostname.includes('firebaseapp.com')
 const CLOUD_FN_BASE = 'https://europe-west1-fitness-aos.cloudfunctions.net'
+const AUTH_DB = 'fuel-sw-auth'
+const AUTH_KEY = 'idToken'
+let memoryIdToken = null
 
-async function logSupplementIntake(item, dateStr, uid) {
+function openAuthDb() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(AUTH_DB, 1)
+    request.onupgradeneeded = () => {
+      const db = request.result
+      if (!db.objectStoreNames.contains('kv')) db.createObjectStore('kv')
+    }
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+  })
+}
+
+function idbPut(key, value) {
+  return openAuthDb().then(
+    (db) =>
+      new Promise((resolve, reject) => {
+        const tx = db.transaction('kv', 'readwrite')
+        tx.objectStore('kv').put(value, key)
+        tx.oncomplete = () => {
+          db.close()
+          resolve()
+        }
+        tx.onerror = () => {
+          db.close()
+          reject(tx.error)
+        }
+      }),
+  )
+}
+
+function idbGet(key) {
+  return openAuthDb().then(
+    (db) =>
+      new Promise((resolve, reject) => {
+        const tx = db.transaction('kv', 'readonly')
+        const req = tx.objectStore('kv').get(key)
+        req.onsuccess = () => resolve(req.result ?? null)
+        req.onerror = () => {
+          db.close()
+          reject(req.error)
+        }
+        tx.oncomplete = () => db.close()
+      }),
+  )
+}
+
+async function persistIdToken(token) {
+  memoryIdToken = token || null
+  try {
+    await idbPut(AUTH_KEY, memoryIdToken)
+  } catch (error) {
+    console.error('[SW] auth token persist failed', error)
+  }
+}
+
+async function loadIdToken() {
+  if (memoryIdToken) return memoryIdToken
+  try {
+    memoryIdToken = (await idbGet(AUTH_KEY)) || null
+  } catch (error) {
+    console.error('[SW] auth token read failed', error)
+  }
+  return memoryIdToken
+}
+
+self.addEventListener('message', (event) => {
+  const data = event.data
+  if (!data || data.type !== 'FUEL_AUTH_TOKEN' || data.requestId) return
+  event.waitUntil(persistIdToken(data.token))
+})
+
+function requestTokenFromClients() {
+  return new Promise((resolve) => {
+    const requestId = `auth_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+    let pending = 0
+    let token = null
+    let settled = false
+    const finish = (state) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      self.removeEventListener('message', onMessage)
+      resolve({ state, token })
+    }
+    const timer = setTimeout(() => finish(token ? 'token' : 'timeout'), 1200)
+    function onMessage(event) {
+      const data = event.data || {}
+      if (data.type !== 'FUEL_AUTH_TOKEN' || data.requestId !== requestId) return
+      pending -= 1
+      if (data.token) token = data.token
+      if (pending <= 0) finish(token ? 'token' : 'logged-out')
+    }
+    self.addEventListener('message', onMessage)
+    self.clients
+      .matchAll({ type: 'window', includeUncontrolled: true })
+      .then((windowClients) => {
+        if (!windowClients.length) {
+          finish('none')
+          return
+        }
+        pending = windowClients.length
+        for (const client of windowClients) client.postMessage({ type: 'FUEL_AUTH_TOKEN_REQUEST', requestId })
+      })
+      .catch(() => finish('timeout'))
+  })
+}
+
+async function resolveCloudAuthToken() {
+  const result = await requestTokenFromClients()
+  if (result.state === 'token') {
+    await persistIdToken(result.token)
+    return result.token
+  }
+  if (result.state === 'logged-out') {
+    await persistIdToken(null)
+    return null
+  }
+  return loadIdToken()
+}
+
+function cloudHeaders(token) {
+  return {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`,
+  }
+}
+
+async function logSupplementIntake(item, dateStr, uid, authToken) {
   if (IS_CLOUD) {
     const response = await fetch(`${CLOUD_FN_BASE}/quickLogSupplement`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: cloudHeaders(authToken),
       body: JSON.stringify({ uid, date: dateStr, item }),
     })
     if (!response.ok) throw new Error(`cloud log failed: ${response.status}`)
@@ -105,7 +235,16 @@ async function logSupplementIntake(item, dateStr, uid) {
 async function handleQuickYes(data) {
   const items = Array.isArray(data.due_items) ? data.due_items : []
   const dateStr = data.date || new Date().toISOString().slice(0, 10)
-  const results = await Promise.allSettled(items.map((item) => logSupplementIntake(item, dateStr, data.uid)))
+  const authToken = IS_CLOUD ? await resolveCloudAuthToken() : null
+  if (IS_CLOUD && !authToken) {
+    return self.registration.showNotification('Nicht geloggt', {
+      body: 'Bitte die App öffnen und angemeldet bleiben, dann die Einnahme erneut bestätigen.',
+      icon: '/favicon-192x192.png',
+      badge: '/favicon-192x192.png',
+      tag: 'fuel-supplements-ack',
+    })
+  }
+  const results = await Promise.allSettled(items.map((item) => logSupplementIntake(item, dateStr, data.uid, authToken)))
   const failed = results.filter((r) => r.status === 'rejected').length
   const names = items.map((i) => i.name).join(', ') || 'Supplements'
   return self.registration.showNotification(failed > 0 ? 'Teilweise nicht geloggt' : 'Erledigt ✓', {
@@ -122,9 +261,14 @@ async function handleSnooze(data) {
   const itemIds = items.map((i) => i.id)
   try {
     if (IS_CLOUD) {
+      const authToken = await resolveCloudAuthToken()
+      if (!authToken) {
+        console.error('[SW] Snooze skipped, no auth token')
+        return
+      }
       await fetch(`${CLOUD_FN_BASE}/snoozeSupplement`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: cloudHeaders(authToken),
         body: JSON.stringify({ uid: data.uid, item_ids: itemIds, date: dateStr }),
       })
       return

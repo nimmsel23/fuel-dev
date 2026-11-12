@@ -23,6 +23,9 @@ if (import.meta.env.DEV) {
 } else if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("/sw.js").then((reg) => {
     window.__swRegistration = reg;
+    import("./lib/swAuthBridge.js")
+      .then(({ startSwAuthBridge }) => startSwAuthBridge())
+      .catch(() => {});
     const notify = () => window.dispatchEvent(new CustomEvent("sw-update-available"));
     if (reg.waiting) notify();
     reg.addEventListener("updatefound", () => {

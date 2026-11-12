@@ -1,5 +1,6 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
+const { createSupplementActions } = require("./supplement-actions");
 
 admin.initializeApp();
 
@@ -308,17 +309,15 @@ exports.scheduledPushReminders = functions
     }
   });
 
-// CORS: der SW auf fuel-vos.web.app ruft diese Functions cross-origin auf
-// (eigene cloudfunctions.net-Domain) — Auth-Modell ist bewusst simpel:
-// die uid steht unsigniert im eigenen Push-Payload (meta.uid), den nur der
-// SW des Geräts sieht, das den Push erhalten hat. Kein Login-State im SW
-// verfügbar, daher kein ID-Token-Check. Ausreichend für Coach/Few-Client-
-// Betrieb, kein Ersatz für echte Auth bei öffentlichem Multi-Tenant-Zugriff.
+// CORS: der Service Worker auf *.web.app ruft diese Functions cross-origin auf.
+// Die uid kommt nur aus Authorization: Bearer <Firebase-ID-Token> (verifyIdToken).
+// Eine uid im Body muss fehlen oder mit der Token-uid übereinstimmen, sonst 403.
+// Ohne gültiges Token: 401 unauthenticated. Es gibt keinen Secret-Fallback.
 function withCors(handler) {
   return (req, res) => {
     res.set("Access-Control-Allow-Origin", "*");
     res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-    res.set("Access-Control-Allow-Headers", "Content-Type");
+    res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
     if (req.method === "OPTIONS") {
       res.status(204).send("");
       return;
@@ -327,66 +326,18 @@ function withCors(handler) {
   };
 }
 
+const supplementActions = createSupplementActions({ admin, getLocalDateParts });
+
 // "Ja, genommen" aus der Notification heraus — schreibt direkt in
 // supplements/{uid}/logs/{date}, analog zu addIntake() im lokalen Channel
 // (src/server/services/supplements-log.mjs), nur ohne Tombstone-Tracking.
 exports.quickLogSupplement = functions
   .region("europe-west1")
-  .https.onRequest(withCors(async (req, res) => {
-    if (req.method !== "POST") return res.status(405).send({ ok: false, error: "POST only" });
-    const { uid, item, date } = req.body || {};
-    if (!uid || !item?.id) return res.status(400).send({ ok: false, error: "uid and item.id required" });
-
-    const dateStr = typeof date === "string" && date ? date : getLocalDateParts().date;
-    const db = admin.firestore();
-    const logRef = db.collection("supplements").doc(uid).collection("logs").doc(dateStr);
-
-    try {
-      await db.runTransaction(async (tx) => {
-        const snap = await tx.get(logRef);
-        const data = snap.exists ? snap.data() : { date: dateStr, intakes: [] };
-        const intakes = Array.isArray(data.intakes) ? data.intakes : [];
-        if (intakes.some((i) => i.supplement_id === item.id)) return; // schon geloggt
-        intakes.push({
-          id: `supp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-          supplement_id: item.id,
-          name: item.name || item.id,
-          dose: item.dose ?? null,
-          unit: item.unit || "mg",
-          time_of_day: item.time_of_day || "any",
-          notes: "",
-          time: new Date().toISOString(),
-        });
-        tx.set(logRef, { ...data, date: dateStr, intakes, updated_at: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
-      });
-      res.send({ ok: true });
-    } catch (error) {
-      console.error("quickLogSupplement failed:", error);
-      res.status(500).send({ ok: false, error: error.message });
-    }
-  }));
+  .https.onRequest(withCors(supplementActions.quickLogSupplement));
 
 // "Später" aus der Notification heraus — merkt sich einen until-Timestamp
 // in users/{uid}/meta/supplement_snooze, den getSupplementReminderPayloads()
 // beim nächsten 5-Minuten-Tick respektiert.
 exports.snoozeSupplement = functions
   .region("europe-west1")
-  .https.onRequest(withCors(async (req, res) => {
-    if (req.method !== "POST") return res.status(405).send({ ok: false, error: "POST only" });
-    const { uid, item_ids } = req.body || {};
-    if (!uid || !Array.isArray(item_ids) || item_ids.length === 0) {
-      return res.status(400).send({ ok: false, error: "uid and item_ids required" });
-    }
-
-    const until = Date.now() + 30 * 60 * 1000;
-    const ref = admin.firestore().collection("users").doc(uid).collection("meta").doc("supplement_snooze");
-    try {
-      const update = {};
-      for (const id of item_ids) update[id] = until;
-      await ref.set(update, { merge: true });
-      res.send({ ok: true, until });
-    } catch (error) {
-      console.error("snoozeSupplement failed:", error);
-      res.status(500).send({ ok: false, error: error.message });
-    }
-  }));
+  .https.onRequest(withCors(supplementActions.snoozeSupplement));
