@@ -1,5 +1,6 @@
 import { onIdTokenChanged } from "firebase/auth";
 import { auth } from "./firebase.js";
+import { decideAuthTokenReply } from "./swAuthReply.js";
 
 const TOKEN = "FUEL_AUTH_TOKEN";
 const REQUEST = "FUEL_AUTH_TOKEN_REQUEST";
@@ -47,16 +48,24 @@ export function startSwAuthBridge() {
     if (event.data?.type !== REQUEST) return;
     const requestId = event.data.requestId;
     const reply = (token) => {
-      const message = { type: TOKEN, token: token || null, requestId };
+      const message = { type: TOKEN, token, requestId };
       if (event.source) event.source.postMessage(message);
       else navigator.serviceWorker.controller?.postMessage(message);
     };
-    const user = auth.currentUser;
-    if (!user) {
-      reply(null);
-      return;
-    }
-    user.getIdToken().then(reply).catch(() => reply(null));
+    auth.authStateReady().then(async () => {
+      const user = auth.currentUser;
+      let token = null;
+      if (user) {
+        try {
+          token = await user.getIdToken();
+        } catch {
+          token = null;
+        }
+      }
+      const decision = decideAuthTokenReply({ restored: true, signedIn: Boolean(user), token });
+      if (decision.kind === "token") reply(decision.token);
+      else if (decision.kind === "logout") reply(null);
+    }).catch(() => {});
   });
 
   navigator.serviceWorker.addEventListener("controllerchange", () => publishIfReady(auth.currentUser));

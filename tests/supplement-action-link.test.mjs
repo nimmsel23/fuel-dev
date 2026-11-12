@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { decideAuthTokenReply } from "../src/client/lib/swAuthReply.js";
 import {
   buildSupplementActionHash,
   parseSupplementActionHash,
@@ -117,6 +118,13 @@ test("Snooze verlängert eine noch laufende Pause nicht", () => {
   const updates = planSnooze(["mag", "zinc", "mag"], { mag: now + 60_000 }, now);
   assert.deepEqual(updates, { zinc: now + 30 * 60 * 1000 });
   assert.deepEqual(planSnooze(["zinc"], { zinc: now + 1 }, now), {});
+});
+
+test("eine noch nicht wiederhergestellte Session gilt nicht als Logout", () => {
+  assert.deepEqual(decideAuthTokenReply({ restored: false, signedIn: false, token: null }), { kind: "wait" });
+  assert.deepEqual(decideAuthTokenReply({ restored: true, signedIn: false, token: null }), { kind: "logout" });
+  assert.deepEqual(decideAuthTokenReply({ restored: true, signedIn: true, token: null }), { kind: "keep" });
+  assert.deepEqual(decideAuthTokenReply({ restored: true, signedIn: true, token: "id-token" }), { kind: "token", token: "id-token" });
 });
 
 test("der Service Worker öffnet bei fehlendem Token und bei 401 den Aktions-Hash", () => {
