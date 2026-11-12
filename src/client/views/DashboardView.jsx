@@ -10,8 +10,8 @@ import QuickAiLog from "../components/QuickAiLog.jsx";
 import IncompleteDayHint from "./Dashboard/IncompleteDayHint.jsx";
 import FastingWindowBadge from "../components/FastingWindowBadge.jsx";
 import WaterTracker from "./Dashboard/WaterTracker.jsx";
-import { format } from "date-fns";
 import { AI_ENABLED } from "../lib/aiAvailability.js";
+import { useViennaDate } from "../hooks/useViennaToday.js";
 
 export default function DashboardView({ nutrition, sup, journal, macroTrend, setActiveTab, activeDate }) {
   const meals = nutrition?.meals || [];
@@ -20,7 +20,7 @@ export default function DashboardView({ nutrition, sup, journal, macroTrend, set
   const totalKcal = sumKnownMealMacro(meals, "kcal");
   const totalProtein = sumKnownMealMacro(meals, "protein");
   const waterMl = nutrition?.water_ml || 0;
-  const isToday = activeDate === format(new Date(), "yyyy-MM-dd");
+  const isToday = activeDate === useViennaDate();
 
   return (
     <div className="grid gap-6 xl:grid-cols-[1.4fr_0.9fr]">

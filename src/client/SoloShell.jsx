@@ -1,8 +1,8 @@
 import React from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { addDays, format, parseISO } from "date-fns";
-import { de } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, RotateCcw } from "lucide-react";
+import { calendarDay, shiftCalendarDay } from "./lib/calendarDay.js";
+import { useFollowViennaToday, useViennaDate } from "./hooks/useViennaToday.js";
 
 import SupplementsApp from "./SupplementsApp.jsx";
 import FrontdoorHost from "./views/Frontdoor/FrontdoorHost.jsx";
@@ -33,25 +33,39 @@ const META = {
   report: {},
 };
 
+function formatDayLabel(iso) {
+  const [year, month, day] = iso.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day, 12));
+  return new Intl.DateTimeFormat("de-AT", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  }).format(date);
+}
+
 function DateNav({ date, setDate }) {
-  const d = parseISO(date);
-  const today = format(new Date(), "yyyy-MM-dd");
-  const step = (n) => setDate(format(addDays(d, n), "yyyy-MM-dd"));
+  const today = useViennaDate();
+  const step = (n) => {
+    const next = shiftCalendarDay(date, n);
+    if (next) setDate(next);
+  };
   return (
     <div className="flex items-center gap-1">
-      <button onClick={() => step(-1)} aria-label="Vortag" className="rounded-full p-1.5 text-slate-300 hover:bg-white/10">
+      <button type="button" onClick={() => step(-1)} aria-label="Vortag" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-slate-300 hover:bg-white/10">
         <ChevronLeft className="h-5 w-5" />
       </button>
       <button
-        onClick={() => setDate(today)}
+        type="button"
+        onClick={() => setDate(today || calendarDay())}
         title="Zu heute springen"
-        className="min-w-[8.5rem] rounded-full px-2 py-1 text-center text-sm font-medium text-slate-100 hover:bg-white/10"
+        className="min-h-11 min-w-[8.5rem] rounded-full px-2 text-center text-sm font-medium text-slate-100 hover:bg-white/10"
       >
-        {date === today ? "Heute" : format(d, "EEE, d. MMM", { locale: de })}
+        {date === today ? "Heute" : formatDayLabel(date)}
       </button>
       <label className="sr-only" htmlFor="solo-date">Datum wählen</label>
-      <input id="solo-date" type="date" value={date} onChange={e => e.target.value && setDate(e.target.value)} className="w-9 rounded-lg border border-white/10 bg-slate-950/60 p-1 text-xs text-slate-300" />
-      <button onClick={() => step(1)} aria-label="Folgetag" className="rounded-full p-1.5 text-slate-300 hover:bg-white/10">
+      <input id="solo-date" type="date" value={date} onChange={e => e.target.value && setDate(e.target.value)} className="min-h-11 min-w-11 rounded-lg border border-white/10 bg-slate-950/60 p-1 text-base text-slate-300" />
+      <button type="button" onClick={() => step(1)} aria-label="Folgetag" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-slate-300 hover:bg-white/10">
         <ChevronRight className="h-5 w-5" />
       </button>
     </div>
@@ -63,6 +77,7 @@ export default function SoloShell() {
   const meta = META[SOLO] || {};
   const tab = TAB_CONFIG.find((t) => t.key === SOLO);
   const { activeDate, setActiveDate, setActiveTab } = useApp();
+  useFollowViennaToday();
   const [authError, setAuthError] = React.useState("");
   const [authBusy, setAuthBusy] = React.useState(false);
   const authBusyRef = React.useRef(false);

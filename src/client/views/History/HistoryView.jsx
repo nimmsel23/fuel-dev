@@ -4,7 +4,8 @@ import { History, Calendar, ChevronRight, ChevronDown, ChevronUp, Pencil, Trash2
 import { fetchJson, postJson } from "@api";
 import { syncPotAfterMealChange } from "../../hooks/usePots.js";
 import { sumCompleteMetric, formatMetric, formatMealMetric } from "../../../shared/utils/utils.js";
-import { buildWeekGroups, historyToday } from "./historyWeeks.mjs";
+import { buildWeekGroups } from "./historyWeeks.mjs";
+import { useViennaDate } from "../../hooks/useViennaToday.js";
 
 const DAY_SHORT = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
 const MON_SHORT = ["Jan", "Feb", "Mar", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
@@ -38,7 +39,7 @@ export default function HistoryView({ setActiveDate, setActiveTab }) {
   };
 
   const history = data?.history || [];
-  const today = historyToday();
+  const today = useViennaDate();
   const weekGroups = buildWeekGroups(today, history);
 
   const toggleWeek = (label) => {
@@ -147,6 +148,7 @@ export default function HistoryView({ setActiveDate, setActiveTab }) {
                                     </div>
                                     <div className="text-[10px] uppercase tracking-[0.2em] text-slate-500">
                                       {day.meals?.length || 0} Mahlzeiten
+                                      {Number(day.water_ml) > 0 ? ` · ${Math.round(Number(day.water_ml))} ml Wasser` : ""}
                                     </div>
                                   </div>
                                 </button>

@@ -11,6 +11,8 @@ export default function WaterTracker({ date, waterMl }) {
     onSuccess: (result, next) => {
       qc.setQueryData(["nutrition", date], (old) => ({ ...old, date, water_ml: result?.data?.water_ml ?? next }));
       qc.invalidateQueries({ queryKey: ["nutrition", date] });
+      qc.invalidateQueries({ queryKey: ["nutrition-history"] });
+      qc.invalidateQueries({ queryKey: ["week-logs"] });
       setError("");
     },
     onError: () => setError("Wasser konnte nicht gespeichert werden."),
@@ -26,12 +28,12 @@ export default function WaterTracker({ date, waterMl }) {
       <div className="mt-4 flex flex-wrap gap-2">
         {[250, 500].map((ml) => (
           <button key={ml} type="button" disabled={save.isPending} onClick={() => add(ml)}
-            className="rounded-xl bg-sky-500 px-4 py-2 font-medium text-white disabled:opacity-50">
+            className="min-h-11 rounded-xl bg-sky-500 px-4 py-2 font-medium text-white disabled:opacity-50">
             +{ml} ml
           </button>
         ))}
         <button type="button" disabled={save.isPending || waterMl === 0} onClick={() => add(-250)}
-          className="rounded-xl border border-white/20 px-4 py-2 disabled:opacity-50">−250 ml</button>
+          className="min-h-11 rounded-xl border border-white/20 px-4 py-2 disabled:opacity-50">−250 ml</button>
       </div>
       <form className="mt-3 flex flex-wrap items-end gap-2" onSubmit={(event) => {
         event.preventDefault();
@@ -40,7 +42,7 @@ export default function WaterTracker({ date, waterMl }) {
         <label className="text-sm">Andere Menge (ml)
           <input type="number" min="1" max="5000" step="1" required value={amount}
             onChange={(event) => setAmount(event.target.value)}
-            className="mt-1 block w-28 rounded-lg border border-white/20 bg-transparent px-3 py-2" />
+            className="mt-1 block w-28 rounded-lg border border-white/20 bg-transparent px-3 py-2 text-base" />
         </label>
         <button type="submit" disabled={save.isPending} className="rounded-xl border border-sky-400/50 px-4 py-2 disabled:opacity-50">Hinzufügen</button>
       </form>

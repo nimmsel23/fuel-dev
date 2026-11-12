@@ -1,9 +1,9 @@
-import { todayISO } from "../../shared/utils/validation.mjs";
+import { calendarDay } from "./calendarDay.js";
 
 const STORAGE_KEY = "fuel-notification-intent";
 
 function normalizeDate(value) {
-  if (!value || value === "today") return todayISO();
+  if (!value || value === "today") return calendarDay();
   return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
 }
 
