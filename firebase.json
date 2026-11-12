@@ -41,6 +41,27 @@
       "target": "client"
     },
     {
+      "target": "alias",
+      "public": "hosting/fuel-vos-alias",
+      "rewrites": [
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ],
+      "headers": [
+        {
+          "source": "**",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "public": "dist-firebase",
       "ignore": [
         "firebase.json",

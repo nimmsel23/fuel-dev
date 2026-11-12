@@ -25,7 +25,7 @@ VITALTRAINING (Der eine Gott — The Ultimate Authority)
    └─ fuel-dev (Der Tempel — Where It Happens)
       ├─ Zwei Channels: **local** (Fastify, /opt/fuel) + **cloud** (Firebase PWA)
       ├─ Fastify API + SQLite + File-based Data (local channel, VITE_APP_MODE=coach)
-      ├─ Firebase/Firestore (cloud channel, VITE_APP_MODE=client — fuel-vos.web.app)
+      ├─ Firebase/Firestore (cloud channel, VITE_APP_MODE=client — vos-fuel.web.app)
       └─ Komponenten
          ├─ Meal Catalog (individuelle JSON-Files lokal / Firestore cloud)
          ├─ Supplements Catalog (catalog.yaml im Repo / Firestore cloud)
@@ -52,7 +52,7 @@ VITALTRAINING (Der eine Gott — The Ultimate Authority)
 | Channel | Stack | Build-Mode | Deployment | Daten |
 |---------|-------|------------|------------|-------|
 | **local** | Fastify + SQLite + File-JSON | `VITE_APP_MODE=coach` | Port 9000 Dev / 7000 Prod (`/opt/fuel`) | `~/.aos/fuel/` |
-| **cloud** | Firebase Hosting + Firestore | `VITE_APP_MODE=client` | [fuel-vos.web.app](https://fuel-vos.web.app) | Firestore (per User) |
+| **cloud** | Firebase Hosting + Firestore | `VITE_APP_MODE=client` | [vos-fuel.web.app](https://vos-fuel.web.app) | Firestore (per User) |
 
 Beide Channels teilen sich **dieselbe React-Codebase** in `src/client/` — Unterschied liegt nur im Build-Mode + Runtime-Detection via `isCloud()` in `src/client/lib/api.js`.
 
@@ -61,7 +61,7 @@ Beide Channels teilen sich **dieselbe React-Codebase** in `src/client/` — Unte
 - Vite dev: 5173
 - local Prod: 7000 (static, `fuel.service`; Legacy-Unit `fuel-v2.service` am 2026-08-28 restlos entfernt)
 - v4 (Python/FastAPI, `backend/` hier + UI in `~/dev/fuel-frontend`): Standalone-Dev optional auf :4000; lokal eingebunden in VitalOS auf :8000 unter `/api/fuel/*`. `fuel-python.service` ist seit 2026-10-29 deaktiviert; Firebase bleibt der Produkt-Einstieg.
-- cloud: `https://fuel-vos.web.app`
+- cloud: `https://vos-fuel.web.app`
 
 **Data location (local):** `~/.aos/fuel/` (via `AOS_FUEL_DATA_DIR`)
 **Data location (cloud):** Firestore — Collections `nutrition/{uid}/logs`, `supplements/{uid}/logs`, `users/{uid}/meta`
@@ -88,7 +88,7 @@ pnpm run ui:dev       # Vite dev only (kein Backend)
 
 # Deploy
 pnpm run deploy:local   # ./deploy.sh — rsync + build + systemctl restart
-pnpm run deploy:cloud   # build:cloud + firebase deploy --only hosting:client (LIVE auf fuel-vos.web.app)
+pnpm run deploy:cloud   # build:cloud + firebase deploy --only hosting:client (LIVE auf vos-fuel.web.app)
 pnpm run deploy:preview # build:cloud + 24h-Preview-Channel + Telegram-Link (scripts/deploy-preview.mjs)
 ./deploy.sh            # direkt (= deploy:local)
 
@@ -129,7 +129,7 @@ Fastify-Server, `nutrition.db` (better-sqlite3) und Micros/DACH liegen in `~/dev
 - `src/client/lib/firebase.js` — Firebase Init + Auth (Google Sign-In)
 - Firestore Collections: `nutrition/{uid}/logs`, `nutrition/{uid}/meta/catalog`, `nutrition/{uid}/journal`, `supplements/{uid}/logs`, `supplements/{uid}/meta/catalog`, `users/{uid}/meta/settings`
 - AI Logger (lokales Gemini-Backend) → nur im local channel sichtbar (kein Backend in cloud)
-- `dist-firebase/` → Firebase Hosting (fuel-vos.web.app)
+- `dist-firebase/` → Firebase Hosting (vos-fuel.web.app)
 
 ### Gemini Scripts (Python)
 
@@ -234,7 +234,9 @@ pnpm run catalog:sync -- <uid> # echter Catalog-Sync für nutrition/supplements
 pnpm run deploy:preview # 24h-Preview-Channel + Telegram-Link
 ```
 
-**Firebase Config:** `src/client/lib/firebase.config.js` — Project: `fitness-aos` (Hosting-Site: `fuel-vos` → fuel-vos.web.app). Das frühere Projekt `fuel-aos` ist abgelöst — alle VitalOS-Apps deployen ins gemeinsame Projekt `fitness-aos`, unterschieden per Hosting-Site.
+**Firebase Config:** `src/client/lib/firebase.config.js` — Project: `fitness-aos` (Hosting-Site: `vos-fuel` → vos-fuel.web.app, Alias `fuel-vos`). Das frühere Projekt `fuel-aos` ist abgelöst — alle VitalOS-Apps deployen ins gemeinsame Projekt `fitness-aos`, unterschieden per Hosting-Site.
+
+**Umzug 2026-11-13:** Haupt-App liegt auf Site **`vos-fuel`** (Target `client`, https://vos-fuel.web.app, kanonisch laut `~/vitalos/docs/HOSTING-TARGETS.md`). `fuel-vos` ist nur noch Alias (Target `alias`, `hosting/fuel-vos-alias/`): `index.html` leitet mit Pfad/Query/Hash auf vos-fuel weiter, `sw.js` ist ein Kill-Switch für installierte PWAs (Cache leeren, abmelden, Fenster umleiten). Kein Firebase-301, weil der auch `/sw.js` umleiten würde und alte PWAs dann nie ein Update bekämen. `deploy-master.yml` deployt `hosting:client,hosting:alias`. Google-Login auf vos-fuel braucht die OAuth-Redirect-URI `https://vos-fuel.web.app/__/auth/handler` im Web-Client von `fitness-aos` (Owner, Cloud Console).
 **Live-Sites (2026-10-26):** `fuel-vos` (Target `client`) wird von der vitalos-Pipeline ("Deploy Fuel PWA") bedient; **`fuel-os`** (Target `fuelos`, https://fuel-os.web.app) ist das Ziel von `.github/workflows/deploy-master.yml` (Push auf `master`, nackter Checkout). Achtung: auf `fuel-os` lag bis 2026-10-23 eine andere App ("Fuel OS", vitalos-Branch `fuel-os-ernaehrungsplaene`) — der erste master-Deploy ersetzt sie (Rollback über Firebase-Hosting-Versionen). `fuelos-web` ist eine dritte, ältere Site ohne Pipeline.
 **Auto-Deploy:** `.githooks/pre-push` deployt automatisch bei Push auf `master`, wenn relevante Dateien im Diff sind (Details siehe oben) — daneben bleiben `deploy:cloud` / `deploy:preview` für manuelle/Preview-Deploys.
 
@@ -450,7 +452,7 @@ Vier Fuel-Tabs sind als eigene installierbare Apps veröffentlicht — Muster wi
 - **Build:** `pnpm run build:solo` (alle) bzw. `build:solo:log|supplements|micros|report` → `dist-solo-<tab>/`. `routes.js` bündelt bei `VITE_SOLO` nur den einen Tab, `src/client/SoloShell.jsx` ist die schlanke Shell (Login-Pflicht, Tagesnavigation, Update-Button), `vite.config.cjs` schreibt nach `dist-solo-<tab>`.
 - **Stamp:** `scripts/stamp-solo.mjs <tab>` = `stamp-sw.mjs` + `@vos/mini-app-shell` (Splash, Manifest, Titel „<App> - VitalOS", Icons; vendored unter `scripts/mini-app-shell/`, Quelle `~/vitalos/packages/mini-app-shell`, aktualisieren per `node ~/vitalos/packages/mini-app-shell/cli.mjs vendor scripts/mini-app-shell`) und räumt Haupt-App-Icons/`*.bak` aus dem Output. Konfig je App: `mini-app.json`.
 - **Icons:** `solo-icons/<tab>/`, erzeugt von `pnpm run solo:icons` (`scripts/solo-icons.py`, rsvg-convert, PNGs eingecheckt).
-- **Deploy:** `pnpm run deploy:solo:<log|supplements|mikros|protokoll>`. Die volle App heißt im Hosting jetzt Target `client` (Site `fuel-vos`): `deploy:firebase`/`deploy:cloud`/`deploy-preview.mjs` nutzen `--only hosting:client`; ein nacktes `firebase deploy --only hosting` würde alle sechs Targets deployen (`client`, `fuelos`, vier Mini-Apps). Mapping Target→Site in `.firebaserc`.
+- **Deploy:** `pnpm run deploy:solo:<log|supplements|mikros|protokoll>`. Die volle App heißt im Hosting jetzt Target `client` (Site `vos-fuel`, Alias-Target `alias` = `fuel-vos`): `deploy:firebase`/`deploy:cloud`/`deploy-preview.mjs` nutzen `--only hosting:client`; ein nacktes `firebase deploy --only hosting` würde alle sechs Targets deployen (`client`, `fuelos`, vier Mini-Apps). Mapping Target→Site in `.firebaserc`.
 - **Auth:** Firebase-Auth-Domains (`vos-fuel-<x>.web.app` + `.firebaseapp.com`, 8 Einträge) sind im Projekt `fitness-aos` eingetragen (2026-10-16, Identity-Toolkit-Admin-API). Neue Mini-App ⇒ Domain dort ergänzen, sonst scheitert der Google-Login. App Check ist für Firestore/Auth/ML `UNENFORCED`; reCAPTCHA-v3-Key-Domains sind nicht per API prüfbar.
 - **Release-Grenze:** `fuel-release` aktualisiert nur den `fuel-app`-Pointer; `deploy-fuel.yml` baut und deployt nur `hosting:client`. Die Mini-Apps bleiben stabile Fallback-Sites und werden nur einzeln manuell mit `pnpm run deploy:solo:<x>` veröffentlicht.
 

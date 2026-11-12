@@ -64,7 +64,7 @@ export const redirectSettled = getRedirectResult(auth).then(
 );
 
 const WEBVIEW_MESSAGE = "Google blockiert die Anmeldung in dieser eingebetteten iOS-Ansicht. Bitte die Seite in Safari öffnen.";
-const CROSS_SITE_MESSAGE = "Auf diesem iPhone klappt die Google-Anmeldung nur über die Firebase-Adresse der App. Bitte https://fuel-vos.web.app in Safari öffnen.";
+const CROSS_SITE_MESSAGE = "Auf diesem iPhone klappt die Google-Anmeldung nur über die Firebase-Adresse der App. Bitte https://vos-fuel.web.app in Safari öffnen.";
 
 export function signIn() {
   // Ein zweiter Tap während des ersten Popup-/Redirect-Versuchs startet bei Firebase

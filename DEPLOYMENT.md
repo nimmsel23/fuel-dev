@@ -13,7 +13,7 @@ optional; die Fuel-FastAPI-Router sind in den VitalOS-Workspace-Server auf
 - **Rolle:** Aktueller Node/Fastify-Entry-Point und Kompatibilitäts-Layer.
 - **Dev:** `:9000`
 - **Desktop-Prod:** `fuel.service` auf `:7000`, WorkingDirectory `/opt/fuel`
-- **Cloud:** Firebase Hosting (`fuel-vos.web.app`)
+- **Cloud:** Firebase Hosting (`vos-fuel.web.app`)
 - **Besonderheit:** Kann `/v4/*` an das Python-Backend weiterreichen.
 
 ### v4

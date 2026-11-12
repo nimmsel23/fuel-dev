@@ -6,7 +6,7 @@
     "fitness-aos": {
       "hosting": {
         "client": [
-          "fuel-vos"
+          "vos-fuel"
         ],
         "log": [
           "vos-fuel-log"
@@ -22,6 +22,9 @@
         ],
         "fuelos": [
           "fuel-os"
+        ],
+        "alias": [
+          "fuel-vos"
         ]
       }
     }

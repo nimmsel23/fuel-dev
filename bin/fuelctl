@@ -3,7 +3,7 @@
 fuelctl — Universal System Control for Fuel Centre (Python Edition)
 Central control für: dev (v3 entrypoint + v4 backend, diese Maschine), prod
 (fuel.service, diese Maschine, /opt/fuel), cloud (Firebase Hosting,
-fuel-vos.web.app -- via `cloud`, siehe fuelctl cloud/deploy:cloud in package.json).
+vos-fuel.web.app -- via `cloud`, siehe fuelctl cloud/deploy:cloud in package.json).
 "local" fällt als Bezeichnung weg, weil dev + prod ohnehin beide auf dieser
 Maschine laufen -- der einzige echte Gegenpol dazu ist "cloud".
 """

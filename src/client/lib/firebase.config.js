@@ -1,4 +1,4 @@
-// fuel-vos hosted under fitness-aos Firebase project (shared Firestore + Auth)
+// vos-fuel (Alias fuel-vos) hosted under fitness-aos Firebase project (shared Firestore + Auth)
 export const firebaseConfig = {
   apiKey:            "AIzaSyD1hvp2UYrvizLOzoSqOX-bwRWcCpJVAlg",
   authDomain:        "fitness-aos.firebaseapp.com",

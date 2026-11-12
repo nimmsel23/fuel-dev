@@ -90,5 +90,5 @@ jobs:
         run: |
           printf '%s' "$FIREBASE_SA" > "$RUNNER_TEMP/sa.json"
           GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json" \
-            npx firebase-tools@latest deploy --only hosting:client \
+            npx firebase-tools@latest deploy --only hosting:client,hosting:alias \
             --project fitness-aos --non-interactive
