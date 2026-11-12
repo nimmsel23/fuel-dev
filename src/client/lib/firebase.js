@@ -66,8 +66,10 @@ export const googleProvider = new GoogleAuthProvider();
 
 // Vertex AI initialization (@firebase/ai >= 3: VertexAIBackend → AgentPlatformBackend)
 import * as firebaseAI from "firebase/ai";
+import { STORE_BUILD } from "./cloudEnv.js";
 const AiBackend = Reflect.get(firebaseAI, "AgentPlatformBackend") ?? Reflect.get(firebaseAI, "VertexAIBackend");
-export const vertexAI = typeof AiBackend === "function"
+// Store-Build: keine KI-Instanz (Datenschutz: keine Aufrufe an Gemini/Vertex).
+export const vertexAI = typeof AiBackend === "function" && !STORE_BUILD
   ? firebaseAI.getAI(app, { backend: new AiBackend("us-central1") })
   : null;
 

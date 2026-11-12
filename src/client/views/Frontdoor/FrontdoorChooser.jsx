@@ -3,6 +3,7 @@ import { Check } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 import { FRONTDOORS, ACCENT } from "./frontdoors.js";
 import { useSettings } from "../../store.js";
+import { AI_ENABLED } from "../../lib/aiAvailability.js";
 
 // Erster Start auf diesem Gerät: der Nutzer legt fest, womit die App aufgeht.
 // Gilt pro Gerät (Cloud: users/{uid}/devices/{deviceId}); jederzeit änderbar
@@ -12,7 +13,7 @@ export default function FrontdoorChooser() {
   // Vorauswahl bewusst Shutter: für Klienten, die selten loggen, ist "Foto
   // machen" die niedrigste Hürde. Wer ohnehin Routine-Esser ist, wechselt mit
   // einem Klick auf Tap Board.
-  const [picked, setPicked] = React.useState("shutter");
+  const [picked, setPicked] = React.useState(AI_ENABLED ? "shutter" : "tapboard");
 
   const confirm = () => setSetting("frontdoor", picked);
 

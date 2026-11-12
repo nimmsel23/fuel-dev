@@ -58,7 +58,7 @@ function loadDismissed() {
 // showHistory: der "Food-Verlauf" (unkuratierte Inbox) gehört in den Food-Tab,
 // nicht in den eigenständigen Katalog-Tab (User-Vorgabe 2026-09-06). CatalogView
 // rendert dieselbe Komponente mit showHistory={false}.
-export default function FoodCatalog({ activeDate, showHistory = true }) {
+export default function FoodCatalog({ activeDate, showHistory = true, setActiveTab }) {
   const qc = useQueryClient();
   const [catalogAddonSelection, setCatalogAddonSelection] = useState({});
   const [catalogGrams, setCatalogGrams] = useState({});
@@ -81,7 +81,7 @@ export default function FoodCatalog({ activeDate, showHistory = true }) {
     return catalogGrams[item.id] ?? item.yield_g ?? "";
   }
 
-  const { data: catalogData } = useQuery({
+  const { data: catalogData, isLoading: catalogLoading } = useQuery({
     queryKey: ["nutrition-catalog"],
     queryFn: () => fetchJson("/nutrition/catalog"),
     // Katalog ist bereits der persistierte Stand (Firestore/Datei) — kein
@@ -406,20 +406,34 @@ export default function FoodCatalog({ activeDate, showHistory = true }) {
           <div>
             <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-orange-300">
               <UtensilsCrossed className="h-4 w-4" />
-              Catalog
+              Katalog
             </div>
             <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-100">Gerichte-Katalog</h2>
           </div>
           <span className="rounded-full border border-white/10 bg-slate-950/70 px-4 py-1.5 text-sm font-medium text-slate-400">
-            {catalog.length} Einträge
+            {catalog.length === 1 ? "1 Eintrag" : `${catalog.length} Einträge`}
           </span>
         </div>
 
         <div className="space-y-8 overflow-auto max-h-[800px] pr-2 custom-scrollbar">
-          {catalog.length === 0 ? (
-            <p className="rounded-2xl border border-dashed border-white/10 bg-slate-950/40 p-8 text-center text-sm text-slate-500">
-              Keine Gerichte im Katalog.
-            </p>
+          {catalog.length === 0 && catalogLoading ? (
+            <p className="p-8 text-center text-sm text-slate-500" role="status">Katalog lädt …</p>
+          ) : catalog.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-white/10 bg-slate-950/40 p-8 text-center">
+              <p className="text-sm font-semibold text-slate-300">Dein Katalog ist noch leer.</p>
+              <p className="mx-auto mt-2 max-w-sm text-sm text-slate-500">
+                Hier sammelst du Gerichte, die du öfter isst, und loggst sie mit einem Tap. Trage zuerst eine Mahlzeit ein — geloggte Mahlzeiten kannst du anschließend mit „Zum Katalog“ übernehmen.
+              </p>
+              {setActiveTab && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("log")}
+                  className="mt-5 rounded-full bg-orange-400 px-6 py-3 text-sm font-bold text-slate-950 transition hover:bg-orange-300"
+                >
+                  Erste Mahlzeit loggen
+                </button>
+              )}
+            </div>
           ) : (
             Object.entries(catalogGroups).map(([groupKey, items]) => (
               <section key={groupKey} className="space-y-4">

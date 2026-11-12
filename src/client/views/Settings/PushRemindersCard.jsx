@@ -1,9 +1,11 @@
+import { isCloudRuntime } from "../../lib/cloudEnv.js";
 import { useEffect, useMemo, useState } from "react";
 import { Bell, BellRing } from "lucide-react";
 import { useSettings } from "../../store.js";
 import { messaging } from "../../lib/firebase.js";
 import { getToken } from "firebase/messaging";
 import { saveFcmToken } from "../../lib/db.firestore.js";
+import { AI_ENABLED } from "../../lib/aiAvailability.js";
 
 const DEFAULTS = {
   supplements: {
@@ -28,7 +30,7 @@ const DEFAULTS = {
 };
 
 function isCloudMode() {
-  return window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com");
+  return isCloudRuntime();
 }
 
 export default function PushRemindersCard({ sectionCls, labelCls, inputCls }) {
@@ -294,7 +296,7 @@ export default function PushRemindersCard({ sectionCls, labelCls, inputCls }) {
           <div>
             <div className="text-sm text-slate-200">Fuel Quick Log</div>
             <div className="text-xs text-slate-500">
-              Oeffnet den AI-Freitext-Logger direkt im Notification-Flow.
+              {AI_ENABLED ? "Oeffnet den AI-Freitext-Logger direkt im Notification-Flow." : "Erinnert dich ans Loggen und öffnet direkt den Log."}
             </div>
           </div>
           <input

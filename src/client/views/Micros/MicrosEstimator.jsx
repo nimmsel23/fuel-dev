@@ -1,3 +1,4 @@
+import { isCloudRuntime } from "../../lib/cloudEnv.js";
 import { assertLegacyAiAvailable } from "../../lib/aiAvailability.js";
 import { OMEGA3_RULES, normalizeOmega3, OMEGA3_KEYS } from "../../../shared/config/omega3.mjs";
 import React, { useState } from "react";
@@ -10,7 +11,7 @@ import { vertexAI } from "../../lib/firebase.js";
 import { getGenerativeModel, SchemaType } from "firebase/ai";
 import { withAiRetry } from "../../lib/aiRetry.js";
 
-const isCloud = () => window.location.hostname.includes("web.app") || window.location.hostname.includes("firebaseapp.com");
+const isCloud = isCloudRuntime;
 
 export default function MicrosEstimator({ missingMeals, onClose }) {
   const queryClient = useQueryClient();

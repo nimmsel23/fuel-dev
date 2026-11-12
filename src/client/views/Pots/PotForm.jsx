@@ -5,6 +5,7 @@ import { analyzeMealText } from "../../lib/aiMealLogger.js";
 import { scanToMeal } from "../../lib/mealDetails.js";
 import { PRESETS } from "../../lib/potsLogic.js";
 import { todayISO } from "../../lib/db/firestore/utils.js";
+import { AI_ENABLED } from "../../lib/aiAvailability.js";
 
 const FIELD = "w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-orange-400/50";
 const FIRST_CHOICES = [{ value: 0, label: "noch nichts" }, ...PRESETS.filter((p) => [0.25, 0.5, 0.75].includes(p.value)), { value: 1, label: "alles" }];
@@ -85,11 +86,11 @@ export default function PotForm({ initial = null, onSubmit, onCancel }) {
       <div>
         <div className="mb-2 flex items-center justify-between gap-3">
           <span className="text-xs text-slate-400">Nährwerte für den ganzen Topf</span>
-          <button type="button" onClick={estimate} disabled={estimating || !ingredients.trim()}
+          {AI_ENABLED && <button type="button" onClick={estimate} disabled={estimating || !ingredients.trim()}
             className="flex items-center gap-1.5 rounded-lg border border-orange-400/30 bg-orange-400/10 px-2.5 py-1 text-xs font-semibold text-orange-200 transition hover:bg-orange-400/20 disabled:opacity-40">
             {estimating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
             Per KI schätzen
-          </button>
+          </button>}
         </div>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {[["kcal", "kcal"], ["protein", "Protein g"], ["carbs", "Carbs g"], ["fat", "Fett g"]].map(([k, label]) => (

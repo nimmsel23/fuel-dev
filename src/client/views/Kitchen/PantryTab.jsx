@@ -7,6 +7,7 @@ import { cardClass, fieldClass, primaryBtn, ghostBtn, iconBtn, SectionTitle, Err
 
 import RecipeSuggestions from "./RecipeSuggestions.jsx";
 import { parsePantryText } from "../../lib/kitchenAi.js";
+import { AI_ENABLED } from "../../lib/aiAvailability.js";
 
 // Freitext ("2 Packungen Nudeln, 1 l Milch") → KI zerlegt → Review → Vorrat.
 function QuickAdd({ pantry, ready }) {
@@ -98,10 +99,10 @@ export default function PantryTab() {
     <div className="space-y-5">
       <section className={cardClass}>
         <SectionTitle icon={Refrigerator} title="Vorrat" hint={stock.length ? `${stock.length} Posten zuhause${expiring ? ` · ${expiring} laufen bald ab oder sind abgelaufen` : ""}` : "Hier steht, was zuhause vorrätig ist."} />
-        <QuickAdd pantry={pantry} ready={!isLoading} />
+        {AI_ENABLED && <QuickAdd pantry={pantry} ready={!isLoading} />}
         <ErrorNote error={error} />
         {isLoading && <p className="mt-4 animate-pulse text-sm text-slate-500">Laden …</p>}
-        {!isLoading && !stock.length && <p className="mt-4 text-sm text-slate-500">Noch nichts im Vorrat. Tippe oben auf, was du hast, oder scanne im Tab „Einkauf“ einen Kassenbon.</p>}
+        {!isLoading && !stock.length && <p className="mt-4 text-sm text-slate-500">{AI_ENABLED ? "Noch nichts im Vorrat. Tippe oben auf, was du hast, oder scanne im Tab „Einkauf“ einen Kassenbon." : "Noch nichts im Vorrat. Hake im Tab „Einkauf“ erledigte Posten ab und übernimm sie in den Vorrat."}</p>}
         <div className="mt-5 space-y-5">
           {groups.map((g) => (
             <div key={g.key}>
@@ -113,7 +114,7 @@ export default function PantryTab() {
           ))}
         </div>
       </section>
-      <RecipeSuggestions pantry={pantry} />
+      {AI_ENABLED && <RecipeSuggestions pantry={pantry} />}
     </div>
   );
 }

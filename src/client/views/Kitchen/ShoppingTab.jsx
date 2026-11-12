@@ -11,6 +11,7 @@ import DealsPanel from "./DealsPanel.jsx";
 import { suggestShopping } from "../../lib/kitchenAi.js";
 
 import ReceiptScanner from "./ReceiptScanner.jsx";
+import { AI_ENABLED } from "../../lib/aiAvailability.js";
 
 const eur = (n) => `${String(Number(n).toFixed(2)).replace(".", ",")} €`;
 const shortDate = (iso) => (iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.` : "");
@@ -205,7 +206,7 @@ export default function ShoppingTab() {
 
   return (
     <div className="space-y-5">
-      {scanning ? (
+      {!AI_ENABLED ? null : scanning ? (
         <ReceiptScanner pantry={pantry} pantryReady={!pantryLoading} shopping={shopping} onClose={() => setScanning(false)} />
       ) : (
         <button type="button" onClick={() => setScanning(true)} className="flex w-full items-center gap-4 rounded-3xl border border-orange-400/30 bg-orange-400/5 p-5 text-left transition hover:bg-orange-400/10">
@@ -218,8 +219,8 @@ export default function ShoppingTab() {
       )}
       <ErrorNote error={shoppingError} />
       <ShoppingList shopping={shopping} pantry={pantry} pantryReady={!pantryLoading} />
-      <ShoppingAdvice pantry={pantry} shopping={shopping} />
-      <DealsPanel />
+      {AI_ENABLED && <ShoppingAdvice pantry={pantry} shopping={shopping} />}
+      {AI_ENABLED && <DealsPanel />}
       <PurchaseHistory />
     </div>
   );

@@ -6,6 +6,7 @@ import { formatMetric } from "../../../shared/utils/utils.js";
 import SupplementEditor from "./SupplementEditor.jsx";
 
 import GeminiCatalogModal from "../../components/GeminiCatalogModal.jsx";
+import { AI_ENABLED } from "../../lib/aiAvailability.js";
 
 const SCHEDULE_LABEL = {
   daily: "täglich",
@@ -38,7 +39,7 @@ export default function CatalogCard({ catalog }) {
             <Plus className="h-3.5 w-3.5" />
             Manuell
           </button>
-          {import.meta.env.VITE_APP_MODE !== "client" && (
+          {AI_ENABLED && import.meta.env.VITE_APP_MODE !== "client" && (
             <button
               onClick={() => setGeminiOpen(true)}
               className="inline-flex items-center gap-2 rounded-full border border-violet-400/30 bg-violet-400/10 px-3 py-1.5 text-xs text-violet-200 transition hover:bg-violet-400/20"
@@ -94,7 +95,7 @@ export default function CatalogCard({ catalog }) {
         />
       )}
 
-      {geminiOpen && import.meta.env.VITE_APP_MODE !== "client" && (
+      {AI_ENABLED && geminiOpen && import.meta.env.VITE_APP_MODE !== "client" && (
         <GeminiCatalogModal onClose={() => setGeminiOpen(false)} onSaved={() => { setGeminiOpen(false); queryClient.invalidateQueries({ queryKey: ["supp-catalog"] }); }} />
       )}
     </section>
