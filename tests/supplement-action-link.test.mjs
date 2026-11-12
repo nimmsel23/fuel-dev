@@ -148,5 +148,9 @@ test("der Service Worker öffnet bei fehlendem Token und bei 401 den Aktions-Has
   assert.match(source, /openSupplementAction\('snooze'/);
   assert.match(source, /data: \{ url \}/);
   assert.match(source, /tag === 'fuel-supplements-auth'/);
+  const openAction = source.slice(source.indexOf("async function openSupplementAction"), source.indexOf("function showAuthHandoff"));
+  const returns = openAction.match(/return\b[^\n]*/g) || [];
+  assert.ok(returns.length > 0 && returns.every((line) => line.includes("return url")));
+  assert.match(source, /clients\.openWindow\(self\.registration\.scope\)/);
   assert.equal(source.includes("Snooze skipped, no auth token"), false);
 });

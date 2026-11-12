@@ -226,13 +226,13 @@ async function openSupplementAction(action, items, dateStr) {
     if ('navigate' in client) {
       try {
         await client.navigate(url)
-        return
+        return url
       } catch (error) {
         console.error('[SW] navigate to supplement action failed', error)
       }
     }
     client.postMessage({ type: 'FUEL_SUPPLEMENT_ACTION', action, date: dateStr, supplementIds })
-    return
+    return url
   }
   if (clients.openWindow) await clients.openWindow(url)
   return url
@@ -364,7 +364,8 @@ self.addEventListener('notificationclick', (event) => {
     event.waitUntil(
       clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
         const client = windowClients.find((entry) => 'focus' in entry)
-        return client ? client.focus() : undefined
+        if (client) return client.focus()
+        if (clients.openWindow) return clients.openWindow(self.registration.scope)
       }),
     )
     return
