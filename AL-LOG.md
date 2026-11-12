@@ -146,7 +146,7 @@ completed	skipped	PR-AutoMerge (Dependabot -> dev)	PR-AutoMerge (Dependabot -> d
 - Arbeitsbaum: 4 uncommittete Pfade
 
 _Vom AL ausfüllen (knapp & belegbar, je 1–3 Zeilen, Commit-/PR-Referenzen statt Erzählung):_
-- Erledigt: Org 6a0eeebc Stabilitätswache — Dep-PRs #25/#26 Check rot (43078477552/43078482791): `SYNC_TOKEN` fehlt bei dependabot `pull_request` (Checkout `nimmsel23/backend`, CI.md S7); Push-Check dev 43133640151 success; AutoMerge schedule 43127639723 success (Squash blockiert); `[ci:alpha]` msgid `1a1cd6b58345a32d`.
-- Offen/Weiter: 6a0eeebc pending bis Merge-Beleg nach Alpha-Fix/grünem Check; iOS-Abnahme ca22778 gegen Live `a87a883`; Alerts 55.
-- Blocker: Dependabot-Check strukturell rot ohne Secrets → kein Squash; wartet auf Alpha (`[ci:alpha]`).
-AUTOMATION: Dep-PR Check-Log + SYNC_TOKEN/S7-Diagnose manuell — `vos-al-dep-pr-diagnose <repo>` (gh run view --log-failed + Secret-Fehlermuster) — ~10–15 min/Lauf.
+- Erledigt: Org a28fea24 (+ 6a0eeebc) — `f5b38e7` skip SYNC_TOKEN/Preview für dependabot[bot]; #25 check 43229979443 success → squash `ba1377f`; #26 check 43229989320 success → squash `cf24e3a`; AutoMerge 43230079050/43230123179 success; tasks done.
+- Offen/Weiter: iOS-Abnahme ca22778 gegen Live `a87a883`; Alerts 55; CTO-Nacht #2 Org c1f9b6ce (automerge-pr base-retarget Port aus journal).
+- Blocker: Keine.
+AUTOMATION: Dep-PR-Branches nach CI-Fix auf origin/dev mergen + pushen, damit PR-Head die neue check.yml trägt — `vos-al-dep-pr-rearm <repo> <pr…>` — ~5 min/Lauf.
