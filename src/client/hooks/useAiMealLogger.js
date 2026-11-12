@@ -40,6 +40,7 @@ export function useAiMealLogger(date) {
   const invalidateAfterLog = () => {
     qc.invalidateQueries({ queryKey: ["nutrition", date] });
     qc.invalidateQueries({ queryKey: ["week-logs"] });
+    qc.invalidateQueries({ queryKey: ["nutrition-history"] });
     qc.invalidateQueries({ queryKey: ["supp-log", date] });
     qc.invalidateQueries({ queryKey: ["supp-stats", date] });
     qc.invalidateQueries({ queryKey: ["ai-pending", date] });

@@ -1,37 +1,31 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchJson } from "@api";
+import { weekDates } from "../lib/calendarDay.js";
 
-export function localISO(d) {
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-}
-
-export function weekDates(anchor) {
-  const d = new Date(anchor + "T12:00:00");
-  const dow = (d.getDay() + 6) % 7;
-  d.setDate(d.getDate() - dow);
-  return Array.from({ length: 7 }, (_, i) => {
-    const day = new Date(d);
-    day.setDate(d.getDate() + i);
-    return localISO(day);
-  });
-}
+export { weekDates };
 
 async function fetchLog(date) {
   try {
     const data = await fetchJson(`/nutrition/log?date=${date}`);
-    return { date, meals: data.data?.meals || [] };
-  } catch (err) {
-    return { date, meals: [] };
+    const log = data.data || {};
+    const water = Number(log.water_ml);
+    return {
+      date,
+      meals: log.meals || [],
+      water_ml: Number.isFinite(water) && water > 0 ? Math.round(water) : 0,
+    };
+  } catch {
+    return { date, meals: [], water_ml: 0 };
   }
 }
 
 export function useWeekLogs(anchor) {
   const dates = weekDates(anchor);
   return useQuery({
-    queryKey: ["week-logs", anchor],
+    queryKey: ["week-logs", dates[0] || anchor],
     queryFn: async () => {
-      const results = await Promise.all(dates.map(fetchLog));
-      return Object.fromEntries(results.map((r) => [r.date, r.meals]));
+      const results = await Promise.all(weekDates(anchor).map(fetchLog));
+      return Object.fromEntries(results.map((entry) => [entry.date, entry]));
     },
     staleTime: 0,
   });

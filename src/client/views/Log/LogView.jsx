@@ -251,6 +251,7 @@ export default function LogView({ date, nutrition, notes, journal, mode }) {
       qc.invalidateQueries({ queryKey: ["nutrition", date] });
       if (moveDate) qc.invalidateQueries({ queryKey: ["nutrition", moveDate] });
       qc.invalidateQueries({ queryKey: ["week-logs"] });
+      qc.invalidateQueries({ queryKey: ["nutrition-history"] });
       qc.invalidateQueries({ queryKey: ["nutrition-catalog"] });
       setForm(emptyForm());
       setScanBaseline(null);
@@ -289,6 +290,7 @@ export default function LogView({ date, nutrition, notes, journal, mode }) {
       if (ctx?.potId) syncPotAfterMealChange(qc, { potId: ctx.potId, date, mealId: id });
       qc.invalidateQueries({ queryKey: ["nutrition", date] });
       qc.invalidateQueries({ queryKey: ["week-logs"] });
+      qc.invalidateQueries({ queryKey: ["nutrition-history"] });
       if (isEditing) setForm(emptyForm());
     },
   });
@@ -310,6 +312,7 @@ export default function LogView({ date, nutrition, notes, journal, mode }) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["nutrition", date] });
       qc.invalidateQueries({ queryKey: ["week-logs"] });
+      qc.invalidateQueries({ queryKey: ["nutrition-history"] });
       qc.invalidateQueries({ queryKey: ["nutrition-catalog"] });
     },
   });

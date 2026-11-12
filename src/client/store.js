@@ -1,11 +1,11 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { format } from "date-fns";
 import * as db from "./lib/db.firestore.js";
+import { calendarDay } from "./lib/calendarDay.js";
 
 export const useApp = create((set) => ({
   activeTab: "dashboard",
-  activeDate: format(new Date(), "yyyy-MM-dd"),
+  activeDate: calendarDay(),
   // Cloud: true, sobald hydrateFromCloud() den Geräte-Eintrag (Schnelleinstieg)
   // aufgelöst hat — vorher darf der FrontdoorChooser nicht erscheinen.
   frontdoorResolved: false,

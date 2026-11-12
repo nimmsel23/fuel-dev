@@ -25,8 +25,9 @@ import { sumCompleteMetric, formatMetric } from "../shared/utils/utils.js";
 import { watchAuth, signIn, signOut, getUid, getRedirectFailure, redirectSettled } from "./lib/db.firestore.js";
 import { fetchJson } from "@api";
 import { captureNotificationIntentFromLocation } from "./lib/notification-intents.js";
+import { calendarDay } from "./lib/calendarDay.js";
+import { useFollowViennaToday } from "./hooks/useViennaToday.js";
 import { useSupplementAction } from "./lib/useSupplementAction.js";
-import { todayISO } from "../shared/utils/validation.mjs";
 
 // Frontdoor = wählbarer Schnelleinstieg (Tap Board / Shutter / Tagesfaden /
 // Klassisch), siehe views/Frontdoor/.
@@ -39,7 +40,7 @@ const qc = createFuelQueryClient();
 const SOLO = import.meta.env.VITE_SOLO || "";
 
 function localToday() {
-  return todayISO();
+  return calendarDay();
 }
 
 function parseHashState() {
@@ -62,6 +63,18 @@ function buildHashState(tab, date) {
   return `#${tab}/${date === localToday() ? "today" : date}`;
 }
 
+function applyHashToStore() {
+  const { tab, date } = parseHashState();
+  const isCloudNow = isCloudRuntime() || import.meta.env.VITE_APP_MODE === "client";
+  const found = TAB_CONFIG.find((item) => item.key === tab);
+  if (found && !(found.cloudHidden && isCloudNow) && !(found.cloudOnly && !isCloudNow)) {
+    useApp.getState().setActiveTab(found.key);
+  }
+  if (date) useApp.getState().setActiveDate(date);
+}
+
+if (typeof window !== "undefined") applyHashToStore();
+
 if (typeof window !== "undefined") {
   window.fuelDebug = {
     version: "3.0.0",
@@ -72,6 +85,7 @@ if (typeof window !== "undefined") {
 
 function App() {
   const { activeTab, setActiveTab, activeDate, setActiveDate } = useApp();
+  useFollowViennaToday();
   const [user, setUser] = React.useState(null);
   useSupplementAction(user, setActiveDate);
   const [loginError, setLoginError] = React.useState("");

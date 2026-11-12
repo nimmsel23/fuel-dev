@@ -1,13 +1,14 @@
 import { mealDetails } from "../../lib/mealDetails.js";
+import { calendarDay } from "../../lib/calendarDay.js";
 import { useCallback, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchJson, postJson } from "@api";
 import { useNutritionData } from "../../hooks/useNutrition.js";
+import { useViennaDate } from "../../hooks/useViennaToday.js";
 import { useSettings } from "../../store.js";
 
-export function today() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+export function today(now = new Date()) {
+  return calendarDay(now);
 }
 
 // Tageszeit-Fenster, nach dem die Frontdoors Vorschläge gruppieren.
@@ -40,7 +41,7 @@ function normKey(name) {
 // Verlauf, Loggen + Rückgängig. Die Frontdoors unterscheiden sich in der
 // Bedienung, nicht in den Daten.
 export function useFrontdoorLog() {
-  const date = today();
+  const date = useViennaDate();
   const qc = useQueryClient();
   const [lastLogged, setLastLogged] = useState(null);
   const kcalGoal = useSettings((s) => s.kcal_goal) || 2000;
@@ -75,6 +76,7 @@ export function useFrontdoorLog() {
   const logMeal = useMutation({
     mutationFn: async (meal) => {
       const id = meal.id || `meal_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+      const loggedDate = calendarDay();
       const payload = {
         ...mealDetails(meal),
         id,
@@ -88,19 +90,21 @@ export function useFrontdoorLog() {
         logged_at: new Date().toISOString(),
         ...(meal.catalog_id ? { catalog_id: meal.catalog_id } : {}),
       };
-      await postJson("/nutrition/log", { date, meal: payload });
-      return payload;
+      await postJson("/nutrition/log", { date: loggedDate, meal: payload });
+      return { payload, date: loggedDate };
     },
-    onSuccess: (payload) => {
-      setLastLogged(payload);
+    onSuccess: ({ payload, date: loggedDate }) => {
+      setLastLogged({ ...payload, loggedDate });
       invalidate();
+      qc.invalidateQueries({ queryKey: ["nutrition", loggedDate] });
+      qc.invalidateQueries({ queryKey: ["week-logs"] });
     },
   });
 
   const undoLast = useMutation({
     mutationFn: async () => {
       if (!lastLogged?.id) return;
-      await postJson("/nutrition/log", { date, delete_meal_id: lastLogged.id });
+      await postJson("/nutrition/log", { date: lastLogged.loggedDate || calendarDay(), delete_meal_id: lastLogged.id });
     },
     onSuccess: () => {
       setLastLogged(null);

@@ -1,4 +1,5 @@
 import { DACH } from "../../../shared/config/dach.mjs";
+import { calendarDay, isoWeekOf, shiftCalendarDay } from "../../lib/calendarDay.js";
 
 // Einzige Quelle ist shared/config/dach.mjs — hier nur noch UI-Form ableiten,
 // damit ein neuer Nährstoff (z.B. Bor) nicht mehr an mehreren Stellen
@@ -6,24 +7,14 @@ import { DACH } from "../../../shared/config/dach.mjs";
 export const NUTRIENTS = Object.entries(DACH).map(([key, { label, unit }]) => ({ key, label, unit }));
 
 export function getISOWeek(date) {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
-  const week1 = new Date(d.getFullYear(), 0, 4);
-  return {
-    year: d.getFullYear(),
-    week: 1 + Math.round(((d - week1) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7),
-  };
+  const iso = date instanceof Date ? calendarDay(date) : String(date || "");
+  return isoWeekOf(iso);
 }
 
-export function lastNWeeks(n) {
+export function lastNWeeks(n, now = new Date()) {
+  const today = now instanceof Date ? calendarDay(now) : String(now);
   const weeks = [];
-  const now = new Date();
-  for (let i = n - 1; i >= 0; i--) {
-    const d = new Date(now);
-    d.setDate(d.getDate() - i * 7);
-    weeks.push(getISOWeek(d));
-  }
+  for (let i = n - 1; i >= 0; i -= 1) weeks.push(isoWeekOf(shiftCalendarDay(today, -i * 7)));
   return weeks;
 }
 

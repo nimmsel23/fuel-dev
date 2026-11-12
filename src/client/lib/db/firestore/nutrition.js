@@ -4,6 +4,7 @@ import { scaleKnownMicros } from "../../knownMicros.js";
 import { OMEGA3_KEYS, normalizeOmega3 } from "../../../../shared/config/omega3.mjs";
 import { computeFastingWindows } from "../../../../shared/utils/fasting.mjs";
 import { projectCloudLog, outboxEntries, projectCloudCatalog, hasPendingFor } from "../../cloudOutbox.js";
+import { mergeHistoryWithPending } from "../../historyLogs.js";
 import { componentSnapshot, microSnapshot } from "../../catalogMeal.js";
 /**
  * Firestore Nutrition — Katalog, Tages-Logs, History, Wochen-Mikros
@@ -110,6 +111,12 @@ function mealComponentTrace(meal, catalog) {
 // Kanonisch für Cross-Tempel-Konsumenten (z.B. der Journal-Aggregator in
 // journal-dev/vitalos). Dokument-IDs sind YYYY-MM-DD, also lexikographisch
 // = chronologisch sortierbar.
+function withPendingHistory(logs) {
+  let pending = [];
+  try { pending = outboxEntries(getUid()); } catch { pending = []; }
+  return mergeHistoryWithPending(logs, pending);
+}
+
 export async function getMealsHistory(limitCount = 30) {
   try {
     const q = query(
@@ -118,17 +125,14 @@ export async function getMealsHistory(limitCount = 30) {
       limit(limitCount)
     );
     const snap = await getDocs(q);
-    return snap.docs
-      .map(d => applyMealTombstones({ date: d.id, ...d.data() }))
-      .filter(log => (log.meals || []).length > 0);
+    return withPendingHistory(snap.docs.map(d => applyMealTombstones({ date: d.id, ...d.data() })));
   } catch (error) {
     console.error("[getMealsHistory] Query failed, fallback to unordered:", error);
     // Fallback: alle Logs laden, ungeordnet
     const snap = await getDocs(collection(db, "nutrition", getUid(), "logs"));
-    return snap.docs
+    return withPendingHistory(snap.docs
       .map(d => applyMealTombstones({ date: d.id, ...d.data() }))
-      .filter(log => (log.meals || []).length > 0)
-      .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+      .sort((a, b) => (b.date || "").localeCompare(a.date || "")));
   }
 }
 
