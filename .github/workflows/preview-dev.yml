@@ -26,8 +26,9 @@ on:
 
 jobs:
   preview:
-    # CI.md S7: Dependabot-PRs ohne Secrets — Firebase/SYNC_TOKEN bricht strukturell.
-    # Validierung läuft über Check (Fuel); Preview nur für echte Push/PR-Actors.
+    # dependabot[bot] hat kein SYNC_TOKEN und keine Firebase-Secrets. Der ganze Job
+    # bleibt aus: Checkout backend, Install, Build, Deploy Preview Channel, Telegram.
+    # Unit-Tests und der Cloud-Build laufen im Workflow Check (Fuel).
     if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     # PR-Kommentar mit Preview-URL (Firebase-Action) braucht pull-requests: write
@@ -42,6 +43,7 @@ jobs:
           path: fuel-dev
 
       - name: Checkout backend (shared SOT)
+        if: github.actor != 'dependabot[bot]'
         uses: actions/checkout@v4
         with:
           repository: nimmsel23/backend
