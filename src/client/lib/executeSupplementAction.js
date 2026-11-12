@@ -16,14 +16,14 @@ async function performSupplementAction(pending) {
     for (const intake of intakes) {
       await postJson("/supplements/log", { date: pending.date, intake });
     }
-    return true;
+    return { action: pending.action, date: pending.date, intakes };
   }
 
   const ref = doc(db, "users", getUid(), "meta", "supplement_snooze");
   const snap = await getDoc(ref);
   const updates = planSnooze(pending.supplementIds, snap.exists() ? snap.data() : {}, Date.now());
   if (Object.keys(updates).length) await setDoc(ref, updates, { merge: true });
-  return true;
+  return { action: pending.action, date: pending.date, intakes: [] };
 }
 
 export function executePendingSupplementAction() {

@@ -234,10 +234,11 @@ async function openSupplementAction(action, items, dateStr) {
     client.postMessage({ type: 'FUEL_SUPPLEMENT_ACTION', action, date: dateStr, supplementIds })
     return
   }
-  if (clients.openWindow) return clients.openWindow(url)
+  if (clients.openWindow) await clients.openWindow(url)
+  return url
 }
 
-function showAuthHandoff(action) {
+function showAuthHandoff(action, url) {
   const snooze = action === 'snooze'
   return self.registration.showNotification(snooze ? 'Später nach Anmeldung' : 'Einnahme nach Anmeldung', {
     body: snooze
@@ -246,6 +247,7 @@ function showAuthHandoff(action) {
     icon: '/favicon-192x192.png',
     badge: '/favicon-192x192.png',
     tag: 'fuel-supplements-auth',
+    data: { url },
   })
 }
 
@@ -284,16 +286,16 @@ async function handleQuickYes(data) {
   const dateStr = data.date || new Date().toISOString().slice(0, 10)
   const authToken = IS_CLOUD ? await resolveCloudAuthToken() : null
   if (IS_CLOUD && !authToken) {
-    await openSupplementAction('quick-yes', items, dateStr)
-    return showAuthHandoff('quick-yes')
+    const url = await openSupplementAction('quick-yes', items, dateStr)
+    return showAuthHandoff('quick-yes', url)
   }
   const results = await Promise.allSettled(items.map((item) => logSupplementIntake(item, dateStr, data.uid, authToken)))
   const needsLogin = items.filter(
     (_item, index) => results[index].status === 'fulfilled' && results[index].value === 401,
   )
   if (needsLogin.length) {
-    await openSupplementAction('quick-yes', needsLogin, dateStr)
-    return showAuthHandoff('quick-yes')
+    const url = await openSupplementAction('quick-yes', needsLogin, dateStr)
+    return showAuthHandoff('quick-yes', url)
   }
   const failed = results.filter((result) => result.status === 'rejected').length
   const names = items.map((item) => item.name).join(', ') || 'Supplements'
@@ -313,8 +315,8 @@ async function handleSnooze(data) {
     if (IS_CLOUD) {
       const authToken = await resolveCloudAuthToken()
       if (!authToken) {
-        await openSupplementAction('snooze', items, dateStr)
-        await showAuthHandoff('snooze')
+        const url = await openSupplementAction('snooze', items, dateStr)
+        await showAuthHandoff('snooze', url)
         return
       }
       const response = await fetch(`${CLOUD_FN_BASE}/snoozeSupplement`, {
@@ -323,8 +325,8 @@ async function handleSnooze(data) {
         body: JSON.stringify({ uid: data.uid, item_ids: itemIds, date: dateStr }),
       })
       if (response.status === 401) {
-        await openSupplementAction('snooze', items, dateStr)
-        await showAuthHandoff('snooze')
+        const url = await openSupplementAction('snooze', items, dateStr)
+        await showAuthHandoff('snooze', url)
       }
       return
     }
@@ -357,7 +359,16 @@ self.addEventListener('notificationclick', (event) => {
 
   event.notification.close()
   const actionMatch = Array.isArray(data.actions) ? data.actions.find((entry) => entry.action === event.action) : null
-  const urlToOpen = actionMatch?.url || data.url || '/'
+  const urlToOpen = actionMatch?.url || data.url || (event.notification.tag === 'fuel-supplements-auth' ? '' : '/')
+  if (!urlToOpen) {
+    event.waitUntil(
+      clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+        const client = windowClients.find((entry) => 'focus' in entry)
+        return client ? client.focus() : undefined
+      }),
+    )
+    return
+  }
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {

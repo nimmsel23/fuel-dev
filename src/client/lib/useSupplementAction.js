@@ -1,20 +1,36 @@
 import React from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { auth } from "./firebase.js";
 import {
   captureSupplementActionFromLocation,
+  mergeLoggedIntakes,
   rememberSupplementAction,
 } from "./supplementActionLink.js";
 import { executePendingSupplementAction } from "./executeSupplementAction.js";
 
-function runIfSignedIn() {
-  if (!auth.currentUser) return;
-  executePendingSupplementAction().catch((error) => console.error("[supplement-action]", error));
+function showLoggedIntakes(qc, result) {
+  if (!result?.date || result.action !== "quick-yes") return;
+  if (result.intakes?.length) {
+    qc.setQueryData(["supp-log", result.date], (current) => ({
+      date: result.date,
+      ...mergeLoggedIntakes(current, result.intakes),
+    }));
+  }
+  qc.invalidateQueries({ queryKey: ["supp-log", result.date] });
+  qc.invalidateQueries({ queryKey: ["supp-stats"] });
 }
 
-// Merkt sich den Hash sofort und führt ihn erst aus, wenn ein Konto da ist.
 export function useSupplementAction(user, onDate) {
+  const qc = useQueryClient();
   const onDateRef = React.useRef(onDate);
   onDateRef.current = onDate;
+
+  const runIfSignedIn = React.useCallback(() => {
+    if (!auth.currentUser) return;
+    executePendingSupplementAction()
+      .then((result) => showLoggedIntakes(qc, result))
+      .catch((error) => console.error("[supplement-action]", error));
+  }, [qc]);
 
   React.useEffect(() => {
     const apply = (pending) => {
@@ -34,9 +50,9 @@ export function useSupplementAction(user, onDate) {
       window.removeEventListener("hashchange", onHash);
       navigator.serviceWorker?.removeEventListener("message", onMessage);
     };
-  }, []);
+  }, [runIfSignedIn]);
 
   React.useEffect(() => {
     if (user) runIfSignedIn();
-  }, [user]);
+  }, [user, runIfSignedIn]);
 }

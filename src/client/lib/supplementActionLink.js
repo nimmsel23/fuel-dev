@@ -135,6 +135,16 @@ export function planSnooze(supplementIds, existing, now, durationMs = SNOOZE_MS)
   return updates;
 }
 
+export function mergeLoggedIntakes(current, intakes) {
+  const log = { ...(current || {}), intakes: [...((current && current.intakes) || [])] };
+  for (const intake of intakes || []) {
+    if (!intake?.supplement_id) continue;
+    if (log.intakes.some((item) => item.id === intake.id || item.supplement_id === intake.supplement_id)) continue;
+    log.intakes.push(intake);
+  }
+  return log;
+}
+
 // Ein laufender Versuch hält weitere Aufrufe (Strict-Mode, Hash und Login)
 // auf derselben Promise. Erst ein Fehler gibt den nächsten Versuch frei.
 export function startPendingSupplementAction(execute) {

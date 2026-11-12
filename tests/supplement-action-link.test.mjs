@@ -12,6 +12,7 @@ import {
   planSnooze,
   intakeIdFor,
   startPendingSupplementAction,
+  mergeLoggedIntakes,
 } from "../src/client/lib/supplementActionLink.js";
 
 function memoryStorage() {
@@ -127,6 +128,16 @@ test("eine noch nicht wiederhergestellte Session gilt nicht als Logout", () => {
   assert.deepEqual(decideAuthTokenReply({ restored: true, signedIn: true, token: "id-token" }), { kind: "token", token: "id-token" });
 });
 
+test("ein Replay-Intake verdrängt keinen zweiten Tipp auf dasselbe Supplement", () => {
+  const merged = mergeLoggedIntakes(
+    { date: "2026-11-12", intakes: [{ id: "old", supplement_id: "zinc" }] },
+    [{ id: "action_2026-11-12_mag", supplement_id: "mag", name: "Magnesium" }, { id: "other", supplement_id: "zinc" }],
+  );
+  assert.deepEqual(merged.intakes.map((item) => item.supplement_id), ["zinc", "mag"]);
+  const again = mergeLoggedIntakes(merged, [{ id: "fresh", supplement_id: "mag" }]);
+  assert.equal(again.intakes.filter((item) => item.supplement_id === "mag").length, 1);
+});
+
 test("der Service Worker öffnet bei fehlendem Token und bei 401 den Aktions-Hash", () => {
   const source = readFileSync(new URL("../scripts/fuel-sw-extra.js", import.meta.url), "utf8");
   assert.match(source, /url\.hash = `supplements\/\$\{dateStr\}\/\$\{action\}\/\$\{ids\}`/);
@@ -135,5 +146,7 @@ test("der Service Worker öffnet bei fehlendem Token und bei 401 den Aktions-Has
   assert.match(source, /status === 401/);
   assert.match(source, /openSupplementAction\('quick-yes'/);
   assert.match(source, /openSupplementAction\('snooze'/);
+  assert.match(source, /data: \{ url \}/);
+  assert.match(source, /tag === 'fuel-supplements-auth'/);
   assert.equal(source.includes("Snooze skipped, no auth token"), false);
 });
