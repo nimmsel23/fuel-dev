@@ -9,7 +9,8 @@ Fuel is a mobile nutrition journal for meal logging, nutrient review, and supple
 
 ## Open the apps
 
-- [Fuel app directory](apps.html)
+- [Fuel Dev-Dashboard / apps](apps.html) (erzeugt von `vos-portal`, nicht von Hand)
+- Meta: [VitalOS Dev-Dashboard](https://nimmsel23.github.io/vitalos/dev-dashboard.html)
 - [Fuel on Firebase Hosting](https://fuel-vos.web.app)
 
 ## Project documentation
