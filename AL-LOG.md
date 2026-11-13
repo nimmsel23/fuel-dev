@@ -177,5 +177,5 @@ completed	skipped	Auto-Promote dev -> master (Check (Fuel))	Auto-Promote dev -> 
 
 _Vom AL ausfüllen (knapp & belegbar, je 1–3 Zeilen, Commit-/PR-Referenzen statt Erzählung):_
 - Erledigt: CTO-Nacht #2 / c1f9b6ce: journal `375e122` nach `.github/workflows/automerge-pr.yml` portiert; nur `dependabot/*`, base master → dev vor Squash; YAML/Shell + 5 isolierte Prüffälle grün (dieser Commit).
-- Offen/Weiter: Push-CI `Check (Fuel)` für diesen Commit ausstehend; echter Retarget-Beleg beim nächsten passenden Dependabot-PR.
-- Blocker: Keine; Repo-Regel hat Vorrang vor Guide-Worktree-Vorgabe (bestehender Branch dev).
+- Offen/Weiter: `eb99892` → origin/dev; echter Retarget-Beleg beim nächsten passenden Dependabot-PR; Guide lokal `fac1b6a` (kein Meta-Push).
+- Blocker: Check (Fuel) `43346864382` failure: Biome `scripts/portal.mjs` (unverändert aus `0e1763f`); CTO-Folgeauftrag erfasst, gemäß Guide keine zweite Reparatur.
