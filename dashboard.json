@@ -1,12 +1,12 @@
 {
  "evidence": {
-  "generated_at": "2026-11-13T00:08:52+00:00",
+  "generated_at": "2026-11-13T00:11:40+00:00",
   "repo": "nimmsel23/fuel-dev",
   "meta": {
    "name": "fuel-dev",
    "description": null,
    "html_url": "https://github.com/nimmsel23/fuel-dev",
-   "pushed_at": "2026-11-13T00:08:32Z",
+   "pushed_at": "2026-11-13T00:11:21Z",
    "default_branch": "master",
    "visibility": "public",
    "pages_url": "https://nimmsel23.github.io/fuel-dev/"
@@ -20,11 +20,17 @@
    "has_dev": true,
    "dev_behind": 0,
    "dev_ahead": 1,
-   "oldest_unpromoted": "2026-11-13T01:08:30+01:00",
-   "dev_head": "2b58a13 2026-11-13T01:08:30+01:00",
-   "master_head": "cafaf56 2026-11-13T00:30:26+01:00"
+   "oldest_unpromoted": "2026-11-13T01:11:19+01:00",
+   "dev_head": "0e1763f 2026-11-13T01:11:19+01:00",
+   "master_head": "2b58a13 2026-11-13T01:08:30+01:00"
   },
   "commits": [
+   {
+    "sha": "0e1763f",
+    "date": "2026-11-13T01:11:19+01:00",
+    "author": "Alpha",
+    "subject": "chore(portal): portal.mjs + docs/apps.* aus vitalos vos-portal --all synchronisiert"
+   },
    {
     "sha": "2b58a13",
     "date": "2026-11-13T01:08:30+01:00",
@@ -138,12 +144,6 @@
     "date": "2026-11-11T14:42:42+01:00",
     "author": "Alpha",
     "subject": "docs(al): 2026-11-11 14:40 — c545486f Teilergebnis Push, Check 43031353430"
-   },
-   {
-    "sha": "af9f6f7",
-    "date": "2026-11-11T14:42:24+01:00",
-    "author": "Alpha",
-    "subject": "docs: auto-update RESULTS.md"
    }
   ],
   "activity": [
@@ -229,29 +229,29 @@
    },
    {
     "day": "2026-11-13",
-    "n": 2
+    "n": 3
    }
   ],
   "workflows": [
+   {
+    "name": "Live Deploy (Fuel Mini-Apps je Tab)",
+    "branch": "dev",
+    "event": "push",
+    "status": "in_progress",
+    "conclusion": null,
+    "created_at": "2026-11-13T00:11:23Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43335049046",
+    "sha": "0e1763f"
+   },
    {
     "name": "Check (Fuel)",
     "branch": "dev",
     "event": "push",
     "status": "in_progress",
     "conclusion": null,
-    "created_at": "2026-11-13T00:08:34Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43334658154",
-    "sha": "2b58a13"
-   },
-   {
-    "name": "Gemini CI Agent",
-    "branch": "master",
-    "event": "workflow_run",
-    "status": "completed",
-    "conclusion": "success",
-    "created_at": "2026-11-12T23:31:34Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43329583481",
-    "sha": "cafaf56"
+    "created_at": "2026-11-13T00:11:23Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43335048992",
+    "sha": "0e1763f"
    },
    {
     "name": "Live Deploy (Fuel master)",
@@ -259,8 +259,28 @@
     "event": "workflow_dispatch",
     "status": "completed",
     "conclusion": "success",
-    "created_at": "2026-11-12T23:31:19Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43329550675",
+    "created_at": "2026-11-13T00:09:26Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43334773826",
+    "sha": "2b58a13"
+   },
+   {
+    "name": "Auto-Promote dev -> master (Check (Fuel))",
+    "branch": "master",
+    "event": "workflow_run",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-11-13T00:09:16Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43334751960",
+    "sha": "cafaf56"
+   },
+   {
+    "name": "Gemini CI Agent",
+    "branch": "master",
+    "event": "workflow_run",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-11-13T00:09:16Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43334751827",
     "sha": "cafaf56"
    },
    {
@@ -269,28 +289,8 @@
     "event": "workflow_run",
     "status": "completed",
     "conclusion": "skipped",
-    "created_at": "2026-11-12T23:31:10Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43329529226",
-    "sha": "9c15ec5"
-   },
-   {
-    "name": "Auto-Promote dev -> master (Check (Fuel))",
-    "branch": "master",
-    "event": "workflow_run",
-    "status": "completed",
-    "conclusion": "success",
-    "created_at": "2026-11-12T23:31:10Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43329529220",
-    "sha": "9c15ec5"
-   },
-   {
-    "name": "Live Deploy (Fuel Mini-Apps je Tab)",
-    "branch": "dev",
-    "event": "push",
-    "status": "completed",
-    "conclusion": "success",
-    "created_at": "2026-11-12T23:30:30Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43329430781",
+    "created_at": "2026-11-13T00:09:16Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43334751696",
     "sha": "cafaf56"
    },
    {
@@ -420,34 +420,34 @@
   "status": "green",
   "signals": [],
   "ai": {
-   "headline": "Aktive Entwicklung auf dev, CI-Check läuft, neue Hosting-Features.",
-   "lage": "Der `dev`-Branch ist mit einem neuen Feature-Commit (`2b58a13`) einen Commit vor `master`, dessen CI-Check aktuell läuft. Der `master`-Branch wurde kürzlich auf `vos-fuel.web.app` umgestellt (`cafaf56`), und es gab mehrere Fixes und Dependabot-Updates.",
+   "headline": "Neuer Commit auf dev, vorheriger dev-Stand auf master deployt.",
+   "lage": "Der `dev`-Branch ist mit Commit `0e1763f` einen Commit vor `master`. Die Workflows `Check (Fuel)` und `Live Deploy (Fuel Mini-Apps je Tab)` für `0e1763f` auf `dev` sind aktuell in Bearbeitung. Der vorherige `dev`-Head `2b58a13` wurde erfolgreich nach `master` überführt und via `Live Deploy (Fuel master)` deployt.",
    "auffaelligkeiten": [
     {
-     "level": "hoch",
-     "text": "Der `dev`-Branch ist mit Commit `2b58a13` (Living Dashboard als GitHub Page) einen Commit vor `master`; der zugehörige `Check (Fuel)` Workflow ist `in_progress`."
+     "level": "mittel",
+     "text": "Die Einrichtung/Prüfung von `GEMINI_API_KEY` und `SYNC_TOKEN` in den Actions-Secrets ist laut `NEXT.md` noch offen."
     },
     {
      "level": "mittel",
-     "text": "Es sind 90 Dependabot-Alerts (3 kritisch) auf dem `master`-Branch offen, deren Bearbeitung nach Prüfung per `vos-release-pr fuel` in `NEXT.md` vermerkt ist."
+     "text": "Die Abnahme des iOS Mini-App Logins (ca22778 / Live a87a883) auf realen Geräten ist laut `NEXT.md` noch ausstehend."
     },
     {
      "level": "info",
-     "text": "Die `NEXT.md` listet offene Aufgaben wie die Verifizierung des iOS Mini-App Logins und die Einrichtung von `GEMINI_API_KEY`/`SYNC_TOKEN` für den CI-Agent."
+     "text": "Zwei Workflows für den aktuellen `dev`-Head `0e1763f` sind `in_progress`."
     }
    ],
    "naechste_schritte": [
-    "Überwachen: Den Status des `Check (Fuel)` Workflows für Commit `2b58a13` auf dem `dev`-Branch verfolgen.",
-    "Prüfen: Die `GEMINI_API_KEY` und `SYNC_TOKEN` für den CI-Agent in den Actions-Secrets einrichten/prüfen.",
-    "Verifizieren: Den iOS Mini-App Login (ca22778 / Live a87a883) auf realen Geräten abnehmen."
+    "Überwachen: Den Status der Workflows `Check (Fuel)` und `Live Deploy (Fuel Mini-Apps je Tab)` für Commit `0e1763f` auf dem `dev`-Branch verfolgen.",
+    "Prüfen: Die `GEMINI_API_KEY` und `SYNC_TOKEN` für den CI-Agent in den Actions-Secrets einrichten/prüfen (gemäß `NEXT.md`).",
+    "Verifizieren: Den iOS Mini-App Login (ca22778 / Live a87a883) auf realen Geräten abnehmen (gemäß `NEXT.md`)."
    ],
-   "veraendert": "",
+   "veraendert": "Der `dev`-Branch's vorheriger Head (`2b58a13`) wurde erfolgreich nach `master` überführt und deployt, während `dev` einen neuen Commit (`0e1763f`) erhalten hat.",
    "fragen": [
-    "Sollen die 90 Dependabot-Alerts (3 kritisch) auf `master` wie in `NEXT.md` beschrieben nach Prüfung per `vos-release-pr fuel` behandelt werden?",
-    "Soll der aktuelle Zustand von `fuel.service` und `fitness-firestore-daemon.service` als `disabled`/`inactive` beibehalten werden?"
+    "Priorisieren: Soll die Einrichtung/Prüfung von `GEMINI_API_KEY` und `SYNC_TOKEN` in den Actions-Secrets jetzt erfolgen?",
+    "Bestätigen: Ist die Abnahme des iOS Mini-App Logins (ca22778 / Live a87a883) auf realen Geräten weiterhin eine aktuelle Aufgabe?"
    ],
    "model": "gemini-2.5-flash"
   },
-  "ai_at": "2026-11-13T00:08:54+00:00"
+  "ai_at": "2026-11-13T00:11:43+00:00"
  }
 }
