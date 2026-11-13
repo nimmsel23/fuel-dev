@@ -1,0 +1,453 @@
+{
+ "evidence": {
+  "generated_at": "2026-11-13T00:08:52+00:00",
+  "repo": "nimmsel23/fuel-dev",
+  "meta": {
+   "name": "fuel-dev",
+   "description": null,
+   "html_url": "https://github.com/nimmsel23/fuel-dev",
+   "pushed_at": "2026-11-13T00:08:32Z",
+   "default_branch": "master",
+   "visibility": "public",
+   "pages_url": "https://nimmsel23.github.io/fuel-dev/"
+  },
+  "package": {
+   "name": "fuelctx",
+   "version": "3.0.0"
+  },
+  "branches": {
+   "main": "master",
+   "has_dev": true,
+   "dev_behind": 0,
+   "dev_ahead": 1,
+   "oldest_unpromoted": "2026-11-13T01:08:30+01:00",
+   "dev_head": "2b58a13 2026-11-13T01:08:30+01:00",
+   "master_head": "cafaf56 2026-11-13T00:30:26+01:00"
+  },
+  "commits": [
+   {
+    "sha": "2b58a13",
+    "date": "2026-11-13T01:08:30+01:00",
+    "author": "Alpha",
+    "subject": "feat(ci): Living Dashboard als GitHub Page"
+   },
+   {
+    "sha": "cafaf56",
+    "date": "2026-11-13T00:30:26+01:00",
+    "author": "Alpha",
+    "subject": "feat(hosting): Fuel auf vos-fuel.web.app, fuel-vos nur noch Alias"
+   },
+   {
+    "sha": "9c15ec5",
+    "date": "2026-11-12T20:37:36+01:00",
+    "author": "nimmsel23",
+    "subject": "Merge pull request #29 from nimmsel23/cursor/mobile-meal-week-cd68"
+   },
+   {
+    "sha": "d4c5697",
+    "date": "2026-11-12T19:26:23Z",
+    "author": "Cursor Agent",
+    "subject": "merge: master (#28, #30) in die Wochenansicht"
+   },
+   {
+    "sha": "cc56c0c",
+    "date": "2026-11-12T20:16:57+01:00",
+    "author": "nimmsel23",
+    "subject": "fix: quickLogSupplement nur mit verifizierter Firebase-uid (#30)"
+   },
+   {
+    "sha": "70bc92f",
+    "date": "2026-11-12T17:59:55+01:00",
+    "author": "nimmsel23",
+    "subject": "ci: Backend-Checkout bei Dependabot-Läufen überspringen (#28)"
+   },
+   {
+    "sha": "1b27449",
+    "date": "2026-11-12T14:48:22Z",
+    "author": "Cursor Agent",
+    "subject": "fix(fuel): Wochenansicht an Europe/Vienna und Wasser-Tage binden"
+   },
+   {
+    "sha": "8746c8f",
+    "date": "2026-11-12T14:46:15+01:00",
+    "author": "Alpha",
+    "subject": "docs(al): 2026-11-12 14:40 — a28fea24 Dep #25/#26 Sync skip + squash"
+   },
+   {
+    "sha": "cf24e3a",
+    "date": "2026-11-12T13:44:14Z",
+    "author": "dependabot[bot]",
+    "subject": "chore(deps): bump fast-xml-parser from 5.10.1 to 5.12.0 in /functions (#26)"
+   },
+   {
+    "sha": "ba1377f",
+    "date": "2026-11-12T13:43:57Z",
+    "author": "dependabot[bot]",
+    "subject": "chore(deps): bump node-forge from 1.4.0 to 1.4.3 in /functions (#25)"
+   },
+   {
+    "sha": "f5b38e7",
+    "date": "2026-11-12T14:42:52+01:00",
+    "author": "Alpha",
+    "subject": "fix(ci): skip SYNC_TOKEN steps on Dependabot PRs (S7)"
+   },
+   {
+    "sha": "5417f59",
+    "date": "2026-11-12T11:16:35+01:00",
+    "author": "Alpha",
+    "subject": "docs: Konzept finale Variante vos-fuel"
+   },
+   {
+    "sha": "d02cf0b",
+    "date": "2026-11-12T11:16:05+01:00",
+    "author": "Alpha",
+    "subject": "fix(store): KI im Store-Build aus, Cloud-Weiche zentral, leerer Katalog, deutsche Labels"
+   },
+   {
+    "sha": "cbb6989",
+    "date": "2026-11-12T11:02:24+01:00",
+    "author": "Alpha",
+    "subject": "fix(api): Firebase-/Produkt-Build und Capacitor immer Cloud-Modus"
+   },
+   {
+    "sha": "fb77713",
+    "date": "2026-11-12T02:42:46+01:00",
+    "author": "Alpha",
+    "subject": "docs(al): 2026-11-12 02:40 — 6a0eeebc Dep-PR #25/#26 Check rot, [ci:alpha]"
+   },
+   {
+    "sha": "04c8484",
+    "date": "2026-11-12T02:18:45+01:00",
+    "author": "Alpha",
+    "subject": "ci: restore Gemini repair + Merge-Agent (full automation)"
+   },
+   {
+    "sha": "bcd5662",
+    "date": "2026-11-11T19:11:26+01:00",
+    "author": "Alpha",
+    "subject": "ci: drop Gemini repair and Merge-Agent (simplicity)"
+   },
+   {
+    "sha": "a021bd9",
+    "date": "2026-11-11T19:09:19+01:00",
+    "author": "Alpha",
+    "subject": "docs(agents): simplicity default — exception only vitalos/prod"
+   },
+   {
+    "sha": "d16638b",
+    "date": "2026-11-11T14:42:42+01:00",
+    "author": "Alpha",
+    "subject": "docs(al): 2026-11-11 14:40 — c545486f Teilergebnis Push, Check 43031353430"
+   },
+   {
+    "sha": "af9f6f7",
+    "date": "2026-11-11T14:42:24+01:00",
+    "author": "Alpha",
+    "subject": "docs: auto-update RESULTS.md"
+   }
+  ],
+  "activity": [
+   {
+    "day": "2026-10-24",
+    "n": 0
+   },
+   {
+    "day": "2026-10-25",
+    "n": 8
+   },
+   {
+    "day": "2026-10-26",
+    "n": 16
+   },
+   {
+    "day": "2026-10-27",
+    "n": 0
+   },
+   {
+    "day": "2026-10-28",
+    "n": 6
+   },
+   {
+    "day": "2026-10-29",
+    "n": 19
+   },
+   {
+    "day": "2026-10-30",
+    "n": 6
+   },
+   {
+    "day": "2026-10-31",
+    "n": 4
+   },
+   {
+    "day": "2026-11-01",
+    "n": 1
+   },
+   {
+    "day": "2026-11-02",
+    "n": 8
+   },
+   {
+    "day": "2026-11-03",
+    "n": 20
+   },
+   {
+    "day": "2026-11-04",
+    "n": 20
+   },
+   {
+    "day": "2026-11-05",
+    "n": 16
+   },
+   {
+    "day": "2026-11-06",
+    "n": 20
+   },
+   {
+    "day": "2026-11-07",
+    "n": 19
+   },
+   {
+    "day": "2026-11-08",
+    "n": 9
+   },
+   {
+    "day": "2026-11-09",
+    "n": 38
+   },
+   {
+    "day": "2026-11-10",
+    "n": 9
+   },
+   {
+    "day": "2026-11-11",
+    "n": 10
+   },
+   {
+    "day": "2026-11-12",
+    "n": 14
+   },
+   {
+    "day": "2026-11-13",
+    "n": 2
+   }
+  ],
+  "workflows": [
+   {
+    "name": "Check (Fuel)",
+    "branch": "dev",
+    "event": "push",
+    "status": "in_progress",
+    "conclusion": null,
+    "created_at": "2026-11-13T00:08:34Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43334658154",
+    "sha": "2b58a13"
+   },
+   {
+    "name": "Gemini CI Agent",
+    "branch": "master",
+    "event": "workflow_run",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-11-12T23:31:34Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43329583481",
+    "sha": "cafaf56"
+   },
+   {
+    "name": "Live Deploy (Fuel master)",
+    "branch": "master",
+    "event": "workflow_dispatch",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-11-12T23:31:19Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43329550675",
+    "sha": "cafaf56"
+   },
+   {
+    "name": "PR-AutoMerge (Dependabot -> dev)",
+    "branch": "master",
+    "event": "workflow_run",
+    "status": "completed",
+    "conclusion": "skipped",
+    "created_at": "2026-11-12T23:31:10Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43329529226",
+    "sha": "9c15ec5"
+   },
+   {
+    "name": "Auto-Promote dev -> master (Check (Fuel))",
+    "branch": "master",
+    "event": "workflow_run",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-11-12T23:31:10Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43329529220",
+    "sha": "9c15ec5"
+   },
+   {
+    "name": "Live Deploy (Fuel Mini-Apps je Tab)",
+    "branch": "dev",
+    "event": "push",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-11-12T23:30:30Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43329430781",
+    "sha": "cafaf56"
+   },
+   {
+    "name": "Preview (Fuel dev)",
+    "branch": "dev",
+    "event": "push",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-11-12T23:30:30Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43329430707",
+    "sha": "cafaf56"
+   },
+   {
+    "name": "Deploy supplement functions",
+    "branch": "cursor/deploy-supplement-functions-4123",
+    "event": "push",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-11-12T19:44:37Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43293271952",
+    "sha": "deb6a31"
+   },
+   {
+    "name": "Live Deploy (Fuel Mini-Apps je Tab)",
+    "branch": "master",
+    "event": "push",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-11-12T19:37:41Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43292098077",
+    "sha": "9c15ec5"
+   },
+   {
+    "name": "Preview (Fuel dev)",
+    "branch": "cursor/mobile-meal-week-cd68",
+    "event": "pull_request",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-11-12T19:27:25Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43290338224",
+    "sha": "d4c5697"
+   },
+   {
+    "name": "Check (Fuel)",
+    "branch": "cursor/mobile-meal-week-cd68",
+    "event": "pull_request",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-11-12T19:27:24Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43290338029",
+    "sha": "d4c5697"
+   },
+   {
+    "name": "Gemini CI Agent",
+    "branch": "cursor/mobile-meal-week-cd68",
+    "event": "pull_request_target",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-11-12T19:27:22Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43290332957",
+    "sha": "d4c5697"
+   },
+   {
+    "name": "Check (Fuel)",
+    "branch": "codex/fix-quicklog-supplement-auth",
+    "event": "pull_request",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-11-12T15:26:48Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43247867451",
+    "sha": "ebfae41"
+   },
+   {
+    "name": "Preview (Fuel dev)",
+    "branch": "codex/fix-quicklog-supplement-auth",
+    "event": "pull_request",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-11-12T15:26:48Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43247867367",
+    "sha": "ebfae41"
+   },
+   {
+    "name": "Gemini CI Agent",
+    "branch": "codex/fix-quicklog-supplement-auth",
+    "event": "pull_request_target",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-11-12T15:26:47Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43247863657",
+    "sha": "ebfae41"
+   },
+   {
+    "name": "Gemini CI Agent",
+    "branch": "codex/ci-dependabot-skip-backend",
+    "event": "pull_request_target",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-11-12T14:08:45Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43234161985",
+    "sha": "e989762"
+   },
+   {
+    "name": "Check (Fuel)",
+    "branch": "codex/ci-dependabot-skip-backend",
+    "event": "pull_request",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-11-12T14:08:45Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43234161663",
+    "sha": "e989762"
+   }
+  ],
+  "issues": [],
+  "pulls": [],
+  "live_sites": [
+   "https://fuel-os.web.app",
+   "https://fuel-vos.web.app",
+   "https://vos-fuel-log.web.app",
+   "https://vos-fuel-mikros.web.app",
+   "https://vos-fuel-protokoll.web.app",
+   "https://vos-fuel-supplements.web.app",
+   "https://vos-fuel.web.app"
+  ]
+ },
+ "assessment": {
+  "status": "green",
+  "signals": [],
+  "ai": {
+   "headline": "Aktive Entwicklung auf dev, CI-Check läuft, neue Hosting-Features.",
+   "lage": "Der `dev`-Branch ist mit einem neuen Feature-Commit (`2b58a13`) einen Commit vor `master`, dessen CI-Check aktuell läuft. Der `master`-Branch wurde kürzlich auf `vos-fuel.web.app` umgestellt (`cafaf56`), und es gab mehrere Fixes und Dependabot-Updates.",
+   "auffaelligkeiten": [
+    {
+     "level": "hoch",
+     "text": "Der `dev`-Branch ist mit Commit `2b58a13` (Living Dashboard als GitHub Page) einen Commit vor `master`; der zugehörige `Check (Fuel)` Workflow ist `in_progress`."
+    },
+    {
+     "level": "mittel",
+     "text": "Es sind 90 Dependabot-Alerts (3 kritisch) auf dem `master`-Branch offen, deren Bearbeitung nach Prüfung per `vos-release-pr fuel` in `NEXT.md` vermerkt ist."
+    },
+    {
+     "level": "info",
+     "text": "Die `NEXT.md` listet offene Aufgaben wie die Verifizierung des iOS Mini-App Logins und die Einrichtung von `GEMINI_API_KEY`/`SYNC_TOKEN` für den CI-Agent."
+    }
+   ],
+   "naechste_schritte": [
+    "Überwachen: Den Status des `Check (Fuel)` Workflows für Commit `2b58a13` auf dem `dev`-Branch verfolgen.",
+    "Prüfen: Die `GEMINI_API_KEY` und `SYNC_TOKEN` für den CI-Agent in den Actions-Secrets einrichten/prüfen.",
+    "Verifizieren: Den iOS Mini-App Login (ca22778 / Live a87a883) auf realen Geräten abnehmen."
+   ],
+   "veraendert": "",
+   "fragen": [
+    "Sollen die 90 Dependabot-Alerts (3 kritisch) auf `master` wie in `NEXT.md` beschrieben nach Prüfung per `vos-release-pr fuel` behandelt werden?",
+    "Soll der aktuelle Zustand von `fuel.service` und `fitness-firestore-daemon.service` als `disabled`/`inactive` beibehalten werden?"
+   ],
+   "model": "gemini-2.5-flash"
+  },
+  "ai_at": "2026-11-13T00:08:54+00:00"
+ }
+}
