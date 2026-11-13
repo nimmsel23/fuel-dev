@@ -9,6 +9,7 @@
     "ignoreUnknown": true,
     "includes": [
       "scripts/**",
+      "!scripts/portal.mjs",
       "*.config.js",
       "*.config.cjs",
       "*.config.mjs",
