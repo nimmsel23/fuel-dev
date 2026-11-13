@@ -1,3 +1,8 @@
+# 2026-11-13 — AL: tooling:biome Format-Fix portal.mjs (Check CI Blocker 43346864382)
+
+- `scripts/portal.mjs` mit `@biomejs/biome@2.6.6` formatiert.
+- `Tooling (Biome format scripts/)` und `pnpm test` lokal grün verifiziert; Check-Rot (Run 43346864382) behoben für Auto-Promote dev→master.
+
 ## 2026-11-12 — CI: Gemini + Merge-Agent wiederhergestellt
 
 - Restored: gemini-ci-repair.yml (Owner: volle Automatisierung, nicht Abräumen)
