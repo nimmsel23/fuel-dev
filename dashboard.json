@@ -1,12 +1,12 @@
 {
  "evidence": {
-  "generated_at": "2026-11-13T01:42:25+00:00",
+  "generated_at": "2026-11-13T01:43:41+00:00",
   "repo": "nimmsel23/fuel-dev",
   "meta": {
    "name": "fuel-dev",
    "description": null,
    "html_url": "https://github.com/nimmsel23/fuel-dev",
-   "pushed_at": "2026-11-13T01:42:07Z",
+   "pushed_at": "2026-11-13T01:43:22Z",
    "default_branch": "master",
    "visibility": "public",
    "pages_url": "https://nimmsel23.github.io/fuel-dev/"
@@ -19,12 +19,18 @@
    "main": "master",
    "has_dev": true,
    "dev_behind": 0,
-   "dev_ahead": 2,
+   "dev_ahead": 3,
    "oldest_unpromoted": "2026-11-13T01:11:19+01:00",
-   "dev_head": "eb99892 2026-11-13T02:41:54+01:00",
+   "dev_head": "b30cde4 2026-11-13T02:43:09+01:00",
    "master_head": "2b58a13 2026-11-13T01:08:30+01:00"
   },
   "commits": [
+   {
+    "sha": "b30cde4",
+    "date": "2026-11-13T02:43:09+01:00",
+    "author": "Alpha",
+    "subject": "docs(al): record retarget CI blocker 43346864382"
+   },
    {
     "sha": "eb99892",
     "date": "2026-11-13T02:41:54+01:00",
@@ -138,12 +144,6 @@
     "date": "2026-11-11T19:11:26+01:00",
     "author": "Alpha",
     "subject": "ci: drop Gemini repair and Merge-Agent (simplicity)"
-   },
-   {
-    "sha": "a021bd9",
-    "date": "2026-11-11T19:09:19+01:00",
-    "author": "Alpha",
-    "subject": "docs(agents): simplicity default — exception only vitalos/prod"
    }
   ],
   "activity": [
@@ -229,7 +229,7 @@
    },
    {
     "day": "2026-11-13",
-    "n": 4
+    "n": 5
    }
   ],
   "workflows": [
@@ -239,9 +239,9 @@
     "event": "push",
     "status": "in_progress",
     "conclusion": null,
-    "created_at": "2026-11-13T01:42:08Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43346864382",
-    "sha": "eb99892"
+    "created_at": "2026-11-13T01:43:23Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43347009152",
+    "sha": "b30cde4"
    },
    {
     "name": "Gemini CI Agent",
@@ -249,8 +249,8 @@
     "event": "workflow_run",
     "status": "completed",
     "conclusion": "success",
-    "created_at": "2026-11-13T00:12:29Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43335197257",
+    "created_at": "2026-11-13T01:42:37Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43346918011",
     "sha": "2b58a13"
    },
    {
@@ -259,8 +259,8 @@
     "event": "workflow_run",
     "status": "completed",
     "conclusion": "skipped",
-    "created_at": "2026-11-13T00:11:52Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43335111947",
+    "created_at": "2026-11-13T01:42:37Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43346917991",
     "sha": "2b58a13"
    },
    {
@@ -269,8 +269,8 @@
     "event": "workflow_run",
     "status": "completed",
     "conclusion": "skipped",
-    "created_at": "2026-11-13T00:11:52Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43335111725",
+    "created_at": "2026-11-13T01:42:37Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43346917982",
     "sha": "2b58a13"
    },
    {
@@ -400,34 +400,23 @@
   "status": "green",
   "signals": [],
   "ai": {
-   "headline": "Neuer Commit auf dev, Workflows für aktuellen dev-Head laufen.",
-   "lage": "Der `dev`-Branch ist mit Commit `eb99892` zwei Commits vor `master`. Der Workflow `Check (Fuel)` für `eb99892` auf `dev` ist aktuell in Bearbeitung. Der vorherige `dev`-Head `0e1763f` wurde erfolgreich via `Live Deploy (Fuel Mini-Apps je Tab)` deployt.",
+   "headline": "Neuer dev-Head b30cde4, Check (Fuel) Workflow läuft.",
+   "lage": "Der `dev`-Branch ist mit Commit `b30cde4` drei Commits vor `master`. Der Workflow `Check (Fuel)` für `b30cde4` auf `dev` ist aktuell in Bearbeitung. Der vorherige `dev`-Head `0e1763f` wurde erfolgreich via `Live Deploy (Fuel Mini-Apps je Tab)` deployt.",
    "auffaelligkeiten": [
     {
-     "level": "hoch",
-     "text": "90 Dependabot-Alerts (3 kritische) sind auf dem `master`-Branch offen (gemäß `NEXT.md`)."
-    },
-    {
-     "level": "mittel",
-     "text": "Der `Live Deploy (Fuel Mini-Apps je Tab)` Workflow für den aktuellen `dev`-Head `eb99892` ist nicht in den Workflow-Läufen gelistet, obwohl der `Check (Fuel)` Workflow für denselben Commit `in_progress` ist."
-    },
-    {
      "level": "info",
-     "text": "Die Workflows `Auto-Promote dev -> master (Check (Fuel))` und `PR-AutoMerge (Dependabot -> dev)` wurden für `master` (Commit `2b58a13`) übersprungen."
+     "text": "Der Commit `b30cde4` auf `dev` enthält den Hinweis \"record retarget CI blocker 43346864382\"."
     }
    ],
    "naechste_schritte": [
-    "Überwachen: Den Status des Workflows `Check (Fuel)` für Commit `eb99892` auf dem `dev`-Branch verfolgen.",
+    "Überwachen: Den Status des Workflows `Check (Fuel)` für Commit `b30cde4` auf dem `dev`-Branch verfolgen.",
     "Prüfen: Die `GEMINI_API_KEY` und `SYNC_TOKEN` für den CI-Agent in den Actions-Secrets einrichten/prüfen (gemäß `NEXT.md`).",
     "Abnehmen: Den iOS Mini-App Login (ca22778 / Live a87a883) auf realen Geräten verifizieren (gemäß `NEXT.md`)."
    ],
-   "veraendert": "Der `dev`-Branch ist nun zwei Commits vor `master` (aktueller Head `eb99892`), und der `Live Deploy` für den vorherigen `dev`-Head `0e1763f` ist erfolgreich abgeschlossen.",
-   "fragen": [
-    "Entscheiden: Soll `fuel.service` und `fitness-firestore-daemon.service` dauerhaft `disabled`/`inactive` bleiben?",
-    "Entscheiden: Welche Rollout-Reihenfolge ist für den Wechsel von v3 zu v4 Endpoints vorgesehen?"
-   ],
+   "veraendert": "Der `dev`-Branch hat einen neuen Head (`b30cde4`) und ist nun drei Commits vor `master`; der `Check (Fuel)` Workflow läuft für diesen neuen Head.",
+   "fragen": [],
    "model": "gemini-2.5-flash"
   },
-  "ai_at": "2026-11-13T01:42:27+00:00"
+  "ai_at": "2026-11-13T01:43:43+00:00"
  }
 }
