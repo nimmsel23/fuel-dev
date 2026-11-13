@@ -150,3 +150,32 @@ _Vom AL ausfüllen (knapp & belegbar, je 1–3 Zeilen, Commit-/PR-Referenzen sta
 - Offen/Weiter: iOS-Abnahme ca22778 gegen Live `a87a883`; Alerts 55; CTO-Nacht #2 Org c1f9b6ce (automerge-pr base-retarget Port aus journal).
 - Blocker: Keine.
 AUTOMATION: Dep-PR-Branches nach CI-Fix auf origin/dev mergen + pushen, damit PR-Head die neue check.yml trägt — `vos-al-dep-pr-rearm <repo> <pr…>` — ~5 min/Lauf.
+
+## 2026-11-13 (Freitag) — Abteilungsleiter-Lauf
+
+_Automatik (vos-al-log Vorlage 2026-11-13):_
+- Commits seit 2026-11-07: 0e1763f chore(portal): portal.mjs + docs/apps.* aus vitalos vos-portal --all synchronisiert
+2b58a13 feat(ci): Living Dashboard als GitHub Page
+cafaf56 feat(hosting): Fuel auf vos-fuel.web.app, fuel-vos nur noch Alias
+9c15ec5 Merge pull request #29 from nimmsel23/cursor/mobile-meal-week-cd68
+d4c5697 merge: master (#28, #30) in die Wochenansicht
+cc56c0c fix: quickLogSupplement nur mit verifizierter Firebase-uid (#30)
+70bc92f ci: Backend-Checkout bei Dependabot-Läufen überspringen (#28)
+1b27449 fix(fuel): Wochenansicht an Europe/Vienna und Wasser-Tage binden
+8746c8f docs(al): 2026-11-12 14:40 — a28fea24 Dep #25/#26 Sync skip + squash
+cf24e3a chore(deps): bump fast-xml-parser from 5.10.1 to 5.12.0 in /functions (#26)
+ba1377f chore(deps): bump node-forge from 1.4.0 to 1.4.3 in /functions (#25)
+f5b38e7 fix(ci): skip SYNC_TOKEN steps on Dependabot PRs (S7)
+5417f59 docs: Konzept finale Variante vos-fuel
+d02cf0b fix(store): KI im Store-Build aus, Cloud-Weiche zentral, leerer Katalog, deutsche Labels
+cbb6989 fix(api): Firebase-/Produkt-Build und Capacitor immer Cloud-Modus
+- Offene PRs: (keine offenen PRs / gh nicht verfuegbar)
+- CI (letzte Läufe): completed	success	Gemini CI Agent	Gemini CI Agent	master	workflow_run	43335197257	10s	2026-11-13T00:12:29Z
+completed	success	Gemini CI Agent	Gemini CI Agent	master	workflow_run	43335111984	11s	2026-11-13T00:11:52Z
+completed	skipped	Auto-Promote dev -> master (Check (Fuel))	Auto-Promote dev -> master (Check (Fuel))	master	workflow_run	43335111947	1s	2026-11-13T00:11:52Z
+- Arbeitsbaum: sauber
+
+_Vom AL ausfüllen (knapp & belegbar, je 1–3 Zeilen, Commit-/PR-Referenzen statt Erzählung):_
+- Erledigt: CTO-Nacht #2 / c1f9b6ce: journal `375e122` nach `.github/workflows/automerge-pr.yml` portiert; nur `dependabot/*`, base master → dev vor Squash; YAML/Shell + 5 isolierte Prüffälle grün (dieser Commit).
+- Offen/Weiter: Push-CI `Check (Fuel)` für diesen Commit ausstehend; echter Retarget-Beleg beim nächsten passenden Dependabot-PR.
+- Blocker: Keine; Repo-Regel hat Vorrang vor Guide-Worktree-Vorgabe (bestehender Branch dev).

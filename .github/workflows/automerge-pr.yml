@@ -41,6 +41,19 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       REPO: ${{ github.repository }}
     steps:
+      - name: Dependabot base=master auf base=dev retargeten
+        run: |
+          set -euo pipefail
+          prs=$(gh pr list -R "$REPO" --base master --state open \
+            --json number,headRefName \
+            --jq '.[] | select(.headRefName | startswith("dependabot/")) | [.number, .headRefName] | @tsv')
+          while IFS=$'\t' read -r n branch; do
+            [ -n "${n:-}" ] || continue
+            echo "PR #$n ($branch): base=master -> retarget base=dev"
+            if ! gh pr edit "$n" -R "$REPO" --base dev; then
+              echo "::warning::Retarget von PR #$n fehlgeschlagen."
+            fi
+          done <<< "$prs"
       - name: Gruene Dependabot-PRs squaschen
         id: squash
         run: |
