@@ -1,12 +1,12 @@
 {
  "evidence": {
-  "generated_at": "2026-11-14T11:42:40+00:00",
+  "generated_at": "2026-11-14T17:58:51+00:00",
   "repo": "nimmsel23/fuel-dev",
   "meta": {
    "name": "fuel-dev",
    "description": null,
    "html_url": "https://github.com/nimmsel23/fuel-dev",
-   "pushed_at": "2026-11-14T01:42:05Z",
+   "pushed_at": "2026-11-14T17:58:27Z",
    "default_branch": "master",
    "visibility": "public",
    "pages_url": "https://nimmsel23.github.io/fuel-dev/"
@@ -21,10 +21,16 @@
    "dev_behind": 0,
    "dev_ahead": 0,
    "oldest_unpromoted": null,
-   "dev_head": "33e6aab 2026-11-14T02:41:18+01:00",
-   "master_head": "33e6aab 2026-11-14T02:41:18+01:00"
+   "dev_head": "ed45247 2026-11-14T18:58:25+01:00",
+   "master_head": "ed45247 2026-11-14T18:58:25+01:00"
   },
   "commits": [
+   {
+    "sha": "ed45247",
+    "date": "2026-11-14T18:58:25+01:00",
+    "author": "Alpha",
+    "subject": "chore: AL-LOG.md entfernt"
+   },
    {
     "sha": "33e6aab",
     "date": "2026-11-14T02:41:18+01:00",
@@ -138,18 +144,12 @@
     "date": "2026-11-12T11:16:05+01:00",
     "author": "Alpha",
     "subject": "fix(store): KI im Store-Build aus, Cloud-Weiche zentral, leerer Katalog, deutsche Labels"
-   },
-   {
-    "sha": "cbb6989",
-    "date": "2026-11-12T11:02:24+01:00",
-    "author": "Alpha",
-    "subject": "fix(api): Firebase-/Produkt-Build und Capacitor immer Cloud-Modus"
    }
   ],
   "activity": [
    {
     "day": "2026-10-25",
-    "n": 4
+    "n": 2
    },
    {
     "day": "2026-10-26",
@@ -229,19 +229,39 @@
    },
    {
     "day": "2026-11-14",
-    "n": 1
+    "n": 2
    }
   ],
   "workflows": [
    {
+    "name": "Check (Fuel)",
+    "branch": "dev",
+    "event": "push",
+    "status": "in_progress",
+    "conclusion": null,
+    "created_at": "2026-11-14T17:58:29Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43623982417",
+    "sha": "ed45247"
+   },
+   {
+    "name": "Live Deploy (Fuel master)",
+    "branch": "master",
+    "event": "push",
+    "status": "in_progress",
+    "conclusion": null,
+    "created_at": "2026-11-14T17:58:29Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43623982375",
+    "sha": "ed45247"
+   },
+   {
     "name": "Auto-Promote dev -> master (Check (Fuel))",
     "branch": "master",
-    "event": "schedule",
+    "event": "push",
     "status": "completed",
     "conclusion": "success",
-    "created_at": "2026-11-14T10:21:00Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43584855568",
-    "sha": "33e6aab"
+    "created_at": "2026-11-14T17:58:29Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43623982373",
+    "sha": "ed45247"
    },
    {
     "name": "PR-AutoMerge (Dependabot -> dev)",
@@ -249,18 +269,8 @@
     "event": "schedule",
     "status": "completed",
     "conclusion": "success",
-    "created_at": "2026-11-14T10:04:37Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43583529046",
-    "sha": "33e6aab"
-   },
-   {
-    "name": "Live Deploy (Fuel master)",
-    "branch": "master",
-    "event": "workflow_dispatch",
-    "status": "completed",
-    "conclusion": "success",
-    "created_at": "2026-11-14T01:42:06Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43542154786",
+    "created_at": "2026-11-14T16:32:17Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43616140267",
     "sha": "33e6aab"
    },
    {
@@ -272,16 +282,6 @@
     "created_at": "2026-11-14T01:41:57Z",
     "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43542140215",
     "sha": "0a9730a"
-   },
-   {
-    "name": "Check (Fuel)",
-    "branch": "dev",
-    "event": "push",
-    "status": "completed",
-    "conclusion": "success",
-    "created_at": "2026-11-14T01:41:23Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43542086088",
-    "sha": "33e6aab"
    },
    {
     "name": "Live Deploy (Fuel Mini-Apps je Tab)",
@@ -370,31 +370,31 @@
   "status": "green",
   "signals": [],
   "ai": {
-   "headline": "Dev- und Master-Branch synchronisiert; alle Checks erfolgreich abgeschlossen.",
-   "lage": "Der `dev`-Branch ist mit Commit `33e6aab` nun synchron mit `master`. Der `Check (Fuel)` Workflow für `33e6aab` auf `dev` wurde erfolgreich abgeschlossen. Die automatische Promotion von `dev` nach `master` und der anschließende `Live Deploy (Fuel master)` für `33e6aab` waren ebenfalls erfolgreich.",
+   "headline": "Dev/Master synchron auf ed45247; Checks für aktuellen Commit laufen.",
+   "lage": "Der `dev`-Branch ist mit `master` auf Commit `ed45247` synchronisiert. Der `Auto-Promote dev -> master (Check (Fuel))` Workflow für `ed45247` wurde erfolgreich abgeschlossen. Die Workflows `Check (Fuel)` und `Live Deploy (Fuel master)` für diesen Commit sind jedoch noch `in_progress`.",
    "auffaelligkeiten": [
     {
-     "level": "info",
-     "text": "Die 90 Dependabot-Alerts auf dem master-Branch sind weiterhin offen und müssen analysiert werden (gemäß NEXT.md)."
+     "level": "hoch",
+     "text": "Die Workflows 'Check (Fuel)' und 'Live Deploy (Fuel master)' für den aktuellen Commit ed45247 sind noch 'in_progress', obwohl der 'Auto-Promote dev -> master (Check (Fuel))' Workflow bereits als 'success' abgeschlossen wurde."
+    },
+    {
+     "level": "mittel",
+     "text": "Es bestehen weiterhin 90 Dependabot-Alerts (3 kritische) auf dem 'master'-Branch, deren Analyse und Behebung aussteht."
     },
     {
      "level": "info",
-     "text": "Die Einrichtung/Prüfung von `GEMINI_API_KEY` und `SYNC_TOKEN` in Actions-Secrets ist noch ausstehend (gemäß NEXT.md)."
-    },
-    {
-     "level": "info",
-     "text": "Die Verifizierung des iOS Mini-App Logins (ca22778 / Live a87a883) auf realen Geräten ist noch offen (gemäß NEXT.md)."
+     "text": "Die Einrichtung oder Prüfung von 'GEMINI_API_KEY' und 'SYNC_TOKEN' in Actions-Secrets ist noch nicht erfolgt."
     }
    ],
    "naechste_schritte": [
+    "Überwachen: Die laufenden Workflows `Check (Fuel)` und `Live Deploy (Fuel master)` für Commit `ed45247` auf ihren Abschluss prüfen.",
     "Analysieren: Die 90 Dependabot-Alerts auf `master` analysieren und die nächsten Schritte zur Behebung planen.",
-    "Prüfen: `GEMINI_API_KEY` und `SYNC_TOKEN` in Actions-Secrets einrichten/prüfen.",
-    "Abnehmen: iOS Mini-App Login (ca22778 / Live a87a883) auf realen Geräten verifizieren."
+    "Verifizieren: iOS Mini-App Login (ca22778 / Live a87a883) auf realen Geräten abnehmen."
    ],
-   "veraendert": "Gegenüber der letzten Einschätzung sind `dev` und `master` nun auf Commit `33e6aab` synchronisiert, und der `Check (Fuel)` Workflow auf `dev` ist erfolgreich abgeschlossen.",
+   "veraendert": "Gegenüber der letzten Einschätzung sind `dev` und `master` auf den neueren Commit `ed45247` synchronisiert, wobei die zugehörigen `Check (Fuel)` und `Live Deploy` Workflows noch laufen.",
    "fragen": [],
    "model": "gemini-2.5-flash"
   },
-  "ai_at": "2026-11-14T11:42:43+00:00"
+  "ai_at": "2026-11-14T17:58:53+00:00"
  }
 }
