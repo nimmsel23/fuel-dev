@@ -179,3 +179,32 @@ _Vom AL ausfüllen (knapp & belegbar, je 1–3 Zeilen, Commit-/PR-Referenzen sta
 - Erledigt: c1f9b6ce Retarget-Port `eb99892`; Org 7c26c8ab: Biome-Fix `79ba6d8` (Check `43355174559` success) + `biome.json` nimmt die verteilte Kopie `scripts/portal.mjs` aus, kanonischer vos-portal-Stand committet (inhaltsgleich, dieser Commit).
 - Offen/Weiter: echter Retarget-Beleg beim nächsten Dependabot-PR auf master; iOS-Abnahme ca22778; Security-Alerts 55.
 - Blocker: keiner.
+
+## 2026-11-14 (Samstag) — Abteilungsleiter-Lauf
+
+_Automatik (vos-al-log Vorlage 2026-11-14):_
+- Commits seit 2026-11-07: 0a9730a ci(biome): verteilte portal.mjs aus Format-Check nehmen
+79ba6d8 style(scripts): format portal.mjs with biome (fixes CI check)
+b30cde4 docs(al): record retarget CI blocker 43346864382
+eb99892 fix(ci): retarget Dependabot PRs from master to dev
+0e1763f chore(portal): portal.mjs + docs/apps.* aus vitalos vos-portal --all synchronisiert
+2b58a13 feat(ci): Living Dashboard als GitHub Page
+cafaf56 feat(hosting): Fuel auf vos-fuel.web.app, fuel-vos nur noch Alias
+9c15ec5 Merge pull request #29 from nimmsel23/cursor/mobile-meal-week-cd68
+d4c5697 merge: master (#28, #30) in die Wochenansicht
+cc56c0c fix: quickLogSupplement nur mit verifizierter Firebase-uid (#30)
+70bc92f ci: Backend-Checkout bei Dependabot-Läufen überspringen (#28)
+1b27449 fix(fuel): Wochenansicht an Europe/Vienna und Wasser-Tage binden
+8746c8f docs(al): 2026-11-12 14:40 — a28fea24 Dep #25/#26 Sync skip + squash
+cf24e3a chore(deps): bump fast-xml-parser from 5.10.1 to 5.12.0 in /functions (#26)
+ba1377f chore(deps): bump node-forge from 1.4.0 to 1.4.3 in /functions (#25)
+- Offene PRs: (keine offenen PRs / gh nicht verfuegbar)
+- CI (letzte Läufe): completed	success	Auto-Promote dev -> master (Check (Fuel))	Auto-Promote dev -> master (Check (Fuel))	master	schedule	43522818280	18s	2026-11-13T22:52:43Z
+completed	success	PR-AutoMerge (Dependabot -> dev)	PR-AutoMerge (Dependabot -> dev)	master	schedule	43514799083	7s	2026-11-13T21:54:32Z
+completed	success	Auto-Promote dev -> master (Check (Fuel))	Auto-Promote dev -> master (Check (Fuel))	master	schedule	43472264351	8s	2026-11-13T17:23:06Z
+- Arbeitsbaum: sauber
+
+_Vom AL ausfüllen (knapp & belegbar, je 1–3 Zeilen, Commit-/PR-Referenzen statt Erzählung):_
+- Erledigt: Org 7c26c8ab abnahmereif: `0a9730a` in origin/dev und origin/master, Check (Fuel) `43435897908` success, Auto-Promote `43522818280` success, Live Deploy `43436015729` success; kein neuer portal.mjs-Diff.
+- Offen/Weiter: 7c26c8ab in der Org-DB auf done setzen (annotate/done ohne Freigabe nicht ausgeführt); Retarget-Beleg c1f9b6ce beim nächsten Dependabot-PR; iOS-Abnahme ca22778; Security-Alerts 55.
+- Blocker: Zugriff auf die Org-Taskwarrior-DB (info/annotate) braucht Freigabe → CTO/CEO.
