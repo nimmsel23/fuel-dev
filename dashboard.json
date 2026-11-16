@@ -1,12 +1,12 @@
 {
  "evidence": {
-  "generated_at": "2026-11-16T11:35:55+00:00",
+  "generated_at": "2026-11-16T13:05:34+00:00",
   "repo": "nimmsel23/fuel-dev",
   "meta": {
    "name": "fuel-dev",
    "description": null,
    "html_url": "https://github.com/nimmsel23/fuel-dev",
-   "pushed_at": "2026-11-16T11:35:34Z",
+   "pushed_at": "2026-11-16T11:36:19Z",
    "default_branch": "master",
    "visibility": "public",
    "pages_url": "https://nimmsel23.github.io/fuel-dev/"
@@ -19,10 +19,10 @@
    "main": "master",
    "has_dev": true,
    "dev_behind": 0,
-   "dev_ahead": 3,
-   "oldest_unpromoted": "2026-11-16T11:26:34Z",
+   "dev_ahead": 0,
+   "oldest_unpromoted": null,
    "dev_head": "8dd9d7a 2026-11-16T11:35:33Z",
-   "master_head": "ed45247 2026-11-14T18:58:25+01:00"
+   "master_head": "8dd9d7a 2026-11-16T11:35:33Z"
   },
   "commits": [
    {
@@ -234,33 +234,33 @@
   ],
   "workflows": [
    {
-    "name": "Check (Fuel)",
-    "branch": "dev",
-    "event": "push",
-    "status": "in_progress",
-    "conclusion": null,
-    "created_at": "2026-11-16T11:35:36Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43859105552",
+    "name": "Live Deploy (Fuel master)",
+    "branch": "master",
+    "event": "workflow_dispatch",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-11-16T11:36:21Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43859213450",
     "sha": "8dd9d7a"
    },
    {
     "name": "PR-AutoMerge (Dependabot -> dev)",
     "branch": "master",
-    "event": "schedule",
+    "event": "workflow_run",
     "status": "completed",
-    "conclusion": "success",
-    "created_at": "2026-11-16T09:25:16Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43839573113",
+    "conclusion": "skipped",
+    "created_at": "2026-11-16T11:36:10Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43859185335",
     "sha": "ed45247"
    },
    {
     "name": "Auto-Promote dev -> master (Check (Fuel))",
     "branch": "master",
-    "event": "schedule",
+    "event": "workflow_run",
     "status": "completed",
     "conclusion": "success",
-    "created_at": "2026-11-16T07:17:20Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43822754572",
+    "created_at": "2026-11-16T11:36:10Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43859185200",
     "sha": "ed45247"
    },
    {
@@ -269,19 +269,19 @@
     "event": "workflow_run",
     "status": "completed",
     "conclusion": "success",
-    "created_at": "2026-11-14T17:59:18Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43624051498",
+    "created_at": "2026-11-16T11:36:10Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43859185199",
     "sha": "ed45247"
    },
    {
-    "name": "Live Deploy (Fuel master)",
-    "branch": "master",
+    "name": "Check (Fuel)",
+    "branch": "dev",
     "event": "push",
     "status": "completed",
     "conclusion": "success",
-    "created_at": "2026-11-14T17:58:29Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43623982375",
-    "sha": "ed45247"
+    "created_at": "2026-11-16T11:35:36Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43859105552",
+    "sha": "8dd9d7a"
    },
    {
     "name": "Live Deploy (Fuel Mini-Apps je Tab)",
@@ -302,16 +302,6 @@
     "created_at": "2026-11-12T23:30:30Z",
     "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43329430707",
     "sha": "cafaf56"
-   },
-   {
-    "name": "Deploy supplement functions",
-    "branch": "cursor/deploy-supplement-functions-4123",
-    "event": "push",
-    "status": "completed",
-    "conclusion": "success",
-    "created_at": "2026-11-12T19:44:37Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43293271952",
-    "sha": "deb6a31"
    }
   ],
   "issues": [],
@@ -330,31 +320,38 @@
   "status": "green",
   "signals": [],
   "ai": {
-   "headline": "Dev ist 3 Commits vor Master; Check (Fuel) auf dev läuft.",
-   "lage": "Der `dev`-Branch ist mit Commit `8dd9d7a` drei Commits vor `master`, der weiterhin auf `ed45247` steht. Der zugehörige `Check (Fuel)`-Workflow für `8dd9d7a` auf `dev` ist aktuell noch in Bearbeitung. `master` wurde zuletzt erfolgreich automatisch promoted und deployed.",
+   "headline": "Dev und Master synchronisiert; alle Checks erfolgreich abgeschlossen.",
+   "lage": "Der `dev`-Branch und `master` sind nun synchron auf Commit `8dd9d7a`. Der `Check (Fuel)`-Workflow für `8dd9d7a` auf `dev` wurde erfolgreich abgeschlossen, gefolgt von einem erfolgreichen Auto-Promote und Live Deploy auf `master`.",
    "auffaelligkeiten": [
     {
      "level": "hoch",
-     "text": "Der `Check (Fuel)`-Workflow für den neuesten `dev`-Commit `8dd9d7a` ist noch `in_progress`."
+     "text": "90 Dependabot-Alerts (3 kritische) auf `master` sind weiterhin offen und müssen geprüft werden, wie in `NEXT.md` beschrieben."
+    },
+    {
+     "level": "mittel",
+     "text": "Die iOS Mini-App Login-Funktion (ca22778 / Live a87a883) benötigt noch eine Abnahme auf realen Geräten laut `NEXT.md`."
     },
     {
      "level": "info",
-     "text": "`dev` ist 3 Commits (`8dd9d7a`, `0603bc0`, `342012b`) vor `master`, der auf `ed45247` verbleibt."
+     "text": "Der `PR-AutoMerge (Dependabot -> dev)`-Workflow für `ed45247` wurde übersprungen."
     },
     {
      "level": "info",
-     "text": "Die 90 Dependabot-Alerts auf `master` und die Verifizierung des iOS Mini-App Logins sind weiterhin offene Punkte in `NEXT.md`."
+     "text": "Die Regel 'Mini-Apps kein CI-Deploy' in `CLAUDE.md` widerspricht dem erfolgreichen CI-Deploy der Fuel-Mini-Apps und muss bereinigt werden."
     }
    ],
    "naechste_schritte": [
-    "Warten: `Check (Fuel)`-Workflow für `dev`-Commit `8dd9d7a` abwarten und Ergebnis prüfen.",
-    "Analysieren: Die 90 Dependabot-Alerts auf `master` prüfen und Behebung planen, wie in `NEXT.md` beschrieben.",
-    "Verifizieren: iOS Mini-App Login (ca22778 / Live a87a883) auf realen Geräten abnehmen, wie in `NEXT.md` beschrieben."
+    "Prüfen: Die 90 Dependabot-Alerts auf `master` analysieren und Behebung planen.",
+    "Abnehmen: iOS Mini-App Login (ca22778 / Live a87a883) auf realen Geräten verifizieren.",
+    "Klären: Widerspruch zwischen `CLAUDE.md` und CI-Deploy-Verhalten der Mini-Apps auflösen."
    ],
-   "veraendert": "Gegenüber der letzten Einschätzung ist der `dev`-Branch nicht mehr mit `master` synchronisiert, sondern liegt mit 3 Commits voraus, und der `Check (Fuel)`-Workflow für den neuesten `dev`-Commit `8dd9d7a` ist in Bearbeitung.",
-   "fragen": [],
+   "veraendert": "Der `dev`-Branch ist nicht mehr vor `master`, beide sind nun auf dem gleichen Commit `8dd9d7a`, und der ausstehende `Check (Fuel)`-Workflow ist erfolgreich abgeschlossen.",
+   "fragen": [
+    "Welche Rollout-Reihenfolge ist für den v3→v4-Wechsel der Endpoints vorgesehen?",
+    "Soll die Datenmigration des v3-Stores (File+SQLite) nach Postgres geplant werden, und welche Datenbesitzer/Tabellen sind betroffen?"
+   ],
    "model": "gemini-2.5-flash"
   },
-  "ai_at": "2026-11-16T11:35:58+00:00"
+  "ai_at": "2026-11-16T13:05:38+00:00"
  }
 }
