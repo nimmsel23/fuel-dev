@@ -1,12 +1,12 @@
 {
  "evidence": {
-  "generated_at": "2026-11-15T12:12:32+00:00",
+  "generated_at": "2026-11-16T11:35:55+00:00",
   "repo": "nimmsel23/fuel-dev",
   "meta": {
    "name": "fuel-dev",
    "description": null,
    "html_url": "https://github.com/nimmsel23/fuel-dev",
-   "pushed_at": "2026-11-14T17:59:08Z",
+   "pushed_at": "2026-11-16T11:35:34Z",
    "default_branch": "master",
    "visibility": "public",
    "pages_url": "https://nimmsel23.github.io/fuel-dev/"
@@ -19,12 +19,30 @@
    "main": "master",
    "has_dev": true,
    "dev_behind": 0,
-   "dev_ahead": 0,
-   "oldest_unpromoted": null,
-   "dev_head": "ed45247 2026-11-14T18:58:25+01:00",
+   "dev_ahead": 3,
+   "oldest_unpromoted": "2026-11-16T11:26:34Z",
+   "dev_head": "8dd9d7a 2026-11-16T11:35:33Z",
    "master_head": "ed45247 2026-11-14T18:58:25+01:00"
   },
   "commits": [
+   {
+    "sha": "8dd9d7a",
+    "date": "2026-11-16T11:35:33Z",
+    "author": "Cursor Agent",
+    "subject": "dashboard: Check und Dashboard starten"
+   },
+   {
+    "sha": "0603bc0",
+    "date": "2026-11-16T11:33:28Z",
+    "author": "Cursor Agent",
+    "subject": "dashboard: Check und Dashboard auf dev starten"
+   },
+   {
+    "sha": "342012b",
+    "date": "2026-11-16T11:26:34Z",
+    "author": "Cursor Agent",
+    "subject": "dashboard: master-Push baut ebenfalls dev"
+   },
    {
     "sha": "ed45247",
     "date": "2026-11-14T18:58:25+01:00",
@@ -126,31 +144,9 @@
     "date": "2026-11-12T13:43:57Z",
     "author": "dependabot[bot]",
     "subject": "chore(deps): bump node-forge from 1.4.0 to 1.4.3 in /functions (#25)"
-   },
-   {
-    "sha": "f5b38e7",
-    "date": "2026-11-12T14:42:52+01:00",
-    "author": "Alpha",
-    "subject": "fix(ci): skip SYNC_TOKEN steps on Dependabot PRs (S7)"
-   },
-   {
-    "sha": "5417f59",
-    "date": "2026-11-12T11:16:35+01:00",
-    "author": "Alpha",
-    "subject": "docs: Konzept finale Variante vos-fuel"
-   },
-   {
-    "sha": "d02cf0b",
-    "date": "2026-11-12T11:16:05+01:00",
-    "author": "Alpha",
-    "subject": "fix(store): KI im Store-Build aus, Cloud-Weiche zentral, leerer Katalog, deutsche Labels"
    }
   ],
   "activity": [
-   {
-    "day": "2026-10-26",
-    "n": 11
-   },
    {
     "day": "2026-10-27",
     "n": 0
@@ -230,17 +226,31 @@
    {
     "day": "2026-11-15",
     "n": 0
+   },
+   {
+    "day": "2026-11-16",
+    "n": 3
    }
   ],
   "workflows": [
+   {
+    "name": "Check (Fuel)",
+    "branch": "dev",
+    "event": "push",
+    "status": "in_progress",
+    "conclusion": null,
+    "created_at": "2026-11-16T11:35:36Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43859105552",
+    "sha": "8dd9d7a"
+   },
    {
     "name": "PR-AutoMerge (Dependabot -> dev)",
     "branch": "master",
     "event": "schedule",
     "status": "completed",
     "conclusion": "success",
-    "created_at": "2026-11-15T09:09:36Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43697873407",
+    "created_at": "2026-11-16T09:25:16Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43839573113",
     "sha": "ed45247"
    },
    {
@@ -249,8 +259,8 @@
     "event": "schedule",
     "status": "completed",
     "conclusion": "success",
-    "created_at": "2026-11-15T07:49:33Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43691661975",
+    "created_at": "2026-11-16T07:17:20Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43822754572",
     "sha": "ed45247"
    },
    {
@@ -261,16 +271,6 @@
     "conclusion": "success",
     "created_at": "2026-11-14T17:59:18Z",
     "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43624051498",
-    "sha": "ed45247"
-   },
-   {
-    "name": "Check (Fuel)",
-    "branch": "dev",
-    "event": "push",
-    "status": "completed",
-    "conclusion": "success",
-    "created_at": "2026-11-14T17:58:29Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43623982417",
     "sha": "ed45247"
    },
    {
@@ -312,36 +312,6 @@
     "created_at": "2026-11-12T19:44:37Z",
     "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43293271952",
     "sha": "deb6a31"
-   },
-   {
-    "name": "Live Deploy (Fuel Mini-Apps je Tab)",
-    "branch": "master",
-    "event": "push",
-    "status": "completed",
-    "conclusion": "success",
-    "created_at": "2026-11-12T19:37:41Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43292098077",
-    "sha": "9c15ec5"
-   },
-   {
-    "name": "Preview (Fuel dev)",
-    "branch": "cursor/mobile-meal-week-cd68",
-    "event": "pull_request",
-    "status": "completed",
-    "conclusion": "success",
-    "created_at": "2026-11-12T19:27:25Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43290338224",
-    "sha": "d4c5697"
-   },
-   {
-    "name": "Check (Fuel)",
-    "branch": "cursor/mobile-meal-week-cd68",
-    "event": "pull_request",
-    "status": "completed",
-    "conclusion": "success",
-    "created_at": "2026-11-12T19:27:24Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43290338029",
-    "sha": "d4c5697"
    }
   ],
   "issues": [],
@@ -360,30 +330,31 @@
   "status": "green",
   "signals": [],
   "ai": {
-   "headline": "Dev und Master synchron auf ed45247; alle Checks erfolgreich abgeschlossen.",
-   "lage": "Der `dev`-Branch ist weiterhin mit `master` auf Commit `ed45247` synchronisiert. Alle zugehörigen Workflows, einschliesslich `Check (Fuel)` und `Live Deploy (Fuel master)`, wurden erfolgreich abgeschlossen.",
+   "headline": "Dev ist 3 Commits vor Master; Check (Fuel) auf dev läuft.",
+   "lage": "Der `dev`-Branch ist mit Commit `8dd9d7a` drei Commits vor `master`, der weiterhin auf `ed45247` steht. Der zugehörige `Check (Fuel)`-Workflow für `8dd9d7a` auf `dev` ist aktuell noch in Bearbeitung. `master` wurde zuletzt erfolgreich automatisch promoted und deployed.",
    "auffaelligkeiten": [
     {
      "level": "hoch",
-     "text": "90 Dependabot-Alerts (3 kritische) auf `master` sind laut `NEXT.md` noch zu analysieren und zu beheben."
+     "text": "Der `Check (Fuel)`-Workflow für den neuesten `dev`-Commit `8dd9d7a` ist noch `in_progress`."
     },
     {
-     "level": "mittel",
-     "text": "Die Abnahme des iOS Mini-App Logins (ca22778 / Live a87a883) auf realen Geräten steht laut `NEXT.md` noch aus."
+     "level": "info",
+     "text": "`dev` ist 3 Commits (`8dd9d7a`, `0603bc0`, `342012b`) vor `master`, der auf `ed45247` verbleibt."
+    },
+    {
+     "level": "info",
+     "text": "Die 90 Dependabot-Alerts auf `master` und die Verifizierung des iOS Mini-App Logins sind weiterhin offene Punkte in `NEXT.md`."
     }
    ],
    "naechste_schritte": [
-    "Analysieren: Die 90 Dependabot-Alerts auf `master` prüfen und Behebung planen.",
-    "Verifizieren: iOS Mini-App Login (ca22778 / Live a87a883) auf realen Geräten abnehmen.",
-    "Prüfen: `GEMINI_API_KEY` und `SYNC_TOKEN` als Actions-Secrets für diesen Repo-Zweig einrichten/prüfen, wie in `NEXT.md` beschrieben."
+    "Warten: `Check (Fuel)`-Workflow für `dev`-Commit `8dd9d7a` abwarten und Ergebnis prüfen.",
+    "Analysieren: Die 90 Dependabot-Alerts auf `master` prüfen und Behebung planen, wie in `NEXT.md` beschrieben.",
+    "Verifizieren: iOS Mini-App Login (ca22778 / Live a87a883) auf realen Geräten abnehmen, wie in `NEXT.md` beschrieben."
    ],
-   "veraendert": "Die zuvor laufenden Workflows `Check (Fuel)` und `Live Deploy (Fuel master)` für Commit `ed45247` sind nun erfolgreich abgeschlossen.",
-   "fragen": [
-    "Soll die Datenmigration des v3-Stores (File+SQLite) zu Postgres priorisiert werden, wie in `TODO.md` erwähnt?",
-    "Wann soll der Rollout der v4-Endpoints (v3→v4) entschieden und durchgeführt werden, wie in `TODO.md` beschrieben?"
-   ],
+   "veraendert": "Gegenüber der letzten Einschätzung ist der `dev`-Branch nicht mehr mit `master` synchronisiert, sondern liegt mit 3 Commits voraus, und der `Check (Fuel)`-Workflow für den neuesten `dev`-Commit `8dd9d7a` ist in Bearbeitung.",
+   "fragen": [],
    "model": "gemini-2.5-flash"
   },
-  "ai_at": "2026-11-15T12:12:35+00:00"
+  "ai_at": "2026-11-16T11:35:58+00:00"
  }
 }
