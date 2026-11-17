@@ -1,12 +1,12 @@
 {
  "evidence": {
-  "generated_at": "2026-11-16T13:05:34+00:00",
+  "generated_at": "2026-11-17T13:46:57+00:00",
   "repo": "nimmsel23/fuel-dev",
   "meta": {
    "name": "fuel-dev",
    "description": null,
    "html_url": "https://github.com/nimmsel23/fuel-dev",
-   "pushed_at": "2026-11-16T11:36:19Z",
+   "pushed_at": "2026-11-16T13:05:55Z",
    "default_branch": "master",
    "visibility": "public",
    "pages_url": "https://nimmsel23.github.io/fuel-dev/"
@@ -148,10 +148,6 @@
   ],
   "activity": [
    {
-    "day": "2026-10-27",
-    "n": 0
-   },
-   {
     "day": "2026-10-28",
     "n": 6
    },
@@ -230,9 +226,33 @@
    {
     "day": "2026-11-16",
     "n": 3
+   },
+   {
+    "day": "2026-11-17",
+    "n": 0
    }
   ],
   "workflows": [
+   {
+    "name": "PR-AutoMerge (Dependabot -> dev)",
+    "branch": "master",
+    "event": "schedule",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-11-17T13:04:19Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/44089078180",
+    "sha": "8dd9d7a"
+   },
+   {
+    "name": "Auto-Promote dev -> master (Check (Fuel))",
+    "branch": "master",
+    "event": "schedule",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-11-17T09:11:57Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/44053349840",
+    "sha": "8dd9d7a"
+   },
    {
     "name": "Live Deploy (Fuel master)",
     "branch": "master",
@@ -242,26 +262,6 @@
     "created_at": "2026-11-16T11:36:21Z",
     "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43859213450",
     "sha": "8dd9d7a"
-   },
-   {
-    "name": "PR-AutoMerge (Dependabot -> dev)",
-    "branch": "master",
-    "event": "workflow_run",
-    "status": "completed",
-    "conclusion": "skipped",
-    "created_at": "2026-11-16T11:36:10Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43859185335",
-    "sha": "ed45247"
-   },
-   {
-    "name": "Auto-Promote dev -> master (Check (Fuel))",
-    "branch": "master",
-    "event": "workflow_run",
-    "status": "completed",
-    "conclusion": "success",
-    "created_at": "2026-11-16T11:36:10Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43859185200",
-    "sha": "ed45247"
    },
    {
     "name": "Gemini CI Agent",
@@ -292,16 +292,6 @@
     "created_at": "2026-11-13T13:41:48Z",
     "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43435897943",
     "sha": "0a9730a"
-   },
-   {
-    "name": "Preview (Fuel dev)",
-    "branch": "dev",
-    "event": "push",
-    "status": "completed",
-    "conclusion": "success",
-    "created_at": "2026-11-12T23:30:30Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43329430707",
-    "sha": "cafaf56"
    }
   ],
   "issues": [],
@@ -320,38 +310,34 @@
   "status": "green",
   "signals": [],
   "ai": {
-   "headline": "Dev und Master synchronisiert; alle Checks erfolgreich abgeschlossen.",
-   "lage": "Der `dev`-Branch und `master` sind nun synchron auf Commit `8dd9d7a`. Der `Check (Fuel)`-Workflow für `8dd9d7a` auf `dev` wurde erfolgreich abgeschlossen, gefolgt von einem erfolgreichen Auto-Promote und Live Deploy auf `master`.",
+   "headline": "CI-Läufe erfolgreich, dev/master synchronisiert; Dependabot-Merge aktiv.",
+   "lage": "Der `dev`-Branch und `master` sind weiterhin auf Commit `8dd9d7a` synchronisiert. Die Workflows `Check (Fuel)` und `Auto-Promote dev -> master` wurden heute erneut erfolgreich abgeschlossen, gefolgt von einem erfolgreichen `PR-AutoMerge (Dependabot -> dev)`-Workflow.",
    "auffaelligkeiten": [
     {
      "level": "hoch",
-     "text": "90 Dependabot-Alerts (3 kritische) auf `master` sind weiterhin offen und müssen geprüft werden, wie in `NEXT.md` beschrieben."
+     "text": "Die 90 Dependabot-Alerts auf `master` sind laut `NEXT.md` weiterhin offen und unbehandelt."
     },
     {
      "level": "mittel",
-     "text": "Die iOS Mini-App Login-Funktion (ca22778 / Live a87a883) benötigt noch eine Abnahme auf realen Geräten laut `NEXT.md`."
+     "text": "Die Verifikation des iOS Mini-App Logins (ca22778 / Live a87a883) auf realen Geräten steht laut `NEXT.md` noch aus."
     },
     {
      "level": "info",
-     "text": "Der `PR-AutoMerge (Dependabot -> dev)`-Workflow für `ed45247` wurde übersprungen."
-    },
-    {
-     "level": "info",
-     "text": "Die Regel 'Mini-Apps kein CI-Deploy' in `CLAUDE.md` widerspricht dem erfolgreichen CI-Deploy der Fuel-Mini-Apps und muss bereinigt werden."
+     "text": "Der Widerspruch zwischen der Dokumentation (`CLAUDE.md` Referenz in `NEXT.md`, `README.md`) und dem CI-Deploy-Verhalten der Mini-Apps ist noch nicht geklärt."
     }
    ],
    "naechste_schritte": [
-    "Prüfen: Die 90 Dependabot-Alerts auf `master` analysieren und Behebung planen.",
-    "Abnehmen: iOS Mini-App Login (ca22778 / Live a87a883) auf realen Geräten verifizieren.",
-    "Klären: Widerspruch zwischen `CLAUDE.md` und CI-Deploy-Verhalten der Mini-Apps auflösen."
+    "Analysieren: Die 90 Dependabot-Alerts auf `master` prüfen und Behebung planen.",
+    "Verifizieren: iOS Mini-App Login (ca22778 / Live a87a883) auf realen Geräten abnehmen.",
+    "Klären: Widerspruch zwischen `CLAUDE.md` (via `NEXT.md`) und CI-Deploy-Verhalten der Mini-Apps auflösen."
    ],
-   "veraendert": "Der `dev`-Branch ist nicht mehr vor `master`, beide sind nun auf dem gleichen Commit `8dd9d7a`, und der ausstehende `Check (Fuel)`-Workflow ist erfolgreich abgeschlossen.",
+   "veraendert": "Der `PR-AutoMerge (Dependabot -> dev)`-Workflow wurde heute erfolgreich ausgeführt, was eine neue Aktivität darstellt.",
    "fragen": [
-    "Welche Rollout-Reihenfolge ist für den v3→v4-Wechsel der Endpoints vorgesehen?",
-    "Soll die Datenmigration des v3-Stores (File+SQLite) nach Postgres geplant werden, und welche Datenbesitzer/Tabellen sind betroffen?"
+    "Soll die Analyse und Behebung der 90 Dependabot-Alerts auf `master` priorisiert werden?",
+    "Wann soll der Widerspruch zwischen der Dokumentation und dem CI-Deploy-Verhalten der Mini-Apps geklärt werden?"
    ],
    "model": "gemini-2.5-flash"
   },
-  "ai_at": "2026-11-16T13:05:38+00:00"
+  "ai_at": "2026-11-17T13:46:59+00:00"
  }
 }
