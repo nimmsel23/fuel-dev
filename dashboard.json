@@ -1,12 +1,12 @@
 {
  "evidence": {
-  "generated_at": "2026-11-17T17:08:34+00:00",
+  "generated_at": "2026-11-17T17:14:14+00:00",
   "repo": "nimmsel23/fuel-dev",
   "meta": {
    "name": "fuel-dev",
    "description": null,
    "html_url": "https://github.com/nimmsel23/fuel-dev",
-   "pushed_at": "2026-11-17T17:08:16Z",
+   "pushed_at": "2026-11-17T17:13:56Z",
    "default_branch": "master",
    "visibility": "public",
    "pages_url": "https://nimmsel23.github.io/fuel-dev/"
@@ -20,11 +20,17 @@
    "has_dev": true,
    "dev_behind": 0,
    "dev_ahead": 1,
-   "oldest_unpromoted": "2026-11-17T18:08:13+01:00",
-   "dev_head": "3fb9e87 2026-11-17T18:08:13+01:00",
-   "master_head": "b5bd1b4 2026-11-17T17:05:56+01:00"
+   "oldest_unpromoted": "2026-11-17T18:13:53+01:00",
+   "dev_head": "11c995d 2026-11-17T18:13:53+01:00",
+   "master_head": "3fb9e87 2026-11-17T18:08:13+01:00"
   },
   "commits": [
+   {
+    "sha": "11c995d",
+    "date": "2026-11-17T18:13:53+01:00",
+    "author": "Alpha",
+    "subject": "feat(hosting): Mini-Apps unter vos-fuel.web.app/<id>/"
+   },
    {
     "sha": "3fb9e87",
     "date": "2026-11-17T18:08:13+01:00",
@@ -138,12 +144,6 @@
     "date": "2026-11-12T14:48:22Z",
     "author": "Cursor Agent",
     "subject": "fix(fuel): Wochenansicht an Europe/Vienna und Wasser-Tage binden"
-   },
-   {
-    "sha": "8746c8f",
-    "date": "2026-11-12T14:46:15+01:00",
-    "author": "Alpha",
-    "subject": "docs(al): 2026-11-12 14:40 — a28fea24 Dep #25/#26 Sync skip + squash"
    }
   ],
   "activity": [
@@ -229,29 +229,19 @@
    },
    {
     "day": "2026-11-17",
-    "n": 2
+    "n": 3
    }
   ],
   "workflows": [
-   {
-    "name": "Live Deploy (Fuel Mini-Apps je Tab)",
-    "branch": "dev",
-    "event": "push",
-    "status": "in_progress",
-    "conclusion": null,
-    "created_at": "2026-11-17T17:08:18Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/44133625534",
-    "sha": "3fb9e87"
-   },
    {
     "name": "Preview (Fuel dev)",
     "branch": "dev",
     "event": "push",
     "status": "in_progress",
     "conclusion": null,
-    "created_at": "2026-11-17T17:08:18Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/44133625474",
-    "sha": "3fb9e87"
+    "created_at": "2026-11-17T17:13:58Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/44134680814",
+    "sha": "11c995d"
    },
    {
     "name": "Check (Fuel)",
@@ -259,9 +249,19 @@
     "event": "push",
     "status": "in_progress",
     "conclusion": null,
-    "created_at": "2026-11-17T17:08:18Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/44133625473",
-    "sha": "3fb9e87"
+    "created_at": "2026-11-17T17:13:58Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/44134680649",
+    "sha": "11c995d"
+   },
+   {
+    "name": "Live Deploy (Fuel Mini-Apps je Tab)",
+    "branch": "dev",
+    "event": "push",
+    "status": "in_progress",
+    "conclusion": null,
+    "created_at": "2026-11-17T17:13:58Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/44134680606",
+    "sha": "11c995d"
    },
    {
     "name": "Gemini CI Agent",
@@ -269,39 +269,39 @@
     "event": "workflow_run",
     "status": "completed",
     "conclusion": "success",
-    "created_at": "2026-11-17T16:06:50Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/44122015097",
+    "created_at": "2026-11-17T17:09:40Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/44133873276",
+    "sha": "3fb9e87"
+   },
+   {
+    "name": "Live Deploy (Fuel master)",
+    "branch": "master",
+    "event": "workflow_dispatch",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-11-17T17:09:29Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/44133840510",
+    "sha": "3fb9e87"
+   },
+   {
+    "name": "PR-AutoMerge (Dependabot -> dev)",
+    "branch": "master",
+    "event": "workflow_run",
+    "status": "completed",
+    "conclusion": "skipped",
+    "created_at": "2026-11-17T17:09:19Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/44133806062",
     "sha": "b5bd1b4"
    },
    {
     "name": "Auto-Promote dev -> master (Check (Fuel))",
     "branch": "master",
-    "event": "push",
+    "event": "workflow_run",
     "status": "completed",
     "conclusion": "success",
-    "created_at": "2026-11-17T16:05:59Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/44121850948",
+    "created_at": "2026-11-17T17:09:19Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/44133805956",
     "sha": "b5bd1b4"
-   },
-   {
-    "name": "Live Deploy (Fuel master)",
-    "branch": "master",
-    "event": "push",
-    "status": "completed",
-    "conclusion": "success",
-    "created_at": "2026-11-17T16:05:59Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/44121849730",
-    "sha": "b5bd1b4"
-   },
-   {
-    "name": "PR-AutoMerge (Dependabot -> dev)",
-    "branch": "master",
-    "event": "schedule",
-    "status": "completed",
-    "conclusion": "success",
-    "created_at": "2026-11-17T13:04:19Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/44089078180",
-    "sha": "8dd9d7a"
    }
   ],
   "issues": [],
@@ -320,34 +320,27 @@
   "status": "green",
   "signals": [],
   "ai": {
-   "headline": "Dev-Branch voraus mit neuem Fix; Master-Deploy erfolgreich abgeschlossen.",
-   "lage": "Der `dev`-Branch ist mit Commit `3fb9e87` (`fix(auth)`) einen Commit vor `master`. Der `Live Deploy (Fuel master)` Workflow für `b5bd1b4` wurde erfolgreich abgeschlossen. Aktuell sind drei Workflows (`Live Deploy (Fuel Mini-Apps je Tab)`, `Preview (Fuel dev)`, `Check (Fuel)`) für den neuen `dev`-Commit `3fb9e87` in Bearbeitung.",
+   "headline": "Dev-Branch mit neuer Funktion; Master-Deploy des Fixes erfolgreich.",
+   "lage": "Der `dev`-Branch ist mit Commit `11c995d` (`feat(hosting)`) einen Commit vor `master`. Der `Live Deploy (Fuel master)` Workflow für `3fb9e87` wurde erfolgreich abgeschlossen. Aktuell sind drei Workflows (`Preview (Fuel dev)`, `Check (Fuel)`, `Live Deploy (Fuel Mini-Apps je Tab)`) für den neuen `dev`-Commit `11c995d` in Bearbeitung.",
    "auffaelligkeiten": [
     {
-     "level": "hoch",
-     "text": "Der `dev`-Branch ist mit Commit `3fb9e87` einen Commit vor `master`, wodurch die Synchronisation der Branches aufgehoben ist."
+     "level": "mittel",
+     "text": "Es gibt weiterhin 90 Dependabot-Alerts (3 kritische) auf dem `master`-Branch, wie in `NEXT.md` vermerkt."
     },
     {
      "level": "info",
-     "text": "Drei Workflows auf `dev` für `3fb9e87` sind aktuell `in_progress`."
-    },
-    {
-     "level": "info",
-     "text": "Gemäß `NEXT.md` sind weiterhin 90 Dependabot-Alerts auf `master` und die Abnahme des iOS Mini-App Logins offen."
+     "text": "Die Abnahme des iOS Mini-App Logins (ca22778 / Live a87a883) steht noch aus, wie in `NEXT.md` beschrieben."
     }
    ],
    "naechste_schritte": [
-    "Überwachen: Den Status der drei `in_progress` Workflows auf `dev` für `3fb9e87` prüfen.",
+    "Überwachen: Den Status der drei `in_progress` Workflows auf `dev` für `11c995d` prüfen.",
     "Analysieren: Die 90 Dependabot-Alerts auf `master` gemäß `NEXT.md` prüfen.",
     "Verifizieren: iOS Mini-App Login (ca22778 / Live a87a883) auf realen Geräten abnehmen."
    ],
-   "veraendert": "Die Branches `dev` und `master` sind nicht mehr synchronisiert, da `dev` mit Commit `3fb9e87` voraus ist, und der `Live Deploy (Fuel master)` Workflow für `b5bd1b4` wurde erfolgreich abgeschlossen.",
-   "fragen": [
-    "Soll der `dev`-Commit `3fb9e87` (`fix(auth)`) auf `master` promotet werden?",
-    "Wie soll mit den 90 Dependabot-Alerts auf `master` (gemäß `NEXT.md`) verfahren werden?"
-   ],
+   "veraendert": "Gegenüber der letzten Einschätzung wurde der `fix(auth)`-Commit `3fb9e87` erfolgreich auf `master` deployed, und der `dev`-Branch hat einen neuen `feat(hosting)`-Commit `11c995d`.",
+   "fragen": [],
    "model": "gemini-2.5-flash"
   },
-  "ai_at": "2026-11-17T17:08:37+00:00"
+  "ai_at": "2026-11-17T17:14:16+00:00"
  }
 }
