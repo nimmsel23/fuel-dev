@@ -1,12 +1,12 @@
 {
  "evidence": {
-  "generated_at": "2026-11-17T13:46:57+00:00",
+  "generated_at": "2026-11-17T16:06:21+00:00",
   "repo": "nimmsel23/fuel-dev",
   "meta": {
    "name": "fuel-dev",
    "description": null,
    "html_url": "https://github.com/nimmsel23/fuel-dev",
-   "pushed_at": "2026-11-16T13:05:55Z",
+   "pushed_at": "2026-11-17T16:06:10Z",
    "default_branch": "master",
    "visibility": "public",
    "pages_url": "https://nimmsel23.github.io/fuel-dev/"
@@ -21,10 +21,16 @@
    "dev_behind": 0,
    "dev_ahead": 0,
    "oldest_unpromoted": null,
-   "dev_head": "8dd9d7a 2026-11-16T11:35:33Z",
-   "master_head": "8dd9d7a 2026-11-16T11:35:33Z"
+   "dev_head": "b5bd1b4 2026-11-17T17:05:56+01:00",
+   "master_head": "b5bd1b4 2026-11-17T17:05:56+01:00"
   },
   "commits": [
+   {
+    "sha": "b5bd1b4",
+    "date": "2026-11-17T17:05:56+01:00",
+    "author": "nimmsel23",
+    "subject": "org-bot: Workflow installieren (Org-Autonomie 16.11.2026)"
+   },
    {
     "sha": "8dd9d7a",
     "date": "2026-11-16T11:35:33Z",
@@ -138,12 +144,6 @@
     "date": "2026-11-12T13:44:14Z",
     "author": "dependabot[bot]",
     "subject": "chore(deps): bump fast-xml-parser from 5.10.1 to 5.12.0 in /functions (#26)"
-   },
-   {
-    "sha": "ba1377f",
-    "date": "2026-11-12T13:43:57Z",
-    "author": "dependabot[bot]",
-    "subject": "chore(deps): bump node-forge from 1.4.0 to 1.4.3 in /functions (#25)"
    }
   ],
   "activity": [
@@ -229,10 +229,30 @@
    },
    {
     "day": "2026-11-17",
-    "n": 0
+    "n": 1
    }
   ],
   "workflows": [
+   {
+    "name": "Auto-Promote dev -> master (Check (Fuel))",
+    "branch": "master",
+    "event": "push",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-11-17T16:05:59Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/44121850948",
+    "sha": "b5bd1b4"
+   },
+   {
+    "name": "Live Deploy (Fuel master)",
+    "branch": "master",
+    "event": "push",
+    "status": "in_progress",
+    "conclusion": null,
+    "created_at": "2026-11-17T16:05:59Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/44121849730",
+    "sha": "b5bd1b4"
+   },
    {
     "name": "PR-AutoMerge (Dependabot -> dev)",
     "branch": "master",
@@ -241,26 +261,6 @@
     "conclusion": "success",
     "created_at": "2026-11-17T13:04:19Z",
     "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/44089078180",
-    "sha": "8dd9d7a"
-   },
-   {
-    "name": "Auto-Promote dev -> master (Check (Fuel))",
-    "branch": "master",
-    "event": "schedule",
-    "status": "completed",
-    "conclusion": "success",
-    "created_at": "2026-11-17T09:11:57Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/44053349840",
-    "sha": "8dd9d7a"
-   },
-   {
-    "name": "Live Deploy (Fuel master)",
-    "branch": "master",
-    "event": "workflow_dispatch",
-    "status": "completed",
-    "conclusion": "success",
-    "created_at": "2026-11-16T11:36:21Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/43859213450",
     "sha": "8dd9d7a"
    },
    {
@@ -310,34 +310,38 @@
   "status": "green",
   "signals": [],
   "ai": {
-   "headline": "CI-Läufe erfolgreich, dev/master synchronisiert; Dependabot-Merge aktiv.",
-   "lage": "Der `dev`-Branch und `master` sind weiterhin auf Commit `8dd9d7a` synchronisiert. Die Workflows `Check (Fuel)` und `Auto-Promote dev -> master` wurden heute erneut erfolgreich abgeschlossen, gefolgt von einem erfolgreichen `PR-AutoMerge (Dependabot -> dev)`-Workflow.",
+   "headline": "Branches synchronisiert auf b5bd1b4; Live Deploy läuft, Dependabot erfolgreich.",
+   "lage": "Die Branches `dev` und `master` sind auf Commit `b5bd1b4` synchronisiert. Der Workflow `Auto-Promote dev -> master (Check (Fuel))` für `b5bd1b4` wurde erfolgreich abgeschlossen, während ein neuer `Live Deploy (Fuel master)` Workflow für denselben Commit aktuell in Bearbeitung ist. Der `PR-AutoMerge (Dependabot -> dev)` Workflow für den vorherigen Commit `8dd9d7a` war erfolgreich.",
    "auffaelligkeiten": [
     {
-     "level": "hoch",
-     "text": "Die 90 Dependabot-Alerts auf `master` sind laut `NEXT.md` weiterhin offen und unbehandelt."
+     "level": "mittel",
+     "text": "Der `Live Deploy (Fuel master)` Workflow für Commit `b5bd1b4` ist aktuell noch 'in_progress'."
     },
     {
      "level": "mittel",
-     "text": "Die Verifikation des iOS Mini-App Logins (ca22778 / Live a87a883) auf realen Geräten steht laut `NEXT.md` noch aus."
+     "text": "Die in `NEXT.md` erwähnten 90 Dependabot-Alerts auf `master` sind in der Evidenz weiterhin unadressiert."
+    },
+    {
+     "level": "mittel",
+     "text": "Der in `NEXT.md` beschriebene Widerspruch zwischen der Regel 'Mini-Apps kein CI-Deploy' und dem CI-Deploy-Verhalten der Mini-Apps ist weiterhin offen."
     },
     {
      "level": "info",
-     "text": "Der Widerspruch zwischen der Dokumentation (`CLAUDE.md` Referenz in `NEXT.md`, `README.md`) und dem CI-Deploy-Verhalten der Mini-Apps ist noch nicht geklärt."
+     "text": "Der neueste Commit `b5bd1b4` ('org-bot: Workflow installieren') wurde heute von nimmsel23 gepusht."
     }
    ],
    "naechste_schritte": [
-    "Analysieren: Die 90 Dependabot-Alerts auf `master` prüfen und Behebung planen.",
-    "Verifizieren: iOS Mini-App Login (ca22778 / Live a87a883) auf realen Geräten abnehmen.",
-    "Klären: Widerspruch zwischen `CLAUDE.md` (via `NEXT.md`) und CI-Deploy-Verhalten der Mini-Apps auflösen."
+    "Überwachen: Den Status des `Live Deploy (Fuel master)` Workflows für `b5bd1b4` prüfen.",
+    "Analysieren: Die 90 Dependabot-Alerts auf `master` (gemäß `NEXT.md`) prüfen und Behebung planen.",
+    "Verifizieren: iOS Mini-App Login (ca22778 / Live a87a883) auf realen Geräten abnehmen."
    ],
-   "veraendert": "Der `PR-AutoMerge (Dependabot -> dev)`-Workflow wurde heute erfolgreich ausgeführt, was eine neue Aktivität darstellt.",
+   "veraendert": "Die Branches `dev` und `master` sind von Commit `8dd9d7a` auf `b5bd1b4` aktualisiert worden, und ein neuer `Live Deploy (Fuel master)` Workflow ist gestartet.",
    "fragen": [
-    "Soll die Analyse und Behebung der 90 Dependabot-Alerts auf `master` priorisiert werden?",
-    "Wann soll der Widerspruch zwischen der Dokumentation und dem CI-Deploy-Verhalten der Mini-Apps geklärt werden?"
+    "Sollen die 90 Dependabot-Alerts auf `master` (aus `NEXT.md`) aktiv bearbeitet werden, oder wird der nächste `vos-release-pr fuel` abgewartet?",
+    "Wie soll der Widerspruch zwischen der Regel 'Mini-Apps kein CI-Deploy' in `CLAUDE.md` und dem tatsächlichen CI-Deploy-Verhalten der Mini-Apps aufgelöst werden?"
    ],
    "model": "gemini-2.5-flash"
   },
-  "ai_at": "2026-11-17T13:46:59+00:00"
+  "ai_at": "2026-11-17T16:06:24+00:00"
  }
 }
