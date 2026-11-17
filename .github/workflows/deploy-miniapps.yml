@@ -145,7 +145,7 @@ jobs:
         working-directory: fuel-dev
         env:
           FIREBASE_CONFIG: ${{ secrets.FIREBASE_CONFIG }}
-          FIREBASE_AUTH_DOMAIN: ${{ matrix.site }}.web.app
+          FIREBASE_AUTH_DOMAIN: vos-fuel.web.app
         run: |
           if [ -n "$FIREBASE_CONFIG" ]; then
             printf '%s\n' "$FIREBASE_CONFIG" > src/client/lib/firebase.config.js
@@ -161,7 +161,7 @@ jobs:
           if (!pattern.test(source)) throw new Error('Firebase config has no authDomain field');
           writeFileSync(file, source.replace(pattern, (_match, prefix, suffix) =>
             `${prefix}${process.env.FIREBASE_AUTH_DOMAIN}${suffix}`));
-          console.log(`Firebase authDomain set for this mini-app: ${process.env.FIREBASE_AUTH_DOMAIN}`);
+          console.log(`Firebase authDomain (zentral): ${process.env.FIREBASE_AUTH_DOMAIN}`);
           NODE
 
       - name: Build ${{ matrix.id }}

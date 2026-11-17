@@ -10,23 +10,15 @@ import {
 } from "../src/client/lib/authFlow.js"
 
 const CONFIGURED = "fitness-aos.firebaseapp.com"
+const CENTRAL = "vos-fuel.web.app"
 const IPHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1"
 const CR_IOS = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/131.0.6778.73 Mobile/15E148 Safari/604.1"
 const WEBVIEW = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148"
 const DESKTOP = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Safari/605.1.15"
 
-test("Firebase-Hosting-Sites nutzen die Seiten-Domain als authDomain", () => {
-  const hosts = [
-    "fuel-vos.web.app",
-    "fuel-vos.firebaseapp.com",
-    "vos-fuel-log.web.app",
-    "vos-fuel-supplements.web.app",
-    "vos-fuel-mikros.web.app",
-    "vos-fuel-protokoll.web.app",
-    "fuel-vos--pr-24-abc.web.app",
-  ]
-  for (const host of hosts) {
-    assert.equal(resolveAuthDomain(CONFIGURED, host), host)
+test("alle Hosts nutzen die zentrale authDomain vos-fuel.web.app", () => {
+  for (const host of ["vos-fuel.web.app", "fuel-vos.web.app", "fuel-os.web.app", "vos-fuel-log.web.app", "localhost", "192.168.1.20", ""]) {
+    assert.equal(resolveAuthDomain(CENTRAL, host), CENTRAL)
   }
 })
 

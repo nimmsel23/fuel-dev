@@ -3,8 +3,6 @@
  * Kein Firebase-Import: derselbe Pfad gilt für Cloud-App, Mini-Apps, Coach und Shell.
  */
 
-const FIREBASE_HOSTING = /\.(?:web\.app|firebaseapp\.com)$/i
-
 function normalizeHost(hostname) {
   return String(hostname || "")
     .trim()
@@ -25,18 +23,14 @@ function isLocalHost(host) {
 }
 
 /**
- * Safari blockiert Speicher von fitness-aos.firebaseapp.com, wenn die App auf
- * einer anderen Hosting-Site liegt. Auf *.web.app / *.firebaseapp.com liefert
- * Firebase den Auth-Handler unter /__/auth selbst aus — die Domain der Seite
- * ist dann die richtige authDomain. Lokale und fremde Hosts bleiben beim
- * Projekt-Default, sonst zeigt der Handler ins Leere.
+ * Alle gehosteten Mini-Apps authentifizieren zentral über vos-fuel.web.app
+ * (authDomain aus firebase.config.js, dort liegt der /__/auth-Handler und die
+ * registrierte OAuth-Redirect-URI). Die Seiten-Domain wird bewusst NICHT
+ * übernommen — jede *.web.app als authDomain bräuchte eine eigene Redirect-URI
+ * im OAuth-Client (sonst redirect_uri_mismatch).
  */
-export function resolveAuthDomain(configured, hostname) {
-  const configuredDomain = String(configured || "").trim()
-  const host = normalizeHost(hostname)
-  if (!host || isLocalHost(host)) return configuredDomain
-  if (FIREBASE_HOSTING.test(host)) return host
-  return configuredDomain
+export function resolveAuthDomain(configured, _hostname) {
+  return String(configured || "").trim()
 }
 
 export function sameSiteAuth(pageHost, authDomain) {
