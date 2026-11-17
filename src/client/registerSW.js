@@ -23,7 +23,8 @@ if (import.meta.env.DEV) {
     caches.keys().then((keys) => keys.forEach((k) => caches.delete(k)));
   }
 } else if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("/sw.js").then((reg) => {
+  // relativ: Mini-Apps unter /<id>/ registrieren ihren eigenen SW mit Scope /<id>/
+  navigator.serviceWorker.register("./sw.js").then((reg) => {
     window.__swRegistration = reg;
     startSwAuthBridge();
     const notify = () => window.dispatchEvent(new CustomEvent("sw-update-available"));

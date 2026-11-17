@@ -17,7 +17,7 @@
     "build:android": "pnpm run native:sync && cd android && ./gradlew assembleDebug",
     "run:android": "pnpm run native:sync && cap run android",
     "build:local": "VITE_APP_MODE=coach vite build --config vite.config.js && node scripts/mini-app-shell/cli.mjs sw dist --app fuel && node scripts/mini-app-shell/cli.mjs splash dist --app fuel",
-    "build:cloud": "VITE_APP_MODE=client vite build --config vite.config.cjs && pnpm run stamp:sw",
+    "build:cloud": "VITE_APP_MODE=client vite build --config vite.config.cjs && pnpm run stamp:sw && node scripts/bundle-miniapps.mjs",
     "build:firebase": "pnpm run build:cloud",
     "deploy:local": "./deploy.sh",
     "deploy:cloud": "pnpm run build:cloud && firebase deploy --only hosting:client --project fitness-aos",
