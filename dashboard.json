@@ -1,12 +1,12 @@
 {
  "evidence": {
-  "generated_at": "2026-11-19T13:48:54+00:00",
+  "generated_at": "2026-11-20T13:31:24+00:00",
   "repo": "nimmsel23/fuel-dev",
   "meta": {
    "name": "fuel-dev",
    "description": null,
    "html_url": "https://github.com/nimmsel23/fuel-dev",
-   "pushed_at": "2026-11-18T13:22:58Z",
+   "pushed_at": "2026-11-19T13:49:12Z",
    "default_branch": "master",
    "visibility": "public",
    "pages_url": "https://nimmsel23.github.io/fuel-dev/"
@@ -148,12 +148,8 @@
   ],
   "activity": [
    {
-    "day": "2026-10-30",
-    "n": 0
-   },
-   {
     "day": "2026-10-31",
-    "n": 4
+    "n": 1
    },
    {
     "day": "2026-11-01",
@@ -230,6 +226,10 @@
    {
     "day": "2026-11-19",
     "n": 0
+   },
+   {
+    "day": "2026-11-20",
+    "n": 0
    }
   ],
   "workflows": [
@@ -239,8 +239,8 @@
     "event": "schedule",
     "status": "completed",
     "conclusion": "success",
-    "created_at": "2026-11-19T12:48:05Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/44527260959",
+    "created_at": "2026-11-20T11:16:44Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/44726279499",
     "sha": "11c995d"
    },
    {
@@ -249,8 +249,8 @@
     "event": "schedule",
     "status": "completed",
     "conclusion": "success",
-    "created_at": "2026-11-19T07:56:21Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/44483470771",
+    "created_at": "2026-11-20T07:10:30Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/44693013538",
     "sha": "11c995d"
    },
    {
@@ -320,38 +320,34 @@
   "status": "green",
   "signals": [],
   "ai": {
-   "headline": "Dev- und Master-Branch synchronisiert; alle Workflows inkl. Dependabot-AutoMerge erfolgreich.",
-   "lage": "Der `dev`-Branch ist weiterhin mit `master` auf Commit `11c995d` synchronisiert. Alle relevanten Workflows, einschließlich des neuen `PR-AutoMerge (Dependabot -> dev)` und `Auto-Promote dev -> master (Check (Fuel))`, wurden erfolgreich abgeschlossen. Offene Punkte gemäß `NEXT.md` sind die 90 Dependabot-Alerts und die Abnahme des iOS Mini-App Logins.",
+   "headline": "Dev- und Master-Branch synchronisiert; alle Workflows erfolgreich abgeschlossen.",
+   "lage": "Der `dev`-Branch ist weiterhin mit `master` auf Commit `11c995d` synchronisiert. Alle geplanten Workflows, inklusive `PR-AutoMerge (Dependabot -> dev)` und `Auto-Promote dev -> master (Check (Fuel))`, wurden erfolgreich ausgeführt. Die in `NEXT.md` gelisteten 90 Dependabot-Alerts und die Abnahme des iOS Mini-App Logins sind noch offen.",
    "auffaelligkeiten": [
     {
      "level": "mittel",
-     "text": "Es bestehen weiterhin 90 Dependabot-Alerts (3 kritische) auf dem `master`-Branch, die gemäß `NEXT.md` einer Analyse bedürfen."
+     "text": "90 Dependabot-Alerts (3 kritische) auf dem `master`-Branch sind gemäß `NEXT.md` noch zu prüfen."
     },
     {
      "level": "mittel",
-     "text": "Die Abnahme des iOS Mini-App Login (ca22778 / Live `a87a883`) auf realen Geräten ist gemäß `NEXT.md` noch ausstehend."
+     "text": "Die Abnahme des iOS Mini-App Logins (ca22778 / Live a87a883) auf realen Geräten steht noch aus."
     },
     {
      "level": "info",
-     "text": "Der neue Workflow `PR-AutoMerge (Dependabot -> dev)` wurde erfolgreich ausgeführt (Run 44527260959)."
-    },
-    {
-     "level": "info",
-     "text": "Der `Auto-Promote dev -> master (Check (Fuel))` Workflow (Run 44483470771) hat die Synchronisation von `dev` und `master` bestätigt."
+     "text": "Die Einrichtung und Prüfung von `GEMINI_API_KEY` und `SYNC_TOKEN` als Actions-Secrets ist in `NEXT.md` als offener Betriebspunkt vermerkt."
     }
    ],
    "naechste_schritte": [
-    "Analysieren: Die 90 Dependabot-Alerts auf master gemäß NEXT.md prüfen und den Prozess zur Behebung starten.",
+    "Analysieren: Die 90 Dependabot-Alerts auf `master` gemäß `NEXT.md` prüfen und den Behebungsprozess starten.",
     "Verifizieren: iOS Mini-App Login (ca22778 / Live a87a883) auf realen Geräten abnehmen.",
-    "Bestätigen: Den Abschluss des \"Org-Task 6a0eeebc\" nach dem erfolgreichen \"PR-AutoMerge (Dependabot -> dev)\" Workflow verifizieren."
+    "Bestätigen: Den Abschluss des \"Org-Task 6a0eeebc\" nach dem erfolgreichen `PR-AutoMerge (Dependabot -> dev)` Workflow verifizieren."
    ],
-   "veraendert": "Gegenüber der letzten Einschätzung wurde der neue Workflow `PR-AutoMerge (Dependabot -> dev)` erfolgreich ausgeführt.",
+   "veraendert": "Der `PR-AutoMerge (Dependabot -> dev)` Workflow wurde erneut erfolgreich ausgeführt, was die Verifizierung des 'Org-Task 6a0eeebc' ermöglicht.",
    "fragen": [
-    "Ist der \"Org-Task 6a0eeebc\" nach dem erfolgreichen \"PR-AutoMerge (Dependabot -> dev)\" Workflow als erledigt zu betrachten oder bedarf es weiterer Prüfung?",
-    "Soll die in README.md erwähnte Regel \"Mini-Apps kein CI-Deploy\" aus CLAUDE.md an die aktuelle Praxis angepasst oder die CI-Deploy-Strategie für Mini-Apps überdacht werden?"
+    "Sollen die `GEMINI_API_KEY` und `SYNC_TOKEN` als Actions-Secrets für diesen Repo-Zweig eingerichtet und geprüft werden?",
+    "Soll die Bearbeitung der 90 Dependabot-Alerts (3 kritische) priorisiert werden, um die Stabilität zu verbessern?"
    ],
    "model": "gemini-2.5-flash"
   },
-  "ai_at": "2026-11-19T13:48:56+00:00"
+  "ai_at": "2026-11-20T13:31:26+00:00"
  }
 }
