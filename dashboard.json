@@ -1,12 +1,12 @@
 {
  "evidence": {
-  "generated_at": "2026-11-21T12:57:17+00:00",
+  "generated_at": "2026-11-21T20:08:27+00:00",
   "repo": "nimmsel23/fuel-dev",
   "meta": {
    "name": "fuel-dev",
    "description": null,
    "html_url": "https://github.com/nimmsel23/fuel-dev",
-   "pushed_at": "2026-11-20T13:31:43Z",
+   "pushed_at": "2026-11-21T12:57:36Z",
    "default_branch": "master",
    "visibility": "public",
    "pages_url": "https://nimmsel23.github.io/fuel-dev/"
@@ -149,7 +149,7 @@
   "activity": [
    {
     "day": "2026-11-01",
-    "n": 1
+    "n": 0
    },
    {
     "day": "2026-11-02",
@@ -239,8 +239,8 @@
     "event": "schedule",
     "status": "completed",
     "conclusion": "success",
-    "created_at": "2026-11-21T11:46:59Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/44900728845",
+    "created_at": "2026-11-21T18:15:21Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/44934509630",
     "sha": "11c995d"
    },
    {
@@ -249,8 +249,8 @@
     "event": "schedule",
     "status": "completed",
     "conclusion": "success",
-    "created_at": "2026-11-21T09:35:09Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/44890276425",
+    "created_at": "2026-11-21T17:19:18Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/44929386036",
     "sha": "11c995d"
    },
    {
@@ -320,26 +320,27 @@
   "status": "green",
   "signals": [],
   "ai": {
-   "headline": "Branches synchronisiert, Workflows erfolgreich, 90 Dependabot-Alerts offen.",
+   "headline": "Repo synchronisiert, Workflows erfolgreich, 90 Dependabot-Alerts offen.",
    "lage": "Der `dev`-Branch ist weiterhin mit `master` auf Commit `11c995d` synchronisiert. Alle geplanten Workflows, inklusive `PR-AutoMerge (Dependabot -> dev)` und `Auto-Promote dev -> master (Check (Fuel))`, wurden erfolgreich ausgeführt. Die in `NEXT.md` gelisteten 90 Dependabot-Alerts und die Abnahme des iOS Mini-App Logins sind noch offen.",
    "auffaelligkeiten": [
     {
      "level": "hoch",
-     "text": "90 Dependabot-Alerts (3 kritische) sind auf dem `master`-Branch gemäß `NEXT.md` offen."
+     "text": "90 Dependabot-Alerts (3 kritische) auf dem `master`-Branch sind weiterhin offen und müssen gemäß `NEXT.md` geprüft werden."
+    },
+    {
+     "level": "mittel",
+     "text": "Die Abnahme des iOS Mini-App Logins (ca22778 / Live a87a883) auf realen Geräten ist noch ausstehend."
     }
    ],
    "naechste_schritte": [
-    "Verifizieren: Org-Task 6a0eeebc nach erfolgreichem `PR-AutoMerge (Dependabot -> dev)` Workflow bestätigen.",
+    "Verifizieren: Org-Task 6a0eeebc nach erneut erfolgreichem `PR-AutoMerge (Dependabot -> dev)` Workflow bestätigen.",
     "Analysieren: Die 90 Dependabot-Alerts auf `master` gemäß `NEXT.md` prüfen und Behebungsprozess starten.",
     "Abnehmen: iOS Mini-App Login (ca22778 / Live a87a883) auf realen Geräten."
    ],
-   "veraendert": "Der `PR-AutoMerge (Dependabot -> dev)` Workflow wurde erfolgreich abgeschlossen, was die Verifizierung des Org-Task 6a0eeebc ermöglicht.",
-   "fragen": [
-    "Wie soll die Datenmigration des v3-Stores (File+SQLite) zu Postgres für v4 erfolgen?",
-    "Welche Rollout-Reihenfolge ist für den Wechsel der Endpoints von v3 zu v4 vorgesehen?"
-   ],
+   "veraendert": "Der `PR-AutoMerge (Dependabot -> dev)` Workflow wurde erneut erfolgreich ausgeführt, was die Verifizierung von Org-Task 6a0eeebc ermöglicht.",
+   "fragen": [],
    "model": "gemini-2.5-flash"
   },
-  "ai_at": "2026-11-21T12:57:19+00:00"
+  "ai_at": "2026-11-21T20:08:29+00:00"
  }
 }
