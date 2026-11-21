@@ -1,5 +1,5 @@
 <!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>fuel-dev — Dev-Dashboard</title><style>
+<title>fuel-dev — App-Links</title><style>
 :root{--bg:#0b0d12;--fg:#e8eaf0;--mut:#8b93a7;--card:#141822;--line:#232a3a;--ok:#34d399;--warn:#fbbf24;--bad:#f87171}
 @media(prefers-color-scheme:light){:root{--bg:#f5f6fa;--fg:#161a24;--mut:#5d667a;--card:#fff;--line:#dde1ea}}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,sans-serif;padding:24px 16px 48px}
@@ -19,32 +19,36 @@ a.planned{opacity:.6;border-style:dashed;cursor:default}
 .hide{display:none}
 .legend{font-size:12px;color:var(--mut);margin:8px 0 0;line-height:1.45}
 </style></head><body><main>
-<h1>fuel-dev — Dev-Dashboard</h1>
-<p class="sub">6 Hosting-Apps aus mini-app.json / miniapps.json / .firebaserc · erzeugt 2026-11-11T11:17:02Z · Quelle: vos-portal (nicht von Hand editieren; Status-Overlay: portal/dev-status.json)</p>
-<nav class="links"><a href="https://github.com/nimmsel23/vitalos/blob/master/prod/coordination/PRODUCT.md" target="_blank" rel="noopener">Produkt (PRODUCT.md)</a><a href="https://github.com/nimmsel23/vitalos/blob/master/prod/coordination/README.md" target="_blank" rel="noopener">Koordination</a><a href="https://github.com/nimmsel23/vitalos/blob/master/prod/coordination/PRODUKT-BACKLOG.md" target="_blank" rel="noopener">Backlog</a><a href="https://github.com/nimmsel23/vitalos/blob/master/prod/coordination/CTO.md" target="_blank" rel="noopener">CTO</a><a href="https://nimmsel23.github.io/vitalos/" target="_blank" rel="noopener">Meta Pages</a><a href="https://nimmsel23.github.io/vitalos/dev-dashboard.html" target="_blank" rel="noopener">Dev-Dashboard</a><a href="https://nimmsel23.github.io/fuel-dev/" target="_blank" rel="noopener">Repo Pages</a><a href="./apps.json" target="_blank" rel="noopener">apps.json</a></nav>
+<h1>fuel-dev — App-Links</h1>
+<p class="sub">7 Hosting-Apps / Surfaces (kein Dashboard — nur Links) · erzeugt 2026-11-21T18:30:58Z · Quelle: vos-portal (nicht von Hand editieren; Status-Overlay: portal/dev-status.json)</p>
+<nav class="links"><a href="https://github.com/nimmsel23/vitalos/blob/master/prod/coordination/PRODUCT.md" target="_blank" rel="noopener">Produkt (PRODUCT.md)</a><a href="https://github.com/nimmsel23/vitalos/blob/master/prod/coordination/README.md" target="_blank" rel="noopener">Koordination</a><a href="https://github.com/nimmsel23/vitalos/blob/master/prod/coordination/PRODUKT-BACKLOG.md" target="_blank" rel="noopener">Backlog</a><a href="https://github.com/nimmsel23/vitalos/blob/master/prod/coordination/CTO.md" target="_blank" rel="noopener">CTO</a><a href="https://nimmsel23.github.io/vitalos/" target="_blank" rel="noopener">Entwicklungsdashboard</a><a href="https://nimmsel23.github.io/vitalos/apps.html" target="_blank" rel="noopener">App-Links &amp; APKs</a><a href="https://vos-dev-dashboards.web.app" target="_blank" rel="noopener">Org-Dashboards</a><a href="https://nimmsel23.github.io/fuel-dev/" target="_blank" rel="noopener">Repo Pages</a><a href="./apps.json" target="_blank" rel="noopener">apps.json</a></nav>
 <input id="q" type="search" placeholder="Suchen (Name, Site, auth, gate, rot) …" autocomplete="off">
 <p class="legend">Tags: auth:* = Login-Domain-Modell · gate:hard sperrt Offline · gate:local-first/soft = App ohne Login nutzbar · rot = offener Betriebsblocker</p>
-<section><h2>Haupt-App</h2><div class="grid"><a class="card" href="https://fuel-os.web.app" target="_blank" rel="noopener" style="--accent:#fb923c" data-q="vitalos fuel fuel-os project-domain soft angenehmes soft-gate (cloud login); eigener hosting-stand, nicht fuel-master-deploy login/abnahme unklar — nicht vom ios-login-pr überschrieben fitness-aos.firebaseapp.com">
+<section><h2>Haupt-App</h2><div class="grid"><a class="card" href="https://fuel-vos.web.app" target="_blank" rel="noopener" style="--accent:#fb923c" data-q="vitalos fuel fuel-vos same-origin soft runtime authdomain=host nach a87a883; braucht oauth redirect uris in gcp redirect_uri_mismatch bis oauth-client uris gesetzt vos-fuel.web.app">
+  <b>VitalOS Fuel</b><small>–</small><small>ROT: redirect_uri_mismatch bis OAuth-Client URIs gesetzt</small>
+  <span class="tag">fuel-vos</span> <span class="tag">Haupt-App</span><span class="tag warn">auth:same-origin</span><span class="tag ok">gate:soft</span><span class="tag bad">rot</span>
+</a>
+<a class="card" href="https://fuel-os.web.app" target="_blank" rel="noopener" style="--accent:#fb923c" data-q="vitalos fuel fuel-os project-domain soft angenehmes soft-gate (cloud login); eigener hosting-stand, nicht fuel-master-deploy login/abnahme unklar — nicht vom ios-login-pr überschrieben vos-fuel.web.app">
   <b>VitalOS Fuel</b><small>–</small><small>ROT: Login/Abnahme unklar — nicht vom iOS-Login-PR überschrieben</small>
   <span class="tag">fuel-os</span> <span class="tag">Haupt-App</span><span class="tag ok">auth:project-domain</span><span class="tag ok">gate:soft</span><span class="tag bad">rot</span>
 </a>
-<a class="card" href="https://fuel-vos.web.app" target="_blank" rel="noopener" style="--accent:#fb923c" data-q="vitalos fuel fuel-vos same-origin soft runtime authdomain=host nach a87a883; braucht oauth redirect uris in gcp redirect_uri_mismatch bis oauth-client uris gesetzt fitness-aos.firebaseapp.com">
-  <b>VitalOS Fuel</b><small>–</small><small>ROT: redirect_uri_mismatch bis OAuth-Client URIs gesetzt</small>
-  <span class="tag">fuel-vos</span> <span class="tag">Haupt-App</span><span class="tag warn">auth:same-origin</span><span class="tag ok">gate:soft</span><span class="tag bad">rot</span>
+<a class="card" href="https://vos-fuel.web.app" target="_blank" rel="noopener" style="--accent:#fb923c" data-q="vitalos fuel vos-fuel vos-fuel.web.app">
+  <b>VitalOS Fuel</b><small>–</small>
+  <span class="tag">vos-fuel</span> <span class="tag">Haupt-App</span><span class="tag">authDomain:vos-fuel.web.app</span>
 </a></div></section>
-<section><h2>Mini-Apps</h2><div class="grid"><a class="card" href="https://vos-fuel-log.web.app" target="_blank" rel="noopener" style="--accent:#fb923c" data-q="vitalos fuel log mahlzeiten loggen, tagessumme und makros — der log-tab von fuel als eigene app vos-fuel-log same-origin hard soloshell login-pflicht blockiert offline 400 redirect_uri_mismatch — oauth redirect uri fehlt fitness-aos.firebaseapp.com">
+<section><h2>Mini-Apps</h2><div class="grid"><a class="card" href="https://vos-fuel-log.web.app" target="_blank" rel="noopener" style="--accent:#fb923c" data-q="vitalos fuel log mahlzeiten loggen, tagessumme und makros — der log-tab von fuel als eigene app vos-fuel-log same-origin hard soloshell login-pflicht blockiert offline 400 redirect_uri_mismatch — oauth redirect uri fehlt vos-fuel.web.app">
   <b>VitalOS Fuel Log</b><small>Mahlzeiten loggen, Tagessumme und Makros — der Log-Tab von Fuel als eigene App</small><small>ROT: 400 redirect_uri_mismatch — OAuth redirect URI fehlt</small>
   <span class="tag">vos-fuel-log</span><span class="tag warn">auth:same-origin</span><span class="tag bad">gate:hard</span><span class="tag bad">rot</span>
 </a>
-<a class="card" href="https://vos-fuel-supplements.web.app" target="_blank" rel="noopener" style="--accent:#a3e635" data-q="vitalos supplements deine supplement-routine: einnahmen, wochenplan und persönlicher katalog vos-fuel-supplements same-origin hard 400 redirect_uri_mismatch — oauth redirect uri fehlt fitness-aos.firebaseapp.com">
+<a class="card" href="https://vos-fuel-supplements.web.app" target="_blank" rel="noopener" style="--accent:#a3e635" data-q="vitalos supplements deine supplement-routine: einnahmen, wochenplan und persönlicher katalog vos-fuel-supplements same-origin hard 400 redirect_uri_mismatch — oauth redirect uri fehlt vos-fuel.web.app">
   <b>VitalOS Supplements</b><small>Deine Supplement-Routine: Einnahmen, Wochenplan und persönlicher Katalog</small><small>ROT: 400 redirect_uri_mismatch — OAuth redirect URI fehlt</small>
   <span class="tag">vos-fuel-supplements</span><span class="tag warn">auth:same-origin</span><span class="tag bad">gate:hard</span><span class="tag bad">rot</span>
 </a>
-<a class="card" href="https://vos-fuel-mikros.web.app" target="_blank" rel="noopener" style="--accent:#f472b6" data-q="vitalos fuel mikros mikronährstoffe als wochenheatmap gegen die dach-referenzwerte — der mikros-tab von fuel als eigene app vos-fuel-mikros same-origin hard 400 redirect_uri_mismatch — oauth redirect uri fehlt fitness-aos.firebaseapp.com">
+<a class="card" href="https://vos-fuel-mikros.web.app" target="_blank" rel="noopener" style="--accent:#f472b6" data-q="vitalos fuel mikros mikronährstoffe als wochenheatmap gegen die dach-referenzwerte — der mikros-tab von fuel als eigene app vos-fuel-mikros same-origin hard 400 redirect_uri_mismatch — oauth redirect uri fehlt vos-fuel.web.app">
   <b>VitalOS Fuel Mikros</b><small>Mikronährstoffe als Wochenheatmap gegen die DACH-Referenzwerte — der Mikros-Tab von Fuel als eigene App</small><small>ROT: 400 redirect_uri_mismatch — OAuth redirect URI fehlt</small>
   <span class="tag">vos-fuel-mikros</span><span class="tag warn">auth:same-origin</span><span class="tag bad">gate:hard</span><span class="tag bad">rot</span>
 </a>
-<a class="card" href="https://vos-fuel-protokoll.web.app" target="_blank" rel="noopener" style="--accent:#38bdf8" data-q="vitalos fuel protokoll abgabefertiges 7-/14-tage-ernährungsprotokoll mit druck/pdf — der protokoll-tab von fuel als eigene app vos-fuel-protokoll same-origin hard 400 redirect_uri_mismatch — oauth redirect uri fehlt fitness-aos.firebaseapp.com">
+<a class="card" href="https://vos-fuel-protokoll.web.app" target="_blank" rel="noopener" style="--accent:#38bdf8" data-q="vitalos fuel protokoll abgabefertiges 7-/14-tage-ernährungsprotokoll mit druck/pdf — der protokoll-tab von fuel als eigene app vos-fuel-protokoll same-origin hard 400 redirect_uri_mismatch — oauth redirect uri fehlt vos-fuel.web.app">
   <b>VitalOS Fuel Protokoll</b><small>Abgabefertiges 7-/14-Tage-Ernährungsprotokoll mit Druck/PDF — der Protokoll-Tab von Fuel als eigene App</small><small>ROT: 400 redirect_uri_mismatch — OAuth redirect URI fehlt</small>
   <span class="tag">vos-fuel-protokoll</span><span class="tag warn">auth:same-origin</span><span class="tag bad">gate:hard</span><span class="tag bad">rot</span>
 </a></div></section>

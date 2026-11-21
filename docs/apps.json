@@ -2,6 +2,22 @@
   "repo": "fuel-dev",
   "apps": [
     {
+      "id": "alias",
+      "kind": "main",
+      "name": "VitalOS Fuel",
+      "short": "Fuel",
+      "description": "",
+      "accent": "#fb923c",
+      "site": "fuel-vos",
+      "url": "https://fuel-vos.web.app",
+      "tab": null,
+      "bundledAuthDomain": "vos-fuel.web.app",
+      "authMode": "same-origin",
+      "loginGate": "soft",
+      "note": "Runtime authDomain=Host nach a87a883; braucht OAuth redirect URIs in GCP",
+      "rot": "redirect_uri_mismatch bis OAuth-Client URIs gesetzt"
+    },
+    {
       "id": "fuelos",
       "kind": "main",
       "name": "VitalOS Fuel",
@@ -11,7 +27,7 @@
       "site": "fuel-os",
       "url": "https://fuel-os.web.app",
       "tab": null,
-      "bundledAuthDomain": "fitness-aos.firebaseapp.com",
+      "bundledAuthDomain": "vos-fuel.web.app",
       "authMode": "project-domain",
       "loginGate": "soft",
       "note": "Angenehmes Soft-Gate (Cloud Login); eigener Hosting-Stand, nicht Fuel-Master-Deploy",
@@ -24,14 +40,10 @@
       "short": "Fuel",
       "description": "",
       "accent": "#fb923c",
-      "site": "fuel-vos",
-      "url": "https://fuel-vos.web.app",
+      "site": "vos-fuel",
+      "url": "https://vos-fuel.web.app",
       "tab": null,
-      "bundledAuthDomain": "fitness-aos.firebaseapp.com",
-      "authMode": "same-origin",
-      "loginGate": "soft",
-      "note": "Runtime authDomain=Host nach a87a883; braucht OAuth redirect URIs in GCP",
-      "rot": "redirect_uri_mismatch bis OAuth-Client URIs gesetzt"
+      "bundledAuthDomain": "vos-fuel.web.app"
     },
     {
       "id": "log",
@@ -44,7 +56,7 @@
       "url": "https://vos-fuel-log.web.app",
       "tab": null,
       "planned": false,
-      "bundledAuthDomain": "fitness-aos.firebaseapp.com",
+      "bundledAuthDomain": "vos-fuel.web.app",
       "authMode": "same-origin",
       "loginGate": "hard",
       "note": "SoloShell Login-Pflicht blockiert Offline",
@@ -61,7 +73,7 @@
       "url": "https://vos-fuel-supplements.web.app",
       "tab": null,
       "planned": false,
-      "bundledAuthDomain": "fitness-aos.firebaseapp.com",
+      "bundledAuthDomain": "vos-fuel.web.app",
       "authMode": "same-origin",
       "loginGate": "hard",
       "rot": "400 redirect_uri_mismatch — OAuth redirect URI fehlt"
@@ -77,7 +89,7 @@
       "url": "https://vos-fuel-mikros.web.app",
       "tab": null,
       "planned": false,
-      "bundledAuthDomain": "fitness-aos.firebaseapp.com",
+      "bundledAuthDomain": "vos-fuel.web.app",
       "authMode": "same-origin",
       "loginGate": "hard",
       "rot": "400 redirect_uri_mismatch — OAuth redirect URI fehlt"
@@ -93,12 +105,12 @@
       "url": "https://vos-fuel-protokoll.web.app",
       "tab": null,
       "planned": false,
-      "bundledAuthDomain": "fitness-aos.firebaseapp.com",
+      "bundledAuthDomain": "vos-fuel.web.app",
       "authMode": "same-origin",
       "loginGate": "hard",
       "rot": "400 redirect_uri_mismatch — OAuth redirect URI fehlt"
     }
   ],
   "pages": "https://nimmsel23.github.io/fuel-dev/",
-  "bundledAuthDomain": "fitness-aos.firebaseapp.com"
+  "bundledAuthDomain": "vos-fuel.web.app"
 }
