@@ -1,12 +1,12 @@
 {
  "evidence": {
-  "generated_at": "2026-11-20T13:31:24+00:00",
+  "generated_at": "2026-11-21T12:57:17+00:00",
   "repo": "nimmsel23/fuel-dev",
   "meta": {
    "name": "fuel-dev",
    "description": null,
    "html_url": "https://github.com/nimmsel23/fuel-dev",
-   "pushed_at": "2026-11-19T13:49:12Z",
+   "pushed_at": "2026-11-20T13:31:43Z",
    "default_branch": "master",
    "visibility": "public",
    "pages_url": "https://nimmsel23.github.io/fuel-dev/"
@@ -148,10 +148,6 @@
   ],
   "activity": [
    {
-    "day": "2026-10-31",
-    "n": 1
-   },
-   {
     "day": "2026-11-01",
     "n": 1
    },
@@ -230,27 +226,31 @@
    {
     "day": "2026-11-20",
     "n": 0
+   },
+   {
+    "day": "2026-11-21",
+    "n": 0
    }
   ],
   "workflows": [
-   {
-    "name": "PR-AutoMerge (Dependabot -> dev)",
-    "branch": "master",
-    "event": "schedule",
-    "status": "completed",
-    "conclusion": "success",
-    "created_at": "2026-11-20T11:16:44Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/44726279499",
-    "sha": "11c995d"
-   },
    {
     "name": "Auto-Promote dev -> master (Check (Fuel))",
     "branch": "master",
     "event": "schedule",
     "status": "completed",
     "conclusion": "success",
-    "created_at": "2026-11-20T07:10:30Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/44693013538",
+    "created_at": "2026-11-21T11:46:59Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/44900728845",
+    "sha": "11c995d"
+   },
+   {
+    "name": "PR-AutoMerge (Dependabot -> dev)",
+    "branch": "master",
+    "event": "schedule",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-11-21T09:35:09Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/44890276425",
     "sha": "11c995d"
    },
    {
@@ -320,34 +320,26 @@
   "status": "green",
   "signals": [],
   "ai": {
-   "headline": "Dev- und Master-Branch synchronisiert; alle Workflows erfolgreich abgeschlossen.",
+   "headline": "Branches synchronisiert, Workflows erfolgreich, 90 Dependabot-Alerts offen.",
    "lage": "Der `dev`-Branch ist weiterhin mit `master` auf Commit `11c995d` synchronisiert. Alle geplanten Workflows, inklusive `PR-AutoMerge (Dependabot -> dev)` und `Auto-Promote dev -> master (Check (Fuel))`, wurden erfolgreich ausgeführt. Die in `NEXT.md` gelisteten 90 Dependabot-Alerts und die Abnahme des iOS Mini-App Logins sind noch offen.",
    "auffaelligkeiten": [
     {
-     "level": "mittel",
-     "text": "90 Dependabot-Alerts (3 kritische) auf dem `master`-Branch sind gemäß `NEXT.md` noch zu prüfen."
-    },
-    {
-     "level": "mittel",
-     "text": "Die Abnahme des iOS Mini-App Logins (ca22778 / Live a87a883) auf realen Geräten steht noch aus."
-    },
-    {
-     "level": "info",
-     "text": "Die Einrichtung und Prüfung von `GEMINI_API_KEY` und `SYNC_TOKEN` als Actions-Secrets ist in `NEXT.md` als offener Betriebspunkt vermerkt."
+     "level": "hoch",
+     "text": "90 Dependabot-Alerts (3 kritische) sind auf dem `master`-Branch gemäß `NEXT.md` offen."
     }
    ],
    "naechste_schritte": [
-    "Analysieren: Die 90 Dependabot-Alerts auf `master` gemäß `NEXT.md` prüfen und den Behebungsprozess starten.",
-    "Verifizieren: iOS Mini-App Login (ca22778 / Live a87a883) auf realen Geräten abnehmen.",
-    "Bestätigen: Den Abschluss des \"Org-Task 6a0eeebc\" nach dem erfolgreichen `PR-AutoMerge (Dependabot -> dev)` Workflow verifizieren."
+    "Verifizieren: Org-Task 6a0eeebc nach erfolgreichem `PR-AutoMerge (Dependabot -> dev)` Workflow bestätigen.",
+    "Analysieren: Die 90 Dependabot-Alerts auf `master` gemäß `NEXT.md` prüfen und Behebungsprozess starten.",
+    "Abnehmen: iOS Mini-App Login (ca22778 / Live a87a883) auf realen Geräten."
    ],
-   "veraendert": "Der `PR-AutoMerge (Dependabot -> dev)` Workflow wurde erneut erfolgreich ausgeführt, was die Verifizierung des 'Org-Task 6a0eeebc' ermöglicht.",
+   "veraendert": "Der `PR-AutoMerge (Dependabot -> dev)` Workflow wurde erfolgreich abgeschlossen, was die Verifizierung des Org-Task 6a0eeebc ermöglicht.",
    "fragen": [
-    "Sollen die `GEMINI_API_KEY` und `SYNC_TOKEN` als Actions-Secrets für diesen Repo-Zweig eingerichtet und geprüft werden?",
-    "Soll die Bearbeitung der 90 Dependabot-Alerts (3 kritische) priorisiert werden, um die Stabilität zu verbessern?"
+    "Wie soll die Datenmigration des v3-Stores (File+SQLite) zu Postgres für v4 erfolgen?",
+    "Welche Rollout-Reihenfolge ist für den Wechsel der Endpoints von v3 zu v4 vorgesehen?"
    ],
    "model": "gemini-2.5-flash"
   },
-  "ai_at": "2026-11-20T13:31:26+00:00"
+  "ai_at": "2026-11-21T12:57:19+00:00"
  }
 }
