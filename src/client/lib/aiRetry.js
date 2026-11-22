@@ -25,6 +25,11 @@ export function friendlyAiError(err) {
     return new Error("Verbindung zu Gemini fehlgeschlagen (Netzwerk/Timeout). Bitte erneut versuchen.");
   }
   const msg = String(err?.message || err || "");
+  // Firebase AI erzwingt App Check (reCAPTCHA v3). Scheitert es (Domain nicht im Key,
+  // zu niedriger Score z. B. in Safari-PWAs), kommt 401/403 "App Check" bzw. "attestation".
+  if (/app ?check|attestation/i.test(msg)) {
+    return new Error("KI-Freigabe für dieses Gerät fehlgeschlagen (App Check). Bitte App neu laden; bleibt es, liegt es an der reCAPTCHA-Einstellung.");
+  }
   if (msg.toLowerCase().includes("json")) {
     return new Error("Gemini hat eine ungültige Antwort geliefert. Bitte erneut versuchen.");
   }
