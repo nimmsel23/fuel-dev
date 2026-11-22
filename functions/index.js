@@ -1,6 +1,7 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const { createSupplementActions } = require("./supplement-actions");
+const reminders = require("./supplement-reminders");
 
 admin.initializeApp();
 
@@ -36,99 +37,39 @@ function getLocalDateParts(date = new Date(), timeZone = TIME_ZONE) {
   };
 }
 
-function parseReminderMinutes(reminderTime) {
-  if (typeof reminderTime !== "string" || !/^\d{2}:\d{2}$/.test(reminderTime)) return null;
-  const [hour, minute] = reminderTime.split(":").map(Number);
-  if (!Number.isInteger(hour) || !Number.isInteger(minute)) return null;
-  return hour * 60 + minute;
-}
-
 function isReminderDue(reminderTime, currentMinutes) {
-  const targetMinutes = parseReminderMinutes(reminderTime);
-  if (targetMinutes == null) return false;
-  const delta = currentMinutes - targetMinutes;
-  return delta >= 0 && delta < REMINDER_WINDOW_MINUTES;
+  return reminders.isReminderDue(reminderTime, currentMinutes, REMINDER_WINDOW_MINUTES);
 }
 
-const SUPPLEMENT_SLOTS = ["morning", "midday", "evening", "night"];
-const WEEKDAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
-
-function isDueToday(item, dateObj) {
-  if (!item.schedule) return false;
-  if (item.schedule.type === "daily") return true;
-  if (item.schedule.type === "weekly") {
-    return item.schedule.days?.includes(WEEKDAYS[dateObj.getDay()]);
-  }
-  if (item.schedule.type === "cyclical") {
-    if (!item.schedule.start_date || !item.schedule.interval_days) return false;
-    const start = new Date(item.schedule.start_date);
-    const diffDays = Math.floor(Math.abs(dateObj - start) / (1000 * 60 * 60 * 24));
-    return diffDays % item.schedule.interval_days === 0;
-  }
-  return false;
-}
-
-function buildSupplementPayload({ uid, timeOfDay, dueItems, dateStr }) {
-  const names = dueItems.map((i) => i.name).join(", ");
-  return {
-    title: `Time for your ${timeOfDay} Supplements`,
-    body: `Noch offen: ${names}`,
-    icon: "/favicon-192x192.png",
-    badge: "/favicon-192x192.png",
-    tag: `fuel-supplements-${timeOfDay}`,
-    requireInteraction: true,
-    url: buildIntentUrl({ tab: "supplements", date: "today", intent: "supplements.daily-checklist", focus: "supplements-checklist" }),
-    // Gleiche quick-yes/snooze Actions wie der lokale Channel
-    // (push-config.mjs) — der SW erkennt Cloud-Origin und ruft stattdessen
-    // quickLogSupplement/snoozeSupplement statt der lokalen Fastify-Routen.
-    actions: [
-      { action: "quick-yes", title: "✓ Ja, genommen" },
-      { action: "snooze", title: "⏰ Später" },
-    ],
-    meta: {
-      kind: "supplement_reminder",
-      uid,
-      date: dateStr,
-      time_of_day: timeOfDay,
-      due_items: dueItems.map((item) => ({
-        id: item.id,
-        name: item.name,
-        dose: item.default_dose ?? 0,
-        unit: item.unit || "",
-        time_of_day: item.default_time_of_day || timeOfDay,
-      })),
-      app: "habits",
-      feature: "supplements",
-    },
-  };
-}
-
-async function getSupplementReminderPayloads(db, uid, timeOfDay, dateParts) {
-  const [catalogSnap, logSnap, snoozeSnap] = await Promise.all([
+// Pro Supplement eine eigene Nachricht (Logik: supplement-reminders.js).
+// Liest pro Tick Katalog + Snooze (eigene Uhrzeiten und abgelaufene "Später"
+// können jederzeit fällig sein), den Tageslog nur, wenn etwas in Frage kommt.
+async function getSupplementReminderPayloads(db, uid, settings, dateParts) {
+  if (!settings.supplement_push_enabled) return [];
+  const [catalogSnap, snoozeSnap] = await Promise.all([
     db.collection("supplements").doc(uid).collection("meta").doc("catalog").get(),
-    db.collection("supplements").doc(uid).collection("logs").doc(dateParts.date).get(),
     db.collection("users").doc(uid).collection("meta").doc("supplement_snooze").get(),
   ]);
-
   const catalog = catalogSnap.data()?.items || [];
   if (catalog.length === 0) return [];
-  const intakes = logSnap.data()?.intakes || [];
-  const snoozed = snoozeSnap.data() || {};
-  const now = Date.now();
-  const dateObj = new Date(dateParts.date);
 
-  const dueItems = catalog.filter((item) => {
-    if (item.reminder && item.reminder.enabled === false) return false;
-    if (item.reminder?.enabled && item.reminder.time) return false; // pro-item reminder übernimmt
-    if (!isDueToday(item, dateObj) || item.default_time_of_day !== timeOfDay) return false;
-    if (intakes.some((intake) => intake.supplement_id === item.id)) return false;
-    const until = snoozed[item.id];
-    if (until && now < until) return false;
-    return true;
-  });
+  const base = {
+    catalog,
+    snoozed: snoozeSnap.data() || {},
+    settings,
+    dateObj: new Date(dateParts.date),
+    currentMinutes: dateParts.minutes,
+    nowMs: Date.now(),
+    windowMinutes: REMINDER_WINDOW_MINUTES,
+  };
+  if (reminders.selectDueSupplements({ ...base, intakes: [] }).length === 0) return [];
 
-  if (dueItems.length === 0) return [];
-  return [buildSupplementPayload({ uid, timeOfDay, dueItems, dateStr: dateParts.date })];
+  const logSnap = await db.collection("supplements").doc(uid).collection("logs").doc(dateParts.date).get();
+  const due = reminders.selectDueSupplements({ ...base, intakes: logSnap.data()?.intakes || [] });
+  const url = buildIntentUrl({ tab: "supplements", date: "today", intent: "supplements.daily-checklist", focus: "supplements-checklist" });
+  return due.map(({ item, reason }) =>
+    reminders.buildSingleSupplementPayload({ uid, item, dateStr: dateParts.date, reason, url })
+  );
 }
 
 function buildIntentUrl({ tab, date = "today", intent, focus }) {
@@ -282,21 +223,14 @@ exports.scheduledPushReminders = functions
         if (settings.daily_journal_entry_enabled && isReminderDue(settings.daily_journal_entry_time, minutes)) {
           duePayloads.push(buildJournalEntryPayload());
         }
-        if (settings.supplement_push_enabled) {
-          const dateParts = getLocalDateParts();
-          for (const slot of SUPPLEMENT_SLOTS) {
-            if (!isReminderDue(settings[`supplement_push_${slot}_time`], minutes)) continue;
-            const supplementPayloads = await getSupplementReminderPayloads(db, uid, slot, dateParts);
-            duePayloads.push(...supplementPayloads);
-          }
-        }
+        duePayloads.push(...(await getSupplementReminderPayloads(db, uid, settings, getLocalDateParts())));
 
         for (const payload of duePayloads) {
           const result = await sendMessageToToken(token, payload);
           sentCount += result.sentCount || 0;
           failureCount += result.failureCount || 0;
           console.log(
-            `[scheduledPushReminders] uid=${uid} prompt=${payload.meta.prompt_id || payload.meta.kind} sent=${result.sentCount || 0} failed=${result.failureCount || 0}`
+            `[scheduledPushReminders] uid=${uid} prompt=${payload.meta.prompt_id || payload.meta.kind}${payload.meta.due_items ? `:${payload.meta.due_items[0].id}` : ""} sent=${result.sentCount || 0} failed=${result.failureCount || 0}`
           );
         }
       }
