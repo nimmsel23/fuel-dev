@@ -1,12 +1,12 @@
 {
  "evidence": {
-  "generated_at": "2026-11-23T15:16:33+00:00",
+  "generated_at": "2026-11-23T18:03:58+00:00",
   "repo": "nimmsel23/fuel-dev",
   "meta": {
    "name": "fuel-dev",
    "description": null,
    "html_url": "https://github.com/nimmsel23/fuel-dev",
-   "pushed_at": "2026-11-22T18:54:18Z",
+   "pushed_at": "2026-11-23T15:16:56Z",
    "default_branch": "master",
    "visibility": "public",
    "pages_url": "https://nimmsel23.github.io/fuel-dev/"
@@ -149,7 +149,7 @@
   "activity": [
    {
     "day": "2026-11-03",
-    "n": 20
+    "n": 16
    },
    {
     "day": "2026-11-04",
@@ -343,34 +343,34 @@
   "status": "green",
   "signals": [],
   "ai": {
-   "headline": "Master und Dev synchronisiert, neue reCAPTCHA-Probleme, Dependabot-Alerts offen.",
-   "lage": "Der `dev`-Branch ist nun mit `master` auf Commit b0937c5 vom 22. November synchronisiert, nachdem der `Auto-Promote dev -> master` Workflow (45137011154) erfolgreich abgeschlossen wurde. Zwei neue kritische Issues (#31, #32) bezüglich reCAPTCHA und App Check beeinträchtigen die KI-Funktionalität. Die 90 Dependabot-Alerts und das iOS Mini-App Login-Problem sind weiterhin offen.",
+   "headline": "Master/Dev synchron, reCAPTCHA-Probleme und 90 Dependabot-Alerts offen",
+   "lage": "Der `dev`-Branch ist mit `master` auf Commit `b0937c5` vom 22. November synchronisiert, bestätigt durch den erfolgreichen `Auto-Promote dev -> master` Workflow (45137011154). Die kritischen reCAPTCHA-Probleme (Issues #31, #32) und 90 Dependabot-Alerts auf `master` sind weiterhin ungelöst, ebenso das iOS Mini-App Login-Problem.",
    "auffaelligkeiten": [
     {
-     "level": "mittel",
-     "text": "90 Dependabot-Alerts, davon 3 kritische, sind auf dem `master`-Branch weiterhin offen (gemäß `NEXT.md`)."
+     "level": "hoch",
+     "text": "Die kritischen reCAPTCHA-Probleme (Issues #31, #32) beeinträchtigen die KI-Funktionalität."
     },
     {
      "level": "mittel",
-     "text": "Das Problem mit dem iOS Mini-App Login (ca22778 / Live `a87a883`) ist weiterhin ungelöst (gemäß `NEXT.md`)."
+     "text": "90 Dependabot-Alerts auf `master` sind offen und erfordern eine manuelle Prüfung und Freigabe gemäß `NEXT.md`."
     },
     {
      "level": "info",
-     "text": "Der `Auto-Promote dev -> master` Workflow (45137011154) hat erfolgreich zur Synchronisation der Branches auf b0937c5 geführt."
+     "text": "Der `PR-AutoMerge (Dependabot -> dev)` Workflow (45142174576) wurde erfolgreich ausgeführt, was auf eine aktive Dependabot-Integration hindeutet."
     }
    ],
    "naechste_schritte": [
     "Beheben: reCAPTCHA-v3-Keys für `vos-fuel`-Domains eintragen (Issue #31).",
     "Prüfen: Die reCAPTCHA-Schwelle (minValidScore) für iPhone-Safari-PWA (Issue #32) analysieren und ggf. senken.",
-    "Priorisieren: Die 90 Dependabot-Alerts auf `master` gemäß `NEXT.md` sichten und die kritischen Alerts zur Behebung einplanen."
+    "Sichten: Die 90 Dependabot-Alerts auf `master` gemäß `NEXT.md` sichten und kritische Alerts zur Behebung einplanen."
    ],
-   "veraendert": "Der `dev`-Branch ist nun vollständig mit `master` synchronisiert, und der `Auto-Promote` Workflow war erfolgreich, im Gegensatz zur letzten Einschätzung.",
+   "veraendert": "Der `PR-AutoMerge (Dependabot -> dev)` Workflow (45142174576) wurde erfolgreich ausgeführt, was eine aktive Dependabot-Integration auf `dev` signalisiert.",
    "fragen": [
-    "Soll die Behebung der 90 Dependabot-Alerts (3 kritische) vor den neuen reCAPTCHA-Problemen priorisiert werden?",
-    "Wann ist die Abnahme des iOS Mini-App Logins (ca22778) geplant?"
+    "Sollen die `GEMINI_API_KEY` und `SYNC_TOKEN` als Actions-Secrets für diesen Repo-Zweig eingerichtet und geprüft werden, wie in `NEXT.md` vorgeschlagen?",
+    "Soll die Datenmigration des v3-Stores (File+SQLite) zu Postgres priorisiert werden, bevor v4 einen öffentlichen Produkt-Einstieg erhält, wie in `TODO.md` beschrieben?"
    ],
    "model": "gemini-2.5-flash"
   },
-  "ai_at": "2026-11-23T15:16:38+00:00"
+  "ai_at": "2026-11-23T18:04:00+00:00"
  }
 }
