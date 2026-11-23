@@ -1,12 +1,12 @@
 {
  "evidence": {
-  "generated_at": "2026-11-23T18:03:58+00:00",
+  "generated_at": "2026-11-23T18:12:28+00:00",
   "repo": "nimmsel23/fuel-dev",
   "meta": {
    "name": "fuel-dev",
    "description": null,
    "html_url": "https://github.com/nimmsel23/fuel-dev",
-   "pushed_at": "2026-11-23T15:16:56Z",
+   "pushed_at": "2026-11-23T18:11:50Z",
    "default_branch": "master",
    "visibility": "public",
    "pages_url": "https://nimmsel23.github.io/fuel-dev/"
@@ -19,10 +19,14 @@
    "main": "master",
    "has_dev": true,
    "dev_behind": 0,
-   "dev_ahead": 0,
-   "oldest_unpromoted": null,
-   "dev_head": "b0937c5 2026-11-22T19:37:49+01:00",
+   "dev_ahead": 1,
+   "oldest_unpromoted": "2026-11-23T19:11:50+01:00",
+   "dev_head": "a0d345a 2026-11-23T19:11:50+01:00",
    "master_head": "b0937c5 2026-11-22T19:37:49+01:00"
+  },
+  "work": {
+   "branch": "master",
+   "sha": "b0937c5d0d04962d5f1edccf459060ef4f84770e"
   },
   "commits": [
    {
@@ -149,7 +153,7 @@
   "activity": [
    {
     "day": "2026-11-03",
-    "n": 16
+    "n": 10
    },
    {
     "day": "2026-11-04",
@@ -234,6 +238,16 @@
   ],
   "workflows": [
    {
+    "name": "Check (Fuel)",
+    "branch": "dev",
+    "event": "push",
+    "status": "in_progress",
+    "conclusion": null,
+    "created_at": "2026-11-23T18:11:53Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/45235779440",
+    "sha": "a0d345a"
+   },
+   {
     "name": "PR-AutoMerge (Dependabot -> dev)",
     "branch": "master",
     "event": "schedule",
@@ -292,16 +306,6 @@
     "created_at": "2026-11-22T18:53:24Z",
     "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/45057608943",
     "sha": "b0937c5"
-   },
-   {
-    "name": "Check (Fuel)",
-    "branch": "dev",
-    "event": "push",
-    "status": "completed",
-    "conclusion": "success",
-    "created_at": "2026-11-22T18:53:24Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/45057608809",
-    "sha": "b0937c5"
    }
   ],
   "issues": [
@@ -343,34 +347,35 @@
   "status": "green",
   "signals": [],
   "ai": {
-   "headline": "Master/Dev synchron, reCAPTCHA-Probleme und 90 Dependabot-Alerts offen",
-   "lage": "Der `dev`-Branch ist mit `master` auf Commit `b0937c5` vom 22. November synchronisiert, bestätigt durch den erfolgreichen `Auto-Promote dev -> master` Workflow (45137011154). Die kritischen reCAPTCHA-Probleme (Issues #31, #32) und 90 Dependabot-Alerts auf `master` sind weiterhin ungelöst, ebenso das iOS Mini-App Login-Problem.",
+   "headline": "Dev-Branch voraus mit laufendem Check; reCAPTCHA und Dependabot-Alerts offen",
+   "lage": "Der `dev`-Branch liegt mit Commit `a0d345a` einen Commit vor `master`, dessen `Check (Fuel)` Workflow noch läuft. Die kritischen reCAPTCHA-Probleme (Issues #31, #32) und 90 Dependabot-Alerts auf `master` sind weiterhin ungelöst, ebenso das iOS Mini-App Login-Problem.",
    "auffaelligkeiten": [
     {
      "level": "hoch",
-     "text": "Die kritischen reCAPTCHA-Probleme (Issues #31, #32) beeinträchtigen die KI-Funktionalität."
+     "text": "Der `dev`-Branch ist nicht mehr mit `master` synchron und hat einen ausstehenden Commit `a0d345a`, dessen `Check (Fuel)` Workflow (45235779440) noch läuft."
+    },
+    {
+     "level": "hoch",
+     "text": "Die kritischen reCAPTCHA-Probleme (Issue #31, #32) sind weiterhin ungelöst und blockieren KI/Fotoanalyse."
     },
     {
      "level": "mittel",
-     "text": "90 Dependabot-Alerts auf `master` sind offen und erfordern eine manuelle Prüfung und Freigabe gemäß `NEXT.md`."
+     "text": "90 Dependabot-Alerts (3 kritische) auf dem `master`-Branch sind laut `NEXT.md` noch zu sichten."
     },
     {
-     "level": "info",
-     "text": "Der `PR-AutoMerge (Dependabot -> dev)` Workflow (45142174576) wurde erfolgreich ausgeführt, was auf eine aktive Dependabot-Integration hindeutet."
+     "level": "mittel",
+     "text": "Das iOS Mini-App Login-Problem ist laut `NEXT.md` weiterhin offen."
     }
    ],
    "naechste_schritte": [
-    "Beheben: reCAPTCHA-v3-Keys für `vos-fuel`-Domains eintragen (Issue #31).",
-    "Prüfen: Die reCAPTCHA-Schwelle (minValidScore) für iPhone-Safari-PWA (Issue #32) analysieren und ggf. senken.",
-    "Sichten: Die 90 Dependabot-Alerts auf `master` gemäß `NEXT.md` sichten und kritische Alerts zur Behebung einplanen."
+    "Abwarten: Den `Check (Fuel)` Workflow für Commit `a0d345a` auf `dev` abwarten.",
+    "Eintragen: reCAPTCHA-v3-Keys für `vos-fuel`-Domains eintragen (Issue #31).",
+    "Analysieren: Die reCAPTCHA-Schwelle (minValidScore) für iPhone-Safari-PWA (Issue #32) analysieren."
    ],
-   "veraendert": "Der `PR-AutoMerge (Dependabot -> dev)` Workflow (45142174576) wurde erfolgreich ausgeführt, was eine aktive Dependabot-Integration auf `dev` signalisiert.",
-   "fragen": [
-    "Sollen die `GEMINI_API_KEY` und `SYNC_TOKEN` als Actions-Secrets für diesen Repo-Zweig eingerichtet und geprüft werden, wie in `NEXT.md` vorgeschlagen?",
-    "Soll die Datenmigration des v3-Stores (File+SQLite) zu Postgres priorisiert werden, bevor v4 einen öffentlichen Produkt-Einstieg erhält, wie in `TODO.md` beschrieben?"
-   ],
+   "veraendert": "Der `dev`-Branch ist nicht mehr mit `master` synchronisiert, sondern liegt mit Commit `a0d345a` einen Commit voraus, dessen `Check (Fuel)` Workflow noch läuft.",
+   "fragen": [],
    "model": "gemini-2.5-flash"
   },
-  "ai_at": "2026-11-23T18:04:00+00:00"
+  "ai_at": "2026-11-23T18:12:30+00:00"
  }
 }
