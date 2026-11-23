@@ -1,12 +1,12 @@
 {
  "evidence": {
-  "generated_at": "2026-11-22T18:53:45+00:00",
+  "generated_at": "2026-11-23T15:16:33+00:00",
   "repo": "nimmsel23/fuel-dev",
   "meta": {
    "name": "fuel-dev",
    "description": null,
    "html_url": "https://github.com/nimmsel23/fuel-dev",
-   "pushed_at": "2026-11-22T18:53:22Z",
+   "pushed_at": "2026-11-22T18:54:18Z",
    "default_branch": "master",
    "visibility": "public",
    "pages_url": "https://nimmsel23.github.io/fuel-dev/"
@@ -19,10 +19,10 @@
    "main": "master",
    "has_dev": true,
    "dev_behind": 0,
-   "dev_ahead": 3,
-   "oldest_unpromoted": "2026-11-21T19:30:59+01:00",
+   "dev_ahead": 0,
+   "oldest_unpromoted": null,
    "dev_head": "b0937c5 2026-11-22T19:37:49+01:00",
-   "master_head": "11c995d 2026-11-17T18:13:53+01:00"
+   "master_head": "b0937c5 2026-11-22T19:37:49+01:00"
   },
   "commits": [
    {
@@ -148,10 +148,6 @@
   ],
   "activity": [
    {
-    "day": "2026-11-02",
-    "n": 3
-   },
-   {
     "day": "2026-11-03",
     "n": 20
    },
@@ -230,15 +226,59 @@
    {
     "day": "2026-11-22",
     "n": 2
+   },
+   {
+    "day": "2026-11-23",
+    "n": 0
    }
   ],
   "workflows": [
    {
+    "name": "PR-AutoMerge (Dependabot -> dev)",
+    "branch": "master",
+    "event": "schedule",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-11-23T08:52:51Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/45142174576",
+    "sha": "b0937c5"
+   },
+   {
+    "name": "Auto-Promote dev -> master (Check (Fuel))",
+    "branch": "master",
+    "event": "schedule",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-11-23T08:14:30Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/45137011154",
+    "sha": "b0937c5"
+   },
+   {
+    "name": "Gemini CI Agent",
+    "branch": "master",
+    "event": "workflow_run",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-11-22T18:54:28Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/45057702766",
+    "sha": "b0937c5"
+   },
+   {
+    "name": "Live Deploy (Fuel master)",
+    "branch": "master",
+    "event": "workflow_dispatch",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-11-22T18:54:19Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/45057690600",
+    "sha": "b0937c5"
+   },
+   {
     "name": "Preview (Fuel dev)",
     "branch": "dev",
     "event": "push",
-    "status": "in_progress",
-    "conclusion": null,
+    "status": "completed",
+    "conclusion": "success",
     "created_at": "2026-11-22T18:53:24Z",
     "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/45057608962",
     "sha": "b0937c5"
@@ -247,8 +287,8 @@
     "name": "Live Deploy (Fuel Mini-Apps je Tab)",
     "branch": "dev",
     "event": "push",
-    "status": "in_progress",
-    "conclusion": null,
+    "status": "completed",
+    "conclusion": "success",
     "created_at": "2026-11-22T18:53:24Z",
     "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/45057608943",
     "sha": "b0937c5"
@@ -257,54 +297,37 @@
     "name": "Check (Fuel)",
     "branch": "dev",
     "event": "push",
-    "status": "in_progress",
-    "conclusion": null,
+    "status": "completed",
+    "conclusion": "success",
     "created_at": "2026-11-22T18:53:24Z",
     "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/45057608809",
     "sha": "b0937c5"
-   },
-   {
-    "name": "PR-AutoMerge (Dependabot -> dev)",
-    "branch": "master",
-    "event": "schedule",
-    "status": "completed",
-    "conclusion": "success",
-    "created_at": "2026-11-22T18:24:44Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/45054923350",
-    "sha": "11c995d"
-   },
-   {
-    "name": "Auto-Promote dev -> master (Check (Fuel))",
-    "branch": "master",
-    "event": "schedule",
-    "status": "completed",
-    "conclusion": "success",
-    "created_at": "2026-11-22T11:59:15Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/45019956582",
-    "sha": "11c995d"
-   },
-   {
-    "name": "Gemini CI Agent",
-    "branch": "master",
-    "event": "workflow_run",
-    "status": "completed",
-    "conclusion": "success",
-    "created_at": "2026-11-17T17:15:23Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/44134948022",
-    "sha": "11c995d"
-   },
-   {
-    "name": "Live Deploy (Fuel master)",
-    "branch": "master",
-    "event": "workflow_dispatch",
-    "status": "completed",
-    "conclusion": "success",
-    "created_at": "2026-11-17T17:14:59Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/44134874322",
-    "sha": "11c995d"
    }
   ],
-  "issues": [],
+  "issues": [
+   {
+    "number": 32,
+    "title": "App Check: reCAPTCHA-Schwelle (minValidScore) senken für iPhone-Safari-PWA",
+    "created_at": "2026-11-22T18:56:05Z",
+    "updated_at": "2026-11-22T18:56:05Z",
+    "labels": [
+     "bug"
+    ],
+    "url": "https://github.com/nimmsel23/fuel-dev/issues/32",
+    "author": "nimmsel23"
+   },
+   {
+    "number": 31,
+    "title": "reCAPTCHA-v3-Key: vos-fuel-Domains eintragen (KI/Fotoanalyse tot)",
+    "created_at": "2026-11-22T18:56:02Z",
+    "updated_at": "2026-11-22T18:56:02Z",
+    "labels": [
+     "bug"
+    ],
+    "url": "https://github.com/nimmsel23/fuel-dev/issues/31",
+    "author": "nimmsel23"
+   }
+  ],
   "pulls": [],
   "live_sites": [
    "https://fuel-os.web.app",
@@ -317,47 +340,37 @@
   ]
  },
  "assessment": {
-  "status": "yellow",
-  "signals": [
-   {
-    "level": "yellow",
-    "key": "promote",
-    "text": "3 Commit(s) auf dev seit 1.0 Tagen nicht auf master promotet"
-   }
-  ],
+  "status": "green",
+  "signals": [],
   "ai": {
-   "headline": "Dev-Branch 3 Commits voraus, Auto-Promote ineffektiv, offene Aufgaben.",
-   "lage": "Der `dev`-Branch ist 3 Commits (b0937c5, db4a461, 25465db) voraus und wurde seit dem 21. November nicht auf `master` (11c995d) promotet. Der `Auto-Promote dev -> master` Workflow wurde zwar erfolgreich abgeschlossen, führte aber nicht zur Synchronisation. Die in `NEXT.md` gelisteten 90 Dependabot-Alerts und die Abnahme des iOS Mini-App Logins sind weiterhin offen.",
+   "headline": "Master und Dev synchronisiert, neue reCAPTCHA-Probleme, Dependabot-Alerts offen.",
+   "lage": "Der `dev`-Branch ist nun mit `master` auf Commit b0937c5 vom 22. November synchronisiert, nachdem der `Auto-Promote dev -> master` Workflow (45137011154) erfolgreich abgeschlossen wurde. Zwei neue kritische Issues (#31, #32) bezüglich reCAPTCHA und App Check beeinträchtigen die KI-Funktionalität. Die 90 Dependabot-Alerts und das iOS Mini-App Login-Problem sind weiterhin offen.",
    "auffaelligkeiten": [
     {
-     "level": "hoch",
-     "text": "Der `Auto-Promote dev -> master (Check (Fuel))` Workflow (Run 45019956582) meldet Erfolg, hat aber die 3 Commits auf `dev` nicht nach `master` übernommen, was zu einem Rückstand von 1.0 Tagen führt."
+     "level": "mittel",
+     "text": "90 Dependabot-Alerts, davon 3 kritische, sind auf dem `master`-Branch weiterhin offen (gemäß `NEXT.md`)."
     },
     {
      "level": "mittel",
-     "text": "Drei Workflows (`Preview (Fuel dev)`, `Live Deploy (Fuel Mini-Apps je Tab)`, `Check (Fuel)`) sind für den neuesten `dev`-Commit b0937c5 noch `in_progress`."
+     "text": "Das Problem mit dem iOS Mini-App Login (ca22778 / Live `a87a883`) ist weiterhin ungelöst (gemäß `NEXT.md`)."
     },
     {
      "level": "info",
-     "text": "Org-Task 6a0eeebc (Dependabot-PR-Merge-Beleg) war am 2026-11-17 fällig; der `PR-AutoMerge (Dependabot -> dev)` Workflow lief heute erfolgreich."
-    },
-    {
-     "level": "info",
-     "text": "Die 90 Dependabot-Alerts auf `master` und die Abnahme des iOS Mini-App Logins (ca22778) sind laut `NEXT.md` weiterhin offen."
+     "text": "Der `Auto-Promote dev -> master` Workflow (45137011154) hat erfolgreich zur Synchronisation der Branches auf b0937c5 geführt."
     }
    ],
    "naechste_schritte": [
-    "Analysieren: Ursache für den nicht erfolgten Promote des `dev`-Branches trotz erfolgreichem `Auto-Promote dev -> master` Workflow (45019956582) untersuchen.",
-    "Prüfen: Den Status der drei `in_progress` Workflows auf `dev` für Commit b0937c5 überprüfen.",
-    "Starten: Die Analyse und Behebung der 90 Dependabot-Alerts auf `master` gemäß `NEXT.md` beginnen."
+    "Beheben: reCAPTCHA-v3-Keys für `vos-fuel`-Domains eintragen (Issue #31).",
+    "Prüfen: Die reCAPTCHA-Schwelle (minValidScore) für iPhone-Safari-PWA (Issue #32) analysieren und ggf. senken.",
+    "Priorisieren: Die 90 Dependabot-Alerts auf `master` gemäß `NEXT.md` sichten und die kritischen Alerts zur Behebung einplanen."
    ],
-   "veraendert": "Der `dev`-Branch ist nicht mehr mit `master` synchronisiert, sondern 3 Commits voraus, und der `Auto-Promote dev -> master` Workflow hat trotz Erfolg die `dev`-Commits nicht nach `master` übernommen.",
+   "veraendert": "Der `dev`-Branch ist nun vollständig mit `master` synchronisiert, und der `Auto-Promote` Workflow war erfolgreich, im Gegensatz zur letzten Einschätzung.",
    "fragen": [
-    "Soll der `Auto-Promote dev -> master` Workflow (45019956582) manuell erneut ausgelöst oder dessen Log für die Ursachenanalyse priorisiert werden?",
-    "Soll die Priorität der 90 Dependabot-Alerts auf `master` erhöht werden, um den Behebungsprozess zu beschleunigen?"
+    "Soll die Behebung der 90 Dependabot-Alerts (3 kritische) vor den neuen reCAPTCHA-Problemen priorisiert werden?",
+    "Wann ist die Abnahme des iOS Mini-App Logins (ca22778) geplant?"
    ],
    "model": "gemini-2.5-flash"
   },
-  "ai_at": "2026-11-22T18:53:46+00:00"
+  "ai_at": "2026-11-23T15:16:38+00:00"
  }
 }
