@@ -1,12 +1,12 @@
 {
  "evidence": {
-  "generated_at": "2026-11-24T15:12:52+00:00",
+  "generated_at": "2026-11-25T14:52:28+00:00",
   "repo": "nimmsel23/fuel-dev",
   "meta": {
    "name": "fuel-dev",
    "description": null,
    "html_url": "https://github.com/nimmsel23/fuel-dev",
-   "pushed_at": "2026-11-24T09:40:44Z",
+   "pushed_at": "2026-11-24T15:13:14Z",
    "default_branch": "master",
    "visibility": "public",
    "pages_url": "https://nimmsel23.github.io/fuel-dev/"
@@ -152,12 +152,8 @@
   ],
   "activity": [
    {
-    "day": "2026-11-04",
-    "n": 18
-   },
-   {
     "day": "2026-11-05",
-    "n": 16
+    "n": 7
    },
    {
     "day": "2026-11-06",
@@ -234,9 +230,53 @@
    {
     "day": "2026-11-24",
     "n": 13
+   },
+   {
+    "day": "2026-11-25",
+    "n": 0
    }
   ],
   "workflows": [
+   {
+    "name": "CI-Heilung (rote Läufe wiederholen)",
+    "branch": "master",
+    "event": "schedule",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-11-25T13:29:04Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/45624042746",
+    "sha": "32e711b"
+   },
+   {
+    "name": "Org-Bot (PR anlegen & mergen)",
+    "branch": "master",
+    "event": "schedule",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-11-25T13:00:03Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/45619147176",
+    "sha": "32e711b"
+   },
+   {
+    "name": "PR-AutoMerge (Dependabot -> dev)",
+    "branch": "master",
+    "event": "schedule",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-11-25T12:33:48Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/45614949677",
+    "sha": "32e711b"
+   },
+   {
+    "name": "Auto-Promote dev -> master (Check (Fuel))",
+    "branch": "master",
+    "event": "schedule",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-11-25T09:10:00Z",
+    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/45582803193",
+    "sha": "32e711b"
+   },
    {
     "name": "Live Deploy (Fuel master)",
     "branch": "master",
@@ -258,26 +298,6 @@
     "sha": "aa15765"
    },
    {
-    "name": "Auto-Promote dev -> master (Check (Fuel))",
-    "branch": "master",
-    "event": "workflow_run",
-    "status": "completed",
-    "conclusion": "success",
-    "created_at": "2026-11-24T09:40:30Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/45367427851",
-    "sha": "aa15765"
-   },
-   {
-    "name": "PR-AutoMerge (Dependabot -> dev)",
-    "branch": "master",
-    "event": "workflow_run",
-    "status": "completed",
-    "conclusion": "skipped",
-    "created_at": "2026-11-24T09:40:30Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/45367427802",
-    "sha": "aa15765"
-   },
-   {
     "name": "Check (Fuel)",
     "branch": "dev",
     "event": "push",
@@ -286,16 +306,6 @@
     "created_at": "2026-11-24T09:39:34Z",
     "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/45367283256",
     "sha": "32e711b"
-   },
-   {
-    "name": "Org-Bot (PR anlegen & mergen)",
-    "branch": "master",
-    "event": "check_run",
-    "status": "completed",
-    "conclusion": "success",
-    "created_at": "2026-11-24T07:47:19Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/45350700220",
-    "sha": "9ec5521"
    },
    {
     "name": "Org-Bot (PR anlegen & mergen)",
@@ -356,56 +366,6 @@
     "created_at": "2026-11-24T07:43:59Z",
     "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/45350260781",
     "sha": "e2d5620"
-   },
-   {
-    "name": "Org-Bot (PR anlegen & mergen)",
-    "branch": "dependabot/npm_and_yarn/functions/multi-bbf9670a95",
-    "event": "pull_request_target",
-    "status": "completed",
-    "conclusion": "success",
-    "created_at": "2026-11-24T07:42:24Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/45350056724",
-    "sha": "5ed9476"
-   },
-   {
-    "name": "Org-Bot (PR anlegen & mergen)",
-    "branch": "dependabot/npm_and_yarn/functions/body-parser-1.20.9",
-    "event": "pull_request_target",
-    "status": "completed",
-    "conclusion": "success",
-    "created_at": "2026-11-24T07:42:19Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/45350046958",
-    "sha": "b757d82"
-   },
-   {
-    "name": "Org-Bot (PR anlegen & mergen)",
-    "branch": "dependabot/npm_and_yarn/functions/fastify/busboy-3.2.6",
-    "event": "pull_request_target",
-    "status": "completed",
-    "conclusion": "success",
-    "created_at": "2026-11-24T07:42:05Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/45350016967",
-    "sha": "6939379"
-   },
-   {
-    "name": "Org-Bot (PR anlegen & mergen)",
-    "branch": "dependabot/npm_and_yarn/functions/proxy-addr-2.0.8",
-    "event": "pull_request_target",
-    "status": "completed",
-    "conclusion": "success",
-    "created_at": "2026-11-24T07:42:03Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/45350014077",
-    "sha": "f1d2484"
-   },
-   {
-    "name": "Check (Fuel)",
-    "branch": "dependabot/npm_and_yarn/functions/proxy-addr-2.0.8",
-    "event": "pull_request",
-    "status": "completed",
-    "conclusion": "success",
-    "created_at": "2026-11-24T07:42:03Z",
-    "url": "https://github.com/nimmsel23/fuel-dev/actions/runs/45350013908",
-    "sha": "f1d2484"
    }
   ],
   "issues": [
@@ -462,35 +422,7 @@
  "assessment": {
   "status": "green",
   "signals": [],
-  "ai": {
-   "headline": "Branches synchronisiert; CI-Logik aktualisiert; reCAPTCHA, Dependabot, iOS Login offen",
-   "lage": "Die Branches `dev` und `master` sind auf Commit `32e711b` synchronisiert, nachdem der `Auto-Promote dev -> master (Check (Fuel))` Workflow erfolgreich lief. Die kritischen reCAPTCHA-Probleme (Issues #31, #32), die 90 Dependabot-Alerts und das iOS Mini-App Login-Problem sind weiterhin ungelöst.",
-   "auffaelligkeiten": [
-    {
-     "level": "hoch",
-     "text": "Die kritischen reCAPTCHA-Probleme (Issues #31, #32) sind weiterhin ungelöst und blockieren die KI/Fotoanalyse."
-    },
-    {
-     "level": "mittel",
-     "text": "Laut `NEXT.md` bestehen noch 90 Dependabot-Alerts auf `master`, obwohl mehrere Dependabot-PRs (z.B. #33, #34, #35, #36, #37) erfolgreich gemergt wurden."
-    },
-    {
-     "level": "info",
-     "text": "Die CI-Logik wurde durch mehrere Commits (z.B. `32e711b`, `aa15765`) aktualisiert, um den Merge-Prozess zu optimieren und eine Zweitfreigabe zu entfernen."
-    }
-   ],
-   "naechste_schritte": [
-    "Eintragen: reCAPTCHA-v3-Keys für `vos-fuel`-Domains eintragen (Issue #31).",
-    "Analysieren: Die reCAPTCHA-Schwelle (minValidScore) für iPhone-Safari-PWA (Issue #32) analysieren.",
-    "Prüfen: `GEMINI_API_KEY` und `SYNC_TOKEN` als Actions-Secrets einrichten/prüfen."
-   ],
-   "veraendert": "Die Branches `dev` und `master` sind auf den neueren Commit `32e711b` synchronisiert, und die CI-Logik wurde durch mehrere Commits aktualisiert.",
-   "fragen": [
-    "Soll die Liste der 90 Dependabot-Alerts in `NEXT.md` nach den jüngsten Merges geprüft und aktualisiert werden?",
-    "Wann ist die Abnahme des iOS Mini-App Login-Problems (in `NEXT.md` gelistet) geplant?"
-   ],
-   "model": "gemini-2.5-flash"
-  },
-  "ai_at": "2026-11-24T15:12:55+00:00"
+  "ai": null,
+  "ai_at": null
  }
 }
